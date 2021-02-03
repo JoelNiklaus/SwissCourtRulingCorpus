@@ -1,4 +1,5 @@
 import json
+import re
 
 import pandas as pd
 
@@ -40,3 +41,27 @@ def save_to_path(content, path, overwrite=False):
         path.write_text(json.dumps(content))
     else:
         raise ValueError(f"Invalid data type {type(content)} supplied.")
+
+
+def get_raw_text(html) -> str:
+    """
+    Add the entire text: harder for doing sentence splitting later because of header and footer
+    :param html:
+    :return:
+    """
+
+    raw_text = html.get_text()
+    return raw_text
+
+
+def clean_text(text: str) -> str:
+    """
+    Clean text from nasty tokens
+    :param text:
+    :return:
+    """
+    text = re.sub(r"\u00a0", ' ', text)  # remove NBSP
+    text = re.sub(r"\s+", ' ', text)  # remove all new lines
+    text = re.sub(r"_+", '_', text)  # remove duplicate underscores (from anonymisations)
+    text = text.strip()  # remove leading and trailing whitespace
+    return text

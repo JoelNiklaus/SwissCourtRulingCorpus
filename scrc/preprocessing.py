@@ -8,6 +8,7 @@ import spacy
 
 # TODO obige sections zusammennehmen in einen paragraph
 # TODO unterteilen nach juristischen Kategorien und anderen
+from scrc.utils.main_utils import get_raw_text, clean_text
 
 """
 Data:
@@ -60,7 +61,9 @@ def handle_bger():
     data['title'].append(soup.title.text)  # get the title
     data['id'].append(soup.title.text.split(' ')[0])  # the first part of the title is the case id
     data['date'].append(soup.title.text.split(' ')[1])  # the second part of the title is the date
-    data['raw_text'].append(get_raw_text(divs[0]))
+    raw = get_raw_text(divs[0])
+    clean = clean_text(raw)
+    data['raw_text'].append(clean)
     paragraphs = get_paragraphs(divs[0])
     data['paragraphs'].append(paragraphs)
 
@@ -70,15 +73,7 @@ def handle_bger():
     return df
 
 
-def get_raw_text(html):
-    """
-    Add the entire text: harder for doing sentence splitting later because of header and footer
-    :param html:
-    :return:
-    """
-    raw_text = html.get_text()  # the first one contains the decision, the second one the navigation
-    raw_text = clean_text(raw_text)
-    return raw_text
+
 
 
 def get_paragraphs(html):
@@ -107,19 +102,6 @@ def get_paragraphs(html):
             if paragraph not in ['', ' ', ]:  # discard empty paragraphs
                 paragraphs.append(paragraph)
     return paragraphs
-
-
-def clean_text(text):
-    """
-    Clean text from nasty tokens
-    :param text:
-    :return:
-    """
-    text = re.sub(r"\u00a0", ' ', text)  # remove NBSP
-    text = re.sub(r"\s+", ' ', text)  # remove all new lines
-    text = re.sub(r"_+", '_', text)  # remove duplicate underscores (from anonymisations)
-    text = text.strip()  # remove leading and trailing whitespace
-    return text
 
 
 def bring_to_prodigy_format(df):
