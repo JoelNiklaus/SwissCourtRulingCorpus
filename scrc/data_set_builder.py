@@ -23,12 +23,15 @@ pd.set_option('display.width', 1000)
 
 class DataSetBuilder:
 
-    def __init__(self, data_dir):
-        self.data_dir = data_dir
+    def __init__(self, config: dict):
+        self.data_dir = ROOT_DIR / config['dir']['data_dir']
+        self.courts_dir = self.data_dir / config['dir']['courts_subdir']  # we get the input from here
+        self.csv_dir = self.data_dir / config['dir']['csv_subdir']  # we save the output to here
+        self.csv_dir.mkdir(parents=True, exist_ok=True)  # create output folder if it does not exist yet
 
     def build_dataset(self) -> pd.DataFrame:
         """ Builds the dataset for all the courts """
-        courts = glob.glob(f"{str(data_dir)}/*")  # Here we can also use regex
+        courts = glob.glob(f"{str(self.courts_dir)}/*")  # Here we can also use regex
         court_list = [Path(court).name for court in courts]
         logger.info(f"Found {len(court_list)} courts")
 
@@ -43,7 +46,7 @@ class DataSetBuilder:
         for df in df_list:
             total_df = total_df.append(df)
 
-        all_courts_csv_path = data_dir / 'all.csv'
+        all_courts_csv_path = self.csv_dir / 'all.csv'
         logger.info(f"Saving all court data to {all_courts_csv_path}")
         total_df.to_csv(all_courts_csv_path)  # also save total df to csv file
         logger.info("Building dataset finished.")
@@ -51,14 +54,14 @@ class DataSetBuilder:
 
     def build_court_dataset(self, court: str) -> pd.DataFrame:
         """ Builds a dataset for a court """
-        court_dir = data_dir / court
+        court_dir = self.courts_dir / court
         logger.info(f"Processing {court}")
         court_dict = self.build_court_dict(court_dir)
 
         logger.info("Building pandas DataFrame from dict")
         df = pd.DataFrame(court_dict)
 
-        court_csv_path = data_dir / (court + '.csv')
+        court_csv_path = self.csv_dir / (court + '.csv')
         logger.info(f"Saving court data to {court_csv_path}")
         df.to_csv(court_csv_path)  # save court to csv
 
@@ -99,9 +102,15 @@ class DataSetBuilder:
 
         return court_dict
 
+    def get_filenames_of_extension(self, court_dir: Path, extension: str) -> list:
+        """ Finds all filenames of a given extension in a given directory. """
+        filename_list = list(glob.glob(f"{str(court_dir)}/*.{extension}"))  # Here we can also use regex
+        logger.info(f"Found {len(filename_list)} {extension} files")
+        return filename_list
+
     def handle_general_information(self, court_dict, json_file):
         """Extracts the filename and the metadata from the json file"""
-        logger.info(f"Extracting content from json file: \t {json_file}")
+        logger.debug(f"Extracting content from json file: \t {json_file}")
         court_dict['filename'].append(Path(json_file).stem)
         court_dict['court'].append(Path(json_file).parent.name)
         # loading json content and saving it to 'metadata' key in dict
@@ -112,7 +121,7 @@ class DataSetBuilder:
     def handle_corresponding_html_file(self, corresponding_html_path, court_dict):
         """Extracts the html content, the raw text and the language from the html file, if it exists"""
         if corresponding_html_path.exists():  # if this court decision is available in html format
-            logger.info(f"Extracting content from html file: \t {corresponding_html_path}")
+            logger.debug(f"Extracting content from html file: \t {corresponding_html_path}")
             html_str = corresponding_html_path.read_text()  # get html string
             soup = bs4.BeautifulSoup(html_str, "html.parser")  # parse html
             html_raw = soup.get_text()  # extract raw text
@@ -126,7 +135,7 @@ class DataSetBuilder:
     def handle_corresponding_pdf_file(self, corresponding_pdf_path, court_dict):
         """Extracts the the raw text, the pdf metadata and the language from the pdf file, if it exists"""
         if corresponding_pdf_path.exists():  # if this court decision is available in pdf format
-            logger.info(f"Extracting content from pdf file: \t {corresponding_pdf_path}")
+            logger.debug(f"Extracting content from pdf file: \t {corresponding_pdf_path}")
             pdf_bytes = corresponding_pdf_path.read_bytes()
             pdf = parser.from_buffer(pdf_bytes)  # parse pdf
             pdf_raw = pdf['content'].strip()  # get content and strip leading and trailing whitespace
@@ -137,17 +146,10 @@ class DataSetBuilder:
             court_dict['pdf_raw'].append(np.nan)
             court_dict['pdf_metadata'].append(np.nan)
 
-    def get_filenames_of_extension(self, court_dir: Path, extension: str) -> list:
-        """ Finds all filenames of a given extension in a given directory. """
-        filename_list = list(glob.glob(f"{str(court_dir)}/*.{extension}"))  # Here we can also use regex
-        logger.info(f"Found {len(filename_list)} {extension} files")
-        return filename_list
-
 
 if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
-    data_dir = ROOT_DIR / config['dir']['data_dir']
 
-    data_set_builder = DataSetBuilder(data_dir)
+    data_set_builder = DataSetBuilder(config)
     df = data_set_builder.build_dataset()

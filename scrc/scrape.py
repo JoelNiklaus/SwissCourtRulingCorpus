@@ -72,5 +72,6 @@ if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
     data_dir = ROOT_DIR / config['dir']['data_dir']
+    courts_dir = data_dir / config['dir']['courts_subdir']
 
-    download_subfolders(base_url + "docs/", data_dir)
+    download_subfolders(base_url + "docs/", courts_dir)
