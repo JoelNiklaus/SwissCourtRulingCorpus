@@ -37,13 +37,15 @@ class DataSetBuilder:
 
         # process each court in its own process to speed up this creation by a lot!
         pool = multiprocessing.Pool()
-        df_list = pool.map(self.build_court_dataset, court_list)
+        pool.map(self.build_court_dataset, court_list)
         pool.close()
 
         # build total df from individual court dfs
         total_df = pd.DataFrame()
         logger.info("Combining all individual court dataframes")
-        for df in df_list:
+        for court in court_list:
+            logger.info(f"Processing court {court}")
+            df = pd.read_csv(self.csv_dir / (court + '.csv'))
             total_df = total_df.append(df)
 
         all_courts_csv_path = self.csv_dir / 'all.csv'
@@ -102,13 +104,15 @@ class DataSetBuilder:
 
         return court_dict
 
-    def get_filenames_of_extension(self, court_dir: Path, extension: str) -> list:
+    @staticmethod
+    def get_filenames_of_extension(court_dir: Path, extension: str) -> list:
         """ Finds all filenames of a given extension in a given directory. """
         filename_list = list(glob.glob(f"{str(court_dir)}/*.{extension}"))  # Here we can also use regex
         logger.info(f"Found {len(filename_list)} {extension} files")
         return filename_list
 
-    def handle_general_information(self, court_dict, json_file):
+    @staticmethod
+    def handle_general_information(court_dict, json_file):
         """Extracts the filename and the metadata from the json file"""
         logger.debug(f"Extracting content from json file: \t {json_file}")
         court_dict['filename'].append(Path(json_file).stem)
@@ -118,7 +122,8 @@ class DataSetBuilder:
             data = json.load(f)
             court_dict['metadata'].append(data)
 
-    def handle_corresponding_html_file(self, corresponding_html_path, court_dict):
+    @staticmethod
+    def handle_corresponding_html_file(corresponding_html_path, court_dict):
         """Extracts the html content, the raw text and the language from the html file, if it exists"""
         if corresponding_html_path.exists():  # if this court decision is available in html format
             logger.debug(f"Extracting content from html file: \t {corresponding_html_path}")
@@ -132,7 +137,8 @@ class DataSetBuilder:
             court_dict['html_content'].append(np.nan)
             court_dict['html_raw'].append(np.nan)
 
-    def handle_corresponding_pdf_file(self, corresponding_pdf_path, court_dict):
+    @staticmethod
+    def handle_corresponding_pdf_file(corresponding_pdf_path, court_dict):
         """Extracts the the raw text, the pdf metadata and the language from the pdf file, if it exists"""
         if corresponding_pdf_path.exists():  # if this court decision is available in pdf format
             logger.debug(f"Extracting content from pdf file: \t {corresponding_pdf_path}")
