@@ -29,7 +29,7 @@ class DataSetBuilder:
         self.csv_dir = self.data_dir / config['dir']['csv_subdir']  # we save the output to here
         self.csv_dir.mkdir(parents=True, exist_ok=True)  # create output folder if it does not exist yet
 
-    def build_dataset(self) -> pd.DataFrame:
+    def build_dataset(self) -> None:
         """ Builds the dataset for all the courts """
         courts = glob.glob(f"{str(self.courts_dir)}/*")  # Here we can also use regex
         court_list = [Path(court).name for court in courts]
@@ -52,10 +52,14 @@ class DataSetBuilder:
         logger.info(f"Saving all court data to {all_courts_csv_path}")
         total_df.to_csv(all_courts_csv_path)  # also save total df to csv file
         logger.info("Building dataset finished.")
-        return total_df
 
-    def build_court_dataset(self, court: str) -> pd.DataFrame:
+    def build_court_dataset(self, court: str) -> None:
         """ Builds a dataset for a court """
+        court_csv_path = self.csv_dir / (court + '.csv')
+        if court_csv_path.exists():
+            logger.info(f"Skipping court {court}. CSV file already exists.")
+            return
+
         court_dir = self.courts_dir / court
         logger.info(f"Processing {court}")
         court_dict = self.build_court_dict(court_dir)
@@ -63,11 +67,8 @@ class DataSetBuilder:
         logger.info("Building pandas DataFrame from dict")
         df = pd.DataFrame(court_dict)
 
-        court_csv_path = self.csv_dir / (court + '.csv')
         logger.info(f"Saving court data to {court_csv_path}")
         df.to_csv(court_csv_path)  # save court to csv
-
-        return df
 
     def build_court_dict(self, court_dir: Path) -> dict:
         """ Builds the court dict which we can convert to a pandas Data Frame later """
@@ -158,4 +159,4 @@ if __name__ == '__main__':
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
 
     data_set_builder = DataSetBuilder(config)
-    df = data_set_builder.build_dataset()
+    data_set_builder.build_dataset()
