@@ -135,6 +135,7 @@ class DataSetBuilder:
         if corresponding_html_path.exists():  # if this court decision is available in html format
             logger.debug(f"Extracting content from html file: \t {corresponding_html_path}")
             html_str = corresponding_html_path.read_text()  # get html string
+            assert html_str is not None and html_str is not ''
             soup = bs4.BeautifulSoup(html_str, "html.parser")  # parse html
             html_raw = soup.get_text()  # extract raw text
             court_dict['html_content'].append(html_str)
@@ -151,10 +152,17 @@ class DataSetBuilder:
             logger.debug(f"Extracting content from pdf file: \t {corresponding_pdf_path}")
             pdf_bytes = corresponding_pdf_path.read_bytes()
             pdf = parser.from_buffer(pdf_bytes)  # parse pdf
-            pdf_raw = pdf['content'].strip()  # get content and strip leading and trailing whitespace
+            pdf_raw = pdf['content']  # get content
+            if pdf['content'] is not None:
+                pdf_raw = pdf_raw.strip()  # strip leading and trailing whitespace
+                metadata = pdf['metadata']  # get metadata
+                lang = LANGUAGE.get_lang(pdf_raw)
+            else:
+                logger.error(f"PDF file {corresponding_pdf_path} is empty.")
+                pdf_raw, metadata, lang = np.nan, np.nan, np.nan  # set all values to NaN
             court_dict['pdf_raw'].append(pdf_raw)
-            court_dict['pdf_metadata'].append(pdf['metadata'])  # get metadata
-            court_dict['language'].append(LANGUAGE.get_lang(pdf_raw))
+            court_dict['pdf_metadata'].append(metadata)
+            court_dict['language'].append(lang)
         else:  # append np.nan values to make sure that lists have equal size
             court_dict['pdf_raw'].append(np.nan)
             court_dict['pdf_metadata'].append(np.nan)

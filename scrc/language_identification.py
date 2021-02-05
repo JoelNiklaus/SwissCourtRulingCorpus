@@ -15,11 +15,11 @@ class LanguageIdentification:
     compressed_model_url = 'lid.176.ftz'  # compressed version of the model (file size=917kB)
     temp_path = "/tmp"
 
-    def __init__(self, model='compressed'):
+    def __init__(self, model: str = 'compressed'):
         model_path = self.download_model(model)
         self.model = fasttext.load_model(str(model_path))
 
-    def download_model(self, model='compressed') -> Path:
+    def download_model(self, model: str = 'compressed') -> Path:
         """ Downloads the model if it does not exist yet and returns the path to the model """
         if model == 'compressed':
             chosen_model = self.compressed_model_url
@@ -39,13 +39,14 @@ class LanguageIdentification:
             logger.info(f"{model} model already exists in {model_path}")
         return model_path
 
-    def predict_lang(self, text, k=5):
+    def predict_lang(self, text: str, k: int = 5):
         """IMPORTANT: expects input to be encoded as UTF-8!"""
+        assert isinstance(text, str)
         text = re.sub(r"(\r\n|\r|\n)", ' ', text)  # remove all new lines
         predictions = self.model.predict(text, k)  # returns top k matching languages
         return predictions
 
-    def get_lang(self, text):
+    def get_lang(self, text: str) -> str:
         """This method can be used to just get the top scoring language directly without probabilities"""
         return self.predict_lang(text, k=1)[0][0][9:]
 
