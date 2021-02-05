@@ -2,6 +2,7 @@ import configparser
 import glob
 import json
 import multiprocessing
+from json import JSONDecodeError
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -120,7 +121,12 @@ class DataSetBuilder:
         court_dict['court'].append(Path(json_file).parent.name)
         # loading json content and saving it to 'metadata' key in dict
         with open(json_file) as f:
-            data = json.load(f)
+            try:
+                data = json.load(f)
+            except JSONDecodeError as e:
+                logger.error(f"Error in file {json_file}: ", e)
+                logger.info(f"Saving NaN to the metadata column.")
+                data = np.nan
             court_dict['metadata'].append(data)
 
     @staticmethod
