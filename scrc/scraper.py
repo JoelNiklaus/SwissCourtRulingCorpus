@@ -9,6 +9,10 @@ from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import save_to_path
 
+from multiprocessing import set_start_method
+
+set_start_method("spawn")  # see https://pythonspeed.com/articles/python-multiprocessing/ for more information
+
 base_url = "https://entscheidsuche.ch/"
 
 supported_suffixes = ['.htm', '.html', '.pdf', '.txt', '.json']
