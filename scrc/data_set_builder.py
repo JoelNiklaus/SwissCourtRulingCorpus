@@ -13,10 +13,6 @@ from root import ROOT_DIR
 from scrc.language_identification import LanguageIdentification
 from scrc.utils.log_utils import get_logger
 
-from multiprocessing import set_start_method
-
-set_start_method("spawn")  # see https://pythonspeed.com/articles/python-multiprocessing/ for more information
-
 logger = get_logger(__name__)
 
 LANGUAGE = LanguageIdentification()
