@@ -23,6 +23,10 @@ pd.set_option('display.width', 1000)
 
 
 class DataSetBuilder:
+    """
+    Extracts the textual and meta information from the court rulings files and saves it in csv files for each court
+    and in one for all courts combined
+    """
 
     def __init__(self, config: dict):
         self.data_dir = ROOT_DIR / config['dir']['data_dir']
@@ -41,18 +45,20 @@ class DataSetBuilder:
         pool.map(self.build_court_dataset, court_list)
         pool.close()
 
-        # build total df from individual court dfs
-        total_df = pd.DataFrame()
-        logger.info("Combining all individual court dataframes")
-        for court in court_list:
+        self.combine_courts(court_list)
+        logger.info("Building dataset finished.")
+
+    def combine_courts(self, court_list) -> None:
+        """build total df from individual court dfs"""
+        all_courts_csv_path = self.csv_dir / '_all.csv'
+        logger.info(f"Combining all individual court dataframes and saving to {all_courts_csv_path}")
+        for i, court in enumerate(court_list):
+            mode, header = 'a', False  # normally append and don't add column names
+            if i == 0:  # if we are processing the first court
+                mode, header = 'w', True  # for the first one: normal write mode and add column names
             logger.info(f"Processing court {court}")
             df = pd.read_csv(self.csv_dir / (court + '.csv'))
-            total_df = total_df.append(df)
-
-        all_courts_csv_path = self.csv_dir / 'all.csv'
-        logger.info(f"Saving all court data to {all_courts_csv_path}")
-        total_df.to_csv(all_courts_csv_path)  # also save total df to csv file
-        logger.info("Building dataset finished.")
+            df.to_csv(all_courts_csv_path, mode=mode, header=header)
 
     def build_court_dataset(self, court: str) -> None:
         """ Builds a dataset for a court """
