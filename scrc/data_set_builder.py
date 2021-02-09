@@ -63,48 +63,69 @@ class DataSetBuilder:
 
         court_dir = self.courts_dir / court
         logger.info(f"Processing {court}")
-        court_dict = self.build_court_dict(court_dir)
+        court_dict_list = self.build_court_dict_list(court_dir)
 
-        logger.info("Building pandas DataFrame from dict")
-        df = pd.DataFrame(court_dict)
+        logger.info("Building pandas DataFrame from list of dicts")
+        df = pd.DataFrame(court_dict_list)
 
         logger.info(f"Saving court data to {court_csv_path}")
         df.to_csv(court_csv_path)  # save court to csv
 
-    def build_court_dict(self, court_dir: Path) -> dict:
-        """ Builds the court dict which we can convert to a pandas Data Frame later """
-        court_dict = {
-            "filename": [],
-            "court": [],
-            "metadata": [],
-            "language": [],
-            "html_content": [],
-            "html_raw": [],
-            #        "html_clean": [],
-            "pdf_raw": [],
-            #        "pdf_clean": [],
-            "pdf_metadata": [],
-        }
+    def build_court_dict_list(self, court_dir: Path) -> list:
+        """ Builds the court dict list which we can convert to a pandas Data Frame later """
+        court_dict_list = []
 
         # we take the json files as a starting point to get the corresponding html or pdf files
         json_filenames = self.get_filenames_of_extension(court_dir, 'json')
         for json_file in json_filenames:
-            corresponding_pdf_path = Path(json_file).with_suffix('.pdf')
-            corresponding_html_path = Path(json_file).with_suffix('.html')
+            court_dict_list.extend(self.build_court_dict(json_file))  # add all list items
 
-            # if we have a court decision corresponding to that found json file
-            if corresponding_html_path.exists() or corresponding_pdf_path.exists():
-                self.handle_general_information(court_dict, json_file)
-            else:
-                continue  # skip the remaining part since we know already that there is no court decision available
+        return court_dict_list
 
-            self.handle_corresponding_pdf_file(corresponding_pdf_path, court_dict)
+    def build_court_dict(self, json_file: str) -> list:
+        """Extracts the information from all the available files"""
+        corresponding_pdf_path = Path(json_file).with_suffix('.pdf')
+        corresponding_html_path = Path(json_file).with_suffix('.html')
+        # if we DO NOT have a court decision corresponding to that found json file
+        if not corresponding_html_path.exists() and not corresponding_pdf_path.exists():
+            logger.warn(f"No court decision found for json file {json_file}")
+            return []  # skip the remaining part since we know already that there is no court decision available
+        else:
+            court_dict_template = {
+                "filename": np.nan,
+                "court": np.nan,
+                "metadata": np.nan,
+                "language": np.nan,
+                "html_content": np.nan,
+                "html_raw": np.nan,
+                "html_clean": np.nan,  # will remain empty for now
+                "pdf_raw": np.nan,
+                "pdf_clean": np.nan,  # will remain empty for now
+                "pdf_metadata": np.nan,
+            }
+            general_info = self.extract_general_info(json_file)
 
-            # html processing takes place after the pdf processing because it is a bit more reliably
-            # and in case both html and pdfs are present (e.g. AG_Gerichte) the language is overwritten here
-            self.handle_corresponding_html_file(corresponding_html_path, court_dict)
+            court_dict_list = []
 
-        return court_dict
+            pdf_content_dict = self.extract_corresponding_pdf_content(corresponding_pdf_path, court_dict_template)
+            if pdf_content_dict is not None:  # if it could be parsed correctly
+                # add general info
+                pdf_dict = dict(court_dict_template, **general_info)
+
+                # add pdf content
+                pdf_dict = dict(pdf_dict, **pdf_content_dict)
+                court_dict_list.append(pdf_dict)
+
+            html_content_dict = self.extract_corresponding_html_content(corresponding_html_path, court_dict_template)
+            if html_content_dict is not None:  # if it could be parsed correctly
+                # add general info
+                html_dict = dict(court_dict_template, **general_info)
+
+                # add html content
+                html_dict = dict(html_dict, **html_content_dict)
+                court_dict_list.append(html_dict)
+
+            return court_dict_list
 
     @staticmethod
     def get_filenames_of_extension(court_dir: Path, extension: str) -> list:
@@ -114,58 +135,53 @@ class DataSetBuilder:
         return filename_list
 
     @staticmethod
-    def handle_general_information(court_dict, json_file):
+    def extract_general_info(json_file) -> dict:
         """Extracts the filename and the metadata from the json file"""
         logger.debug(f"Extracting content from json file: \t {json_file}")
-        court_dict['filename'].append(Path(json_file).stem)
-        court_dict['court'].append(Path(json_file).parent.name)
+        filename = Path(json_file).stem
+        court = Path(json_file).parent.name
         # loading json content and saving it to 'metadata' key in dict
         with open(json_file) as f:
             try:
-                data = json.load(f)
+                metadata = json.load(f)
             except JSONDecodeError as e:
                 logger.error(f"Error in file {json_file}: ", e)
                 logger.info(f"Saving NaN to the metadata column.")
-                data = np.nan
-            court_dict['metadata'].append(data)
+                metadata = np.nan
+        return {"filename": filename, "court": court, "metadata": metadata}
 
     @staticmethod
-    def handle_corresponding_html_file(corresponding_html_path, court_dict):
+    def extract_corresponding_html_content(corresponding_html_path, court_dict):
         """Extracts the html content, the raw text and the language from the html file, if it exists"""
-        if corresponding_html_path.exists():  # if this court decision is available in html format
+        if not corresponding_html_path.exists():  # if this court decision is NOT available in html format
+            return None
+        else:
             logger.debug(f"Extracting content from html file: \t {corresponding_html_path}")
-            html_str = corresponding_html_path.read_text()  # get html string
-            assert html_str is not None and html_str is not ''
-            soup = bs4.BeautifulSoup(html_str, "html.parser")  # parse html
+            html_content = corresponding_html_path.read_text()  # get html string
+            assert html_content is not None and html_content != ''
+            soup = bs4.BeautifulSoup(html_content, "html.parser")  # parse html
             html_raw = soup.get_text()  # extract raw text
-            court_dict['html_content'].append(html_str)
-            court_dict['html_raw'].append(html_raw)
-            court_dict['language'].append(LANGUAGE.get_lang(html_raw))
-        else:  # append np.nan values to make sure that lists have equal size
-            court_dict['html_content'].append(np.nan)
-            court_dict['html_raw'].append(np.nan)
+            language = LANGUAGE.get_lang(html_raw)
+            return {"html_content": html_content, "html_raw": html_raw, "language": language}
 
     @staticmethod
-    def handle_corresponding_pdf_file(corresponding_pdf_path, court_dict):
+    def extract_corresponding_pdf_content(corresponding_pdf_path, court_dict):
         """Extracts the the raw text, the pdf metadata and the language from the pdf file, if it exists"""
-        if corresponding_pdf_path.exists():  # if this court decision is available in pdf format
+        if not corresponding_pdf_path.exists():  # if this court decision is NOT available in pdf format
+            return None
+        else:
             logger.debug(f"Extracting content from pdf file: \t {corresponding_pdf_path}")
             pdf_bytes = corresponding_pdf_path.read_bytes()
             pdf = parser.from_buffer(pdf_bytes)  # parse pdf
             pdf_raw = pdf['content']  # get content
-            if pdf['content'] is not None:
-                pdf_raw = pdf_raw.strip()  # strip leading and trailing whitespace
-                metadata = pdf['metadata']  # get metadata
-                lang = LANGUAGE.get_lang(pdf_raw)
-            else:
+            if pdf['content'] is None:
                 logger.error(f"PDF file {corresponding_pdf_path} is empty.")
-                pdf_raw, metadata, lang = np.nan, np.nan, np.nan  # set all values to NaN
-            court_dict['pdf_raw'].append(pdf_raw)
-            court_dict['pdf_metadata'].append(metadata)
-            court_dict['language'].append(lang)
-        else:  # append np.nan values to make sure that lists have equal size
-            court_dict['pdf_raw'].append(np.nan)
-            court_dict['pdf_metadata'].append(np.nan)
+                return None
+            else:
+                pdf_raw = pdf_raw.strip()  # strip leading and trailing whitespace
+                pdf_metadata = pdf['metadata']  # get metadata
+                language = LANGUAGE.get_lang(pdf_raw)
+                return {'pdf_raw': pdf_raw, 'pdf_metadata': pdf_metadata, 'language': language}
 
 
 if __name__ == '__main__':
