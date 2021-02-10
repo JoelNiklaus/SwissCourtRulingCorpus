@@ -4,6 +4,8 @@ import json
 import multiprocessing
 from json import JSONDecodeError
 from pathlib import Path
+from typing import Optional
+
 import pandas as pd
 import numpy as np
 import bs4
@@ -87,18 +89,20 @@ class DataSetBuilder:
         # we take the json files as a starting point to get the corresponding html or pdf files
         json_filenames = self.get_filenames_of_extension(court_dir, 'json')
         for json_file in json_filenames:
-            court_dict_list.extend(self.build_court_dict(json_file))  # add all list items
+            court_dict = self.build_court_dict(json_file)
+            if court_dict:
+                court_dict_list.append(court_dict)
 
         return court_dict_list
 
-    def build_court_dict(self, json_file: str) -> list:
+    def build_court_dict(self, json_file: str) -> Optional[dict]:
         """Extracts the information from all the available files"""
         corresponding_pdf_path = Path(json_file).with_suffix('.pdf')
         corresponding_html_path = Path(json_file).with_suffix('.html')
         # if we DO NOT have a court decision corresponding to that found json file
         if not corresponding_html_path.exists() and not corresponding_pdf_path.exists():
-            logger.warn(f"No court decision found for json file {json_file}")
-            return []  # skip the remaining part since we know already that there is no court decision available
+            logger.warning(f"No court decision found for json file {json_file}")
+            return None  # skip the remaining part since we know already that there is no court decision available
         else:
             court_dict_template = {
                 "filename": '',
@@ -113,27 +117,22 @@ class DataSetBuilder:
             }
             general_info = self.extract_general_info(json_file)
 
-            court_dict_list = []
+            # add general info
+            court_dict = dict(court_dict_template, **general_info)
 
-            pdf_content_dict = self.extract_corresponding_pdf_content(corresponding_pdf_path, court_dict_template)
+            pdf_content_dict = self.extract_corresponding_pdf_content(corresponding_pdf_path)
             if pdf_content_dict is not None:  # if it could be parsed correctly
-                # add general info
-                pdf_dict = dict(court_dict_template, **general_info)
-
                 # add pdf content
-                pdf_dict = dict(pdf_dict, **pdf_content_dict)
-                court_dict_list.append(pdf_dict)
+                court_dict = dict(court_dict, **pdf_content_dict)
 
-            html_content_dict = self.extract_corresponding_html_content(corresponding_html_path, court_dict_template)
+            # ATTENTION: If both files exist:
+            # html_content_dict will override language from pdf_content_dict because it is more reliable
+            html_content_dict = self.extract_corresponding_html_content(corresponding_html_path)
             if html_content_dict is not None:  # if it could be parsed correctly
-                # add general info
-                html_dict = dict(court_dict_template, **general_info)
-
                 # add html content
-                html_dict = dict(html_dict, **html_content_dict)
-                court_dict_list.append(html_dict)
+                court_dict = dict(court_dict, **html_content_dict)  # may override language added from pdf_content_dict
 
-            return court_dict_list
+            return court_dict
 
     @staticmethod
     def get_filenames_of_extension(court_dir: Path, extension: str) -> list:
@@ -159,7 +158,7 @@ class DataSetBuilder:
         return {"filename": filename, "court": court, "metadata": metadata}
 
     @staticmethod
-    def extract_corresponding_html_content(corresponding_html_path, court_dict):
+    def extract_corresponding_html_content(corresponding_html_path) -> Optional[dict]:
         """Extracts the html content, the raw text and the language from the html file, if it exists"""
         if not corresponding_html_path.exists():  # if this court decision is NOT available in html format
             return None
@@ -173,7 +172,7 @@ class DataSetBuilder:
             return {"html_content": html_content, "html_raw": html_raw, "language": language}
 
     @staticmethod
-    def extract_corresponding_pdf_content(corresponding_pdf_path, court_dict):
+    def extract_corresponding_pdf_content(corresponding_pdf_path) -> Optional[dict]:
         """Extracts the the raw text, the pdf metadata and the language from the pdf file, if it exists"""
         if not corresponding_pdf_path.exists():  # if this court decision is NOT available in pdf format
             return None
