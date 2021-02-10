@@ -33,6 +33,7 @@ class DataSetBuilder:
         self.courts_dir = self.data_dir / config['dir']['courts_subdir']  # we get the input from here
         self.csv_dir = self.data_dir / config['dir']['csv_subdir']  # we save the output to here
         self.csv_dir.mkdir(parents=True, exist_ok=True)  # create output folder if it does not exist yet
+        self.all_courts_csv_path = self.csv_dir / '_all.csv'
 
     def build_dataset(self) -> None:
         """ Builds the dataset for all the courts """
@@ -50,15 +51,17 @@ class DataSetBuilder:
 
     def combine_courts(self, court_list) -> None:
         """build total df from individual court dfs"""
-        all_courts_csv_path = self.csv_dir / '_all.csv'
-        logger.info(f"Combining all individual court dataframes and saving to {all_courts_csv_path}")
+        if self.all_courts_csv_path.exists():  # Delete the combined file in order to recreate it.
+            logger.info(f"Combined csv file already exists at {self.all_courts_csv_path}")
+            return
+        logger.info(f"Combining all individual court dataframes and saving to {self.all_courts_csv_path}")
         for i, court in enumerate(court_list):
             mode, header = 'a', False  # normally append and don't add column names
             if i == 0:  # if we are processing the first court
                 mode, header = 'w', True  # for the first one: normal write mode and add column names
             logger.info(f"Processing court {court}")
             df = pd.read_csv(self.csv_dir / (court + '.csv'))
-            df.to_csv(all_courts_csv_path, mode=mode, header=header)
+            df.to_csv(self.all_courts_csv_path, mode=mode, header=header, index=False)
 
     def build_court_dataset(self, court: str) -> None:
         """ Builds a dataset for a court """
@@ -75,7 +78,7 @@ class DataSetBuilder:
         df = pd.DataFrame(court_dict_list)
 
         logger.info(f"Saving court data to {court_csv_path}")
-        df.to_csv(court_csv_path)  # save court to csv
+        df.to_csv(court_csv_path, index=False)  # save court to csv
 
     def build_court_dict_list(self, court_dir: Path) -> list:
         """ Builds the court dict list which we can convert to a pandas Data Frame later """
@@ -98,16 +101,15 @@ class DataSetBuilder:
             return []  # skip the remaining part since we know already that there is no court decision available
         else:
             court_dict_template = {
-                "filename": np.nan,
-                "court": np.nan,
-                "metadata": np.nan,
-                "language": np.nan,
-                "html_content": np.nan,
-                "html_raw": np.nan,
-                "html_clean": np.nan,  # will remain empty for now
-                "pdf_raw": np.nan,
-                "pdf_clean": np.nan,  # will remain empty for now
-                "pdf_metadata": np.nan,
+                "filename": '',
+                "court": '',
+                "metadata": '',
+                "language": '',
+                "html_content": '',
+                "html_raw": '',
+                "html_clean": '',  # will remain empty for now
+                "pdf_raw": '',
+                "pdf_clean": '',  # will remain empty for now
             }
             general_info = self.extract_general_info(json_file)
 
@@ -153,7 +155,7 @@ class DataSetBuilder:
             except JSONDecodeError as e:
                 logger.error(f"Error in file {json_file}: ", e)
                 logger.info(f"Saving NaN to the metadata column.")
-                metadata = np.nan
+                metadata = ''
         return {"filename": filename, "court": court, "metadata": metadata}
 
     @staticmethod
@@ -185,9 +187,8 @@ class DataSetBuilder:
                 return None
             else:
                 pdf_raw = pdf_raw.strip()  # strip leading and trailing whitespace
-                pdf_metadata = pdf['metadata']  # get metadata
                 language = LANGUAGE.get_lang(pdf_raw)
-                return {'pdf_raw': pdf_raw, 'pdf_metadata': pdf_metadata, 'language': language}
+                return {'pdf_raw': pdf_raw, 'language': language}
 
 
 if __name__ == '__main__':
