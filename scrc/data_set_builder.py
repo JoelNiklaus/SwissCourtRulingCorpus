@@ -3,6 +3,7 @@ import glob
 import json
 import multiprocessing
 from json import JSONDecodeError
+from os.path import exists
 from pathlib import Path
 from typing import Optional
 
@@ -36,6 +37,8 @@ class DataSetBuilder:
         self.csv_dir = self.data_dir / config['dir']['csv_subdir']  # we save the output to here
         self.csv_dir.mkdir(parents=True, exist_ok=True)  # create output folder if it does not exist yet
         self.all_courts_csv_path = self.csv_dir / '_all.csv'
+        self.languages = ['de', 'fr', 'it']
+        self.language_csv_paths = {language: self.csv_dir / f'_{language}.csv' for language in self.languages}
 
     def build_dataset(self) -> None:
         """ Builds the dataset for all the courts """
@@ -53,17 +56,40 @@ class DataSetBuilder:
 
     def combine_courts(self, court_list) -> None:
         """build total df from individual court dfs"""
+        combined_already_created, languages_already_created = False, False
         if self.all_courts_csv_path.exists():  # Delete the combined file in order to recreate it.
             logger.info(f"Combined csv file already exists at {self.all_courts_csv_path}")
-            return
-        logger.info(f"Combining all individual court dataframes and saving to {self.all_courts_csv_path}")
-        for i, court in enumerate(court_list):
-            mode, header = 'a', False  # normally append and don't add column names
-            if i == 0:  # if we are processing the first court
-                mode, header = 'w', True  # for the first one: normal write mode and add column names
-            logger.info(f"Adding court {court} to combined file")
-            df = pd.read_csv(self.csv_dir / (court + '.csv'))
-            df.to_csv(self.all_courts_csv_path, mode=mode, header=header, index=False)
+            combined_already_created = True
+        else:
+            logger.info(f"Combining all individual court dataframes and saving to {self.all_courts_csv_path.name}")
+
+        # Delete at least one of the language aggregated files in order to recreate them
+        if all(map(exists, self.language_csv_paths.values())):
+            logger.info(f"Language aggregated csv files already exist")
+            languages_already_created = True
+        else:
+            logger.info("Splitting individual court dataframes by language and saving to _{lang}.csv")
+
+        for court in court_list:
+            df = pd.read_csv(self.csv_dir / (court + '.csv'))  # read df of court
+
+            if not combined_already_created:  # if we still need create the combined file
+                logger.info(f"Adding court {court} to combined file")
+                self.append_court_to_agg_file(df, self.all_courts_csv_path)  # add full df to file containing everything
+
+            if not languages_already_created:  # if we still need create the language aggregated files
+                logger.info(f"Adding court {court} to language aggregated files")
+                for lang in self.languages:
+                    lang_df = df[df['language'].str.match(lang)]  # select only decisions by language
+                    self.append_court_to_agg_file(lang_df, self.language_csv_paths[lang])
+
+    @staticmethod
+    def append_court_to_agg_file(df, path) -> None:
+        """Appends a given df to a given aggregated csv file"""
+        mode, header = 'a', False  # normally append and don't add column names
+        if not path.exists():  # if the combined file does not exist yet
+            mode, header = 'w', True  # => normal write mode and add column names
+        df.to_csv(path, mode=mode, header=header, index=False)
 
     def build_court_dataset(self, court: str) -> None:
         """ Builds a dataset for a court """
