@@ -80,7 +80,7 @@ class DataSetBuilder:
             if not languages_already_created:  # if we still need create the language aggregated files
                 logger.info(f"Adding court {court} to language aggregated files")
                 for lang in self.languages:
-                    lang_df = df[df['language'].str.match(lang)]  # select only decisions by language
+                    lang_df = df[df['language'].str.contains(lang, na=False)]  # select only decisions by language
                     self.append_court_to_agg_file(lang_df, self.language_csv_paths[lang])
 
     @staticmethod
