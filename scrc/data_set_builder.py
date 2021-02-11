@@ -61,7 +61,7 @@ class DataSetBuilder:
             mode, header = 'a', False  # normally append and don't add column names
             if i == 0:  # if we are processing the first court
                 mode, header = 'w', True  # for the first one: normal write mode and add column names
-            logger.info(f"Processing court {court}")
+            logger.info(f"Adding court {court} to combined file")
             df = pd.read_csv(self.csv_dir / (court + '.csv'))
             df.to_csv(self.all_courts_csv_path, mode=mode, header=header, index=False)
 
@@ -73,7 +73,7 @@ class DataSetBuilder:
             return
 
         court_dir = self.courts_dir / court
-        logger.info(f"Processing {court}")
+        logger.info(f"Building court dataset for {court}")
         court_dict_list = self.build_court_dict_list(court_dir)
 
         logger.info("Building pandas DataFrame from list of dicts")
