@@ -135,7 +135,6 @@ class DataSetBuilder:
                 "court": '',
                 "metadata": '',
                 "language": '',
-                "html_content": '',
                 "html_raw": '',
                 "html_clean": '',  # will remain empty for now
                 "pdf_raw": '',
@@ -190,12 +189,12 @@ class DataSetBuilder:
             return None
         else:
             logger.debug(f"Extracting content from html file: \t {corresponding_html_path}")
-            html_content = corresponding_html_path.read_text()  # get html string
-            assert html_content is not None and html_content != ''
-            soup = bs4.BeautifulSoup(html_content, "html.parser")  # parse html
-            html_raw = soup.get_text()  # extract raw text
-            language = LANGUAGE.get_lang(html_raw)
-            return {"html_content": html_content, "html_raw": html_raw, "language": language}
+            html_raw = corresponding_html_path.read_text()  # get html string
+            assert html_raw is not None and html_raw != ''
+            soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
+            assert soup.find()  # make sure it is valid html
+            language = LANGUAGE.get_lang(soup.get_text())
+            return {"html_raw": html_raw, "language": language}
 
     @staticmethod
     def extract_corresponding_pdf_content(corresponding_pdf_path) -> Optional[dict]:
