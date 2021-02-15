@@ -131,9 +131,11 @@ class DataSetBuilder:
             return None  # skip the remaining part since we know already that there is no court decision available
         else:
             court_dict_template = {
-                "filename": '',
                 "court": '',
-                "metadata": '',
+                "file_name": '',
+                "file_number": '',
+                "url": '',
+                "date": '',
                 "language": '',
                 "html_raw": '',
                 "html_clean": '',  # will remain empty for now
@@ -168,19 +170,31 @@ class DataSetBuilder:
 
     @staticmethod
     def extract_general_info(json_file) -> dict:
-        """Extracts the filename and the metadata from the json file"""
+        """Extracts the filename and court from the file path and metadata from the json file"""
         logger.debug(f"Extracting content from json file: \t {json_file}")
-        filename = Path(json_file).stem
         court = Path(json_file).parent.name
+        file_name = Path(json_file).stem
         # loading json content and saving it to 'metadata' key in dict
         with open(json_file) as f:
             try:
                 metadata = json.load(f)
+                if 'Num' in metadata:
+                    file_number = metadata['Num'][0]
+                else:
+                    logger.warning("Cannot extract file_number from metadata.")
+                if 'PDF' in metadata:
+                    url = metadata['PDF']['URL']
+                elif 'HTML' in metadata:
+                    url = metadata['HTML']['URL']
+                else:
+                    logger.warning("Cannot extract url from metadata.")
+                if 'Datum' in metadata:
+                    date = metadata['Datum']
+                else:
+                    logger.warning("Cannot extract date from metadata.")
             except JSONDecodeError as e:
-                logger.error(f"Error in file {json_file}: ", e)
-                logger.info(f"Saving NaN to the metadata column.")
-                metadata = ''
-        return {"filename": filename, "court": court, "metadata": metadata}
+                logger.error(f"Error in file {json_file}: {e}. Cannot extract file_number, url and date.")
+        return {"court": court, "file_name": file_name, "file_number": file_number, "url": url, "date": date}
 
     @staticmethod
     def extract_corresponding_html_content(corresponding_html_path) -> Optional[dict]:
