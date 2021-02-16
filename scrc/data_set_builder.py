@@ -10,6 +10,7 @@ from typing import Optional
 import pandas as pd
 import numpy as np
 import bs4
+import requests
 from tika import parser
 
 from root import ROOT_DIR
@@ -217,8 +218,11 @@ class DataSetBuilder:
             return None
         else:
             logger.debug(f"Extracting content from pdf file: \t {corresponding_pdf_path}")
-            pdf_bytes = corresponding_pdf_path.read_bytes()
-            pdf = parser.from_buffer(pdf_bytes)  # parse pdf
+            try:
+                pdf = parser.from_file(str(corresponding_pdf_path), requestOptions={'timeout': 300})  # parse pdf
+            except requests.exceptions.ReadTimeout as e:
+                logger.error(f"Timeout error occurred for PDF file {corresponding_pdf_path}: {e}")
+                return None
             pdf_raw = pdf['content']  # get content
             if pdf['content'] is None:
                 logger.error(f"PDF file {corresponding_pdf_path} is empty.")
