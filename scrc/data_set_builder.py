@@ -132,7 +132,9 @@ class DataSetBuilder:
             return None  # skip the remaining part since we know already that there is no court decision available
         else:
             court_dict_template = {
-                "court": '',
+                "court_class": '',
+                "court_id": '',
+                "canton": '',
                 "file_name": '',
                 "file_number": '',
                 "file_number_additional": '',
@@ -174,16 +176,23 @@ class DataSetBuilder:
     def extract_general_info(json_file) -> dict:
         """Extracts the filename and court from the file path and metadata from the json file"""
         logger.debug(f"Extracting content from json file: \t {json_file}")
-        general_info = {'court': Path(json_file).parent.name, 'file_name': Path(json_file).stem}
+        general_info = {'court_class': Path(json_file).parent.name, 'file_name': Path(json_file).stem}
         # loading json content and and extracting relevant metadata
         with open(json_file) as f:
             try:
                 metadata = json.load(f)
+                if 'Signatur' in metadata:
+                    general_info['court_id'] = metadata['Signatur']
+                    # the first two letters always represent the cantonal level (CH for the federation)
+                    general_info['canton'] = metadata['Signatur'][:2]
+                else:
+                    logger.warning("Cannot extract court_id from metadata.")
                 if 'Num' in metadata:
                     file_numbers = metadata['Num']
                     if file_numbers:  # if there is at least one entry
                         general_info['file_number'] = file_numbers[0]
                     if len(file_numbers) >= 2:  # if there are even two entries (disregard if there are more)
+                        # This is to be expected in BVGEer, BGE and BSTG
                         general_info['file_number_additional'] = file_numbers[1]
                 else:
                     logger.warning("Cannot extract file_number from metadata.")
