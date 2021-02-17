@@ -3,12 +3,11 @@ import glob
 import json
 import multiprocessing
 from json import JSONDecodeError
-from os.path import exists
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-import numpy as np
+
 import bs4
 import requests
 from tika import parser
@@ -26,7 +25,7 @@ pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
 
-class DataSetBuilder:
+class Extractor:
     """
     Extracts the textual and meta information from the court rulings files and saves it in csv files for each court
     and in one for all courts combined
@@ -43,54 +42,15 @@ class DataSetBuilder:
 
     def build_dataset(self) -> None:
         """ Builds the dataset for all the courts """
-        courts = glob.glob(f"{str(self.courts_dir)}/*")  # Here we can also use regex
-        court_list = [Path(court).name for court in courts]
-        logger.info(f"Found {len(court_list)} courts")
+        court_list = [Path(court).name for court in glob.glob(f"{str(self.courts_dir)}/*")]
 
         # process each court in its own process to speed up this creation by a lot!
-        pool = multiprocessing.Pool()
-        pool.map(self.build_court_dataset, court_list)
-        pool.close()
+        with multiprocessing.Pool() as pool:
+            pool.map(self.build_court_dataset, court_list)
 
-        self.combine_courts(court_list)
         logger.info("Building dataset finished.")
 
-    def combine_courts(self, court_list) -> None:
-        """build total df from individual court dfs"""
-        combined_already_created, languages_already_created = False, False
-        if self.all_courts_csv_path.exists():  # Delete the combined file in order to recreate it.
-            logger.info(f"Combined csv file already exists at {self.all_courts_csv_path}")
-            combined_already_created = True
-        else:
-            logger.info(f"Combining all individual court dataframes and saving to {self.all_courts_csv_path.name}")
 
-        # Delete at least one of the language aggregated files in order to recreate them
-        if all(map(exists, self.language_csv_paths.values())):
-            logger.info(f"Language aggregated csv files already exist")
-            languages_already_created = True
-        else:
-            logger.info("Splitting individual court dataframes by language and saving to _{lang}.csv")
-
-        for court in court_list:
-            df = pd.read_csv(self.csv_dir / (court + '.csv'))  # read df of court
-
-            if not combined_already_created:  # if we still need create the combined file
-                logger.info(f"Adding court {court} to combined file")
-                self.append_court_to_agg_file(df, self.all_courts_csv_path)  # add full df to file containing everything
-
-            if not languages_already_created:  # if we still need create the language aggregated files
-                logger.info(f"Adding court {court} to language aggregated files")
-                for lang in self.languages:
-                    lang_df = df[df['language'].str.contains(lang, na=False)]  # select only decisions by language
-                    self.append_court_to_agg_file(lang_df, self.language_csv_paths[lang])
-
-    @staticmethod
-    def append_court_to_agg_file(df, path) -> None:
-        """Appends a given df to a given aggregated csv file"""
-        mode, header = 'a', False  # normally append and don't add column names
-        if not path.exists():  # if the combined file does not exist yet
-            mode, header = 'w', True  # => normal write mode and add column names
-        df.to_csv(path, mode=mode, header=header, index=False)
 
     def build_court_dataset(self, court: str) -> None:
         """ Builds a dataset for a court """
@@ -142,9 +102,7 @@ class DataSetBuilder:
                 "date": '',
                 "language": '',
                 "html_raw": '',
-                "html_clean": '',  # will remain empty for now
                 "pdf_raw": '',
-                "pdf_clean": '',  # will remain empty for now
             }
             general_info = self.extract_general_info(json_file)
 
@@ -250,5 +208,5 @@ if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
 
-    data_set_builder = DataSetBuilder(config)
-    data_set_builder.build_dataset()
+    extractor = Extractor(config)
+    extractor.build_dataset()
