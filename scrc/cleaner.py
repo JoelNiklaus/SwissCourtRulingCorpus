@@ -56,6 +56,7 @@ class Cleaner:
         spec.loader.exec_module(self.cleaning_functions)
         print(self.cleaning_functions)
 
+        # unfortunately, the progress bar does not work for parallel_apply: https://github.com/nalepae/pandarallel/issues/26
         pandarallel.initialize()  # for parallel pandas processing: https://github.com/nalepae/pandarallel
 
     def clean(self):
@@ -86,14 +87,18 @@ class Cleaner:
 
     def clean_df_row(self, series):
         """Cleans one row of a raw df"""
+        logger.debug(f"Cleaning court decision {series['court_id']}")
         namespace = series[['file_number', 'file_number_additional', 'date', 'language']].to_dict()
         court = series['court_class']
+
         html_raw = series['html_raw']
-        if html_raw and pd.notna(html_raw):
+        if pd.notna(html_raw):
             series['html_clean'] = self.clean_html(court, html_raw, namespace)
+
         pdf_raw = series['pdf_raw']
-        if pdf_raw and pd.notna(pdf_raw):
+        if pd.notna(pdf_raw):
             series['pdf_clean'] = self.clean_pdf(court, pdf_raw, namespace)
+
         return series
 
     def clean_pdf(self, court: str, text: str, namespace: dict) -> str:
@@ -130,8 +135,9 @@ class Cleaner:
             cleaning_function = getattr(self.cleaning_functions, court)  # retrieve cleaning function by court
             cleaning_function(soup, namespace)  # invoke cleaning function with soup and namespace
 
-        for table in soup.find_all("table"):
-            table.decompose()  # remove all tables from content because they are not useful in raw text
+        # we cannot just remove tables because sometimes the content of the entire court decision is inside a table (GL_Omni)
+        # for table in soup.find_all("table"):
+        #    table.decompose()  # remove all tables from content because they are not useful in raw text
         return soup.get_text()
 
     def clean_with_regexes(self, court: str, text: str, namespace: dict) -> str:

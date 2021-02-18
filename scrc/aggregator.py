@@ -5,6 +5,7 @@ from pathlib import Path
 import glob
 
 import pandas as pd
+from tqdm import tqdm
 
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
@@ -20,16 +21,17 @@ class Aggregator:
 
     def __init__(self, config: dict):
         self.data_dir = ROOT_DIR / config['dir']['data_dir']
-        self.courts_dir = self.data_dir / config['dir']['courts_subdir']  # we get the input from here
-        self.csv_dir = self.data_dir / config['dir']['csv_subdir']  # we save the output to here
-        self.csv_dir.mkdir(parents=True, exist_ok=True)  # create output folder if it does not exist yet
+        self.courts_dir = self.data_dir / config['dir']['courts_subdir']
+        self.csv_dir = self.data_dir / config['dir']['csv_subdir']
+        self.raw_csv_subdir = self.csv_dir / config['dir']['raw_csv_subdir']
+        self.clean_csv_subdir = self.csv_dir / config['dir']['clean_csv_subdir']
         self.all_courts_csv_path = self.csv_dir / '_all.csv'
         self.languages = ['de', 'fr', 'it']
         self.language_csv_paths = {language: self.csv_dir / f'_{language}.csv' for language in self.languages}
 
     def combine_courts(self) -> None:
         """build total df from individual court dfs"""
-        court_list = [Path(court).name for court in glob.glob(f"{str(self.courts_dir)}/*")]
+        court_list = [Path(court).stem for court in glob.glob(f"{str(self.clean_csv_subdir)}/*")]
 
         combined_already_created, languages_already_created = False, False
         if self.all_courts_csv_path.exists():  # Delete the combined file in order to recreate it.
@@ -46,7 +48,7 @@ class Aggregator:
             logger.info("Splitting individual court dataframes by language and saving to _{lang}.csv")
 
         for court in court_list:
-            df = pd.read_csv(self.csv_dir / (court + '.csv'))  # read df of court
+            df = pd.read_csv(self.clean_csv_subdir / (court + '.csv'))  # read df of court
 
             if not combined_already_created:  # if we still need create the combined file
                 logger.info(f"Adding court {court} to combined file")
