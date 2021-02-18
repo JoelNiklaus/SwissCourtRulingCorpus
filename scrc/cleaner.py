@@ -82,7 +82,7 @@ class Cleaner:
         df['pdf_clean'] = ''
         df = df.parallel_apply(self.clean_df_row, axis='columns')  # apply cleaning function to each row
         df = df.drop(['html_raw', 'pdf_raw'], axis='columns')  # remove raw content
-        df.to_csv(self.clean_csv_subdir / (court + '.csv'))  # save cleaned df of court
+        df.to_csv(self.clean_csv_subdir / (court + '.csv'), index=False)  # save cleaned df of court
         logger.info(f"Finished cleaning {court}")
 
     def clean_df_row(self, series):
