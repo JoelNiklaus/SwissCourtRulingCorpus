@@ -20,6 +20,23 @@ logger = get_logger(__name__)
 
 LANGUAGE = LanguageIdentification()
 
+# the keys used in the court dataframes
+court_keys = [
+    "court_class",
+    "court_id",
+    "canton",
+    "file_name",
+    "file_number",
+    "file_number_additional",
+    "url",
+    "date",
+    "language",
+    "html_raw",
+    "html_clean",
+    "pdf_raw",
+    "pdf_clean",
+]
+
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
@@ -34,11 +51,9 @@ class Extractor:
     def __init__(self, config: dict):
         self.data_dir = ROOT_DIR / config['dir']['data_dir']
         self.courts_dir = self.data_dir / config['dir']['courts_subdir']  # we get the input from here
-        self.csv_dir = self.data_dir / config['dir']['csv_subdir']  # we save the output to here
-        self.csv_dir.mkdir(parents=True, exist_ok=True)  # create output folder if it does not exist yet
-        self.all_courts_csv_path = self.csv_dir / '_all.csv'
-        self.languages = ['de', 'fr', 'it']
-        self.language_csv_paths = {language: self.csv_dir / f'_{language}.csv' for language in self.languages}
+        self.csv_dir = self.data_dir / config['dir']['csv_subdir']
+        self.raw_csv_subdir = self.csv_dir / config['dir']['raw_csv_subdir']  # we save the output to here
+        self.raw_csv_subdir.mkdir(parents=True, exist_ok=True)  # create output folder if it does not exist yet
 
     def build_dataset(self) -> None:
         """ Builds the dataset for all the courts """
@@ -88,19 +103,8 @@ class Extractor:
 
     def compose_court_dict(self, corresponding_html_path, corresponding_pdf_path, json_file):
         """Composes a court dict from all the available files when we know at least one content file exists"""
-        court_dict_template = {
-            "court_class": '',
-            "court_id": '',
-            "canton": '',
-            "file_name": '',
-            "file_number": '',
-            "file_number_additional": '',
-            "url": '',
-            "date": '',
-            "language": '',
-            "html_raw": '',
-            "pdf_raw": '',
-        }
+        court_dict_template = {key: '' for key in court_keys}  # create dict template from court keys
+
         general_info = self.extract_general_info(json_file)
         # add general info
         court_dict = dict(court_dict_template, **general_info)

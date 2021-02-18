@@ -11,6 +11,7 @@ import glob
 import pandas as pd
 
 from root import ROOT_DIR
+from scrc.extractor import court_keys
 from scrc.utils.log_utils import get_logger
 
 logger = get_logger(__name__)
@@ -73,7 +74,8 @@ class Cleaner:
     def clean_court(self, court):
         """Cleans one court csv file"""
         logger.info(f"Started cleaning {court}")
-        df = pd.read_csv(self.raw_csv_subdir / (court + '.csv'))  # read df of court
+        dtype_dict = {key: 'string' for key in court_keys}  # create dtype_dict from court keys
+        df = pd.read_csv(self.raw_csv_subdir / (court + '.csv'), dtype=dtype_dict)  # read df of court
         # add empty columns
         df['html_clean'] = ''
         df['pdf_clean'] = ''
