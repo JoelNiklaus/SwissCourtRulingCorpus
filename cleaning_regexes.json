@@ -1,0 +1,70 @@
+{
+  "CH_BVGer": [
+    {
+      "pattern": "Seite\\s\\d+",
+      "replacement": "",
+      "description": "remove page numbers"
+    },
+    {
+      "pattern": "{file_number}",
+      "replacement": "",
+      "description": "remove file numbers"
+    }
+  ],
+  "ZH_Obergericht": [
+    {
+      "pattern": "-\\s+\\d+\\s+-",
+      "replacement": "",
+      "description": "remove page numbers"
+    }
+  ],
+  "SG_Gerichte": [
+    {
+      "pattern": "((\\d{4}-[01]\\d-[0-3]\\dT[0-2]\\d:[0-5]\\d:[0-5]\\d\\.\\d+)|(\\d{4}-[01]\\d-[0-3]\\dT[0-2]\\d:[0-5]\\d:[0-5]\\d)|(\\d{4}-[01]\\d-[0-3]\\dT[0-2]\\d:[0-5]\\d))[\\+\\-][0-1]?\\d\\:?[0|3]0",
+      "replacement": "",
+      "description": "remove strange ISO 8601 time at the end"
+    },
+    {
+      "pattern": "\"9001\\s+St\\.Gallen\"",
+      "replacement": "",
+      "description": "remove address at the end"
+    },
+    {
+      "pattern": "Publikationsplattform\\s+Kanton\\s+St\\.Gallen",
+      "replacement": "",
+      "description": "remove mention at the end"
+    },
+    {
+      "pattern": "Publikationsplattform|St\\.Galler\\s+Gerichte",
+      "replacement": "",
+      "description": "remove header"
+    },
+    {
+      "pattern": "©\\s+Kanton\\s+St\\.Gallen\\s+\\d{4}\\s+Seite\\s+\\d+\\/\\d+",
+      "replacement": "",
+      "description": "remove footer"
+    }
+  ],
+  "GR_Gerichte": [
+    {
+      "pattern": "(Seite *\\d+ *— *\\d+)|(\\n *\\d+ *\\n)",
+      "replacement": "",
+      "description": "remove page numbers"
+    }
+  ],
+  "BE_Verwaltungsgericht": [
+    {
+      "pattern": "Urteil des Verwaltungsgerichts des Kantons Bern vom.+Seite\\s+\\d+",
+      "replacement": "",
+      "description": "remove header"
+    }
+  ],
+  "CH_BSTG": [
+    {
+      "pattern": "-\\s+\\d+\\s+-",
+      "replacement": "",
+      "description": "remove page numbers"
+    }
+  ]
+}
+
