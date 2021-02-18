@@ -43,18 +43,14 @@ class Extractor:
     def build_dataset(self) -> None:
         """ Builds the dataset for all the courts """
         court_list = [Path(court).name for court in glob.glob(f"{str(self.courts_dir)}/*")]
-
-        # process each court in its own process to speed up this creation by a lot!
-        with multiprocessing.Pool() as pool:
-            pool.map(self.build_court_dataset, court_list)
+        for court in court_list:
+            self.build_court_dataset(court)
 
         logger.info("Building dataset finished.")
 
-
-
     def build_court_dataset(self, court: str) -> None:
         """ Builds a dataset for a court """
-        court_csv_path = self.csv_dir / (court + '.csv')
+        court_csv_path = self.raw_csv_subdir / (court + '.csv')
         if court_csv_path.exists():
             logger.info(f"Skipping court {court}. CSV file already exists.")
             return
@@ -71,19 +67,16 @@ class Extractor:
 
     def build_court_dict_list(self, court_dir: Path) -> list:
         """ Builds the court dict list which we can convert to a pandas Data Frame later """
-        court_dict_list = []
-
         # we take the json files as a starting point to get the corresponding html or pdf files
         json_filenames = self.get_filenames_of_extension(court_dir, 'json')
-        for json_file in json_filenames:
-            court_dict = self.build_court_dict(json_file)
-            if court_dict:
-                court_dict_list.append(court_dict)
+        with multiprocessing.Pool() as pool:
+            court_dict_list = pool.map(self.build_court_dict, json_filenames)
 
-        return court_dict_list
+        return [court_dict for court_dict in court_dict_list if court_dict]  # remove None values
 
     def build_court_dict(self, json_file: str) -> Optional[dict]:
         """Extracts the information from all the available files"""
+        logger.info(f"Processing {json_file}")
         corresponding_pdf_path = Path(json_file).with_suffix('.pdf')
         corresponding_html_path = Path(json_file).with_suffix('.html')
         # if we DO NOT have a court decision corresponding to that found json file
@@ -91,37 +84,39 @@ class Extractor:
             logger.warning(f"No court decision found for json file {json_file}")
             return None  # skip the remaining part since we know already that there is no court decision available
         else:
-            court_dict_template = {
-                "court_class": '',
-                "court_id": '',
-                "canton": '',
-                "file_name": '',
-                "file_number": '',
-                "file_number_additional": '',
-                "url": '',
-                "date": '',
-                "language": '',
-                "html_raw": '',
-                "pdf_raw": '',
-            }
-            general_info = self.extract_general_info(json_file)
+            return self.compose_court_dict(corresponding_html_path, corresponding_pdf_path, json_file)
 
-            # add general info
-            court_dict = dict(court_dict_template, **general_info)
+    def compose_court_dict(self, corresponding_html_path, corresponding_pdf_path, json_file):
+        """Composes a court dict from all the available files when we know at least one content file exists"""
+        court_dict_template = {
+            "court_class": '',
+            "court_id": '',
+            "canton": '',
+            "file_name": '',
+            "file_number": '',
+            "file_number_additional": '',
+            "url": '',
+            "date": '',
+            "language": '',
+            "html_raw": '',
+            "pdf_raw": '',
+        }
+        general_info = self.extract_general_info(json_file)
+        # add general info
+        court_dict = dict(court_dict_template, **general_info)
 
-            pdf_content_dict = self.extract_corresponding_pdf_content(corresponding_pdf_path)
-            if pdf_content_dict is not None:  # if it could be parsed correctly
-                # add pdf content
-                court_dict = dict(court_dict, **pdf_content_dict)
+        pdf_content_dict = self.extract_corresponding_pdf_content(corresponding_pdf_path)
+        if pdf_content_dict is not None:  # if it could be parsed correctly
+            # add pdf content
+            court_dict = dict(court_dict, **pdf_content_dict)
 
-            # ATTENTION: If both files exist:
-            # html_content_dict will override language from pdf_content_dict because it is more reliable
-            html_content_dict = self.extract_corresponding_html_content(corresponding_html_path)
-            if html_content_dict is not None:  # if it could be parsed correctly
-                # add html content
-                court_dict = dict(court_dict, **html_content_dict)  # may override language added from pdf_content_dict
-
-            return court_dict
+        # ATTENTION: If both files exist:
+        # html_content_dict will override language from pdf_content_dict because it is more reliable
+        html_content_dict = self.extract_corresponding_html_content(corresponding_html_path)
+        if html_content_dict is not None:  # if it could be parsed correctly
+            # add html content
+            court_dict = dict(court_dict, **html_content_dict)  # may override language added from pdf_content_dict
+        return court_dict
 
     @staticmethod
     def get_filenames_of_extension(court_dir: Path, extension: str) -> list:
