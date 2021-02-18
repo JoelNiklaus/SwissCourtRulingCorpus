@@ -81,7 +81,7 @@ class Aggregator:
         return combined_already_created, languages_already_created
 
     @staticmethod
-    def get_language_csv_paths(base_path: Path, languages: list) -> dict[str:Path]:
+    def get_language_csv_paths(base_path: Path, languages: list) -> dict:
         """get the language specific aggregate path"""
         return {language: base_path / f'_{language}.csv' for language in languages}
 
