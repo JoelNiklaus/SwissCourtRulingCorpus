@@ -133,17 +133,19 @@ class Extractor:
     def extract_general_info(json_file) -> dict:
         """Extracts the filename and court from the file path and metadata from the json file"""
         logger.debug(f"Extracting content from json file: \t {json_file}")
-        general_info = {'court_class': Path(json_file).parent.name, 'file_name': Path(json_file).stem}
+        general_info = {'spider': Path(json_file).parent.name, 'file_name': Path(json_file).stem}
         # loading json content and and extracting relevant metadata
         with open(json_file) as f:
             try:
                 metadata = json.load(f)
                 if 'Signatur' in metadata:
-                    general_info['court_id'] = metadata['Signatur']
                     # the first two letters always represent the cantonal level (CH for the federation)
                     general_info['canton'] = metadata['Signatur'][:2]
+                    # everything except the last 4 characters represent the court
+                    general_info['court'] = metadata['Signatur'][:-4]
+                    general_info['chamber'] = metadata['Signatur']
                 else:
-                    logger.warning("Cannot extract court_id from metadata.")
+                    logger.warning("Cannot extract signature from metadata.")
                 if 'Num' in metadata:
                     file_numbers = metadata['Num']
                     if file_numbers:  # if there is at least one entry
