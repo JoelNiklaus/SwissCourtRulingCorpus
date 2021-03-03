@@ -10,8 +10,8 @@ possible labels: court_id, (date)
 import configparser
 import pandas as pd
 from root import ROOT_DIR
-from scrc.extractor import court_keys
 from scrc.utils.log_utils import get_logger
+from scrc.utils.main_utils import court_keys
 
 logger = get_logger(__name__)
 

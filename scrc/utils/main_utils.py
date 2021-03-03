@@ -11,6 +11,25 @@ pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
+# the keys used in the court dataframes
+court_keys = [
+    "spider",
+    "canton",
+    "court",
+    "chamber",
+    "file_name",
+    "file_number",
+    "file_number_additional",
+    "url",
+    "date",
+    "language",
+    "html_raw",
+    "html_clean",
+    "pdf_raw",
+    "pdf_clean",
+    "text"
+]
+
 
 def save_to_path(content, path, overwrite=False):
     """

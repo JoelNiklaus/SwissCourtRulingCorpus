@@ -15,31 +15,17 @@ from tika import parser
 from root import ROOT_DIR
 from scrc.language_identification import LanguageIdentification
 from scrc.utils.log_utils import get_logger
+from scrc.utils.main_utils import court_keys
 
 logger = get_logger(__name__)
 
 LANGUAGE = LanguageIdentification()
 
-# the keys used in the court dataframes
-court_keys = [
-    "court_class",
-    "court_id",
-    "canton",
-    "file_name",
-    "file_number",
-    "file_number_additional",
-    "url",
-    "date",
-    "language",
-    "html_raw",
-    "html_clean",
-    "pdf_raw",
-    "pdf_clean",
-]
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
+
 
 
 class Extractor:
