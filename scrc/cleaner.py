@@ -84,7 +84,7 @@ class Cleaner:
         df = df.parallel_apply(self.clean_df_row, axis='columns')  # apply cleaning function to each row
         logger.info('Cleaned html and pdf content')
 
-        # Combine columns into one easy to use text column
+        # Combine columns into one easy to use text column (prioritize html content if both exist)
         df['text'] = np.where(df['html_clean'].notna(), df['html_clean'], df['pdf_clean'])
         df = df.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
         logger.info('Combined columns into one easy to use text column')
@@ -97,9 +97,9 @@ class Cleaner:
 
     def clean_df_row(self, series):
         """Cleans one row of a raw df"""
-        logger.debug(f"Cleaning court decision {series['court_id']}")
+        logger.debug(f"Cleaning court decision {series['file_name']}")
         namespace = series[['file_number', 'file_number_additional', 'date', 'language']].to_dict()
-        court = series['court_class']
+        court = series['court']
 
         html_raw = series['html_raw']
         if pd.notna(html_raw):
