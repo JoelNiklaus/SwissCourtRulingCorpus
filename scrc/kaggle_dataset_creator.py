@@ -60,9 +60,9 @@ class KaggleDatasetCreator:
         test = test.sample(frac=1, random_state=seed)
 
         # save to csv
-        train.to_csv(self.kaggle_csv_subdir / 'train.csv')
-        val.to_csv(self.kaggle_csv_subdir / 'val.csv')
-        test.to_csv(self.kaggle_csv_subdir / 'test.csv')
+        train.to_csv(self.kaggle_csv_subdir / 'train.csv', index_label='id')
+        val.to_csv(self.kaggle_csv_subdir / 'val.csv', index_label='id')
+        test.to_csv(self.kaggle_csv_subdir / 'test.csv', index_label='id')
 
 
 if __name__ == '__main__':
