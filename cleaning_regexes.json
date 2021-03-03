@@ -1,7 +1,7 @@
 {
   "CH_BVGer": [
     {
-      "pattern": "Seite\\s\\d+",
+      "pattern": "Seite\\s+\\d+",
       "replacement": "",
       "description": "remove page numbers"
     },
@@ -16,6 +16,18 @@
       "pattern": "-\\s+\\d+\\s+-",
       "replacement": "",
       "description": "remove page numbers"
+    }
+  ],
+  "VS_Gerichte": [
+    {
+      "pattern": "-\\s+\\d+\\s+-",
+      "replacement": "",
+      "description": "remove page numbers"
+    },
+    {
+      "pattern": "^Microsoft Word.+\\n",
+      "replacement": "",
+      "description": "remove 'Microsoft Word' with file name at the beginning."
     }
   ],
   "SG_Gerichte": [
@@ -64,6 +76,85 @@
       "pattern": "-\\s+\\d+\\s+-",
       "replacement": "",
       "description": "remove page numbers"
+    }
+  ],
+  "BL_Gerichte": [
+    {
+      "pattern": "^\\s*Title",
+      "replacement": "",
+      "description": "remove 'Title' at the start"
+    },
+    {
+      "pattern": "Seite\\s+\\d+\\s+http:\\/\\/www\\.bl\\.ch\\/kantonsgericht",
+      "replacement": "",
+      "description": "remove page numbers"
+    }
+  ],
+  "BE_ZivilStraf": [
+    {
+      "pattern": "^\\s*Briefkopf",
+      "replacement": "",
+      "description": "remove 'Briefkopf' at the start"
+    },
+    {
+      "pattern": "\\n\\d+\\n",
+      "replacement": "",
+      "description": "remove page numbers"
+    }
+  ],
+  "AR_Gerichte": [
+    {
+      "pattern": "Seite\\s+\\d+",
+      "replacement": "",
+      "description": "remove page numbers"
+    }
+  ],
+  "SZ_Gerichte": [
+    {
+      "pattern": "Kantonsgericht Schwyz\\s+\\d+",
+      "replacement": "",
+      "description": "remove page numbers"
+    }
+  ],
+  "ZG_Verwaltungsgericht": [
+    {
+      "pattern": "^Normal\\.dotx?\\n",
+      "replacement": "",
+      "description": "remove 'Normal.dot(x)' from the beginning"
+    },
+    {
+      "pattern": "\\n\\d+\\n",
+      "replacement": "",
+      "description": "remove page numbers"
+    }
+  ],
+  "FR_Gerichte": [
+    {
+      "pattern": "Kantonsgericht KG|Tribunal cantonal TC",
+      "replacement": "",
+      "description": "remove name from the footer"
+    },
+    {
+      "pattern": "Page\\s+\\d+\\s+de\\s+\\d+",
+      "replacement": "",
+      "description": "remove page numbers"
+    }
+  ],
+  "SH_OG": [
+    {
+      "pattern": "\\n\\d+\\n",
+      "replacement": "",
+      "description": "remove page numbers"
+    },
+    {
+      "pattern": "\\n{date.year}\\n",
+      "replacement": "",
+      "description": "remove year"
+    },
+    {
+      "pattern": "^Microsoft Word.+\\.docx?\\n",
+      "replacement": "",
+      "description": "remove 'Microsoft Word' with file name at the beginning."
     }
   ]
 }
