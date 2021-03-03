@@ -8,6 +8,7 @@ from pathlib import Path
 import bs4
 from pandarallel import pandarallel
 import glob
+import numpy as np
 import pandas as pd
 
 from root import ROOT_DIR
@@ -79,10 +80,18 @@ class Cleaner:
         dtype_dict = {key: 'string' for key in court_keys}  # create dtype_dict from court keys
         df = pd.read_csv(self.raw_csv_subdir / (court + '.csv'), dtype=dtype_dict)  # read df of court
         # add empty columns
-        df['html_clean'] = ''
-        df['pdf_clean'] = ''
+        df['html_clean'], df['pdf_clean'] = '', ''
         df = df.parallel_apply(self.clean_df_row, axis='columns')  # apply cleaning function to each row
-        df = df.drop(['html_raw', 'pdf_raw'], axis='columns')  # remove raw content
+        logger.info('Cleaned html and pdf content')
+
+        # Combine columns into one easy to use text column
+        df['text'] = np.where(df['html_clean'].notna(), df['html_clean'], df['pdf_clean'])
+        df = df.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
+        logger.info('Combined columns into one easy to use text column')
+
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        logger.info('Standardized date')
+
         df.to_csv(self.clean_csv_subdir / (court + '.csv'), index=False)  # save cleaned df of court
         logger.info(f"Finished cleaning {court}")
 
