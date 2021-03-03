@@ -79,6 +79,10 @@ class Cleaner:
         logger.info(f"Started cleaning {court}")
         dtype_dict = {key: 'string' for key in court_keys}  # create dtype_dict from court keys
         df = pd.read_csv(self.raw_csv_subdir / (court + '.csv'), dtype=dtype_dict)  # read df of court
+
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        logger.info('Standardized date')
+
         # add empty columns
         df['html_clean'], df['pdf_clean'] = '', ''
         df = df.parallel_apply(self.clean_df_row, axis='columns')  # apply cleaning function to each row
@@ -89,9 +93,6 @@ class Cleaner:
         df = df.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
         logger.info('Combined columns into one easy to use text column')
 
-        df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        logger.info('Standardized date')
-
         df.to_csv(self.clean_csv_subdir / (court + '.csv'), index=False)  # save cleaned df of court
         logger.info(f"Finished cleaning {court}")
 
@@ -99,26 +100,26 @@ class Cleaner:
         """Cleans one row of a raw df"""
         logger.debug(f"Cleaning court decision {series['file_name']}")
         namespace = series[['file_number', 'file_number_additional', 'date', 'language']].to_dict()
-        court = series['court']
+        spider = series['spider']
 
         html_raw = series['html_raw']
         if pd.notna(html_raw):
-            series['html_clean'] = self.clean_html(court, html_raw, namespace)
+            series['html_clean'] = self.clean_html(spider, html_raw, namespace)
 
         pdf_raw = series['pdf_raw']
         if pd.notna(pdf_raw):
-            series['pdf_clean'] = self.clean_pdf(court, pdf_raw, namespace)
+            series['pdf_clean'] = self.clean_pdf(spider, pdf_raw, namespace)
 
         return series
 
-    def clean_pdf(self, court: str, text: str, namespace: dict) -> str:
+    def clean_pdf(self, spider: str, text: str, namespace: dict) -> str:
         """Cleans first the text first with court specific regexes and then with general ones"""
-        cleaned_text = self.clean_with_regexes(court, text, namespace)
+        cleaned_text = self.clean_with_regexes(spider, text, namespace)
         return self.clean_generally(cleaned_text)
 
-    def clean_html(self, court: str, text: str, namespace: dict) -> str:
+    def clean_html(self, spider: str, text: str, namespace: dict) -> str:
         """Cleans first the text first with court specific regexes and then with general ones"""
-        cleaned_text = self.clean_with_functions(court, text, namespace)
+        cleaned_text = self.clean_with_functions(spider, text, namespace)
         return self.clean_generally(cleaned_text)
 
     @staticmethod
@@ -135,14 +136,14 @@ class Cleaner:
         cleaned_text = cleaned_text.strip()  # remove leading and trailing whitespace
         return cleaned_text
 
-    def clean_with_functions(self, court: str, text: str, namespace: dict) -> str:
+    def clean_with_functions(self, spider: str, text: str, namespace: dict) -> str:
         """Cleans html documents with cleaning functions"""
         # Parses the html string with bs4 and returns the body content
         soup = bs4.BeautifulSoup(text, "html.parser").find('body')
-        if not hasattr(self.cleaning_functions, court):
-            logger.debug(f"There are no special functions for court {court}. Just performing default cleaning.")
+        if not hasattr(self.cleaning_functions, spider):
+            logger.debug(f"There are no special functions for court {spider}. Just performing default cleaning.")
         else:
-            cleaning_function = getattr(self.cleaning_functions, court)  # retrieve cleaning function by court
+            cleaning_function = getattr(self.cleaning_functions, spider)  # retrieve cleaning function by court
             cleaning_function(soup, namespace)  # invoke cleaning function with soup and namespace
 
         # we cannot just remove tables because sometimes the content of the entire court decision is inside a table (GL_Omni)
@@ -150,14 +151,14 @@ class Cleaner:
         #    table.decompose()  # remove all tables from content because they are not useful in raw text
         return soup.get_text()
 
-    def clean_with_regexes(self, court: str, text: str, namespace: dict) -> str:
+    def clean_with_regexes(self, spider: str, text: str, namespace: dict) -> str:
         """Cleans pdf documents with cleaning regexes"""
         # make every line break the same (\n) => makes it easier for ensuing regexes
         cleaned_text = unicodedata.normalize('NFKD', text)
-        if court not in self.courts_regexes or not self.courts_regexes[court]:
-            logger.debug(f"There are no special regexes for court {court}. Just performing default cleaning.")
+        if spider not in self.courts_regexes or not self.courts_regexes[spider]:
+            logger.debug(f"There are no special regexes for court {spider}. Just performing default cleaning.")
             return cleaned_text
-        regexes = self.courts_regexes[court]
+        regexes = self.courts_regexes[spider]
         for regex in regexes:
             # these strings can be used in the patterns and will be replaced by the variable content
             # see: https://stackoverflow.com/questions/44757222/transform-string-to-f-string
