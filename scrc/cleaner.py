@@ -67,7 +67,7 @@ class Cleaner:
         clean_csv_list = [Path(court).stem for court in glob.glob(f"{str(self.clean_csv_subdir)}/*")]
         not_yet_cleaned_courts = set(raw_csv_list) - set(clean_csv_list)
         courts_to_clean = [court for court in not_yet_cleaned_courts if court[0] != '_']  # exclude aggregations
-        logger.info(f"Still {len(not_yet_cleaned_courts)} courts remaining to clean: {courts_to_clean}")
+        logger.info(f"Still {len(courts_to_clean)} courts remaining to clean: {courts_to_clean}")
 
         for court in courts_to_clean:
             self.clean_court(court)
@@ -89,7 +89,7 @@ class Cleaner:
         logger.info('Cleaned html and pdf content')
 
         # Combine columns into one easy to use text column (prioritize html content if both exist)
-        df['text'] = np.where(df['html_clean'].notna(), df['html_clean'], df['pdf_clean'])
+        df['text'] = np.where(df['html_clean'] != '', df['html_clean'], df['pdf_clean'])
         df = df.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
         logger.info('Combined columns into one easy to use text column')
 
@@ -129,8 +129,11 @@ class Cleaner:
         :param text:    the text to be cleaned
         :return:
         """
-        cleaned_text = re.sub('(\w+)-\n+(\w+)', '\1\2', text)  # remove hyphens before new line
+        cleaned_text = "".join(ch for ch in text if unicodedata.category(ch)[0] != "C")  # remove control characters
+        cleaned_text = unicodedata.normalize('NFKD', cleaned_text)  # normalize whitespace
+        cleaned_text = re.sub('(\w+)-\n+(\w+)', '\1\2', cleaned_text)  # remove hyphens before new line
         cleaned_text = re.sub(r"\u00a0", ' ', cleaned_text)  # replace NBSP with normal whitespace
+        cleaned_text = re.sub(r"\xa0", ' ', cleaned_text)  # replace \xa0 with normal whitespace
         cleaned_text = re.sub(r"\s+", ' ', cleaned_text)  # replace all whitespace with a single whitespace
         cleaned_text = re.sub(r"_+", '_', cleaned_text)  # remove duplicate underscores (from anonymisations)
         cleaned_text = cleaned_text.strip()  # remove leading and trailing whitespace
@@ -144,7 +147,7 @@ class Cleaner:
             logger.debug(f"There are no special functions for court {spider}. Just performing default cleaning.")
         else:
             cleaning_function = getattr(self.cleaning_functions, spider)  # retrieve cleaning function by court
-            cleaning_function(soup, namespace)  # invoke cleaning function with soup and namespace
+            soup = cleaning_function(soup, namespace)  # invoke cleaning function with soup and namespace
 
         # we cannot just remove tables because sometimes the content of the entire court decision is inside a table (GL_Omni)
         # for table in soup.find_all("table"):
@@ -153,22 +156,22 @@ class Cleaner:
 
     def clean_with_regexes(self, spider: str, text: str, namespace: dict) -> str:
         """Cleans pdf documents with cleaning regexes"""
-        # make every line break the same (\n) => makes it easier for ensuing regexes
-        cleaned_text = unicodedata.normalize('NFKD', text)
         if spider not in self.courts_regexes or not self.courts_regexes[spider]:
             logger.debug(f"There are no special regexes for court {spider}. Just performing default cleaning.")
+            return text
+        else:
+            regexes = self.courts_regexes[spider]
+            assert regexes  # this should not be empty
+            for regex in regexes:
+                # these strings can be used in the patterns and will be replaced by the variable content
+                # see: https://stackoverflow.com/questions/44757222/transform-string-to-f-string
+                pattern = regex['pattern']
+                for key in namespace.keys():
+                    # IMPORTANT: regex quantifiers (e.g. {4}) could be replaced by string format. => check first
+                    if key in pattern:  # only format when the key is in the pattern.
+                        pattern.format(**namespace)  # add the namespace to the pattern
+                cleaned_text = re.sub(pattern, regex['replacement'], text)  # perform the replacement
             return cleaned_text
-        regexes = self.courts_regexes[spider]
-        for regex in regexes:
-            # these strings can be used in the patterns and will be replaced by the variable content
-            # see: https://stackoverflow.com/questions/44757222/transform-string-to-f-string
-            pattern = regex['pattern']
-            for key in namespace.keys():
-                # IMPORTANT: regex quantifiers (e.g. {4}) could be replaced by string format. => check first
-                if key in pattern:  # only format when the key is in the pattern.
-                    pattern.format(**namespace)  # add the namespace to the pattern
-            cleaned_text = re.sub(pattern, regex['replacement'], cleaned_text)  # perform the replacement
-        return cleaned_text
 
 
 if __name__ == '__main__':
