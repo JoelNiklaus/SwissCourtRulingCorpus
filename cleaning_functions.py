@@ -18,3 +18,15 @@ def CH_BGE(soup: Any, namespace: dict) -> Any:
     for page_number in soup.find_all("div", class_="center pagebreak"):
         page_number.decompose()
     return soup
+
+
+def VD_FindInfo(soup: Any, namespace: dict) -> Any:
+    for table in soup.find_all("table"):
+        table.decompose()  # table at the beginning contains logo and name of court
+    return soup
+
+
+def AG_Gerichte(soup: Any, namespace: dict) -> Any:
+    for header in soup.find_all("div", class_="header"):
+        header.decompose()  # remove headers
+    return soup
