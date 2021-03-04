@@ -14,17 +14,18 @@ pd.set_option('display.width', 1000)
 # the keys used in the court dataframes
 court_keys = [
     "spider",
+    "language",
     "canton",
     "court",
     "chamber",
+    "date",
     "file_name",
     "file_number",
     "file_number_additional",
-    "url",
-    "date",
-    "language",
+    "html_url",
     "html_raw",
     "html_clean",
+    "pdf_url",
     "pdf_raw",
     "pdf_clean",
     "text"

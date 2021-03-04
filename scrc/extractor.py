@@ -141,11 +141,11 @@ class Extractor:
                         general_info['file_number_additional'] = file_numbers[1]
                 else:
                     logger.warning("Cannot extract file_number from metadata.")
+                if 'HTML' in metadata:
+                    general_info['html_url'] = metadata['HTML']['URL']
                 if 'PDF' in metadata:
-                    general_info['url'] = metadata['PDF']['URL']
-                elif 'HTML' in metadata:
-                    general_info['url'] = metadata['HTML']['URL']
-                else:
+                    general_info['pdf_url'] = metadata['PDF']['URL']
+                if 'PDF' not in metadata and 'HTML' not in metadata:
                     logger.warning("Cannot extract url from metadata.")
                 if 'Datum' in metadata:
                     general_info['date'] = metadata['Datum']
