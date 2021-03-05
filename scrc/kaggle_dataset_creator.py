@@ -11,7 +11,6 @@ import configparser
 import pandas as pd
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
-from scrc.utils.main_utils import court_keys
 
 logger = get_logger(__name__)
 
@@ -36,8 +35,7 @@ class KaggleDatasetCreator:
         self.kaggle_csv_subdir.mkdir(parents=True, exist_ok=True)  # create output folder if it does not exist yet
 
     def create_dataset(self):
-        dtype_dict = {key: 'string' for key in court_keys}  # create dtype_dict from court keys
-        df = pd.read_csv(self.clean_csv_subdir / '_de.csv', dtype=dtype_dict)
+        df = pd.read_csv(self.clean_csv_subdir / '_de.csv')
         logger.info("Finished reading csv file")
         # print(df.describe().compute())
 

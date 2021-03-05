@@ -67,7 +67,7 @@ class Cleaner:
         clean_csv_list = [Path(court).stem for court in glob.glob(f"{str(self.clean_csv_subdir)}/*")]
         not_yet_cleaned_courts = set(raw_csv_list) - set(clean_csv_list)
         courts_to_clean = [court for court in not_yet_cleaned_courts if court[0] != '_']  # exclude aggregations
-        logger.info(f"Still {len(courts_to_clean)} courts remaining to clean: {courts_to_clean}")
+        logger.info(f"Still {len(courts_to_clean)} court(s) remaining to clean: {courts_to_clean}")
 
         for court in courts_to_clean:
             self.clean_court(court)
