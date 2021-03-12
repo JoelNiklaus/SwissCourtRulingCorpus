@@ -9,6 +9,7 @@ possible labels: court_id, (date)
 """
 import configparser
 import pandas as pd
+import dask.dataframe as dd
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 
@@ -35,32 +36,22 @@ class KaggleDatasetCreator:
         self.kaggle_csv_subdir.mkdir(parents=True, exist_ok=True)  # create output folder if it does not exist yet
 
     def create_dataset(self):
-        df = pd.read_csv(self.clean_csv_subdir / '_de.csv')
+        ddf = dd.read_csv(self.clean_csv_subdir / '_de.csv', usecols=['chamber', 'text'])
         logger.info("Finished reading csv file")
-        # print(df.describe().compute())
-
-        # find duplicates
-        # df = df.sort_values(by=['file_number'])
-        # duplicates = df[df[['file_number']].duplicated(keep=False)]  # find duplicates
-        # print(duplicates[['file_number', 'url']])
-
-        df = df[['court_id', 'html_clean', 'pdf_clean']]  # select columns
 
         # split into train, val and test sets
         seed = 42
-        train, val, test = df.random_split([0.7, 0.1, 0.2], random_state=seed)
+        ddf = ddf.sample(frac=1, random_state=seed)
+        train, val, test = ddf.random_split([0.7, 0.1, 0.2], random_state=seed)
 
-        test = test.drop('court_id', axis='columns')  # drop label
-
-        # shuffle sets
-        train = train.sample(frac=1, random_state=seed)
-        val = val.sample(frac=1, random_state=seed)
-        test = test.sample(frac=1, random_state=seed)
+        test_public = test.drop('chamber', axis='columns')  # drop label
 
         # save to csv
         train.to_csv(self.kaggle_csv_subdir / 'train.csv', index_label='id')
         val.to_csv(self.kaggle_csv_subdir / 'val.csv', index_label='id')
         test.to_csv(self.kaggle_csv_subdir / 'test.csv', index_label='id')
+        test_public.to_csv(self.kaggle_csv_subdir / 'test_public.csv', index_label='id')
+        logger.info(f"Saved splits to {self.kaggle_csv_subdir}")
 
 
 if __name__ == '__main__':
