@@ -118,14 +118,14 @@
   ],
   "ZG_Verwaltungsgericht": [
     {
-      "pattern": "^Normal\\.dotx?\\n",
-      "replacement": "",
-      "description": "remove 'Normal.dot(x)' from the beginning"
-    },
-    {
       "pattern": "\\n\\d+\\n",
       "replacement": "",
       "description": "remove page numbers"
+    },
+    {
+      "pattern": "^\\s*Normal\\.dotx?\\s*",
+      "replacement": "",
+      "description": "remove 'Normal.dot(x)' from the beginning"
     }
   ],
   "FR_Gerichte": [

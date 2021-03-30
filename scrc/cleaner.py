@@ -165,7 +165,7 @@ class Cleaner:
             for regex in regexes:
                 # these strings can be used in the patterns and will be replaced by the variable content
                 # see: https://stackoverflow.com/questions/44757222/transform-string-to-f-string
-                pattern = regex['pattern']
+                pattern = r'' + regex['pattern']
                 for key in namespace.keys():
                     # IMPORTANT: regex quantifiers (e.g. {4}) could be replaced by string format. => check first
                     if key in pattern:  # only format when the key is in the pattern.
