@@ -129,7 +129,7 @@ class Cleaner:
         :param text:    the text to be cleaned
         :return:
         """
-        cleaned_text = "".join(ch for ch in text if unicodedata.category(ch)[0] != "C")  # remove control characters
+        cleaned_text = text
         cleaned_text = unicodedata.normalize('NFKD', cleaned_text)  # normalize whitespace
         cleaned_text = re.sub('(\w+)-\n+(\w+)', '\1\2', cleaned_text)  # remove hyphens before new line
         cleaned_text = re.sub(r"\u00a0", ' ', cleaned_text)  # replace NBSP with normal whitespace
@@ -137,6 +137,7 @@ class Cleaner:
         cleaned_text = re.sub(r"\s+", ' ', cleaned_text)  # replace all whitespace with a single whitespace
         cleaned_text = re.sub(r"_+", '_', cleaned_text)  # remove duplicate underscores (from anonymisations)
         cleaned_text = cleaned_text.strip()  # remove leading and trailing whitespace
+        cleaned_text = "".join(ch for ch in cleaned_text if unicodedata.category(ch)[0] != "C")  # remove control characters
         return cleaned_text
 
     def clean_with_functions(self, spider: str, text: str, namespace: dict) -> str:
