@@ -61,10 +61,22 @@ jupyter notebook --no-browser --port=8888 --notebook-dir=scrc/notebooks
 ssh -N -f -L localhost:8888:localhost:8888 fdn-admin@fdn-sandbox3.inf.unibe.ch
 ```
 
+## Pandas Memory usage
+
+When pandas loads from a csv file and creates a dataframe in memory, this dataframe will allocate more than 2x the size
+of the csv! Make sure you load big csv files in chunks!
+
+## Handy bash commands
+
+Print files sorted by size
+
+```bash
+du -h data/csv/clean/* | sort -h
+```
+
 ## Troubleshooting
 
 Sometimes ``pip install`` says that the requirement is already satisfied. If the module is not found
 try ``python -m pip install ...``.
 
 Dask does not work with csv files containing new lines inside fields because it cannot process csv chunks
-tatbeständlichen
