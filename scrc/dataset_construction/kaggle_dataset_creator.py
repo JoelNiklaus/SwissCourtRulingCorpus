@@ -15,8 +15,6 @@ from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 
-logger = get_logger(__name__)
-
 
 class KaggleDatasetCreator(DatasetConstructorComponent):
     """
@@ -25,9 +23,10 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
 
     def __init__(self, config: dict):
         super().__init__(config)
+        self.logger = get_logger(__name__)
 
     def create_dataset(self):
-        logger.info("Reading csv file")
+        self.logger.info("Reading csv file")
         ddf = dd.read_csv(self.clean_csv_subdir / '_de.csv', usecols=['chamber', 'text'])
 
         seed = 42
@@ -36,15 +35,15 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
 
         value_counts = ddf.chamber.value_counts().compute()  # count number of decisions per chamber
         selection = list(value_counts[:n_most_frequent_chambers].index)  # select n most frequent chambers
-        logger.info(f"Computed list of most frequent chambers: {selection}")
+        self.logger.info(f"Computed list of most frequent chambers: {selection}")
 
         # select only decisions which are of a chamber in the selection
         df = ddf[ddf.chamber.str.contains("|".join(selection), regex=True, na=False)].compute()
 
         # sample num_decisions_per_chamber from each of the selected chambers
         df = df.sample(n=n_most_frequent_chambers * num_decisions_per_chamber, random_state=seed)
-        logger.info(f"Sampled {num_decisions_per_chamber} "
-                    f"from each of the {n_most_frequent_chambers} most frequent chambers from the dataset")
+        self.logger.info(f"Sampled {num_decisions_per_chamber} "
+                         f"from each of the {n_most_frequent_chambers} most frequent chambers from the dataset")
 
         # reset index so that we get nice Ids
         # df = df.reset_index(drop=True)
@@ -52,7 +51,7 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
 
         # split into train, val and test sets
         train, val, solution = dd.from_pandas(df, npartitions=1).random_split([0.7, 0.1, 0.2], random_state=seed)
-        logger.info("Split data into train, val and test set")
+        self.logger.info("Split data into train, val and test set")
 
         # get pandas dfs again
         train = train.compute()
@@ -76,7 +75,7 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         test.to_csv(self.kaggle_csv_subdir / 'test.csv', index_label='Id')
         solution.to_csv(self.kaggle_csv_subdir / 'solution.csv', index_label='Id')
         sample_submission.to_csv(self.kaggle_csv_subdir / 'sampleSubmission.csv', index_label='Id')
-        logger.info(f"Saved files necessary for competition to {self.kaggle_csv_subdir}")
+        self.logger.info(f"Saved files necessary for competition to {self.kaggle_csv_subdir}")
 
 
 if __name__ == '__main__':

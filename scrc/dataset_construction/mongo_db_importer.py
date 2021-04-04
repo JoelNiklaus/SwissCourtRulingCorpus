@@ -8,8 +8,6 @@ import configparser
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 
-logger = get_logger(__name__)
-
 
 class MongoDBImporter(DatasetConstructorComponent):
     """
@@ -18,6 +16,8 @@ class MongoDBImporter(DatasetConstructorComponent):
 
     def __init__(self, config: dict):
         super().__init__(config)
+        self.logger = get_logger(__name__)
+
         self.ip = config['mongodb']['ip']
         self.port = config['mongodb']['port']
         self.database = config['mongodb']['database']
@@ -34,8 +34,8 @@ class MongoDBImporter(DatasetConstructorComponent):
         bash_command = f"mongoimport --host={self.ip} -d {self.database} -c {self.collection} --type csv --file {file_to_import} --headerline"
         process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
         output, error = process.communicate()
-        logger.info(output)
-        logger.error(error)
+        self.logger.info(output)
+        self.logger.error(error)
 
 
 if __name__ == '__main__':

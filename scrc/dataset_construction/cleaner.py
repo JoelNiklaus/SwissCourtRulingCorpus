@@ -16,8 +16,6 @@ from scrc.dataset_construction.dataset_constructor_component import DatasetConst
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import court_keys
 
-logger = get_logger(__name__)
-
 
 class Cleaner(DatasetConstructorComponent):
     """
@@ -37,6 +35,7 @@ class Cleaner(DatasetConstructorComponent):
 
     def __init__(self, config: dict):
         super().__init__(config)
+        self.logger = get_logger(__name__)
 
         self.load_cleaning_regexes(config)
         self.load_cleaning_functions(config)
@@ -61,43 +60,43 @@ class Cleaner(DatasetConstructorComponent):
 
     def clean(self):
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
-        logger.info("Starting to clean raw court rulings")
+        self.logger.info("Starting to clean raw court rulings")
         raw_csv_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_csv_subdir)}/*")]
         clean_csv_list = [Path(spider).stem for spider in glob.glob(f"{str(self.clean_csv_subdir)}/*")]
         not_yet_cleaned_spiders = set(raw_csv_list) - set(clean_csv_list)
         spiders_to_clean = [court for court in not_yet_cleaned_spiders if court[0] != '_']  # exclude aggregations
-        logger.info(f"Still {len(spiders_to_clean)} court(s) remaining to clean: {spiders_to_clean}")
+        self.logger.info(f"Still {len(spiders_to_clean)} court(s) remaining to clean: {spiders_to_clean}")
 
         for spider in spiders_to_clean:
             self.clean_spider(spider)
 
-        logger.info("Finished cleaning raw court rulings")
+        self.logger.info("Finished cleaning raw court rulings")
 
     def clean_spider(self, spider):
         """Cleans one spider csv file"""
-        logger.info(f"Started cleaning {spider}")
+        self.logger.info(f"Started cleaning {spider}")
         dtype_dict = {key: 'string' for key in court_keys}  # create dtype_dict from court keys
         df = pd.read_csv(self.raw_csv_subdir / (spider + '.csv'), dtype=dtype_dict)  # read df of spder
 
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        logger.info('Standardized date')
+        self.logger.info('Standardized date')
 
         # add empty columns
         df['html_clean'], df['pdf_clean'] = '', ''
         df = df.parallel_apply(self.clean_df_row, axis='columns')  # apply cleaning function to each row
-        logger.info('Cleaned html and pdf content')
+        self.logger.info('Cleaned html and pdf content')
 
         # Combine columns into one easy to use text column (prioritize html content if both exist)
         df['text'] = np.where(df['html_clean'] != '', df['html_clean'], df['pdf_clean'])
         df = df.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
-        logger.info('Combined columns into one easy to use text column')
+        self.logger.info('Combined columns into one easy to use text column')
 
         df.to_csv(self.clean_csv_subdir / (spider + '.csv'), index=False)  # save cleaned df of spider
-        logger.info(f"Finished cleaning {spider}")
+        self.logger.info(f"Finished cleaning {spider}")
 
     def clean_df_row(self, series):
         """Cleans one row of a raw df"""
-        logger.debug(f"Cleaning court decision {series['file_name']}")
+        self.logger.debug(f"Cleaning court decision {series['file_name']}")
         namespace = series[['file_number', 'file_number_additional', 'date', 'language']].to_dict()
         spider = series['spider']
 
@@ -136,7 +135,8 @@ class Cleaner(DatasetConstructorComponent):
         cleaned_text = re.sub(r"\s+", ' ', cleaned_text)  # replace all whitespace with a single whitespace
         cleaned_text = re.sub(r"_+", '_', cleaned_text)  # remove duplicate underscores (from anonymisations)
         cleaned_text = cleaned_text.strip()  # remove leading and trailing whitespace
-        cleaned_text = "".join(ch for ch in cleaned_text if unicodedata.category(ch)[0] != "C")  # remove control characters
+        cleaned_text = "".join(
+            ch for ch in cleaned_text if unicodedata.category(ch)[0] != "C")  # remove control characters
         return cleaned_text
 
     def clean_with_functions(self, spider: str, text: str, namespace: dict) -> str:
@@ -144,7 +144,7 @@ class Cleaner(DatasetConstructorComponent):
         # Parses the html string with bs4 and returns the body content
         soup = bs4.BeautifulSoup(text, "html.parser").find('body')
         if not hasattr(self.cleaning_functions, spider):
-            logger.debug(f"There are no special functions for spider {spider}. Just performing default cleaning.")
+            self.logger.debug(f"There are no special functions for spider {spider}. Just performing default cleaning.")
         else:
             cleaning_function = getattr(self.cleaning_functions, spider)  # retrieve cleaning function by spider
             soup = cleaning_function(soup, namespace)  # invoke cleaning function with soup and namespace
@@ -157,7 +157,7 @@ class Cleaner(DatasetConstructorComponent):
     def clean_with_regexes(self, spider: str, text: str, namespace: dict) -> str:
         """Cleans pdf documents with cleaning regexes"""
         if spider not in self.spiders_regexes or not self.spiders_regexes[spider]:
-            logger.debug(f"There are no special regexes for spider {spider}. Just performing default cleaning.")
+            self.logger.debug(f"There are no special regexes for spider {spider}. Just performing default cleaning.")
             return text
         else:
             regexes = self.spiders_regexes[spider]

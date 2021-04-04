@@ -1,7 +1,6 @@
 import configparser
 import glob
 import json
-import multiprocessing
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Optional
@@ -11,14 +10,13 @@ import pandas as pd
 import bs4
 import requests
 from tika import parser
+from tqdm.contrib.concurrent import process_map
 
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.language_identification import LanguageIdentification
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import court_keys
-
-logger = get_logger(__name__)
 
 
 class Extractor(DatasetConstructorComponent):
@@ -29,6 +27,7 @@ class Extractor(DatasetConstructorComponent):
 
     def __init__(self, config: dict):
         super().__init__(config)
+        self.logger = get_logger(__name__)
 
         self.lang_id = LanguageIdentification()
 
@@ -39,42 +38,41 @@ class Extractor(DatasetConstructorComponent):
         for spider in spider_list:
             self.build_spider_dataset(spider)
 
-        logger.info("Building dataset finished.")
+        self.logger.info("Building dataset finished.")
 
     def build_spider_dataset(self, spider: str) -> None:
         """ Builds a dataset for a spider """
         spider_csv_path = self.raw_csv_subdir / (spider + '.csv')
         if spider_csv_path.exists():
-            logger.info(f"Skipping spider {spider}. CSV file already exists.")
+            self.logger.info(f"Skipping spider {spider}. CSV file already exists.")
             return
 
         spider_dir = self.spiders_dir / spider
-        logger.info(f"Building spider dataset for {spider}")
+        self.logger.info(f"Building spider dataset for {spider}")
         spider_dict_list = self.build_spider_dict_list(spider_dir)
 
-        logger.info("Building pandas DataFrame from list of dicts")
+        self.logger.info("Building pandas DataFrame from list of dicts")
         df = pd.DataFrame(spider_dict_list)
 
-        logger.info(f"Saving data to {spider_csv_path}")
+        self.logger.info(f"Saving data to {spider_csv_path}")
         df.to_csv(spider_csv_path, index=False)  # save spider to csv
 
     def build_spider_dict_list(self, spider_dir: Path) -> list:
         """ Builds the spider dict list which we can convert to a pandas Data Frame later """
         # we take the json files as a starting point to get the corresponding html or pdf files
         json_filenames = self.get_filenames_of_extension(spider_dir, 'json')
-        with multiprocessing.Pool() as pool:
-            spider_dict_list = pool.map(self.build_spider_dict, json_filenames)
+        spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=100)
 
         return [spider_dict for spider_dict in spider_dict_list if spider_dict]  # remove None values
 
     def build_spider_dict(self, json_file: str) -> Optional[dict]:
         """Extracts the information from all the available files"""
-        logger.info(f"Processing {json_file}")
+        self.logger.info(f"Processing {json_file}")
         corresponding_pdf_path = Path(json_file).with_suffix('.pdf')
         corresponding_html_path = Path(json_file).with_suffix('.html')
         # if we DO NOT have a court decision corresponding to that found json file
         if not corresponding_html_path.exists() and not corresponding_pdf_path.exists():
-            logger.warning(f"No court decision found for json file {json_file}")
+            self.logger.warning(f"No court decision found for json file {json_file}")
             return None  # skip the remaining part since we know already that there is no court decision available
         else:
             return self.compose_court_dict(corresponding_html_path, corresponding_pdf_path, json_file)
@@ -104,13 +102,13 @@ class Extractor(DatasetConstructorComponent):
     def get_filenames_of_extension(spider_dir: Path, extension: str) -> list:
         """ Finds all filenames of a given extension in a given directory. """
         filename_list = list(glob.glob(f"{str(spider_dir)}/*.{extension}"))  # Here we can also use regex
-        logger.info(f"Found {len(filename_list)} {extension} files")
+        self.logger.info(f"Found {len(filename_list)} {extension} files")
         return filename_list
 
     @staticmethod
     def extract_general_info(json_file) -> dict:
         """Extracts the filename and spider from the file path and metadata from the json file"""
-        logger.debug(f"Extracting content from json file: \t {json_file}")
+        self.logger.debug(f"Extracting content from json file: \t {json_file}")
         general_info = {'spider': Path(json_file).parent.name, 'file_name': Path(json_file).stem}
         # loading json content and and extracting relevant metadata
         with open(json_file) as f:
@@ -124,7 +122,7 @@ class Extractor(DatasetConstructorComponent):
                     # the chamber contains all information
                     general_info['chamber'] = metadata['Signatur']
                 else:
-                    logger.warning("Cannot extract signature from metadata.")
+                    self.logger.warning("Cannot extract signature from metadata.")
                 if 'Num' in metadata:
                     file_numbers = metadata['Num']
                     if file_numbers:  # if there is at least one entry
@@ -133,19 +131,19 @@ class Extractor(DatasetConstructorComponent):
                         # This is to be expected in BVGEer, BGE and BSTG
                         general_info['file_number_additional'] = file_numbers[1]
                 else:
-                    logger.warning("Cannot extract file_number from metadata.")
+                    self.logger.warning("Cannot extract file_number from metadata.")
                 if 'HTML' in metadata:
                     general_info['html_url'] = metadata['HTML']['URL']
                 if 'PDF' in metadata:
                     general_info['pdf_url'] = metadata['PDF']['URL']
                 if 'PDF' not in metadata and 'HTML' not in metadata:
-                    logger.warning("Cannot extract url from metadata.")
+                    self.logger.warning("Cannot extract url from metadata.")
                 if 'Datum' in metadata:
                     general_info['date'] = metadata['Datum']
                 else:
-                    logger.warning("Cannot extract date from metadata.")
+                    self.logger.warning("Cannot extract date from metadata.")
             except JSONDecodeError as e:
-                logger.error(f"Error in file {json_file}: {e}. Cannot extract file_number, url and date.")
+                self.logger.error(f"Error in file {json_file}: {e}. Cannot extract file_number, url and date.")
         return general_info
 
     def extract_corresponding_html_content(self, corresponding_html_path) -> Optional[dict]:
@@ -153,7 +151,7 @@ class Extractor(DatasetConstructorComponent):
         if not corresponding_html_path.exists():  # if this court decision is NOT available in html format
             return None
         else:
-            logger.debug(f"Extracting content from html file: \t {corresponding_html_path}")
+            self.logger.debug(f"Extracting content from html file: \t {corresponding_html_path}")
             html_raw = corresponding_html_path.read_text()  # get html string
             assert html_raw is not None and html_raw != ''
             soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
@@ -166,15 +164,15 @@ class Extractor(DatasetConstructorComponent):
         if not corresponding_pdf_path.exists():  # if this court decision is NOT available in pdf format
             return None
         else:
-            logger.debug(f"Extracting content from pdf file: \t {corresponding_pdf_path}")
+            self.logger.debug(f"Extracting content from pdf file: \t {corresponding_pdf_path}")
             try:
                 pdf = parser.from_file(str(corresponding_pdf_path), requestOptions={'timeout': 300})  # parse pdf
             except requests.exceptions.ReadTimeout as e:
-                logger.error(f"Timeout error occurred for PDF file {corresponding_pdf_path}: {e}")
+                self.logger.error(f"Timeout error occurred for PDF file {corresponding_pdf_path}: {e}")
                 return None
             pdf_raw = pdf['content']  # get content
             if pdf['content'] is None:
-                logger.error(f"PDF file {corresponding_pdf_path} is empty.")
+                self.logger.error(f"PDF file {corresponding_pdf_path} is empty.")
                 return None
             else:
                 pdf_raw = pdf_raw.strip()  # strip leading and trailing whitespace
