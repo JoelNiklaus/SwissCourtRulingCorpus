@@ -69,7 +69,9 @@ class Scraper(DatasetConstructorComponent):
         logger.info(f"Found {len(included_links)} links")
 
         # process each court in its own process to speed up this creation by a lot!
-        with multiprocessing.Pool() as pool:
+        # in case that the server has not enough capacity (we are encounterring 'Connection reset by peer')
+        # => decrease number of processes
+        with multiprocessing.Pool(processes=8) as pool:
             pool.map(self.download_file_from_url, included_links)
 
         logger.info(f"Finished downloading from {sub_folder} ...")
