@@ -22,7 +22,7 @@ def main():
     cleaner.clean()
 
     aggregator = Aggregator(config)
-    aggregator.combine_courts()
+    aggregator.combine_spiders()
 
     kaggle_dataset_creator = KaggleDatasetCreator(config)
     kaggle_dataset_creator.create_dataset()

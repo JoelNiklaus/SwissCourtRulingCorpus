@@ -6,6 +6,7 @@ import bs4
 import requests
 
 from root import ROOT_DIR
+from scrc.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import save_to_path
 
@@ -13,18 +14,16 @@ base_url = "https://entscheidsuche.ch/"
 
 supported_suffixes = ['.htm', '.html', '.pdf', '.txt', '.json']
 supported_languages = ['de', 'fr', 'it']
-excluded_link_names = ['Name', 'Last modified', 'Size', 'Description', 'Parent Directory', 'Index', 'Jobs']
+excluded_link_names = ['Name', 'Last modified', 'Size', 'Description', 'Parent Directory', 'Index', 'Jobs', 'Sitemaps']
 
 logger = get_logger(__name__)
 
 
-class Scraper:
+class Scraper(DatasetConstructorComponent):
     """Scrapes the court rulings with the associated metadata files from entscheidsuche.ch/docs"""
 
     def __init__(self, config: dict):
-        self.data_dir = ROOT_DIR / config['dir']['data_dir']
-        self.courts_dir = self.data_dir / config['dir']['courts_subdir']  # we save the output here
-        self.courts_dir.mkdir(parents=True, exist_ok=True)  # create output folder if it does not exist yet
+        super().__init__(config)
 
     def download_subfolders(self, url: str):
         """
@@ -81,7 +80,7 @@ class Scraper:
         try:
             r = requests.get(base_url + str(url))  # make request to download file
             # save to the last two parts of the url (folder and filename)
-            save_to_path(r.content, self.courts_dir / Path(*url.parts[-2:]))
+            save_to_path(r.content, self.spiders_dir / Path(*url.parts[-2:]))
         except Exception as e:
             logger.error(f"Caught an exception while processing {str(url)}\n{e}")
 

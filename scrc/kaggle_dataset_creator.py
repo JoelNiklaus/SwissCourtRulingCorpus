@@ -13,29 +13,19 @@ import pandas as pd
 import dask.dataframe as dd
 import numpy as np
 from root import ROOT_DIR
+from scrc.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 
 logger = get_logger(__name__)
 
-pd.set_option('display.max_rows', 500)
-pd.set_option('display.max_columns', 500)
-pd.set_option('display.width', 1000)
-pd.set_option('display.max_colwidth', None)
 
-
-class KaggleDatasetCreator:
+class KaggleDatasetCreator(DatasetConstructorComponent):
     """
     Creates the files for a kaggle dataset.
     """
 
     def __init__(self, config: dict):
-        self.data_dir = ROOT_DIR / config['dir']['data_dir']
-        self.courts_dir = self.data_dir / config['dir']['courts_subdir']
-        self.csv_dir = self.data_dir / config['dir']['csv_subdir']
-        self.raw_csv_subdir = self.csv_dir / config['dir']['raw_csv_subdir']
-        self.clean_csv_subdir = self.csv_dir / config['dir']['clean_csv_subdir']
-        self.kaggle_csv_subdir = self.csv_dir / config['dir']['kaggle_csv_subdir']
-        self.kaggle_csv_subdir.mkdir(parents=True, exist_ok=True)  # create output folder if it does not exist yet
+        super().__init__(config)
 
     def create_dataset(self):
         logger.info("Reading csv file")

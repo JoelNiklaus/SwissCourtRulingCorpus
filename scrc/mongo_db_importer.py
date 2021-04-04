@@ -1,6 +1,8 @@
 from pymongo import MongoClient
 import subprocess
 
+from scrc.dataset_constructor_component import DatasetConstructorComponent
+
 IP = "172.17.0.2"
 PORT = 27017
 DB = "scrc"
@@ -18,17 +20,13 @@ from scrc.utils.log_utils import get_logger
 logger = get_logger(__name__)
 
 
-class MongoDBImporter:
+class MongoDBImporter(DatasetConstructorComponent):
     """
     Imports the csv data to a MongoDB
     """
 
     def __init__(self, config: dict):
-        self.data_dir = ROOT_DIR / config['dir']['data_dir']
-        self.courts_dir = self.data_dir / config['dir']['courts_subdir']
-        self.csv_dir = self.data_dir / config['dir']['csv_subdir']
-        self.raw_csv_subdir = self.csv_dir / config['dir']['raw_csv_subdir']
-        self.clean_csv_subdir = self.csv_dir / config['dir']['clean_csv_subdir']
+        super().__init__(config)
 
     def import_data(self):
         file_to_import = self.clean_csv_subdir / "_all.csv"
