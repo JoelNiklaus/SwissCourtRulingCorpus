@@ -8,7 +8,7 @@ from typing import Tuple
 import pandas as pd
 
 from root import ROOT_DIR
-from scrc.dataset_constructor_component import DatasetConstructorComponent
+from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 
 logger = get_logger(__name__)

@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from root import ROOT_DIR
-from scrc.dataset_constructor_component import DatasetConstructorComponent
+from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import court_keys
 

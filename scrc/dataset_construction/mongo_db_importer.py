@@ -1,16 +1,7 @@
 from pymongo import MongoClient
 import subprocess
 
-from scrc.dataset_constructor_component import DatasetConstructorComponent
-
-IP = "172.17.0.2"
-PORT = 27017
-DB = "scrc"
-COLLECTION = "rulings"
-
-client = MongoClient(f"mongodb://{IP}:{PORT}")
-database = client.scrc
-collection = database.rulings
+from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 
 import configparser
 
@@ -27,11 +18,20 @@ class MongoDBImporter(DatasetConstructorComponent):
 
     def __init__(self, config: dict):
         super().__init__(config)
+        self.ip = config['mongodb']['ip']
+        self.port = config['mongodb']['port']
+        self.database = config['mongodb']['database']
+        self.collection = config['mongodb']['collection']
+
+    def connect_to_db(self):
+        client = MongoClient(f"mongodb://{self.ip}:{self.port}")
+        database = client[self.database]
+        collection = database[self.collection]
 
     def import_data(self):
         file_to_import = self.clean_csv_subdir / "_all.csv"
 
-        bash_command = f"mongoimport --host={IP} -d {DB} -c {COLLECTION} --type csv --file {file_to_import} --headerline"
+        bash_command = f"mongoimport --host={self.ip} -d {self.database} -c {self.collection} --type csv --file {file_to_import} --headerline"
         process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
         output, error = process.communicate()
         logger.info(output)

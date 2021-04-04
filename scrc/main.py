@@ -1,11 +1,12 @@
 import configparser
 
 from root import ROOT_DIR
-from scrc.aggregator import Aggregator
-from scrc.cleaner import Cleaner
-from scrc.extractor import Extractor
-from scrc.kaggle_dataset_creator import KaggleDatasetCreator
-from scrc.scraper import Scraper, base_url
+from scrc.dataset_construction.aggregator import Aggregator
+from scrc.dataset_construction.cleaner import Cleaner
+from scrc.dataset_construction.extractor import Extractor
+from scrc.dataset_construction.kaggle_dataset_creator import KaggleDatasetCreator
+from scrc.dataset_construction.mongo_db_importer import MongoDBImporter
+from scrc.dataset_construction.scraper import Scraper, base_url
 
 
 def main():
@@ -26,6 +27,9 @@ def main():
 
     kaggle_dataset_creator = KaggleDatasetCreator(config)
     kaggle_dataset_creator.create_dataset()
+
+    mongo_db_importer = MongoDBImporter(config)
+    mongo_db_importer.import_data()
 
 
 if __name__ == '__main__':

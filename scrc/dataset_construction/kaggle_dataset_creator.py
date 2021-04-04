@@ -9,11 +9,10 @@ possible labels: chamber, (date)
 
 """
 import configparser
-import pandas as pd
 import dask.dataframe as dd
 import numpy as np
 from root import ROOT_DIR
-from scrc.dataset_constructor_component import DatasetConstructorComponent
+from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 
 logger = get_logger(__name__)
@@ -68,15 +67,15 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         solution = solution.rename(columns={"chamber": "Expected"})  # rename according to kaggle conventions
 
         # create sampleSubmission file
-        sampleSubmission = solution.rename(columns={"Expected": "Predicted"})  # rename according to kaggle conventions
-        sampleSubmission['Predicted'] = np.random.choice(selection, size=len(sampleSubmission))  # set to random value
+        sample_submission = solution.rename(columns={"Expected": "Predicted"})  # rename according to kaggle conventions
+        sample_submission['Predicted'] = np.random.choice(selection, size=len(sample_submission))  # set to random value
 
         # save to csv
         train.to_csv(self.kaggle_csv_subdir / 'train.csv', index_label='Id')
         val.to_csv(self.kaggle_csv_subdir / 'val.csv', index_label='Id')
         test.to_csv(self.kaggle_csv_subdir / 'test.csv', index_label='Id')
         solution.to_csv(self.kaggle_csv_subdir / 'solution.csv', index_label='Id')
-        sampleSubmission.to_csv(self.kaggle_csv_subdir / 'sampleSubmission.csv', index_label='Id')
+        sample_submission.to_csv(self.kaggle_csv_subdir / 'sampleSubmission.csv', index_label='Id')
         logger.info(f"Saved files necessary for competition to {self.kaggle_csv_subdir}")
 
 
