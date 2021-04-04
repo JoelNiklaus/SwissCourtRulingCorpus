@@ -24,11 +24,12 @@ class Aggregator(DatasetConstructorComponent):
         super().__init__(config)
         self.languages = ['de', 'fr', 'it']
 
-    def combine_spiders(self) -> None:
+    def combine_spiders(self, combine_raw=False) -> None:
         """build total df from individual spider dfs"""
-        logger.info(f"Started aggregating raw csv files")
-        self.combine_spiders_by_base_path(self.raw_csv_subdir)
-        logger.info(f"Finished aggregating raw csv files")
+        if combine_raw:
+            logger.info(f"Started aggregating raw csv files")
+            self.combine_spiders_by_base_path(self.raw_csv_subdir)
+            logger.info(f"Finished aggregating raw csv files")
         logger.info(f"Started aggregating clean csv files")
         self.combine_spiders_by_base_path(self.clean_csv_subdir)
         logger.info(f"Finished aggregating clean csv files")
