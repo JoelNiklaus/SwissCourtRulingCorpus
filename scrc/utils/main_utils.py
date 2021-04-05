@@ -25,10 +25,8 @@ court_keys = [
     "file_number_additional",
     "html_url",
     "html_raw",
-    "html_clean",
     "pdf_url",
     "pdf_raw",
-    "pdf_clean",
     "text"
 ]
 

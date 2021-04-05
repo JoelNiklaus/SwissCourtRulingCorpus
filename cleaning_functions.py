@@ -1,7 +1,7 @@
 from typing import Any
 
 
-def CH_BGEr(soup: Any, namespace: dict) -> Any:
+def CH_BGer(soup: Any, namespace: dict) -> Any:
     return soup.find_all("div", class_="content")[0]
 
 

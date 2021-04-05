@@ -3,9 +3,9 @@ import json
 import re
 import importlib.util
 from pathlib import Path
+from typing import Optional
 
 import bs4
-from pandarallel import pandarallel
 import glob
 import numpy as np
 import pandas as pd
@@ -16,6 +16,18 @@ from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import clean_text
+
+sections = [
+    "header",
+    "title",
+    "judges",
+    "parties",
+    "topic",
+    "situation",
+    "considerations",
+    "rulings",
+    "footer"
+]
 
 
 class Cleaner(DatasetConstructorComponent):
@@ -40,27 +52,25 @@ class Cleaner(DatasetConstructorComponent):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
+        self.functions = {}
+        self.load_functions(config, 'cleaning_functions')
+        self.load_functions(config, 'section_splitting_functions')
         self.load_cleaning_regexes(config)
-        self.load_cleaning_functions(config)
 
-        # for parallel pandas processing: https://github.com/nalepae/pandarallel
-        # unfortunately, the progress bar does not work for parallel_apply: https://github.com/nalepae/pandarallel/issues/26
-        pandarallel.initialize(verbose=2, use_memory_fs=True)
-
-    def load_cleaning_functions(self, config):
+    def load_functions(self, config, type):
         """loads the cleaning functions used for html files"""
-        function_file = ROOT_DIR / config['files']['functions']  # mainly used for html courts
+        function_file = ROOT_DIR / config['files'][type]  # mainly used for html courts
         spec = importlib.util.spec_from_file_location("cleaning_functions", function_file)
-        self.cleaning_functions = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(self.cleaning_functions)
-        self.logger.debug(self.cleaning_functions)
+        self.functions[type] = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.functions[type])
+        self.logger.debug(self.functions[type])
 
     def load_cleaning_regexes(self, config):
         """loads the cleaning regexes used for pdf files"""
-        regex_file = ROOT_DIR / config['files']['regexes']  # mainly used for pdf spiders
+        regex_file = ROOT_DIR / config['files']['cleaning_regexes']  # mainly used for pdf spiders
         with open(regex_file) as f:
-            self.spiders_regexes = json.load(f)
-        self.logger.debug(self.spiders_regexes)
+            self.cleaning_regexes = json.load(f)
+        self.logger.debug(self.cleaning_regexes)
 
     def clean(self):
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
@@ -91,13 +101,17 @@ class Cleaner(DatasetConstructorComponent):
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
         self.logger.info('Standardized date')
 
-        ddf = dd.from_pandas(df, chunksize=1000)  # according to docs you should aim for a partition size of 100MB
+        for section in sections:  # add empty section columns
+            df[section] = ""
 
+        ddf = dd.from_pandas(df, chunksize=1000)  # according to docs you should aim for a partition size of 100MB
         ddf = ddf.apply(self.clean_df_row, axis='columns', meta=ddf)  # apply cleaning function to each row
 
         ddf = ddf.dropna(subset=['text'])  # drop rows which have no text
         ddf['text'] = ddf['text'].astype(str)  # set type to string again so it can be saved to parquet
-        ddf = ddf.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
+
+        # keep raw output in case we need it later
+        # ddf = ddf.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
         with ProgressBar():
             df = ddf.compute(scheduler='processes')
         self.logger.info('Cleaned html and pdf content')
@@ -109,24 +123,29 @@ class Cleaner(DatasetConstructorComponent):
     def clean_df_row(self, series):
         """Cleans one row of a raw df"""
         self.logger.debug(f"Cleaning court decision {series['file_name']}")
-        namespace = series[['file_number', 'file_number_additional', 'date', 'language']].to_dict()
+        namespace = series[
+            ['file_number', 'file_number_additional', 'date', 'language', 'pdf_url', 'html_url']].to_dict()
         spider = series['spider']
 
         html_clean, pdf_clean = '', ''
 
         html_raw = series['html_raw']
         if pd.notna(html_raw) and html_raw not in [None, '']:
-            html_clean = self.clean_html(spider, html_raw, namespace)
+           html_clean = self.clean_html(spider, html_raw, namespace)
 
         pdf_raw = series['pdf_raw']
         if pd.notna(pdf_raw) and pdf_raw not in [None, '']:
-            pdf_clean = self.clean_pdf(spider, pdf_raw, namespace)
+           pdf_clean = self.clean_pdf(spider, pdf_raw, namespace)
 
         # Combine columns into one easy to use text column (prioritize html content if both exist)
         series['text'] = np.where(html_clean != '', html_clean, pdf_clean)
         if series['text'] == '':
-            series['text'] = np.nan  # set to nan, so that it can be removed afterwards
-            self.logger.warning(f"No raw text available for court decision {series['file_number']}")
+           series['text'] = np.nan  # set to nan, so that it can be removed afterwards
+           self.logger.warning(f"No raw text available for court decision {series['file_number']}")
+
+        sections = self.split_sections_with_functions(spider, html_raw, namespace)
+        if sections:
+            series = series.replace(sections)
 
         return series
 
@@ -145,10 +164,11 @@ class Cleaner(DatasetConstructorComponent):
         # Parses the html string with bs4 and returns the body content
         soup = bs4.BeautifulSoup(text, "html.parser").find('body')
         assert soup
-        if not hasattr(self.cleaning_functions, spider):
+        if not hasattr(self.functions['cleaning_functions'], spider):
             self.logger.debug(f"There are no special functions for spider {spider}. Just performing default cleaning.")
         else:
-            cleaning_function = getattr(self.cleaning_functions, spider)  # retrieve cleaning function by spider
+            cleaning_function = getattr(self.functions['cleaning_functions'],
+                                        spider)  # retrieve cleaning function by spider
             soup = cleaning_function(soup, namespace)  # invoke cleaning function with soup and namespace
 
         # we cannot just remove tables because sometimes the content of the entire court decision is inside a table (GL_Omni)
@@ -156,13 +176,30 @@ class Cleaner(DatasetConstructorComponent):
         #    table.decompose()  # remove all tables from content because they are not useful in raw text
         return soup.get_text()
 
+    def split_sections_with_functions(self, spider: str, text: str, namespace: dict) -> Optional[dict]:
+        """Splits sections with section splitting functions"""
+        # Parses the html string with bs4 and returns the body content
+        soup = bs4.BeautifulSoup(text, "html.parser").find('body')
+        assert soup
+        if not hasattr(self.functions['section_splitting_functions'], spider):
+            self.logger.debug(
+                f"There are no special functions for spider {spider}. Not performing any section splitting.")
+            return None
+        else:
+            section_splitting_functions = getattr(self.functions['section_splitting_functions'],
+                                                  spider)  # retrieve cleaning function by spider
+            try:
+                return section_splitting_functions(soup, namespace)  # invoke cleaning function with soup and namespace
+            except ValueError:
+                return None  # just ignore the error for now. It would need much more rules to prevent this.
+
     def clean_with_regexes(self, spider: str, text: str, namespace: dict) -> str:
         """Cleans pdf documents with cleaning regexes"""
-        if spider not in self.spiders_regexes or not self.spiders_regexes[spider]:
+        if spider not in self.cleaning_regexes or not self.cleaning_regexes[spider]:
             self.logger.debug(f"There are no special regexes for spider {spider}. Just performing default cleaning.")
             return text
         else:
-            regexes = self.spiders_regexes[spider]
+            regexes = self.cleaning_regexes[spider]
             assert regexes  # this should not be empty
             for regex in regexes:
                 # these strings can be used in the patterns and will be replaced by the variable content
