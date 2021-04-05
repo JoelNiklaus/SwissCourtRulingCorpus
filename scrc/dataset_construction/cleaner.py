@@ -9,6 +9,8 @@ from pandarallel import pandarallel
 import glob
 import numpy as np
 import pandas as pd
+import dask.dataframe as dd
+from dask.diagnostics import ProgressBar
 
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
@@ -89,13 +91,16 @@ class Cleaner(DatasetConstructorComponent):
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
         self.logger.info('Standardized date')
 
-        df = df.parallel_apply(self.clean_df_row, axis='columns')  # apply cleaning function to each row
-        self.logger.info('Cleaned html and pdf content')
+        ddf = dd.from_pandas(df, chunksize=1000)  # according to docs you should aim for a partition size of 100MB
 
-        df = df.dropna(subset=['text'])  # drop rows which have no text
-        df['text'] = df['text'].astype(str) # set type to string again so it can be saved to parquet
-        df = df.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
-        self.logger.info('Combined columns into one easy to use text column')
+        ddf = ddf.apply(self.clean_df_row, axis='columns', meta=ddf)  # apply cleaning function to each row
+
+        ddf = ddf.dropna(subset=['text'])  # drop rows which have no text
+        ddf['text'] = ddf['text'].astype(str)  # set type to string again so it can be saved to parquet
+        ddf = ddf.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
+        with ProgressBar():
+            df = ddf.compute(scheduler='processes')
+        self.logger.info('Cleaned html and pdf content')
 
         df.to_csv(self.clean_subdir / (spider + '.csv'), index=False)  # save cleaned df of spider
         df.to_parquet(self.clean_subdir / (spider + '.parquet'), index=False)  # needs pyarrow installed
