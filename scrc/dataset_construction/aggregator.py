@@ -28,10 +28,10 @@ class Aggregator(DatasetConstructorComponent):
         """build total df from individual spider dfs"""
         if combine_raw:
             self.logger.info(f"Started aggregating raw csv files")
-            self.combine_spiders_by_base_path(self.raw_csv_subdir)
+            self.combine_spiders_by_base_path(self.raw_subdir)
             self.logger.info(f"Finished aggregating raw csv files")
         self.logger.info(f"Started aggregating clean csv files")
-        self.combine_spiders_by_base_path(self.clean_csv_subdir)
+        self.combine_spiders_by_base_path(self.clean_subdir)
         self.logger.info(f"Finished aggregating clean csv files")
 
     def combine_spiders_by_base_path(self, base_path: Path) -> None:

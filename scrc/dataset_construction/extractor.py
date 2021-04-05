@@ -42,9 +42,9 @@ class Extractor(DatasetConstructorComponent):
 
     def build_spider_dataset(self, spider: str) -> None:
         """ Builds a dataset for a spider """
-        spider_csv_path = self.raw_csv_subdir / (spider + '.csv')
-        if spider_csv_path.exists():
-            self.logger.info(f"Skipping spider {spider}. CSV file already exists.")
+        spider_path = self.raw_subdir / (spider + '.parquet')
+        if spider_path.exists():
+            self.logger.info(f"Skipping spider {spider}. File already exists.")
             return
 
         spider_dir = self.spiders_dir / spider
@@ -54,14 +54,14 @@ class Extractor(DatasetConstructorComponent):
         self.logger.info("Building pandas DataFrame from list of dicts")
         df = pd.DataFrame(spider_dict_list)
 
-        self.logger.info(f"Saving data to {spider_csv_path}")
-        df.to_csv(spider_csv_path, index=False)  # save spider to csv
+        self.logger.info(f"Saving data to {spider_path}")
+        df.to_parquet(spider_path, index=False)  # save spider to parquet
 
     def build_spider_dict_list(self, spider_dir: Path) -> list:
         """ Builds the spider dict list which we can convert to a pandas Data Frame later """
         # we take the json files as a starting point to get the corresponding html or pdf files
         json_filenames = self.get_filenames_of_extension(spider_dir, 'json')
-        spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=100)
+        spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=10)
 
         return [spider_dict for spider_dict in spider_dict_list if spider_dict]  # remove None values
 

@@ -27,7 +27,7 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
 
     def create_dataset(self):
         self.logger.info("Reading csv file")
-        ddf = dd.read_csv(self.clean_csv_subdir / '_de.csv', usecols=['chamber', 'text'])
+        ddf = dd.read_csv(self.clean_subdir / '_de.csv', usecols=['chamber', 'text'])
 
         seed = 42
         n_most_frequent_chambers = 10
@@ -70,12 +70,12 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         sample_submission['Predicted'] = np.random.choice(selection, size=len(sample_submission))  # set to random value
 
         # save to csv
-        train.to_csv(self.kaggle_csv_subdir / 'train.csv', index_label='Id')
-        val.to_csv(self.kaggle_csv_subdir / 'val.csv', index_label='Id')
-        test.to_csv(self.kaggle_csv_subdir / 'test.csv', index_label='Id')
-        solution.to_csv(self.kaggle_csv_subdir / 'solution.csv', index_label='Id')
-        sample_submission.to_csv(self.kaggle_csv_subdir / 'sampleSubmission.csv', index_label='Id')
-        self.logger.info(f"Saved files necessary for competition to {self.kaggle_csv_subdir}")
+        train.to_csv(self.kaggle_subdir / 'train.csv', index_label='Id')
+        val.to_csv(self.kaggle_subdir / 'val.csv', index_label='Id')
+        test.to_csv(self.kaggle_subdir / 'test.csv', index_label='Id')
+        solution.to_csv(self.kaggle_subdir / 'solution.csv', index_label='Id')
+        sample_submission.to_csv(self.kaggle_subdir / 'sampleSubmission.csv', index_label='Id')
+        self.logger.info(f"Saved files necessary for competition to {self.kaggle_subdir}")
 
 
 if __name__ == '__main__':

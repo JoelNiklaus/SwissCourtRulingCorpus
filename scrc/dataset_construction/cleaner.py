@@ -61,8 +61,8 @@ class Cleaner(DatasetConstructorComponent):
     def clean(self):
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
         self.logger.info("Starting to clean raw court rulings")
-        raw_csv_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_csv_subdir)}/*")]
-        clean_csv_list = [Path(spider).stem for spider in glob.glob(f"{str(self.clean_csv_subdir)}/*")]
+        raw_csv_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_subdir)}/*")]
+        clean_csv_list = [Path(spider).stem for spider in glob.glob(f"{str(self.clean_subdir)}/*")]
         not_yet_cleaned_spiders = set(raw_csv_list) - set(clean_csv_list)
         spiders_to_clean = [court for court in not_yet_cleaned_spiders if court[0] != '_']  # exclude aggregations
         self.logger.info(f"Still {len(spiders_to_clean)} court(s) remaining to clean: {spiders_to_clean}")
@@ -75,8 +75,9 @@ class Cleaner(DatasetConstructorComponent):
     def clean_spider(self, spider):
         """Cleans one spider csv file"""
         self.logger.info(f"Started cleaning {spider}")
-        dtype_dict = {key: 'string' for key in court_keys}  # create dtype_dict from court keys
-        df = pd.read_csv(self.raw_csv_subdir / (spider + '.csv'), dtype=dtype_dict)  # read df of spder
+        # dtype_dict = {key: 'string' for key in court_keys}  # create dtype_dict from court keys
+        # df = pd.read_csv(self.raw_subdir / (spider + '.csv'), dtype=dtype_dict)  # read df of spider
+        df = pd.read_parquet(self.raw_subdir / (spider + '.parquet'))  # read df of spider
 
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
         self.logger.info('Standardized date')
@@ -91,7 +92,8 @@ class Cleaner(DatasetConstructorComponent):
         df = df.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
         self.logger.info('Combined columns into one easy to use text column')
 
-        df.to_csv(self.clean_csv_subdir / (spider + '.csv'), index=False)  # save cleaned df of spider
+        df.to_csv(self.clean_subdir / (spider + '.csv'), index=False)  # save cleaned df of spider
+        df.to_parquet(self.clean_subdir / (spider + '.parquet'), index=False)  # needs pyarrow installed
         self.logger.info(f"Finished cleaning {spider}")
 
     def clean_df_row(self, series):
