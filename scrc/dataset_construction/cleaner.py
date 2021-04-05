@@ -14,7 +14,7 @@ import pandas as pd
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
-from scrc.utils.main_utils import court_keys
+from scrc.utils.main_utils import clean_text
 
 
 class Cleaner(DatasetConstructorComponent):
@@ -40,8 +40,9 @@ class Cleaner(DatasetConstructorComponent):
         self.load_cleaning_regexes(config)
         self.load_cleaning_functions(config)
 
+        # for parallel pandas processing: https://github.com/nalepae/pandarallel
         # unfortunately, the progress bar does not work for parallel_apply: https://github.com/nalepae/pandarallel/issues/26
-        pandarallel.initialize()  # for parallel pandas processing: https://github.com/nalepae/pandarallel
+        pandarallel.initialize(nb_workers=4, verbose=2, use_memory_fs=True)
 
     def load_cleaning_functions(self, config):
         """loads the cleaning functions used for html files"""
@@ -61,10 +62,10 @@ class Cleaner(DatasetConstructorComponent):
     def clean(self):
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
         self.logger.info("Starting to clean raw court rulings")
-        raw_csv_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_subdir)}/*")]
-        clean_csv_list = [Path(spider).stem for spider in glob.glob(f"{str(self.clean_subdir)}/*")]
-        not_yet_cleaned_spiders = set(raw_csv_list) - set(clean_csv_list)
-        spiders_to_clean = [court for court in not_yet_cleaned_spiders if court[0] != '_']  # exclude aggregations
+        raw_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_subdir)}/*")]
+        clean_list = [Path(spider).stem for spider in glob.glob(f"{str(self.clean_subdir)}/*")]
+        not_yet_cleaned_spiders = set(raw_list) - set(clean_list)
+        spiders_to_clean = [spider for spider in not_yet_cleaned_spiders if spider[0] != '_']  # exclude aggregations
         self.logger.info(f"Still {len(spiders_to_clean)} court(s) remaining to clean: {spiders_to_clean}")
 
         for spider in spiders_to_clean:
@@ -103,11 +104,11 @@ class Cleaner(DatasetConstructorComponent):
         spider = series['spider']
 
         html_raw = series['html_raw']
-        if pd.notna(html_raw):
+        if pd.notna(html_raw) and not html_raw in [None, '']:
             series['html_clean'] = self.clean_html(spider, html_raw, namespace)
 
         pdf_raw = series['pdf_raw']
-        if pd.notna(pdf_raw):
+        if pd.notna(pdf_raw) and not pdf_raw in [None, '']:
             series['pdf_clean'] = self.clean_pdf(spider, pdf_raw, namespace)
 
         return series
@@ -115,36 +116,18 @@ class Cleaner(DatasetConstructorComponent):
     def clean_pdf(self, spider: str, text: str, namespace: dict) -> str:
         """Cleans first the text first with court specific regexes and then with general ones"""
         cleaned_text = self.clean_with_regexes(spider, text, namespace)
-        return self.clean_generally(cleaned_text)
+        return clean_text(cleaned_text)
 
     def clean_html(self, spider: str, text: str, namespace: dict) -> str:
         """Cleans first the text first with court specific regexes and then with general ones"""
         cleaned_text = self.clean_with_functions(spider, text, namespace)
-        return self.clean_generally(cleaned_text)
-
-    @staticmethod
-    def clean_generally(text: str) -> str:
-        """
-        Clean text from nasty tokens
-        :param text:    the text to be cleaned
-        :return:
-        """
-        cleaned_text = text
-        cleaned_text = unicodedata.normalize('NFKD', cleaned_text)  # normalize whitespace
-        cleaned_text = re.sub('(\w+)-\n+(\w+)', '\1\2', cleaned_text)  # remove hyphens before new line
-        cleaned_text = re.sub(r"\u00a0", ' ', cleaned_text)  # replace NBSP with normal whitespace
-        cleaned_text = re.sub(r"\xa0", ' ', cleaned_text)  # replace \xa0 with normal whitespace
-        cleaned_text = re.sub(r"\s+", ' ', cleaned_text)  # replace all whitespace with a single whitespace
-        cleaned_text = re.sub(r"_+", '_', cleaned_text)  # remove duplicate underscores (from anonymisations)
-        cleaned_text = cleaned_text.strip()  # remove leading and trailing whitespace
-        cleaned_text = "".join(
-            ch for ch in cleaned_text if unicodedata.category(ch)[0] != "C")  # remove control characters
-        return cleaned_text
+        return clean_text(cleaned_text)
 
     def clean_with_functions(self, spider: str, text: str, namespace: dict) -> str:
         """Cleans html documents with cleaning functions"""
         # Parses the html string with bs4 and returns the body content
         soup = bs4.BeautifulSoup(text, "html.parser").find('body')
+        assert soup
         if not hasattr(self.cleaning_functions, spider):
             self.logger.debug(f"There are no special functions for spider {spider}. Just performing default cleaning.")
         else:

@@ -1,5 +1,6 @@
 import json
 import re
+import unicodedata
 
 import pandas as pd
 
@@ -77,11 +78,17 @@ def get_raw_text(html) -> str:
 def clean_text(text: str) -> str:
     """
     Clean text from nasty tokens
-    :param text:
+    :param text:    the text to be cleaned
     :return:
     """
-    text = re.sub(r"\u00a0", ' ', text)  # remove NBSP
-    text = re.sub(r"\s+", ' ', text)  # remove all new lines
-    text = re.sub(r"_+", '_', text)  # remove duplicate underscores (from anonymisations)
-    text = text.strip()  # remove leading and trailing whitespace
-    return text
+    cleaned_text = text
+    cleaned_text = unicodedata.normalize('NFKD', cleaned_text)  # normalize whitespace
+    cleaned_text = re.sub('(\w+)-\n+(\w+)', '\1\2', cleaned_text)  # remove hyphens before new line
+    cleaned_text = re.sub(r"\u00a0", ' ', cleaned_text)  # replace NBSP with normal whitespace
+    cleaned_text = re.sub(r"\xa0", ' ', cleaned_text)  # replace \xa0 with normal whitespace
+    cleaned_text = re.sub(r"\s+", ' ', cleaned_text)  # replace all whitespace with a single whitespace
+    cleaned_text = re.sub(r"_+", '_', cleaned_text)  # remove duplicate underscores (from anonymisations)
+    cleaned_text = cleaned_text.strip()  # remove leading and trailing whitespace
+    cleaned_text = "".join(
+        ch for ch in cleaned_text if unicodedata.category(ch)[0] != "C")  # remove control characters
+    return cleaned_text
