@@ -38,7 +38,7 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         self.logger.info(f"Computed list of most frequent chambers: {selection}")
 
         # select only decisions which are of a chamber in the selection
-        df = ddf[ddf.chamber.str.contains("|".join(selection), regex=True, na=False)].compute()
+        df = ddf[ddf.chamber.str.contains("|".join(selection), regex=True, na=False)].compute(scheduler='processes')
 
         # sample num_decisions_per_chamber from each of the selected chambers
         df = df.sample(n=n_most_frequent_chambers * num_decisions_per_chamber, random_state=seed)
@@ -54,9 +54,9 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         self.logger.info("Split data into train, val and test set")
 
         # get pandas dfs again
-        train = train.compute()
-        val = val.compute()
-        solution = solution.compute()
+        train = train.compute(scheduler='processes')
+        val = val.compute(scheduler='processes')
+        solution = solution.compute(scheduler='processes')
 
         # create test file
         test = solution.drop('chamber', axis='columns')  # drop label
