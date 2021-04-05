@@ -34,19 +34,22 @@ class Extractor(DatasetConstructorComponent):
     def build_dataset(self) -> None:
         """ Builds the dataset for all the spiders """
         spider_list = [Path(spider).name for spider in glob.glob(f"{str(self.spiders_dir)}/*")]
+        self.logger.info(f"Found {len(spider_list)} spiders in total")
 
-        for spider in spider_list:
+        raw_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_subdir)}/*")]
+        self.logger.info(f"Found {len(raw_list)} spiders already extracted: {raw_list}")
+
+        not_yet_extracted_spiders = set(spider_list) - set(raw_list)
+        spiders_to_extract = [spider for spider in not_yet_extracted_spiders if spider[0] != '_']  # exclude aggregations
+        self.logger.info(f"Still {len(spiders_to_extract)} spider(s) remaining to extract: {spiders_to_extract}")
+
+        for spider in spiders_to_extract:
             self.build_spider_dataset(spider)
 
         self.logger.info("Building dataset finished.")
 
     def build_spider_dataset(self, spider: str) -> None:
         """ Builds a dataset for a spider """
-        spider_path = self.raw_subdir / (spider + '.parquet')
-        if spider_path.exists():
-            self.logger.info(f"Skipping spider {spider}. File already exists.")
-            return
-
         spider_dir = self.spiders_dir / spider
         self.logger.info(f"Building spider dataset for {spider}")
         spider_dict_list = self.build_spider_dict_list(spider_dir)
@@ -54,6 +57,7 @@ class Extractor(DatasetConstructorComponent):
         self.logger.info("Building pandas DataFrame from list of dicts")
         df = pd.DataFrame(spider_dict_list)
 
+        spider_path = self.raw_subdir / (spider + '.parquet')
         self.logger.info(f"Saving data to {spider_path}")
         df.to_parquet(spider_path, index=False)  # save spider to parquet
 

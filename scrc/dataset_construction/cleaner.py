@@ -50,23 +50,27 @@ class Cleaner(DatasetConstructorComponent):
         spec = importlib.util.spec_from_file_location("cleaning_functions", function_file)
         self.cleaning_functions = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.cleaning_functions)
-        print(self.cleaning_functions)
+        self.logger.debug(self.cleaning_functions)
 
     def load_cleaning_regexes(self, config):
         """loads the cleaning regexes used for pdf files"""
         regex_file = ROOT_DIR / config['files']['regexes']  # mainly used for pdf spiders
         with open(regex_file) as f:
             self.spiders_regexes = json.load(f)
-        print(self.spiders_regexes)
+        self.logger.debug(self.spiders_regexes)
 
     def clean(self):
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
         self.logger.info("Starting to clean raw court rulings")
         raw_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_subdir)}/*")]
+        self.logger.info(f"Found {len(raw_list)} spiders in total")
+
         clean_list = [Path(spider).stem for spider in glob.glob(f"{str(self.clean_subdir)}/*")]
+        self.logger.info(f"Found {len(clean_list)} spiders already cleaned: {clean_list}")
+
         not_yet_cleaned_spiders = set(raw_list) - set(clean_list)
         spiders_to_clean = [spider for spider in not_yet_cleaned_spiders if spider[0] != '_']  # exclude aggregations
-        self.logger.info(f"Still {len(spiders_to_clean)} court(s) remaining to clean: {spiders_to_clean}")
+        self.logger.info(f"Still {len(spiders_to_clean)} spiders(s) remaining to clean: {spiders_to_clean}")
 
         for spider in spiders_to_clean:
             self.clean_spider(spider)
@@ -75,10 +79,10 @@ class Cleaner(DatasetConstructorComponent):
 
     def clean_spider(self, spider):
         """Cleans one spider csv file"""
-        self.logger.info(f"Started cleaning {spider}")
         # dtype_dict = {key: 'string' for key in court_keys}  # create dtype_dict from court keys
         # df = pd.read_csv(self.raw_subdir / (spider + '.csv'), dtype=dtype_dict)  # read df of spider
         df = pd.read_parquet(self.raw_subdir / (spider + '.parquet'))  # read df of spider
+        self.logger.info(f"Started cleaning {spider} ({len(df.index)} decisions)")
 
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
         self.logger.info('Standardized date')
@@ -104,12 +108,14 @@ class Cleaner(DatasetConstructorComponent):
         spider = series['spider']
 
         html_raw = series['html_raw']
-        if pd.notna(html_raw) and not html_raw in [None, '']:
+        if pd.notna(html_raw) and html_raw not in [None, '']:
             series['html_clean'] = self.clean_html(spider, html_raw, namespace)
 
         pdf_raw = series['pdf_raw']
-        if pd.notna(pdf_raw) and not pdf_raw in [None, '']:
+        if pd.notna(pdf_raw) and pdf_raw not in [None, '']:
             series['pdf_clean'] = self.clean_pdf(spider, pdf_raw, namespace)
+
+        assert series['pdf_clean'] != '' or series['html_clean'] != ''  # at least one should exist
 
         return series
 
