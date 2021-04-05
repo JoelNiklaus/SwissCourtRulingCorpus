@@ -89,7 +89,9 @@ class Scraper(DatasetConstructorComponent):
 
     def download_file_from_url(self, url):
         """download the file from a link and save it"""
-        self.logger.debug(f"Downloading from {url}")
+        # can lead to problems inside multiprocessing
+        # => would need concurrent log handler: https://pypi.org/project/ConcurrentLogHandler/
+        # self.logger.debug(f"Downloading from {url}")
         try:
             r = requests.get(base_url + str(url))  # make request to download file
             # save to the last two parts of the url (folder and filename)

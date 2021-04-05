@@ -18,6 +18,8 @@ from scrc.utils.language_identification import LanguageIdentification
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import court_keys
 
+LANG_ID = LanguageIdentification()
+
 
 class Extractor(DatasetConstructorComponent):
     """
@@ -28,8 +30,6 @@ class Extractor(DatasetConstructorComponent):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-
-        self.lang_id = LanguageIdentification()
 
     def build_dataset(self) -> None:
         """ Builds the dataset for all the spiders """
@@ -67,7 +67,7 @@ class Extractor(DatasetConstructorComponent):
 
     def build_spider_dict(self, json_file: str) -> Optional[dict]:
         """Extracts the information from all the available files"""
-        self.logger.info(f"Processing {json_file}")
+        self.logger.debug(f"Processing {json_file}")
         corresponding_pdf_path = Path(json_file).with_suffix('.pdf')
         corresponding_html_path = Path(json_file).with_suffix('.html')
         # if we DO NOT have a court decision corresponding to that found json file
@@ -98,15 +98,13 @@ class Extractor(DatasetConstructorComponent):
             court_dict = dict(court_dict, **html_content_dict)  # may override language added from pdf_content_dict
         return court_dict
 
-    @staticmethod
-    def get_filenames_of_extension(spider_dir: Path, extension: str) -> list:
+    def get_filenames_of_extension(self, spider_dir: Path, extension: str) -> list:
         """ Finds all filenames of a given extension in a given directory. """
         filename_list = list(glob.glob(f"{str(spider_dir)}/*.{extension}"))  # Here we can also use regex
         self.logger.info(f"Found {len(filename_list)} {extension} files")
         return filename_list
 
-    @staticmethod
-    def extract_general_info(json_file) -> dict:
+    def extract_general_info(self, json_file) -> dict:
         """Extracts the filename and spider from the file path and metadata from the json file"""
         self.logger.debug(f"Extracting content from json file: \t {json_file}")
         general_info = {'spider': Path(json_file).parent.name, 'file_name': Path(json_file).stem}
@@ -156,7 +154,7 @@ class Extractor(DatasetConstructorComponent):
             assert html_raw is not None and html_raw != ''
             soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
             assert soup.find()  # make sure it is valid html
-            language = self.lang_id.get_lang(soup.get_text())
+            language = LANG_ID.get_lang(soup.get_text())
             return {"html_raw": html_raw, "language": language}
 
     def extract_corresponding_pdf_content(self, corresponding_pdf_path) -> Optional[dict]:
@@ -176,7 +174,7 @@ class Extractor(DatasetConstructorComponent):
                 return None
             else:
                 pdf_raw = pdf_raw.strip()  # strip leading and trailing whitespace
-                language = self.lang_id.get_lang(pdf_raw)
+                language = LANG_ID.get_lang(pdf_raw)
                 return {"pdf_raw": pdf_raw, "language": language}
 
 
