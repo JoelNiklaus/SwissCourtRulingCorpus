@@ -1,7 +1,6 @@
 import configparser
 import json
 import re
-import unicodedata
 import importlib.util
 from pathlib import Path
 
@@ -20,6 +19,8 @@ from scrc.utils.main_utils import clean_text
 class Cleaner(DatasetConstructorComponent):
     """
     Cleans the different courts from unnecessary strings to improve further processing.
+
+    IMPORTANT: Make sure you have enough free RAM to run this (especially to clean the bigger spiders like BGer)
 
     For the biggest courts by size, special cleaning regexes (for pdfs)
     and cleaning functions (for htmls) have been developed for cleaner data.
@@ -42,7 +43,7 @@ class Cleaner(DatasetConstructorComponent):
 
         # for parallel pandas processing: https://github.com/nalepae/pandarallel
         # unfortunately, the progress bar does not work for parallel_apply: https://github.com/nalepae/pandarallel/issues/26
-        pandarallel.initialize(nb_workers=4, verbose=2, use_memory_fs=True)
+        pandarallel.initialize(verbose=2, use_memory_fs=True)
 
     def load_cleaning_functions(self, config):
         """loads the cleaning functions used for html files"""
@@ -81,19 +82,18 @@ class Cleaner(DatasetConstructorComponent):
         """Cleans one spider csv file"""
         # dtype_dict = {key: 'string' for key in court_keys}  # create dtype_dict from court keys
         # df = pd.read_csv(self.raw_subdir / (spider + '.csv'), dtype=dtype_dict)  # read df of spider
+        self.logger.info(f"Started cleaning {spider}")
         df = pd.read_parquet(self.raw_subdir / (spider + '.parquet'))  # read df of spider
-        self.logger.info(f"Started cleaning {spider} ({len(df.index)} decisions)")
+        self.logger.info(f"Read into memory {len(df.index)} decisions")
 
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
         self.logger.info('Standardized date')
 
-        # add empty columns
-        df['html_clean'], df['pdf_clean'] = '', ''
         df = df.parallel_apply(self.clean_df_row, axis='columns')  # apply cleaning function to each row
         self.logger.info('Cleaned html and pdf content')
 
-        # Combine columns into one easy to use text column (prioritize html content if both exist)
-        df['text'] = np.where(df['html_clean'] != '', df['html_clean'], df['pdf_clean'])
+        df = df.dropna(subset=['text'])  # drop rows which have no text
+        df['text'] = df['text'].astype(str) # set type to string again so it can be saved to parquet
         df = df.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
         self.logger.info('Combined columns into one easy to use text column')
 
@@ -107,15 +107,21 @@ class Cleaner(DatasetConstructorComponent):
         namespace = series[['file_number', 'file_number_additional', 'date', 'language']].to_dict()
         spider = series['spider']
 
+        html_clean, pdf_clean = '', ''
+
         html_raw = series['html_raw']
         if pd.notna(html_raw) and html_raw not in [None, '']:
-            series['html_clean'] = self.clean_html(spider, html_raw, namespace)
+            html_clean = self.clean_html(spider, html_raw, namespace)
 
         pdf_raw = series['pdf_raw']
         if pd.notna(pdf_raw) and pdf_raw not in [None, '']:
-            series['pdf_clean'] = self.clean_pdf(spider, pdf_raw, namespace)
+            pdf_clean = self.clean_pdf(spider, pdf_raw, namespace)
 
-        assert series['pdf_clean'] != '' or series['html_clean'] != ''  # at least one should exist
+        # Combine columns into one easy to use text column (prioritize html content if both exist)
+        series['text'] = np.where(html_clean != '', html_clean, pdf_clean)
+        if series['text'] == '':
+            series['text'] = np.nan  # set to nan, so that it can be removed afterwards
+            self.logger.warning(f"No raw text available for court decision {series['file_number']}")
 
         return series
 
