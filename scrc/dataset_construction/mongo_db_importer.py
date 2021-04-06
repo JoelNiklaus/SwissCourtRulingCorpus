@@ -31,6 +31,9 @@ class MongoDBImporter(DatasetConstructorComponent):
     def import_data(self):
         file_to_import = self.clean_subdir / "_all.csv"
 
+        self.import_file(file_to_import)
+
+    def import_file(self, file_to_import):
         bash_command = f"mongoimport --host {self.ip} --port {self.port} -d {self.database} -c {self.collection} --type csv --file {file_to_import} --headerline"
         process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
         output, error = process.communicate()

@@ -3,7 +3,7 @@ import json
 import re
 import importlib.util
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 import bs4
 import glob
@@ -75,10 +75,10 @@ class Cleaner(DatasetConstructorComponent):
     def clean(self):
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
         self.logger.info("Starting to clean raw court rulings")
-        raw_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_subdir)}/*")]
+        raw_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_subdir)}/*.parquet")]
         self.logger.info(f"Found {len(raw_list)} spiders in total")
 
-        clean_list = [Path(spider).stem for spider in glob.glob(f"{str(self.clean_subdir)}/*")]
+        clean_list = [Path(spider).stem for spider in glob.glob(f"{str(self.clean_subdir)}/*.parquet")]
         self.logger.info(f"Found {len(clean_list)} spiders already cleaned: {clean_list}")
 
         not_yet_cleaned_spiders = set(raw_list) - set(clean_list)
@@ -131,21 +131,24 @@ class Cleaner(DatasetConstructorComponent):
 
         html_raw = series['html_raw']
         if pd.notna(html_raw) and html_raw not in [None, '']:
-           html_clean = self.clean_html(spider, html_raw, namespace)
+            # Parses the html string with bs4 and returns the body content
+            soup = bs4.BeautifulSoup(html_raw, "html.parser").find('body')
+            assert soup
+            html_clean = self.clean_html(spider, soup, namespace)
+
+            sections = self.split_sections_with_functions(spider, soup, namespace)
+            if sections:
+                series = series.replace(sections)
 
         pdf_raw = series['pdf_raw']
         if pd.notna(pdf_raw) and pdf_raw not in [None, '']:
-           pdf_clean = self.clean_pdf(spider, pdf_raw, namespace)
+            pdf_clean = self.clean_pdf(spider, pdf_raw, namespace)
 
         # Combine columns into one easy to use text column (prioritize html content if both exist)
         series['text'] = np.where(html_clean != '', html_clean, pdf_clean)
         if series['text'] == '':
-           series['text'] = np.nan  # set to nan, so that it can be removed afterwards
-           self.logger.warning(f"No raw text available for court decision {series['file_number']}")
-
-        sections = self.split_sections_with_functions(spider, html_raw, namespace)
-        if sections:
-            series = series.replace(sections)
+            series['text'] = np.nan  # set to nan, so that it can be removed afterwards
+            self.logger.warning(f"No raw text available for court decision {series['file_number']}")
 
         return series
 
@@ -154,16 +157,13 @@ class Cleaner(DatasetConstructorComponent):
         cleaned_text = self.clean_with_regexes(spider, text, namespace)
         return clean_text(cleaned_text)
 
-    def clean_html(self, spider: str, text: str, namespace: dict) -> str:
+    def clean_html(self, spider: str, soup: Any, namespace: dict) -> str:
         """Cleans first the text first with court specific regexes and then with general ones"""
-        cleaned_text = self.clean_with_functions(spider, text, namespace)
+        cleaned_text = self.clean_with_functions(spider, soup, namespace)
         return clean_text(cleaned_text)
 
-    def clean_with_functions(self, spider: str, text: str, namespace: dict) -> str:
+    def clean_with_functions(self, spider: str, soup: Any, namespace: dict) -> str:
         """Cleans html documents with cleaning functions"""
-        # Parses the html string with bs4 and returns the body content
-        soup = bs4.BeautifulSoup(text, "html.parser").find('body')
-        assert soup
         if not hasattr(self.functions['cleaning_functions'], spider):
             self.logger.debug(f"There are no special functions for spider {spider}. Just performing default cleaning.")
         else:
@@ -176,11 +176,8 @@ class Cleaner(DatasetConstructorComponent):
         #    table.decompose()  # remove all tables from content because they are not useful in raw text
         return soup.get_text()
 
-    def split_sections_with_functions(self, spider: str, text: str, namespace: dict) -> Optional[dict]:
+    def split_sections_with_functions(self, spider: str, soup: Any, namespace: dict) -> Optional[dict]:
         """Splits sections with section splitting functions"""
-        # Parses the html string with bs4 and returns the body content
-        soup = bs4.BeautifulSoup(text, "html.parser").find('body')
-        assert soup
         if not hasattr(self.functions['section_splitting_functions'], spider):
             self.logger.debug(
                 f"There are no special functions for spider {spider}. Not performing any section splitting.")

@@ -27,12 +27,12 @@ class Aggregator(DatasetConstructorComponent):
     def combine_spiders(self, combine_raw=False) -> None:
         """build total df from individual spider dfs"""
         if combine_raw:
-            self.logger.info(f"Started aggregating raw csv files")
+            self.logger.info(f"Started aggregating raw files")
             self.combine_spiders_by_base_path(self.raw_subdir)
-            self.logger.info(f"Finished aggregating raw csv files")
-        self.logger.info(f"Started aggregating clean csv files")
+            self.logger.info(f"Finished aggregating raw files")
+        self.logger.info(f"Started aggregating clean files")
         self.combine_spiders_by_base_path(self.clean_subdir)
-        self.logger.info(f"Finished aggregating clean csv files")
+        self.logger.info(f"Finished aggregating clean files")
 
     def combine_spiders_by_base_path(self, base_path: Path) -> None:
         """build total df from individual spider dfs for a specific base path"""
@@ -46,9 +46,9 @@ class Aggregator(DatasetConstructorComponent):
                 f"In case you want to rerun the aggregations, please delete the aggregated files.")
             return  # stop immediately
 
-        spider_list = [Path(spider).stem for spider in glob.glob(f"{str(base_path)}/*")]
+        spider_list = [Path(spider).stem for spider in glob.glob(f"{str(base_path)}/*.parquet")]
         for spider in spider_list:
-            df = pd.read_csv(base_path / (spider + '.csv'))  # read df of spider
+            df = pd.read_parquet(base_path / (spider + '.parquet'))  # read df of spider
 
             if not combined_created:  # if we still need create the combined file
                 self.logger.info(f"Adding spider {spider} to combined file")

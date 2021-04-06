@@ -36,7 +36,7 @@ class Extractor(DatasetConstructorComponent):
         spider_list = [Path(spider).name for spider in glob.glob(f"{str(self.spiders_dir)}/*")]
         self.logger.info(f"Found {len(spider_list)} spiders in total")
 
-        raw_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_subdir)}/*")]
+        raw_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_subdir)}/*.parquet")]
         self.logger.info(f"Found {len(raw_list)} spiders already extracted: {raw_list}")
 
         not_yet_extracted_spiders = set(spider_list) - set(raw_list)
