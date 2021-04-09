@@ -1,4 +1,5 @@
 import configparser
+import gc
 from os.path import exists
 from pathlib import Path
 
@@ -10,6 +11,8 @@ import pandas as pd
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
+
+import scrc.utils.monkey_patch  # prevent memory leak with pandas
 
 
 class Aggregator(DatasetConstructorComponent):
@@ -59,6 +62,8 @@ class Aggregator(DatasetConstructorComponent):
                 for lang in self.languages:
                     lang_df = df[df['language'].str.contains(lang, na=False)]  # select only decisions by language
                     self.append_spider_to_agg_file(lang_df, language_csv_paths[lang])
+
+            gc.collect()
 
     def perform_pre_checks(self, all_spiders_csv_path: Path, language_csv_paths: dict) -> Tuple[bool, bool]:
         """Check if we did these aggregations already before"""
