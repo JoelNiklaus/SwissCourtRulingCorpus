@@ -5,6 +5,10 @@ import logging.config
 import logging
 import coloredlogs
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def get_logger(name='debug_logger', default_path=ROOT_DIR / 'logging.yaml', default_level=logging.INFO,
                env_key='LOG_CFG'):
@@ -33,5 +37,5 @@ def get_logger(name='debug_logger', default_path=ROOT_DIR / 'logging.yaml', defa
         print('Failed to load configuration file. Using default configs')
 
     logger = logging.getLogger(name)
-    logger.setLevel(os.environ.get("LOGLEVEL", "DEBUG"))
+    logger.setLevel(os.getenv("LOGLEVEL", "DEBUG"))
     return logger
