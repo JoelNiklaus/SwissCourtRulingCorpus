@@ -23,15 +23,17 @@ class MongoDBImporter(DatasetConstructorComponent):
         self.indexes = json.loads(config['mongodb']['indexes'])
 
     def import_data(self, import_data=True, indexes=True):
-        if import_data:
-            for lang in self.languages:
+        db = self.get_db()
+        for lang in self.languages:
+            if lang not in db.list_collection_names():  # if we have not created it already
                 # make sure the aggregator ran through successfully before
                 self.logger.info(f'Importing aggregated file for {lang} into MongoDB')
                 self.import_file(self.clean_subdir / f"_{lang}.csv", lang)
-        if indexes:
-            for lang in self.languages:
+
                 self.logger.info(f"Creating indexes for {lang}")
                 self.create_indexes(lang)
+            else:
+                self.logger.info(f"{lang} already imported")
 
     def create_indexes(self, lang):
         collection = self.get_db()[lang]
