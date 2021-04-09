@@ -7,6 +7,7 @@ from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.kaggle_dataset_creator import KaggleDatasetCreator
 from scrc.dataset_construction.mongo_db_importer import MongoDBImporter
 from scrc.dataset_construction.scraper import Scraper, base_url
+from scrc.dataset_construction.spacy_pipeline_runner import SpacyPipelineRunner
 
 
 def main():
@@ -25,11 +26,14 @@ def main():
     aggregator = Aggregator(config)
     aggregator.combine_spiders()
 
-    kaggle_dataset_creator = KaggleDatasetCreator(config)
-    kaggle_dataset_creator.create_dataset()
-
     mongo_db_importer = MongoDBImporter(config)
     mongo_db_importer.import_data()
+
+    spacy_pipeline_runner = SpacyPipelineRunner(config)
+    spacy_pipeline_runner.run_pipeline()
+
+    kaggle_dataset_creator = KaggleDatasetCreator(config)
+    kaggle_dataset_creator.create_dataset()
 
 
 if __name__ == '__main__':
