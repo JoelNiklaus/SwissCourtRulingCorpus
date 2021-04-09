@@ -22,21 +22,31 @@ class MongoDBImporter(DatasetConstructorComponent):
 
         self.indexes = json.loads(config['mongodb']['indexes'])
 
-    def import_data(self):
-        for lang in self.languages:
-            # make sure the aggregator ran through successfully before
-            self.import_file(self.clean_subdir / f"_{lang}.csv", lang)
-            self.create_indexes(lang)
+    def import_data(self, import_data=True, indexes=True):
+        if import_data:
+            for lang in self.languages:
+                # make sure the aggregator ran through successfully before
+                self.logger.info(f'Importing aggregated file for {lang} into MongoDB')
+                self.import_file(self.clean_subdir / f"_{lang}.csv", lang)
+        if indexes:
+            for lang in self.languages:
+                self.logger.info(f"Creating indexes for {lang}")
+                self.create_indexes(lang)
 
-    def create_indexes(self, collection):
-        collection = self.get_db()
+    def create_indexes(self, lang):
+        collection = self.get_db()[lang]
 
+        self.logger.info(f"Creating index for column text")
         collection.create_index([('text', pymongo.TEXT)])  # always create the index on the text
         for index in self.indexes:
+            self.logger.info(f"Creating index for column {index}")
             collection.create_index(index)
 
     def import_file(self, file_to_import, collection):
-        bash_command = f"mongoimport --host {self.ip} --port {self.port} -d {self.database} -c {collection} --type csv --file {file_to_import} --headerline"
+        bash_command = f"mongoimport " \
+                       f"--host {self.ip} --port {self.port} " \
+                       f"-d {self.database} -c {collection} " \
+                       f"--type csv --file {file_to_import} --headerline --ignoreBlanks"
         process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
         output, error = process.communicate()
         self.logger.info(output)
