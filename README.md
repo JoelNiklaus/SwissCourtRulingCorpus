@@ -102,7 +102,7 @@ ruling document:
 
 You can run it with 
 ```bash
-sudo docker run --name scrc-mongodb -p 27017:27017 -v /home/fdn-admin/mongodb:/data/db -d mongo:3-xenial 
+sudo docker run --name scrc-mongodb -p 27017:27017 -v /home/fdn-admin/mongodb:/data/db -d mongo:4-bionic 
 ```
 which will download a docker image if not available yet and then start up the database. 
 More information can be found https://hub.docker.com/_/mongo
