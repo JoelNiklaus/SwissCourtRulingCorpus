@@ -1,5 +1,9 @@
+import json
+
 from root import ROOT_DIR
 import pandas as pd
+
+from pymongo import MongoClient
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
@@ -14,6 +18,8 @@ class DatasetConstructorComponent:
     """
 
     def __init__(self, config: dict):
+        self.languages = json.loads(config['general']['languages'])
+
         self.data_dir = ROOT_DIR / config['dir']['data_dir']
 
         self.spiders_dir = self.data_dir / config['dir']['spiders_subdir']
@@ -27,3 +33,10 @@ class DatasetConstructorComponent:
 
         self.kaggle_subdir = self.data_dir / config['dir']['kaggle_subdir']
         self.kaggle_subdir.mkdir(parents=True, exist_ok=True)  # create folder if it does not exist yet
+
+        self.ip = config['mongodb']['ip']
+        self.port = config['mongodb']['port']
+        self.database = config['mongodb']['database']
+
+    def get_db(self):
+        return MongoClient(self.ip, int(self.port))[self.database]

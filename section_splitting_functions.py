@@ -6,6 +6,7 @@ import re
 from scrc.dataset_construction.cleaner import sections
 from scrc.utils.main_utils import clean_text
 
+
 # TODO to organize database more:
 #  think about putting all metadata columns into a sub-document in each court decision and the same with the sections
 #  could be done with dot separated csv headers (is handled well in mongoimport)
@@ -30,7 +31,8 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
         "parties": ['Parteien', 'Verfahrensbeteiligte', 'In Sachen'],
         "topic": ['Gegenstand', 'betreffend'],
         "situation": ['Sachverhalt', ', hat sich ergeben', 'Nach Einsicht'],
-        "considerations": ['Das Bundesgericht zieht in Erwägung', 'Erwägung', 'in Erwägung', 'Erwägungen', 'Erwägungen'],
+        "considerations": ['Das Bundesgericht zieht in Erwägung', 'Erwägung', 'in Erwägung', 'Erwägungen',
+                           'Erwägungen'],
         "rulings": ['Demnach erkennt das Bundesgericht', 'erkennt die Präsidentin', 'erkennt der Präsident', 'erkennt'],
         "footer": [
             r'\w*,\s\d?\d\.\s(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?).*']
@@ -92,8 +94,8 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
                 for marker in markers:  # check each marker in the list
                     if re.search(marker, paragraph):
                         used_sections.append(section)  # make sure one section is only used once
-                        return section # change to the next section
-        return current_section # stay at the old section
+                        return section  # change to the next section
+        return current_section  # stay at the old section
 
     paragraphs = get_paragraphs(soup)
     section_data, paragraph_data = associate_sections(paragraphs, section_markers)

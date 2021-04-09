@@ -1,4 +1,6 @@
-from pymongo import MongoClient
+import json
+
+import pymongo
 import subprocess
 
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
@@ -11,30 +13,30 @@ from scrc.utils.log_utils import get_logger
 
 class MongoDBImporter(DatasetConstructorComponent):
     """
-    Imports the csv data to a MongoDB
+    Imports the csv data to a MongoDB and creates indexes on the fields most used for querying
     """
 
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-        self.ip = config['mongodb']['ip']
-        self.port = config['mongodb']['port']
-        self.database = config['mongodb']['database']
-        self.collection = config['mongodb']['collection']
-
-    def connect_to_db(self):
-        client = MongoClient(f"mongodb://{self.ip}:{self.port}")
-        database = client[self.database]
-        collection = database[self.collection]
+        self.indexes = json.loads(config['mongodb']['indexes'])
 
     def import_data(self):
-        file_to_import = self.clean_subdir / "_all.csv"
+        for lang in self.languages:
+            # make sure the aggregator ran through successfully before
+            self.import_file(self.clean_subdir / f"_{lang}.csv", lang)
+            self.create_indexes(lang)
 
-        self.import_file(file_to_import)
+    def create_indexes(self, collection):
+        collection = self.get_db()
 
-    def import_file(self, file_to_import):
-        bash_command = f"mongoimport --host {self.ip} --port {self.port} -d {self.database} -c {self.collection} --type csv --file {file_to_import} --headerline"
+        collection.create_index([('text', pymongo.TEXT)])  # always create the index on the text
+        for index in self.indexes:
+            collection.create_index(index)
+
+    def import_file(self, file_to_import, collection):
+        bash_command = f"mongoimport --host {self.ip} --port {self.port} -d {self.database} -c {collection} --type csv --file {file_to_import} --headerline"
         process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
         output, error = process.communicate()
         self.logger.info(output)

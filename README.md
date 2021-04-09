@@ -61,6 +61,62 @@ jupyter notebook --no-browser --port=8888 --notebook-dir=scrc/notebooks
 ssh -N -f -L localhost:8888:localhost:8888 fdn-admin@fdn-sandbox3.inf.unibe.ch
 ```
 
+## MongoDB
+
+The data is stored in a MongoDB so we can avoid loading into RAM the total data in order to work with it.
+
+### Structure
+
+Database: scrc
+
+Collection: rulings
+
+Hierarchy:
+- language (de, fr, it)
+   - cantons (CH, ZH, GE, etc.)
+      - courts (CH_BGer, AG_OG, TI_PP, etc.)
+         - chambers (CH_PATG_001, VD_TC_001, AR_OG_003, etc.)
+            - (documents containing the decisions and metadata => ruling document (see below))
+
+ruling document: 
+- "spider",
+- "language",
+- "canton",
+- "court",
+- "chamber",
+- "date",
+- "file_name",
+- "file_number",
+- "file_number_additional",
+- "html_url",
+- "html_bytes",
+- "html_raw",
+- "html_clean",
+- "pdf_url",
+- "pdf_bytes",
+- "pdf_raw",
+- "pdf_clean",
+- "text"
+
+### Setup
+
+You can run it with 
+```bash
+sudo docker run --name scrc-mongodb -p 27017:27017 -v /home/fdn-admin/mongodb:/data/db -d mongo:3-xenial 
+```
+which will download a docker image if not available yet and then start up the database. 
+More information can be found https://hub.docker.com/_/mongo
+
+Get the IP of the MongoDB container like this
+````bash
+docker inspect --format '{{ .NetworkSettings.IPAddress }}' scrc-mongodb
+````
+
+Install the python driver with 
+```bash
+python -m pip install pymongo
+```
+
 ## Pandas Memory usage
 
 When pandas loads from a csv file and creates a dataframe in memory, this dataframe will allocate more than 2x the size
