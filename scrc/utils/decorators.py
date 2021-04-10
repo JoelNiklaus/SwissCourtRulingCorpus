@@ -25,6 +25,8 @@ def slack_alert(func):
             post_message_to_slack(f"Your task finished fine: {func.__name__}({signature})")
             print("Sent success message to slack")
             return value
+        except KeyboardInterrupt:
+            print(traceback.format_exc())  # do not send any message when we kill it purposefully
         except:
             exception_type, value, tb_msg = sys.exc_info()
             traceback_msg = traceback.format_exc()
