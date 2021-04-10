@@ -20,23 +20,21 @@ class DatasetConstructorComponent:
     def __init__(self, config: dict):
         self.languages = json.loads(config['general']['languages'])
 
-        self.data_dir = ROOT_DIR / config['dir']['data_dir']
-
-        self.spiders_dir = self.data_dir / config['dir']['spiders_subdir']
-        self.spiders_dir.mkdir(parents=True, exist_ok=True)  # create folder if it does not exist yet
-
-        self.raw_subdir = self.data_dir / config['dir']['raw_subdir']
-        self.raw_subdir.mkdir(parents=True, exist_ok=True)  # create folder if it does not exist yet
-
-        self.clean_subdir = self.data_dir / config['dir']['clean_subdir']
-        self.clean_subdir.mkdir(parents=True, exist_ok=True)  # create folder if it does not exist yet
-
-        self.kaggle_subdir = self.data_dir / config['dir']['kaggle_subdir']
-        self.kaggle_subdir.mkdir(parents=True, exist_ok=True)  # create folder if it does not exist yet
+        self.data_dir = self.create_dir(ROOT_DIR, config['dir']['data_dir'])
+        self.spiders_dir = self.create_dir(self.data_dir, config['dir']['spiders_subdir'])
+        self.raw_subdir = self.create_dir(self.data_dir, config['dir']['raw_subdir'])
+        self.clean_subdir = self.create_dir(self.data_dir, config['dir']['clean_subdir'])
+        self.split_subdir = self.create_dir(self.data_dir, config['dir']['split_subdir'])
+        self.kaggle_subdir = self.create_dir(self.data_dir, config['dir']['kaggle_subdir'])
 
         self.ip = config['mongodb']['ip']
         self.port = config['mongodb']['port']
         self.database = config['mongodb']['database']
+
+    def create_dir(self, parent_dir, dir_name):
+        dir = parent_dir / dir_name
+        dir.mkdir(parents=True, exist_ok=True)  # create folder if it does not exist yet
+        return dir
 
     def get_db(self):
         return MongoClient(self.ip, int(self.port))[self.database]
