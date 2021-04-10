@@ -23,7 +23,6 @@ class Splitter(DatasetConstructorComponent):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-    @slack_alert
     def split_spiders(self, ) -> None:
         self.logger.info(f"Started splitting clean files")
         self.split_spiders_by_base_path(self.clean_subdir)
@@ -62,14 +61,12 @@ class Splitter(DatasetConstructorComponent):
             path = self.build_path(chamber_df)
             chamber_df.to_parquet(path, index=False)
 
-            gc.collect() # should prevent memory leak
+            gc.collect()  # should prevent memory leak
 
     def build_path(self, chamber_df):
         language = self.get_level(chamber_df, 'language')
-        canton = self.get_level(chamber_df, 'canton')
-        court = self.get_level(chamber_df, 'court')
         chamber = self.get_level(chamber_df, 'chamber')
-        path = self.split_subdir / language / canton / court
+        path = self.split_subdir / language
         path.mkdir(parents=True, exist_ok=True)
         return path / (chamber + ".parquet")
 
