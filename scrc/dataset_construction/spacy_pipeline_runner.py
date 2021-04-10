@@ -1,10 +1,7 @@
-import multiprocessing
-from pprint import pprint
 import gridfs
 from spacy.tokens import Doc
 from spacy.vocab import Vocab
 from tqdm import tqdm
-from tqdm.contrib.concurrent import process_map
 
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 

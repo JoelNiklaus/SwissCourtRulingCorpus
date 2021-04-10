@@ -17,15 +17,12 @@ import scrc.utils.monkey_patch  # prevent memory leak with pandas
 
 class Aggregator(DatasetConstructorComponent):
     """
-    Extracts the textual and meta information from the court rulings files and saves it in csv files for each spider
-    and in one for all spiders combined
+    Aggregates the files from the spiders into one containing all decisions and one containing all decisions for each language
     """
 
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-
-        self.languages = ['de', 'fr', 'it']
 
     def combine_spiders(self, combine_raw=False) -> None:
         """build total df from individual spider dfs"""

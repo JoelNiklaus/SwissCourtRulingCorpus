@@ -28,6 +28,7 @@ def slack_alert(func):
         except:
             exception_type, value, tb_msg = sys.exc_info()
             traceback_msg = traceback.format_exc()
+            print(traceback_msg)
             post_message_to_slack(f"Something went wrong with our task: {func.__name__}({signature})\n{traceback_msg}")
             print("Sent failure notification to slack")
 
