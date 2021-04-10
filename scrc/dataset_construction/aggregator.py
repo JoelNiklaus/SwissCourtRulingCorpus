@@ -60,7 +60,7 @@ class Aggregator(DatasetConstructorComponent):
                     lang_df = df[df['language'].str.contains(lang, na=False)]  # select only decisions by language
                     self.append_spider_to_agg_file(lang_df, language_csv_paths[lang])
 
-            gc.collect()
+            gc.collect()  # should prevent memory leak
 
     def perform_pre_checks(self, all_spiders_csv_path: Path, language_csv_paths: dict) -> Tuple[bool, bool]:
         """Check if we did these aggregations already before"""

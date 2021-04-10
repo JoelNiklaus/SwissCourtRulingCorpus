@@ -1,4 +1,5 @@
 import configparser
+import gc
 from pathlib import Path
 
 import glob
@@ -60,6 +61,8 @@ class Splitter(DatasetConstructorComponent):
             chamber_df = lang_df[lang_df.chamber.str.contains(chamber, na=False)]
             path = self.build_path(chamber_df)
             chamber_df.to_parquet(path, index=False)
+
+            gc.collect() # should prevent memory leak
 
     def build_path(self, chamber_df):
         language = self.get_level(chamber_df, 'language')
