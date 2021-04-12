@@ -25,6 +25,7 @@ class DatasetConstructorComponent:
         self.raw_subdir = self.create_dir(self.data_dir, config['dir']['raw_subdir'])
         self.clean_subdir = self.create_dir(self.data_dir, config['dir']['clean_subdir'])
         self.split_subdir = self.create_dir(self.data_dir, config['dir']['split_subdir'])
+        self.spacy_subdir = self.create_dir(self.data_dir, config['dir']['spacy_subdir'])
         self.kaggle_subdir = self.create_dir(self.data_dir, config['dir']['kaggle_subdir'])
 
         self.ip = config['mongodb']['ip']

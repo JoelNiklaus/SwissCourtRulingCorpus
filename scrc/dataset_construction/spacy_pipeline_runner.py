@@ -1,14 +1,19 @@
-import gridfs
-from spacy.tokens import Doc
-from spacy.vocab import Vocab
+import gc
+from pathlib import Path
+import glob
+
+import spacy
+from dask.diagnostics import ProgressBar
 from tqdm import tqdm
-
-from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
-
+import pandas as pd
+import dask.dataframe as dd
 import configparser
-
+from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from root import ROOT_DIR
+from scrc.utils.decorators import slack_alert
 from scrc.utils.log_utils import get_logger
+
+# import scrc.utils.monkey_patch  # prevent memory leak with pandas
 
 # IMPORTANT: make sure you download these models first with: python -m spacy download de_dep_news_trf
 import de_core_news_lg, fr_core_news_lg, it_core_news_lg
@@ -25,53 +30,80 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-        disable_pipes = ['parser', 'textcat']
-
         self.models = {
-            'de': de_core_news_lg.load(disable=disable_pipes),
-            'fr': fr_core_news_lg.load(disable=disable_pipes),
-            'it': it_core_news_lg.load(disable=disable_pipes)
+            'de': 'de_core_news_lg',
+            'fr': 'fr_core_news_lg',
+            'it': 'it_core_news_lg'
         }
-        self.active_lang_model = None
 
-        self.active_collection = None
+        self.disable_pipes = ['parser', 'textcat']
+        self.active_model = None
 
+    def load_spacy_model(self, model_name, disable_pipes):
+        return spacy.load(model_name, disable=disable_pipes)
+
+    @slack_alert
     def run_pipeline(self):
-        db = self.get_db()
-        self.logger.info("Connected to MongoDB")
+        self.logger.info("Started running spacy pipeline on the texts")
         for lang in self.languages:
-            self.active_lang_model = self.models[lang]  # retrieve the spacy model
-            self.active_lang_model.max_length = 2000000  # increase max length for long texts
+            self.logger.info(f"Processing language {lang}")
+            self.logger.info("Loading spacy model")
+            self.active_model = self.load_spacy_model(self.models[lang], self.disable_pipes)
+            self.active_model.max_length = 2000000  # increase max length for long texts
 
-            self.active_collection = db[lang]
+            in_lang_dir = self.split_subdir / lang  # input dir
+            out_lang_dir = self.create_dir(self.spacy_subdir, lang)  # output dir
 
-            query = {}
-            cursor = self.active_collection.find(query, {"_id": 1, "text": 1})  # fetch only texts
-            num_docs = self.active_collection.count_documents(query)
-            assert num_docs > 0
-            generator = self.cursor_to_generator(cursor)
+            chamber_list = [Path(chamber).stem for chamber in glob.glob(f"{str(in_lang_dir)}/*.parquet")]
+            self.logger.info(f"Found {len(chamber_list)} chambers in total")
 
-            self.logger.info("Running spacy pipeline on the texts")
-            run_spacy_pipe = self.active_lang_model.pipe(generator, n_process=-1, batch_size=1, as_tuples=True)
-            for doc, id in tqdm(run_spacy_pipe, total=num_docs):
-                self.active_collection.update_one({"_id": id}, {"$set": {"spacy_doc": doc.to_bytes()}})
+            chambers_processed_path = out_lang_dir / "chambers_processed.txt"
+            if not chambers_processed_path.exists():
+                chambers_processed_path.touch()
+            chambers_processed = chambers_processed_path.read_text().split("\n")
+            self.logger.info(f"Found {len(chambers_processed)} chamber(s) already processed: {chambers_processed}")
 
-            filename = f"{lang}_vocab_bytes"
-            self.logger.info(f"Storing the vocab on GridFS under filename {filename}")
-            fs = gridfs.GridFS(db)
-            fs.put(self.active_lang_model.vocab.to_bytes(), filename=filename)
+            chambers_not_yet_processed = set(chamber_list) - set(chambers_processed)
+            self.logger.info(
+                f"Still {len(chambers_not_yet_processed)} chamber(s) remaining to process: {chambers_not_yet_processed}")
+
+            self.process_chamber(chambers_not_yet_processed, chambers_processed_path, in_lang_dir, out_lang_dir)
+
+            self.active_model.vocab.to_disk(in_lang_dir / f"{lang}_vocab.spacy")
 
         # reconstruct vocab
         # vocab_bytes = fs.find_one({"filename": "de_vocab_bytes"}).read()
-        # vocab = Vocab.from_bytes(vocab_bytes)
+        # vocab = Vocab.from_disk(vocab_path)
         # reconstruct doc
         # document = self.active_collection.find_one({"court": "TI_TCA"})
         # doc = Doc(vocab).from_bytes(document['spacy_doc'])
 
-    def cursor_to_generator(self, cursor):
-        self.logger.info("Transforming cursor to generator")
-        for item in cursor:
-            yield item['text'], item['_id']
+        self.logger.info("Finished running spacy pipeline on the texts")
+
+    def process_chamber(self, chambers_not_yet_processed, chambers_processed_path, in_lang_dir, out_lang_dir):
+        for chamber in chambers_not_yet_processed:
+            df = pd.read_parquet(in_lang_dir / (chamber + ".parquet"))
+            self.logger.info(f"Processing the {len(df.index)} decisions from chamber {chamber}")
+
+            # according to docs you should aim for a partition size of 100MB
+            # 1 court decision takes approximately 50KB of RAM when loaded into memory
+            ddf = dd.from_pandas(df, chunksize=2000)
+            ddf['spacy_doc_bytes'] = 0.0
+            ddf.map_partitions(self.run_spacy_pipeline, meta=ddf)  # compute for every partition
+            # ddf = ddf.drop(['html_raw', 'pdf_raw', 'text'], axis='columns')  # remove old cols
+            ddf.to_parquet(out_lang_dir / (chamber + ".parquet"))  # save to filesystem
+
+            with ProgressBar():
+                ddf.compute(scheduler='processes')
+
+            with chambers_processed_path.open("a") as f:
+                f.write(chamber + "\n")
+
+            gc.collect()
+
+    def run_spacy_pipeline(self, df):
+        run_spacy_pipe = self.active_model.pipe(list(df['text']), n_process=-1, batch_size=1)
+        df['spacy_doc_bytes'] = [doc.to_bytes() for doc in tqdm(run_spacy_pipe, total=len(df.index))]
 
 
 if __name__ == '__main__':
