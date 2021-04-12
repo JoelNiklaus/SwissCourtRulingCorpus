@@ -52,6 +52,6 @@ class LanguageIdentification:
 
 
 if __name__ == '__main__':
-    LANGUAGE = LanguageIdentification()
-    lang = LANGUAGE.predict_lang("Hej")
+    lang_id = LanguageIdentification()
+    lang = lang_id.predict_lang("Hej")
     print(lang)

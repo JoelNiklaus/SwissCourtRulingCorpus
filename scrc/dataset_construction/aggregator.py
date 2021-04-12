@@ -12,7 +12,8 @@ from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 
-import scrc.utils.monkey_patch  # prevent memory leak with pandas
+
+# import scrc.utils.monkey_patch  # prevent memory leak with pandas
 
 
 class Aggregator(DatasetConstructorComponent):

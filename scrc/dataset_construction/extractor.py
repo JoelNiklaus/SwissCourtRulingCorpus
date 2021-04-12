@@ -18,8 +18,6 @@ from scrc.utils.language_identification import LanguageIdentification
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import court_keys
 
-LANG_ID = LanguageIdentification()
-
 
 class Extractor(DatasetConstructorComponent):
     """
@@ -31,6 +29,8 @@ class Extractor(DatasetConstructorComponent):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
+        self.lang_id = LanguageIdentification()
+
     def build_dataset(self) -> None:
         """ Builds the dataset for all the spiders """
         spider_list = [Path(spider).name for spider in glob.glob(f"{str(self.spiders_dir)}/*")]
@@ -40,7 +40,8 @@ class Extractor(DatasetConstructorComponent):
         self.logger.info(f"Found {len(raw_list)} spiders already extracted: {raw_list}")
 
         not_yet_extracted_spiders = set(spider_list) - set(raw_list)
-        spiders_to_extract = [spider for spider in not_yet_extracted_spiders if spider[0] != '_']  # exclude aggregations
+        spiders_to_extract = [spider for spider in not_yet_extracted_spiders if
+                              spider[0] != '_']  # exclude aggregations
         self.logger.info(f"Still {len(spiders_to_extract)} spider(s) remaining to extract: {spiders_to_extract}")
 
         for spider in spiders_to_extract:
@@ -158,7 +159,7 @@ class Extractor(DatasetConstructorComponent):
             assert html_raw is not None and html_raw != ''
             soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
             assert soup.find()  # make sure it is valid html
-            language = LANG_ID.get_lang(soup.get_text())
+            language = self.lang_id.get_lang(soup.get_text())
             return {"html_raw": html_raw, "language": language}
 
     def extract_corresponding_pdf_content(self, corresponding_pdf_path) -> Optional[dict]:
@@ -178,7 +179,7 @@ class Extractor(DatasetConstructorComponent):
                 return None
             else:
                 pdf_raw = pdf_raw.strip()  # strip leading and trailing whitespace
-                language = LANG_ID.get_lang(pdf_raw)
+                language = self.lang_id.get_lang(pdf_raw)
                 return {"pdf_raw": pdf_raw, "language": language}
 
 

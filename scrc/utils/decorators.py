@@ -21,18 +21,21 @@ def slack_alert(func):
     def wrapper_decorator(*args, **kwargs):
         signature = build_signature(args, kwargs)
         try:
-            value = func(*args, **kwargs)
+            v = func(*args, **kwargs)
             post_message_to_slack(f"Your task finished fine: {func.__name__}({signature})")
             print("Sent success message to slack")
-            return value
-        except KeyboardInterrupt:
+            return v
+        except KeyboardInterrupt as e:
             print(traceback.format_exc())  # do not send any message when we kill it purposefully
+            raise e
         except:
-            exception_type, value, tb_msg = sys.exc_info()
+            t, v, tb = sys.exc_info()
             traceback_msg = traceback.format_exc()
             print(traceback_msg)
             post_message_to_slack(f"Something went wrong with our task: {func.__name__}({signature})\n{traceback_msg}")
             print("Sent failure notification to slack")
+
+            raise t(v).with_traceback(tb)
 
     return wrapper_decorator
 
