@@ -5,7 +5,6 @@ from scrc.dataset_construction.aggregator import Aggregator
 from scrc.dataset_construction.cleaner import Cleaner
 from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.kaggle_dataset_creator import KaggleDatasetCreator
-from scrc.dataset_construction.mongo_db_importer import MongoDBImporter
 from scrc.dataset_construction.scraper import Scraper, base_url
 from scrc.dataset_construction.spacy_pipeline_runner import SpacyPipelineRunner
 from scrc.dataset_construction.splitter import Splitter
@@ -29,9 +28,6 @@ def main():
 
     aggregator = Aggregator(config)
     aggregator.combine_spiders()
-
-    mongo_db_importer = MongoDBImporter(config)
-    mongo_db_importer.import_data()
 
     spacy_pipeline_runner = SpacyPipelineRunner(config)
     spacy_pipeline_runner.run_pipeline()
