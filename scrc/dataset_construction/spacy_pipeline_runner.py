@@ -35,8 +35,8 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
             'fr': 'fr_core_news_lg',
             'it': 'it_core_news_lg'
         }
-
-        self.disable_pipes = ['parser', 'textcat']
+        # tag, pos and lemma are enough for now
+        self.disable_pipes = ['tagger', 'parser', 'senter', 'ner', 'attribute_ruler', 'textcat']
         self.active_model = None
 
     def load_spacy_model(self, model_name, disable_pipes):
@@ -69,14 +69,7 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
 
             self.process_chamber(chambers_not_yet_processed, chambers_processed_path, in_lang_dir, out_lang_dir)
 
-            self.active_model.vocab.to_disk(in_lang_dir / f"{lang}_vocab.spacy")
-
-        # reconstruct vocab
-        # vocab_bytes = fs.find_one({"filename": "de_vocab_bytes"}).read()
-        # vocab = Vocab.from_disk(vocab_path)
-        # reconstruct doc
-        # document = self.active_collection.find_one({"court": "TI_TCA"})
-        # doc = Doc(vocab).from_bytes(document['spacy_doc'])
+            self.active_model.vocab.to_disk(out_lang_dir / f"{lang}_vocab.spacy")
 
         self.logger.info("Finished running spacy pipeline on the texts")
 
@@ -86,15 +79,16 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
             self.logger.info(f"Processing the {len(df.index)} decisions from chamber {chamber}")
 
             # according to docs you should aim for a partition size of 100MB
-            # 1 court decision takes approximately 50KB of RAM when loaded into memory
+            # 1 court decision takes approximately between around 10KB and 100KB of RAM when loaded into memory
+            # The spacy doc takes about 25x the size of a court decision
             ddf = dd.from_pandas(df, chunksize=2000)
             ddf['spacy_doc_bytes'] = 0.0
-            ddf.map_partitions(self.run_spacy_pipeline, meta=ddf)  # compute for every partition
+            ddf = ddf.map_partitions(self.run_spacy_pipeline, meta=ddf)  # compute for every partition
             # ddf = ddf.drop(['html_raw', 'pdf_raw', 'text'], axis='columns')  # remove old cols
-            ddf.to_parquet(out_lang_dir / (chamber + ".parquet"))  # save to filesystem
+            ddf.to_parquet(out_lang_dir / (chamber + ".parquet"), write_index=False,
+                           engine='pyarrow')  # save to filesystem
 
-            with ProgressBar():
-                ddf.compute(scheduler='processes')
+            ddf.compute(scheduler='threads')
 
             with chambers_processed_path.open("a") as f:
                 f.write(chamber + "\n")
@@ -104,6 +98,8 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
     def run_spacy_pipeline(self, df):
         run_spacy_pipe = self.active_model.pipe(list(df['text']), n_process=-1, batch_size=1)
         df['spacy_doc_bytes'] = [doc.to_bytes() for doc in tqdm(run_spacy_pipe, total=len(df.index))]
+        print(df.memory_usage(deep=True))
+        return df
 
 
 if __name__ == '__main__':
