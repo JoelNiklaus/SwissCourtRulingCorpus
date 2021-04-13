@@ -90,3 +90,6 @@ def clean_text(text: str) -> str:
     cleaned_text = "".join(
         ch for ch in cleaned_text if unicodedata.category(ch)[0] != "C")  # remove control characters
     return cleaned_text
+
+def chunker(iterable, chunk_size):
+    return (iterable[pos: pos + chunk_size] for pos in range(0, len(iterable), chunk_size))
