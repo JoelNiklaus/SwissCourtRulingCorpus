@@ -118,10 +118,8 @@ class Extractor(DatasetConstructorComponent):
             try:
                 metadata = json.load(f)
                 if 'Signatur' in metadata:
-                    # the first two letters always represent the cantonal level (CH for the federation)
-                    general_info['canton'] = metadata['Signatur'][:2]
-                    # everything except the last 4 characters represent the court
-                    general_info['court'] = metadata['Signatur'][:-4]
+                    general_info['canton'] = self.get_canton(metadata['Signatur'])
+                    general_info['court'] = self.get_court(metadata['Signatur'])
                     # the chamber contains all information
                     general_info['chamber'] = metadata['Signatur']
                 else:
@@ -148,6 +146,14 @@ class Extractor(DatasetConstructorComponent):
             except JSONDecodeError as e:
                 self.logger.error(f"Error in file {json_file}: {e}. Cannot extract file_number, url and date.")
         return general_info
+
+    def get_canton(self, chamber_string):
+        # the first two letters always represent the cantonal level (CH for the federation)
+        return chamber_string[:2]
+
+    def get_court(self, chamber_string):
+        # everything except the last 4 characters represent the court
+        return chamber_string[:-4]
 
     def extract_corresponding_html_content(self, corresponding_html_path) -> Optional[dict]:
         """Extracts the html content, the raw text and the language from the html file, if it exists"""
