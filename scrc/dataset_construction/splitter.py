@@ -5,6 +5,7 @@ from pathlib import Path
 import glob
 
 import pandas as pd
+import dask.dataframe as dd
 
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
@@ -23,6 +24,8 @@ class Splitter(DatasetConstructorComponent):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
+
+        self.chunksize = 1000
 
     def split_spiders(self, ) -> None:
         self.logger.info(f"Started splitting clean files")
@@ -60,7 +63,8 @@ class Splitter(DatasetConstructorComponent):
         for chamber in chambers:
             chamber_df = lang_df[lang_df.chamber.str.contains(chamber, na=False)]
             path = self.build_path(chamber_df)
-            chamber_df.to_parquet(path, index=False)
+            chamber_ddf = dd.from_pandas(chamber_df, chunksize=self.chunksize)
+            chamber_ddf.to_parquet(path, write_index=False)
 
             gc.collect()  # should prevent memory leak
 
