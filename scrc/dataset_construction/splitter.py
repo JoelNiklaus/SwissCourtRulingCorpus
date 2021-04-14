@@ -25,8 +25,6 @@ class Splitter(DatasetConstructorComponent):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-        self.chunksize = 1000
-
     def split_spiders(self, ) -> None:
         self.logger.info(f"Started splitting clean files")
         self.split_spiders_by_base_path(self.clean_subdir)
