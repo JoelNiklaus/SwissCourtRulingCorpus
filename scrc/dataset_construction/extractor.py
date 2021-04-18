@@ -14,10 +14,27 @@ from tqdm.contrib.concurrent import process_map
 
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
-from scrc.utils.language_identification import LanguageIdentification
+from scrc.utils.language_identification_singleton import LanguageIdentificationSingleton
 from scrc.utils.log_utils import get_logger
-from scrc.utils.main_utils import court_keys
 
+# the keys used in the court dataframes
+court_keys = [
+    "spider",
+    "language",
+    "canton",
+    "court",
+    "chamber",
+    "date",
+    "file_name",
+    "file_number",
+    "file_number_additional",
+    "html_url",
+    "html_raw",
+    "pdf_url",
+    "pdf_raw",
+    "text"
+]
+lang_id = LanguageIdentificationSingleton()
 
 class Extractor(DatasetConstructorComponent):
     """
@@ -28,8 +45,6 @@ class Extractor(DatasetConstructorComponent):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-
-        self.lang_id = LanguageIdentification()
 
     def build_dataset(self) -> None:
         """ Builds the dataset for all the spiders """
@@ -165,7 +180,7 @@ class Extractor(DatasetConstructorComponent):
             assert html_raw is not None and html_raw != ''
             soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
             assert soup.find()  # make sure it is valid html
-            language = self.lang_id.get_lang(soup.get_text())
+            language = lang_id.get_lang(soup.get_text())
             return {"html_raw": html_raw, "language": language}
 
     def extract_corresponding_pdf_content(self, corresponding_pdf_path) -> Optional[dict]:
@@ -185,7 +200,7 @@ class Extractor(DatasetConstructorComponent):
                 return None
             else:
                 pdf_raw = pdf_raw.strip()  # strip leading and trailing whitespace
-                language = self.lang_id.get_lang(pdf_raw)
+                language = lang_id.get_lang(pdf_raw)
                 return {"pdf_raw": pdf_raw, "language": language}
 
 
