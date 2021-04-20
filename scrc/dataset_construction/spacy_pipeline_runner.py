@@ -11,6 +11,8 @@ import spacy
 from spacy.vocab import Vocab
 from tqdm import tqdm
 import pandas as pd
+import dask.dataframe as dd
+from dask.diagnostics import ProgressBar
 import configparser
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from root import ROOT_DIR
@@ -24,6 +26,7 @@ import de_core_news_lg, fr_core_news_lg, it_core_news_lg
 
 from scrc.utils.main_utils import get_file_gen
 from scrc.utils.slack_util import post_message_to_slack
+
 
 # TODO find out how to deal with deadlocks
 #  A: prevent deadlock
@@ -52,7 +55,6 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
         self.disable_pipes = ['senter', 'ner', 'attribute_ruler', 'textcat']
         self.active_model = None
 
-
     @staticmethod
     def load_spacy_model(model_name, disable_pipes):
         return spacy.load(model_name, disable=disable_pipes)
@@ -60,90 +62,74 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
     @slack_alert
     def run_pipeline(self):
         self.logger.info("Started running spacy pipeline on the texts")
+
         for lang in self.languages:
-            self.logger.info(f"Processing language {lang}")
+            self.logger.info(f"Started processing language {lang}")
+            lang_dir = self.create_dir(self.spacy_subdir, lang)  # output dir
+            self.load_language_model(lang, lang_dir)
 
-            in_lang_dir = self.split_subdir / lang  # input dir
-            out_lang_dir = self.create_dir(self.spacy_subdir, lang)  # output dir
+            processed_file_path = self.data_dir / f"{lang}_spiders_spacied.txt"
+            spider_list, message = self.compute_remaining_spiders(processed_file_path)
+            self.logger.info(message)
 
-            chamber_list = [Path(chamber).stem for chamber in glob.glob(f"{str(in_lang_dir)}/*.parquet")]
-            self.logger.info(f"Found {len(chamber_list)} chambers in total")
+            engine = self.get_engine()
+            for spider in spider_list:
+                # according to docs you should aim for a partition size of 100MB
+                # 1 court decision takes approximately between around 10KB and 100KB of RAM when loaded into memory
+                # The spacy doc takes about 25x the size of a court decision
+                self.run_spacy_pipeline(engine, spider, lang, lang_dir)
+                self.mark_as_processed(processed_file_path, spider)
 
-            chambers_processed_path = out_lang_dir / "chambers_processed.txt"
-            if not chambers_processed_path.exists():
-                chambers_processed_path.touch()
-            chambers_processed = chambers_processed_path.read_text().split("\n")
-            self.logger.info(f"Found {len(chambers_processed)} chamber(s) already processed: {chambers_processed}")
-
-            chambers_not_yet_processed = set(chamber_list) - set(chambers_processed)
-            self.logger.info(
-                f"Still {len(chambers_not_yet_processed)} chamber(s) remaining to process: {chambers_not_yet_processed}")
-
-            if chambers_not_yet_processed: # if we still actually have some chambers remaining
-                self.load_language_model(lang, out_lang_dir)
-
-            self.process_chambers(chambers_not_yet_processed, chambers_processed_path, in_lang_dir, out_lang_dir)
+            self.logger.info(f"Finished processing language {lang}")
 
         self.logger.info("Finished running spacy pipeline on the texts")
 
-    def load_language_model(self, lang, out_lang_dir):
+    def load_language_model(self, lang, lang_dir):
         self.logger.info("Loading spacy model")
         self.active_model = self.load_spacy_model(self.models[lang], self.disable_pipes)
         # increase max length for long texts: Can lead to memory allocation errors for parser and ner
         self.active_model.max_length = 3000000
-        vocab_path = out_lang_dir / f"_vocab.spacy"
+        vocab_path = lang_dir / f"_vocab.spacy"
         if vocab_path.exists():
-            vocab = Vocab().from_disk(str(vocab_path))
+            vocab = Vocab().from_disk(str(vocab_path), exclude=['vectors'])
             self.active_model.vocab = vocab
 
-    def process_chambers(self, chambers_not_yet_processed, chambers_processed_path, in_lang_dir, out_lang_dir):
-        for chamber in chambers_not_yet_processed:
-            self.logger.info(f"Processing chamber {chamber}")
-
-            # according to docs you should aim for a partition size of 100MB
-            # 1 court decision takes approximately between around 10KB and 100KB of RAM when loaded into memory
-            # The spacy doc takes about 25x the size of a court decision
-            self.run_spacy_pipeline(in_lang_dir, out_lang_dir, chamber)
-
-            with chambers_processed_path.open("a") as f:
-                f.write(chamber + "\n")
-
     @profile
-    def run_spacy_pipeline(self, in_lang_dir, out_lang_dir, chamber):
+    def run_spacy_pipeline(self, engine, spider, lang, lang_dir):
         """
         Creates and saves the docs generated by the spacy pipeline.
         """
-        file_gen = get_file_gen(in_lang_dir / (chamber + ".parquet"))
-        if file_gen:
-            for chunk, df in file_gen:
-                chamber_dir = self.create_dir(out_lang_dir, chamber)
-                path = chamber_dir / f"part.{chunk}.parquet"
-                if not path.exists():  # make sure we did not compute it before already
-                    self.logger.info(f"Processing chunk {chunk} and saving it to {path}")
-                    texts = df.text.tolist()
-                    # batch_size = max(int(len(texts) / self.num_cpus), 1) # a high batch_size can lead to lots of allocated memory
-                    docs = tqdm(self.active_model.pipe(texts, n_process=-1, batch_size=1), total=len(texts))
-                    df['spacy_doc_bytes'] = [doc.to_bytes() for doc in docs]
-                    df['num_tokens'] = [len(doc) for doc in docs]
-                    df.to_parquet(path, index=False)
+        self.logger.info(f"Processing spider {spider}")
 
-                    del df, docs
+        dfs = self.select(engine, lang, columns='uuid, text', where=f"spider='{spider}'")  # stream dfs from the db
+        for df in dfs:
+            df = df[['text', 'uuid']]  # reorder the df so that we get the text first and the uuid after
+            tuples = list(df.itertuples(index=False))  # convert df to list of tuples
+            # batch_size = max(int(len(texts) / self.num_cpus), 1) # a high batch_size can lead to lots of allocated memory
+            docs = tqdm(self.active_model.pipe(tuples, n_process=-1, batch_size=1, as_tuples=True), total=len(tuples))
+            num_tokens = []
+            self.logger.info("Saving spacy docs to disk")
+            for doc, uuid in docs:
+                path = lang_dir / (uuid + ".spacy")
+                doc.to_disk(path, exclude=['tensor'])
+                num_tokens.append(len(doc))
+            df['num_tokens'] = num_tokens
+            columns = ['num_tokens']
+            self.logger.info("Saving num_tokens to db")
+            self.update(engine, df, lang, columns)
 
-                    self.active_model.vocab.to_disk(out_lang_dir / f"_vocab.spacy")
+            self.active_model.vocab.to_disk(lang_dir / f"_vocab.spacy", exclude=['vectors'])
 
-                    gc.collect()
-                    sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
+            gc.collect()
+            sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
 
-            memory_usage = psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3
-            message = f"Your running process is currently using {memory_usage:.3f} GB of memory"
-            print(message)
-            try:
-                post_message_to_slack(message)
-            except:
-                print("Could not send message to slack: ", sys.exc_info())
-
-
-
+        memory_usage = psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3
+        message = f"Your running process is currently using {memory_usage:.3f} GB of memory"
+        print(message)
+        try:
+            post_message_to_slack(message)
+        except:
+            print("Could not send message to slack: ", sys.exc_info())
 
 
 if __name__ == '__main__':
