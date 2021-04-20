@@ -22,9 +22,6 @@ from scrc.utils.log_utils import get_logger
 # IMPORTANT: make sure you download these models first with: python -m spacy download de_dep_news_trf
 import de_core_news_lg, fr_core_news_lg, it_core_news_lg
 
-# TODO use postgres to store all this stuff:
-#  https://pythonspeed.com/articles/indexing-pandas-sqlite/
-#  https://pythonspeed.com/articles/pandas-sql-chunking/
 from scrc.utils.main_utils import get_file_gen
 from scrc.utils.slack_util import post_message_to_slack
 

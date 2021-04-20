@@ -13,7 +13,6 @@ pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
 
-
 def save_to_path(content, path, overwrite=False):
     """
     Create the parent directories of they do not exist.
@@ -67,6 +66,7 @@ def clean_text(text: str) -> str:
     cleaned_text = re.sub('(\w+)-\n+(\w+)', '\1\2', cleaned_text)  # remove hyphens before new line
     cleaned_text = re.sub(r"\u00a0", ' ', cleaned_text)  # replace NBSP with normal whitespace
     cleaned_text = re.sub(r"\xa0", ' ', cleaned_text)  # replace \xa0 with normal whitespace
+    cleaned_text = re.sub(r"\x00", '', cleaned_text)  # remove \x00 completely
     cleaned_text = re.sub(r"\s+", ' ', cleaned_text)  # replace all whitespace with a single whitespace
     cleaned_text = re.sub(r"_+", '_', cleaned_text)  # remove duplicate underscores (from anonymisations)
     cleaned_text = cleaned_text.strip()  # remove leading and trailing whitespace
@@ -74,5 +74,19 @@ def clean_text(text: str) -> str:
         ch for ch in cleaned_text if unicodedata.category(ch)[0] != "C")  # remove control characters
     return cleaned_text
 
+
 def chunker(iterable, chunk_size):
     return (iterable[pos: pos + chunk_size] for pos in range(0, len(iterable), chunk_size))
+
+
+def get_file_gen(path):
+    def get_path(path, chunk):
+        return path / f"part.{chunk}.parquet"
+
+    chunk = 0
+    file = get_path(path, chunk)
+    while file.exists():
+        yield chunk, pd.read_parquet(file)
+        chunk += 1
+        file = get_path(path, chunk)
+    return None

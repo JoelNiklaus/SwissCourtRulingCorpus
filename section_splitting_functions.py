@@ -7,11 +7,6 @@ from scrc.dataset_construction.cleaner import sections
 from scrc.utils.main_utils import clean_text
 
 
-# TODO to organize database more:
-#  think about putting all metadata columns into a sub-document in each court decision and the same with the sections
-#  could be done with dot separated csv headers (is handled well in mongoimport)
-#  But the question remains: what benefit do we get from this?
-
 def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
     """
     IMPORTANT: So far, only German is supported!

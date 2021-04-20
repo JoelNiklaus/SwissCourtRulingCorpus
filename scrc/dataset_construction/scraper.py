@@ -18,8 +18,6 @@ supported_suffixes = ['.htm', '.html', '.pdf', '.txt', '.json']
 supported_languages = ['de', 'fr', 'it']
 excluded_link_names = ['Name', 'Last modified', 'Size', 'Description', 'Parent Directory', 'Index', 'Jobs', 'Sitemaps']
 
-# TODO check everywhere per file if there are new decisions, not per spider, so that we can easily download the most recent data
-
 class Scraper(DatasetConstructorComponent):
     """Scrapes the court rulings with the associated metadata files from entscheidsuche.ch/docs"""
 
