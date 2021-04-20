@@ -74,50 +74,44 @@ class Cleaner(DatasetConstructorComponent):
 
     def clean(self):
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
-        self.logger.info("Starting to clean raw court rulings")
-        raw_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_subdir)}/*.parquet")]
-        self.logger.info(f"Found {len(raw_list)} spiders in total")
+        self.logger.info("Started cleaning raw court rulings")
 
-        clean_list = [Path(spider).stem for spider in glob.glob(f"{str(self.clean_subdir)}/*.parquet")]
-        self.logger.info(f"Found {len(clean_list)} spiders already cleaned: {clean_list}")
+        processed_file_path = self.data_dir / "spiders_cleaned.txt"
+        spider_list, message = self.compute_remaining_spiders(processed_file_path)
+        self.logger.info(message)
 
-        not_yet_cleaned_spiders = set(raw_list) - set(clean_list)
-        spiders_to_clean = [spider for spider in not_yet_cleaned_spiders if spider[0] != '_']  # exclude aggregations
-        self.logger.info(f"Still {len(spiders_to_clean)} spiders(s) remaining to clean: {spiders_to_clean}")
+        engine = self.get_engine()
+        for lang in self.languages:
+            # add new columns to db
+            self.add_column(engine, lang, col_name='text', data_type='text')
+            for section in sections:  # add empty section columns
+                self.add_column(engine, lang, col_name=section, data_type='text')
 
-        for spider in spiders_to_clean:
-            self.clean_spider(spider)
+        # clean raw texts
+        for spider in spider_list:
+            self.clean_spider(engine, spider)
+            self.mark_as_processed(processed_file_path, spider)
 
         self.logger.info("Finished cleaning raw court rulings")
 
-    def clean_spider(self, spider):
+    def clean_spider(self, engine, spider):
         """Cleans one spider csv file"""
-        # dtype_dict = {key: 'string' for key in court_keys}  # create dtype_dict from court keys
-        # df = pd.read_csv(self.raw_subdir / (spider + '.csv'), dtype=dtype_dict)  # read df of spider
         self.logger.info(f"Started cleaning {spider}")
-        df = pd.read_parquet(self.raw_subdir / (spider + '.parquet'))  # read df of spider
-        self.logger.info(f"Read into memory {len(df.index)} decisions")
 
-        df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        self.logger.info('Standardized date')
+        for lang in self.languages:
+            dfs = self.select(engine, lang, where=f"spider='{spider}'")  # stream dfs from the db
+            for df in dfs:
+                # according to docs you should aim for a partition size of 100MB
+                ddf = dd.from_pandas(df, npartitions=self.num_cpus)
+                ddf = ddf.apply(self.clean_df_row, axis='columns', meta=ddf)  # apply cleaning function to each row
+                with ProgressBar():
+                    df = ddf.compute(scheduler='processes')
 
-        for section in sections:  # add empty section columns
-            df[section] = ""
+                columns = ['text']
+                columns.extend(sections)  # also update sections
+                self.logger.info("Saving cleaned text and split sections to db")
+                self.update(engine, df, lang, columns)
 
-        ddf = dd.from_pandas(df, chunksize=1000)  # according to docs you should aim for a partition size of 100MB
-        ddf = ddf.apply(self.clean_df_row, axis='columns', meta=ddf)  # apply cleaning function to each row
-
-        ddf = ddf.dropna(subset=['text'])  # drop rows which have no text
-        ddf['text'] = ddf['text'].astype(str)  # set type to string again so it can be saved to parquet
-
-        # keep raw output in case we need it later
-        # ddf = ddf.drop(['html_raw', 'pdf_raw', 'html_clean', 'pdf_clean'], axis='columns')  # remove old columns
-        with ProgressBar():
-            df = ddf.compute(scheduler='processes')
-        self.logger.info('Cleaned html and pdf content')
-
-        df.to_csv(self.clean_subdir / (spider + '.csv'), index=False)  # save cleaned df of spider
-        df.to_parquet(self.clean_subdir / (spider + '.parquet'), index=False)  # needs pyarrow installed
         self.logger.info(f"Finished cleaning {spider}")
 
     def clean_df_row(self, series):
@@ -136,6 +130,7 @@ class Cleaner(DatasetConstructorComponent):
             assert soup
             html_clean = self.clean_html(spider, soup, namespace)
 
+            # this can be pushed to a later step in the pipeline if needed
             sections = self.split_sections_with_functions(spider, soup, namespace)
             if sections:
                 series = series.replace(sections)
@@ -147,8 +142,10 @@ class Cleaner(DatasetConstructorComponent):
         # Combine columns into one easy to use text column (prioritize html content if both exist)
         series['text'] = np.where(html_clean != '', html_clean, pdf_clean)
         if series['text'] == '':
-            series['text'] = np.nan  # set to nan, so that it can be removed afterwards
+            # series['text'] = np.nan  # set to nan, so that it can be removed afterwards
             self.logger.warning(f"No raw text available for court decision {series['file_number']}")
+
+        series.text = str(series.text)  # otherwise we get an error when we want to save it into the db
 
         return series
 
@@ -183,8 +180,8 @@ class Cleaner(DatasetConstructorComponent):
                 f"There are no special functions for spider {spider}. Not performing any section splitting.")
             return None
         else:
-            section_splitting_functions = getattr(self.functions['section_splitting_functions'],
-                                                  spider)  # retrieve cleaning function by spider
+            # retrieve cleaning function by spider
+            section_splitting_functions = getattr(self.functions['section_splitting_functions'], spider)
             try:
                 return section_splitting_functions(soup, namespace)  # invoke cleaning function with soup and namespace
             except ValueError:
