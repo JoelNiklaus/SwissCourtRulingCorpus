@@ -9,6 +9,7 @@ import pandas as pd
 
 import bs4
 import requests
+import uuid
 from tika import parser
 from tqdm.contrib.concurrent import process_map
 
@@ -17,8 +18,12 @@ from scrc.dataset_construction.dataset_constructor_component import DatasetConst
 from scrc.utils.language_identification_singleton import LanguageIdentificationSingleton
 from scrc.utils.log_utils import get_logger
 
+# TODO look at this if db is slow: https://dba.stackexchange.com/questions/151300/improve-update-performance-on-big-table/151316
+
+
 # the keys used in the court dataframes
 court_keys = [
+    "uuid",
     "spider",
     "language",
     "canton",
@@ -32,9 +37,9 @@ court_keys = [
     "html_raw",
     "pdf_url",
     "pdf_raw",
-    "text"
 ]
 lang_id = LanguageIdentificationSingleton()
+
 
 class Extractor(DatasetConstructorComponent):
     """
@@ -48,21 +53,28 @@ class Extractor(DatasetConstructorComponent):
 
     def build_dataset(self) -> None:
         """ Builds the dataset for all the spiders """
-        spider_list = [Path(spider).name for spider in glob.glob(f"{str(self.spiders_dir)}/*")]
-        self.logger.info(f"Found {len(spider_list)} spiders in total")
+        self.logger.info("Started extracting text and metadata from court rulings files")
 
-        raw_list = [Path(spider).stem for spider in glob.glob(f"{str(self.raw_subdir)}/*.parquet")]
-        self.logger.info(f"Found {len(raw_list)} spiders already extracted: {raw_list}")
+        processed_file_path = self.data_dir / "spiders_extracted.txt"
+        spider_list, message = self.compute_remaining_spiders(processed_file_path)
+        self.logger.info(message)
 
-        not_yet_extracted_spiders = set(spider_list) - set(raw_list)
-        spiders_to_extract = [spider for spider in not_yet_extracted_spiders if
-                              spider[0] != '_']  # exclude aggregations
-        self.logger.info(f"Still {len(spiders_to_extract)} spider(s) remaining to extract: {spiders_to_extract}")
-
-        for spider in spiders_to_extract:
+        for spider in spider_list:
             self.build_spider_dataset(spider)
+            self.mark_as_processed(processed_file_path, spider)
 
-        self.logger.info("Building dataset finished.")
+        for lang in self.languages:
+            self.create_indexes(lang)
+
+        self.logger.info("Finished extracting text and metadata from court rulings files")
+
+    def create_indexes(self, lang):
+        self.logger.info(f"Creating indexes for {lang}")
+        with self.get_engine().connect() as conn:
+            self.indexes.append('uuid')  # always index uuid for fast lookup
+            for index in self.indexes:
+                self.logger.info(f"Creating index for column {index} in table {lang}")
+                conn.execute(f"CREATE INDEX IF NOT EXISTS {lang}_{index} ON {lang}({index})")
 
     def build_spider_dataset(self, spider: str) -> None:
         """ Builds a dataset for a spider """
@@ -73,9 +85,13 @@ class Extractor(DatasetConstructorComponent):
         self.logger.info("Building pandas DataFrame from list of dicts")
         df = pd.DataFrame(spider_dict_list)
 
-        spider_path = self.raw_subdir / (spider + '.parquet')
-        self.logger.info(f"Saving data to {spider_path}")
-        df.to_parquet(spider_path, index=False)  # save spider to parquet
+        # spider_path = self.raw_subdir / (spider + '.parquet')
+        self.logger.info(f"Saving data to db")
+        # df.to_parquet(spider_path, index=False)  # save spider to parquet
+        for lang in self.languages:
+            lang_df = df[df.language.str.contains(lang, na=False)]  # select only decisions by language
+            if len(lang_df.index) > 0:
+                lang_df.to_sql(lang, self.get_engine(), if_exists="append", index=False)
 
     def build_spider_dict_list(self, spider_dir: Path) -> list:
         """ Builds the spider dict list which we can convert to a pandas Data Frame later """
@@ -101,7 +117,11 @@ class Extractor(DatasetConstructorComponent):
         """Composes a court dict from all the available files when we know at least one content file exists"""
         court_dict_template = {key: '' for key in court_keys}  # create dict template from court keys
 
-        general_info = self.extract_general_info(json_file)
+        try:
+            general_info = self.extract_general_info(json_file)
+        except JSONDecodeError as e:
+            self.logger.error(f"Cannot extract metadata from file {json_file}: {e}. Skipping this file")
+            return None
         # add general info
         court_dict = dict(court_dict_template, **general_info)
 
@@ -128,38 +148,36 @@ class Extractor(DatasetConstructorComponent):
         """Extracts the filename and spider from the file path and metadata from the json file"""
         self.logger.debug(f"Extracting content from json file: \t {json_file}")
         general_info = {'spider': Path(json_file).parent.name, 'file_name': Path(json_file).stem}
+        general_info['uuid'] = str(uuid.uuid4())  # for identification in the database
         # loading json content and and extracting relevant metadata
         with open(json_file) as f:
-            try:
-                metadata = json.load(f)
-                if 'Signatur' in metadata:
-                    general_info['canton'] = self.get_canton(metadata['Signatur'])
-                    general_info['court'] = self.get_court(metadata['Signatur'])
-                    # the chamber contains all information
-                    general_info['chamber'] = metadata['Signatur']
-                else:
-                    self.logger.warning("Cannot extract signature from metadata.")
-                if 'Num' in metadata:
-                    file_numbers = metadata['Num']
-                    if file_numbers:  # if there is at least one entry
-                        general_info['file_number'] = file_numbers[0]
-                    if len(file_numbers) >= 2:  # if there are even two entries (disregard if there are more)
-                        # This is to be expected in BVGEer, BGE and BSTG
-                        general_info['file_number_additional'] = file_numbers[1]
-                else:
-                    self.logger.warning("Cannot extract file_number from metadata.")
-                if 'HTML' in metadata:
-                    general_info['html_url'] = metadata['HTML']['URL']
-                if 'PDF' in metadata:
-                    general_info['pdf_url'] = metadata['PDF']['URL']
-                if 'PDF' not in metadata and 'HTML' not in metadata:
-                    self.logger.warning("Cannot extract url from metadata.")
-                if 'Datum' in metadata:
-                    general_info['date'] = metadata['Datum']
-                else:
-                    self.logger.warning("Cannot extract date from metadata.")
-            except JSONDecodeError as e:
-                self.logger.error(f"Error in file {json_file}: {e}. Cannot extract file_number, url and date.")
+            metadata = json.load(f)
+            if 'Signatur' in metadata:
+                general_info['canton'] = self.get_canton(metadata['Signatur'])
+                general_info['court'] = self.get_court(metadata['Signatur'])
+                # the chamber contains all information
+                general_info['chamber'] = metadata['Signatur']
+            else:
+                self.logger.warning("Cannot extract signature from metadata.")
+            if 'Num' in metadata:
+                file_numbers = metadata['Num']
+                if file_numbers:  # if there is at least one entry
+                    general_info['file_number'] = file_numbers[0]
+                if len(file_numbers) >= 2:  # if there are even two entries (disregard if there are more)
+                    # This is to be expected in BVGEer, BGE and BSTG
+                    general_info['file_number_additional'] = file_numbers[1]
+            else:
+                self.logger.warning("Cannot extract file_number from metadata.")
+            if 'HTML' in metadata:
+                general_info['html_url'] = metadata['HTML']['URL']
+            if 'PDF' in metadata:
+                general_info['pdf_url'] = metadata['PDF']['URL']
+            if 'PDF' not in metadata and 'HTML' not in metadata:
+                self.logger.warning("Cannot extract url from metadata.")
+            if 'Datum' in metadata:
+                general_info['date'] = pd.to_datetime(metadata['Datum'], errors='coerce')
+            else:
+                self.logger.warning("Cannot extract date from metadata.")
         return general_info
 
     def get_canton(self, chamber_string):
@@ -177,11 +195,15 @@ class Extractor(DatasetConstructorComponent):
         else:
             self.logger.debug(f"Extracting content from html file: \t {corresponding_html_path}")
             html_raw = corresponding_html_path.read_text()  # get html string
-            assert html_raw is not None and html_raw != ''
-            soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
-            assert soup.find()  # make sure it is valid html
-            language = lang_id.get_lang(soup.get_text())
-            return {"html_raw": html_raw, "language": language}
+            html_raw = self.remove_nul(html_raw)
+            if not html_raw:
+                self.logger.error(f"HTML file {corresponding_html_path} is empty.")
+                return None
+            else:
+                soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
+                assert soup.find()  # make sure it is valid html
+                language = lang_id.get_lang(soup.get_text())
+                return {"html_raw": html_raw, "language": language}
 
     def extract_corresponding_pdf_content(self, corresponding_pdf_path) -> Optional[dict]:
         """Extracts the the raw text, the pdf metadata and the language from the pdf file, if it exists"""
@@ -195,13 +217,18 @@ class Extractor(DatasetConstructorComponent):
                 self.logger.error(f"Timeout error occurred for PDF file {corresponding_pdf_path}: {e}")
                 return None
             pdf_raw = pdf['content']  # get content
-            if pdf['content'] is None:
+            if not pdf_raw:
                 self.logger.error(f"PDF file {corresponding_pdf_path} is empty.")
                 return None
             else:
+                pdf_raw = self.remove_nul(pdf_raw)
                 pdf_raw = pdf_raw.strip()  # strip leading and trailing whitespace
                 language = lang_id.get_lang(pdf_raw)
                 return {"pdf_raw": pdf_raw, "language": language}
+
+    def remove_nul(self, string):
+        """Otherwise we get an error when inserting into Postgres"""
+        return string.replace("\x00", '')  # remove \x00 (NUL) completely
 
 
 if __name__ == '__main__':
