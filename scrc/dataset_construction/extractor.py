@@ -5,11 +5,12 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Optional
 
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Date
+
 import pandas as pd
 
 import bs4
 import requests
-import uuid
 from tika import parser
 from tqdm.contrib.concurrent import process_map
 
@@ -23,7 +24,6 @@ from scrc.utils.log_utils import get_logger
 
 # the keys used in the court dataframes
 court_keys = [
-    "uuid",
     "spider",
     "language",
     "canton",
@@ -59,6 +59,28 @@ class Extractor(DatasetConstructorComponent):
         spider_list, message = self.compute_remaining_spiders(processed_file_path)
         self.logger.info(message)
 
+        self.logger.info("Creating the tables")
+        for lang in self.languages:
+            meta = MetaData()
+            lang_table = Table(
+                lang, meta,
+                Column('id', Integer, primary_key=True),
+                Column('spider', String),
+                Column('language', String),
+                Column('canton', String),
+                Column('court', String),
+                Column('chamber', String),
+                Column('date', Date),
+                Column('file_name', String),
+                Column('file_number', String),
+                Column('file_number_additional', String),
+                Column('html_url', String),
+                Column('html_raw', String),
+                Column('pdf_url', String),
+                Column('pdf_raw', String),
+            )
+            meta.create_all(self.get_engine())
+
         for spider in spider_list:
             self.build_spider_dataset(spider)
             self.mark_as_processed(processed_file_path, spider)
@@ -71,7 +93,6 @@ class Extractor(DatasetConstructorComponent):
     def create_indexes(self, lang):
         self.logger.info(f"Creating indexes for {lang}")
         with self.get_engine().connect() as conn:
-            self.indexes.append('uuid')  # always index uuid for fast lookup
             for index in self.indexes:
                 self.logger.info(f"Creating index for column {index} in table {lang}")
                 conn.execute(f"CREATE INDEX IF NOT EXISTS {lang}_{index} ON {lang}({index})")
@@ -85,9 +106,7 @@ class Extractor(DatasetConstructorComponent):
         self.logger.info("Building pandas DataFrame from list of dicts")
         df = pd.DataFrame(spider_dict_list)
 
-        # spider_path = self.raw_subdir / (spider + '.parquet')
         self.logger.info(f"Saving data to db")
-        # df.to_parquet(spider_path, index=False)  # save spider to parquet
         for lang in self.languages:
             lang_df = df[df.language.str.contains(lang, na=False)]  # select only decisions by language
             if len(lang_df.index) > 0:
@@ -97,7 +116,7 @@ class Extractor(DatasetConstructorComponent):
         """ Builds the spider dict list which we can convert to a pandas Data Frame later """
         # we take the json files as a starting point to get the corresponding html or pdf files
         json_filenames = self.get_filenames_of_extension(spider_dir, 'json')
-        spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=10)
+        spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=1)
 
         return [spider_dict for spider_dict in spider_dict_list if spider_dict]  # remove None values
 
@@ -148,7 +167,6 @@ class Extractor(DatasetConstructorComponent):
         """Extracts the filename and spider from the file path and metadata from the json file"""
         self.logger.debug(f"Extracting content from json file: \t {json_file}")
         general_info = {'spider': Path(json_file).parent.name, 'file_name': Path(json_file).stem}
-        general_info['uuid'] = str(uuid.uuid4())  # for identification in the database
         # loading json content and and extracting relevant metadata
         with open(json_file) as f:
             metadata = json.load(f)

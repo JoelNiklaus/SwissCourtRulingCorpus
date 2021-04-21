@@ -112,9 +112,9 @@ class DatasetConstructorComponent:
         """
         with engine.connect() as conn:
             t = Table(table, MetaData(), autoload_with=engine)  # get the table
-            columns.append('uuid')  # uuid needs to be there for the where clause
+            columns.append('id')  # id needs to be there for the where clause
             df = df[columns]  # only update these cols
-            df = df.rename(columns={'uuid': 'b_uuid'})  # cannot use the same name as the col name
+            df = df.rename(columns={'id': 'b_id'})  # cannot use the same name as the col name
             # updates all columns which are present in the df
-            query = t.update().where(t.c.uuid == bindparam('b_uuid')).values()
+            query = t.update().where(t.c.id == bindparam('b_id')).values()
             conn.execute(query, df.to_dict('records'))  # bulk update

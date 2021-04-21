@@ -73,6 +73,8 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
             self.logger.info(message)
 
             engine = self.get_engine()
+            self.add_column(engine, lang, col_name='num_tokens', data_type='bigint') # add new column for num_tokens
+
             for spider in spider_list:
                 # according to docs you should aim for a partition size of 100MB
                 # 1 court decision takes approximately between around 10KB and 100KB of RAM when loaded into memory
@@ -101,16 +103,16 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
         """
         self.logger.info(f"Processing spider {spider}")
 
-        dfs = self.select(engine, lang, columns='uuid, text', where=f"spider='{spider}'")  # stream dfs from the db
+        dfs = self.select(engine, lang, columns='id, text', where=f"spider='{spider}'")  # stream dfs from the db
         for df in dfs:
-            df = df[['text', 'uuid']]  # reorder the df so that we get the text first and the uuid after
+            df = df[['text', 'id']]  # reorder the df so that we get the text first and the id after
             tuples = list(df.itertuples(index=False))  # convert df to list of tuples
             # batch_size = max(int(len(texts) / self.num_cpus), 1) # a high batch_size can lead to lots of allocated memory
             docs = tqdm(self.active_model.pipe(tuples, n_process=-1, batch_size=1, as_tuples=True), total=len(tuples))
             num_tokens = []
             self.logger.info("Saving spacy docs to disk")
-            for doc, uuid in docs:
-                path = lang_dir / (uuid + ".spacy")
+            for doc, id in docs:
+                path = lang_dir / (id + ".spacy")
                 doc.to_disk(path, exclude=['tensor'])
                 num_tokens.append(len(doc))
             df['num_tokens'] = num_tokens
