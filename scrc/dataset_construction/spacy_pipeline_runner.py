@@ -112,7 +112,7 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
             num_tokens = []
             self.logger.info("Saving spacy docs to disk")
             for doc, id in docs:
-                path = lang_dir / (id + ".spacy")
+                path = lang_dir / (str(id) + ".spacy")
                 doc.to_disk(path, exclude=['tensor'])
                 num_tokens.append(len(doc))
             df['num_tokens'] = num_tokens
