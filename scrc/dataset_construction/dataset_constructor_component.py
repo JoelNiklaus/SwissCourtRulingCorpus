@@ -4,6 +4,8 @@ from pathlib import Path
 
 import glob
 
+from spacy.vocab import Vocab
+
 from root import ROOT_DIR
 import pandas as pd
 
@@ -47,25 +49,40 @@ class DatasetConstructorComponent:
         dir.mkdir(parents=True, exist_ok=True)  # create folder if it does not exist yet
         return dir
 
-    def mark_as_processed(self, processed_file_path, spider):
+    def mark_as_processed(self, processed_file_path, part):
         with processed_file_path.open("a") as f:
-            f.write(spider + "\n")
+            f.write(part + "\n")
 
     def compute_remaining_spiders(self, processed_file_path):
         """This can be used to save progress in between runs in case something fails"""
         spider_list = [Path(spider).stem for spider in glob.glob(f"{str(self.spiders_dir)}/*")]
+        return self.compute_remaining_parts(processed_file_path, spider_list)
+
+    def compute_remaining_parts(self, processed_file_path, entire_list):
         if not processed_file_path.exists():
             processed_file_path.touch()
-        spiders_processed = processed_file_path.read_text().strip().split("\n")
-        spiders_not_yet_processed = set(spider_list) - set(spiders_processed)
-        message = f"Still {len(spiders_not_yet_processed)} of {len(spider_list)} spider(s) remaining to process: {spiders_not_yet_processed}"
-        return spiders_not_yet_processed, message
+        processed_list = processed_file_path.read_text().strip().split("\n")
+        left_to_process_list = set(entire_list) - set(processed_list)
+        message = f"Still {len(left_to_process_list)} of {len(entire_list)} part(s) remaining to process: {left_to_process_list}"
+        return left_to_process_list, message
+
+    def load_vocab(self, lang_dir):
+        vocab_path = lang_dir / f"_vocab.spacy"
+        if vocab_path.exists():
+            return Vocab().from_disk(str(vocab_path), exclude=['vectors'])
+
+    def save_vocab(self, vocab, lang_dir):
+        vocab.to_disk(lang_dir / f"_vocab.spacy", exclude=['vectors'])
 
     def get_engine(self):
         return create_engine(
             f"postgresql+psycopg2://{self.user}:{self.password}@{self.ip}:{self.port}/{self.database}",
             # echo=True # good for debugging
         )
+
+    def query(self, query_str):
+        with self.get_engine().connect() as conn:
+            return pd.read_sql(query_str, conn)
 
     def add_column(self, engine, table, col_name, data_type):
         """

@@ -59,21 +59,22 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
     def load_spacy_model(model_name, disable_pipes):
         return spacy.load(model_name, disable=disable_pipes)
 
-    @slack_alert
     def run_pipeline(self):
         self.logger.info("Started running spacy pipeline on the texts")
 
         for lang in self.languages:
             self.logger.info(f"Started processing language {lang}")
             lang_dir = self.create_dir(self.spacy_subdir, lang)  # output dir
-            self.load_language_model(lang, lang_dir)
 
             processed_file_path = self.data_dir / f"{lang}_spiders_spacied.txt"
             spider_list, message = self.compute_remaining_spiders(processed_file_path)
             self.logger.info(message)
 
+            if spider_list:
+                self.load_language_model(lang, lang_dir)
+
             engine = self.get_engine()
-            self.add_column(engine, lang, col_name='num_tokens', data_type='bigint') # add new column for num_tokens
+            self.add_column(engine, lang, col_name='num_tokens', data_type='bigint')  # add new column for num_tokens
 
             for spider in spider_list:
                 # according to docs you should aim for a partition size of 100MB
@@ -91,10 +92,7 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
         self.active_model = self.load_spacy_model(self.models[lang], self.disable_pipes)
         # increase max length for long texts: Can lead to memory allocation errors for parser and ner
         self.active_model.max_length = 3000000
-        vocab_path = lang_dir / f"_vocab.spacy"
-        if vocab_path.exists():
-            vocab = Vocab().from_disk(str(vocab_path), exclude=['vectors'])
-            self.active_model.vocab = vocab
+        self.active_model.vocab = self.load_vocab(lang_dir)
 
     @profile
     def run_spacy_pipeline(self, engine, spider, lang, lang_dir):
@@ -120,7 +118,7 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
             self.logger.info("Saving num_tokens to db")
             self.update(engine, df, lang, columns)
 
-            self.active_model.vocab.to_disk(lang_dir / f"_vocab.spacy", exclude=['vectors'])
+            self.save_vocab(self.active_model.vocab, lang_dir)
 
             gc.collect()
             sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
