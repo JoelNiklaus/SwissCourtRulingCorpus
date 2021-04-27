@@ -7,7 +7,7 @@ from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.kaggle_dataset_creator import KaggleDatasetCreator
 from scrc.dataset_construction.scraper import Scraper, base_url
 from scrc.dataset_construction.spacy_pipeline_runner import SpacyPipelineRunner
-from scrc.dataset_construction.vocabulary_computer import VocabularyComputer
+from scrc.dataset_construction.count_computer import CountComputer
 
 from filprofiler.api import profile
 
@@ -19,6 +19,7 @@ New approach:
 - Clean text  (keep raw content in db)
 - Process each text with spacy, save doc to disk and store path in db, store num token count in separate db col
 doc.to_disk("/path/to/doc", exclude=['tensor']) # think about excluding tensor to save space (almost 4x less space)
+- compute lemma counts and save aggregates in separate tables
 - split BGer into sections (from html_raw)
 - extract citations (from raw text)
 
@@ -44,8 +45,8 @@ def main():
     spacy_pipeline_runner = SpacyPipelineRunner(config)
     spacy_pipeline_runner.run_pipeline()
 
-    vocabulary_computer = VocabularyComputer(config)
-    vocabulary_computer.run_pipeline()
+    count_computer = CountComputer(config)
+    count_computer.run_pipeline()
 
     # kaggle_dataset_creator = KaggleDatasetCreator(config)
     # kaggle_dataset_creator.create_dataset()
