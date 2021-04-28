@@ -43,16 +43,16 @@ class CountComputer(DatasetConstructorComponent):
         # this should be filtered out by PUNCT pos tag already, but sometimes they are misclassified
         self.stopwords |= {' ', '.', '!', '?'}
 
+    @slack_alert
     def run_pipeline(self):
         self.logger.info("Started computing counts")
 
+        engine = self.get_engine()
         for lang in self.languages:
             self.logger.info(f"Started processing language {lang}")
-            self.lang_dir = self.create_dir(self.spacy_subdir, lang)  # output dir
+            self.lang_dir = self.spacy_subdir / lang
 
-            engine = self.get_engine()
             self.compute_counts_for_individual_decisions(engine, lang)
-
             self.compute_aggregates(engine, lang)
 
             self.logger.info(f"Finished processing language {lang}")
@@ -76,30 +76,32 @@ class CountComputer(DatasetConstructorComponent):
                 self.mark_as_processed(processed_file_path, chamber)
 
     def compute_aggregates(self, engine, lang):
+        compile_where = lambda level_instance: f"chamber='{level_instance}'"
+        self.compute_aggregate_for_level(engine, lang, 'chamber', lang, compile_where)
+
+        compile_where = lambda level_instance: f"chamber LIKE '{level_instance}_%'"
+        self.compute_aggregate_for_level(engine, lang, 'court', f"{lang}_chambers", compile_where)
+
+        compile_where = lambda level_instance: f"court LIKE '{level_instance}_%'"
+        self.compute_aggregate_for_level(engine, lang, 'canton', f"{lang}_courts", compile_where)
+
+    def compute_aggregate_for_level(self, engine, lang, level, table, compile_where):
         meta = MetaData()
-        lang_chambers_table = self.create_aggregate_table(lang, meta, 'chamber')
-        lang_courts_table = self.create_aggregate_table(lang, meta, 'court')
-        lang_cantons_table = self.create_aggregate_table(lang, meta, 'canton')
+        lang_level_table = self.create_aggregate_table(lang, meta, level)
         meta.create_all(engine)
 
-        self.logger.info("Computing the aggregate counters for the chambers")
-        chambers = self.get_level_instances(lang, 'chamber')
-        for chamber in chambers:
-            self.compute_counters(engine, chamber, lang)
-            chamber_counter = self.compute_aggregate_counter(engine, lang, f"chamber='{chamber}'")
-            self.insert_counter(engine, lang_chambers_table, 'chamber', chamber, chamber_counter)
+        self.logger.info(f"Computing the aggregate counters for the {level}s")
+        level_instances = self.get_level_instances(lang, level)
+        processed_file_path = self.data_dir / f"{lang}_{level}s_aggregated.txt"
+        level_instances, message = self.compute_remaining_parts(processed_file_path, level_instances)
+        self.logger.info(message)
 
-        self.logger.info("Computing the aggregate counters for the courts")
-        courts = self.get_level_instances(lang, 'court')
-        for court in courts:
-            court_counter = self.compute_aggregate_counter(engine, f"{lang}_chambers", f"chamber LIKE '{court}_%'")
-            self.insert_counter(engine, lang_courts_table, 'court', court, court_counter)
-
-        self.logger.info("Computing the aggregate counters for the cantons")
-        cantons = self.get_level_instances(lang, 'canton')
-        for canton in cantons:
-            canton_counter = self.compute_aggregate_counter(engine, f"{lang}_courts", f"court LIKE '{canton}_%'")
-            self.insert_counter(engine, lang_cantons_table, 'canton', canton, canton_counter)
+        for level_instance in level_instances:
+            self.logger.info(f"Processing {level} {level_instance}")
+            where = compile_where(level_instance)
+            aggregate_counter = self.compute_aggregate_counter(engine, table, where)
+            self.insert_counter(engine, lang_level_table, level, level_instance, aggregate_counter)
+            self.mark_as_processed(processed_file_path, level_instance)
 
     def get_level_instances(self, lang, level):
         return self.query(f"SELECT DISTINCT {level} FROM {lang}")[level].to_list()
