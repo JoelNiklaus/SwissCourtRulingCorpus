@@ -36,9 +36,9 @@ class DatasetConstructorComponent:
 
         self.ip = config['postgres']['ip']
         self.port = config['postgres']['port']
-        self.database = config['postgres']['database']
         self.user = config['postgres']['user']
         self.password = config['postgres']['password']
+        self.database = config['postgres']['database']
 
         self.indexes = json.loads(config['postgres']['indexes'])
 
@@ -74,14 +74,14 @@ class DatasetConstructorComponent:
     def save_vocab(self, vocab, lang_dir):
         vocab.to_disk(lang_dir / f"_vocab.spacy", exclude=['vectors'])
 
-    def get_engine(self):
+    def get_engine(self, db, echo=False):
         return create_engine(
-            f"postgresql+psycopg2://{self.user}:{self.password}@{self.ip}:{self.port}/{self.database}",
-            # echo=True # good for debugging
+            f"postgresql+psycopg2://{self.user}:{self.password}@{self.ip}:{self.port}/{db}",
+            echo=echo  # good for debugging
         )
 
-    def query(self, query_str):
-        with self.get_engine().connect() as conn:
+    def query(self, engine, query_str):
+        with engine.connect() as conn:
             return pd.read_sql(query_str, conn)
 
     def add_column(self, engine, table, col_name, data_type):

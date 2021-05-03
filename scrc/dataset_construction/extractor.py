@@ -79,7 +79,7 @@ class Extractor(DatasetConstructorComponent):
                 Column('pdf_url', String),
                 Column('pdf_raw', String),
             )
-            meta.create_all(self.get_engine())
+            meta.create_all(self.get_engine(self.database))
 
         for spider in spider_list:
             self.build_spider_dataset(spider)
@@ -92,7 +92,7 @@ class Extractor(DatasetConstructorComponent):
 
     def create_indexes(self, lang):
         self.logger.info(f"Creating indexes for {lang}")
-        with self.get_engine().connect() as conn:
+        with self.get_engine(self.database).connect() as conn:
             for index in self.indexes:
                 self.logger.info(f"Creating index for column {index} in table {lang}")
                 conn.execute(f"CREATE INDEX IF NOT EXISTS {lang}_{index} ON {lang}({index})")
@@ -110,7 +110,7 @@ class Extractor(DatasetConstructorComponent):
         for lang in self.languages:
             lang_df = df[df.language.str.contains(lang, na=False)]  # select only decisions by language
             if len(lang_df.index) > 0:
-                lang_df.to_sql(lang, self.get_engine(), if_exists="append", index=False)
+                lang_df.to_sql(lang, self.get_engine(self.database), if_exists="append", index=False)
 
     def build_spider_dict_list(self, spider_dir: Path) -> list:
         """ Builds the spider dict list which we can convert to a pandas Data Frame later """

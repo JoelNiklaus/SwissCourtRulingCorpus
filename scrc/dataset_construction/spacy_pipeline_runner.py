@@ -73,7 +73,7 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
             if spider_list:
                 self.load_language_model(lang, lang_dir)
 
-            engine = self.get_engine()
+            engine = self.get_engine(self.database)
             self.add_column(engine, lang, col_name='num_tokens', data_type='bigint')  # add new column for num_tokens
 
             for spider in spider_list:

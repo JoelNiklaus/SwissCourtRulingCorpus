@@ -47,7 +47,7 @@ class CountComputer(DatasetConstructorComponent):
     def run_pipeline(self):
         self.logger.info("Started computing counts")
 
-        engine = self.get_engine()
+        engine = self.get_engine(self.database)
         for lang in self.languages:
             self.logger.info(f"Started processing language {lang}")
             self.lang_dir = self.spacy_subdir / lang
@@ -62,7 +62,7 @@ class CountComputer(DatasetConstructorComponent):
     def compute_counts_for_individual_decisions(self, engine, lang):
         self.add_column(engine, lang, col_name='counter', data_type='jsonb')  # add new column for the rank_order
 
-        chambers = self.get_level_instances(lang, 'chamber')
+        chambers = self.get_level_instances(engine, lang, 'chamber')
         processed_file_path = self.data_dir / f"{lang}_chambers_counted.txt"
         chambers, message = self.compute_remaining_parts(processed_file_path, chambers)
         self.logger.info(message)
@@ -91,7 +91,7 @@ class CountComputer(DatasetConstructorComponent):
         meta.create_all(engine)
 
         self.logger.info(f"Computing the aggregate counters for the {level}s")
-        level_instances = self.get_level_instances(lang, level)
+        level_instances = self.get_level_instances(engine, lang, level)
         processed_file_path = self.data_dir / f"{lang}_{level}s_aggregated.txt"
         level_instances, message = self.compute_remaining_parts(processed_file_path, level_instances)
         self.logger.info(message)
@@ -103,8 +103,8 @@ class CountComputer(DatasetConstructorComponent):
             self.insert_counter(engine, lang_level_table, level, level_instance, aggregate_counter)
             self.mark_as_processed(processed_file_path, level_instance)
 
-    def get_level_instances(self, lang, level):
-        return self.query(f"SELECT DISTINCT {level} FROM {lang}")[level].to_list()
+    def get_level_instances(self, engine, lang, level):
+        return self.query(engine, f"SELECT DISTINCT {level} FROM {lang}")[level].to_list()
 
     def insert_counter(self, engine, lang_level_table, level, level_instance, counter):
         """Inserts a counter into an aggregate table"""
