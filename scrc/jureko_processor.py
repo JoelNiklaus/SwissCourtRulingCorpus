@@ -38,8 +38,9 @@ class JurekoProcessor(DatasetConstructorComponent):
         types, message = self.compute_remaining_parts(processed_file_path, self.types)
         self.logger.info(message)
         for type in types:
-            type_dir = self.jureko_spacy_subdir / type
+            type_dir = self.create_dir(self.jureko_spacy_subdir, type)
             self.run_spacy_pipe(engine, type, type_dir, "", nlp, self.logger)
+            self.mark_as_processed(processed_file_path, type)
 
         processed_file_path = self.jureko_subdir / f"types_counted.txt"
         types, message = self.compute_remaining_parts(processed_file_path, self.types)
@@ -48,16 +49,22 @@ class JurekoProcessor(DatasetConstructorComponent):
             type_dir = self.jureko_spacy_subdir / type
             spacy_vocab = self.load_vocab(type_dir)
             self.compute_counters(engine, type, "", spacy_vocab, type_dir, self.logger)
+            self.mark_as_processed(processed_file_path, type)
 
     def extract_to_db(self, engine):
         reader = TeiReader()
-        files = glob.glob(str(self.tei_subdir / "*.txt"))
+
+        file_names = [Path(file_path).name for file_path in glob.glob(str(self.tei_subdir / "*.txt"))]
+        processed_file_path = self.jureko_subdir / f"files_extracted.txt"
+        files, message = self.compute_remaining_parts(processed_file_path, file_names)
+        self.logger.info(message)
         entries = {'text': [], 'type': [], 'title': [], 'date': [], 'file_number': [], }
         i = 0
-        for file in tqdm(files, total=338423):
-            self.process_file(entries, file, reader)
+        for file in tqdm(files, total=len(file_names)):
+            self.process_file(entries, self.jureko_subdir / file, reader)
+            self.mark_as_processed(processed_file_path, file)
+            self.save_to_db(engine, entries, i)
             i += 1
-            entries = self.save_to_db(engine, entries, i)
 
     def save_to_db(self, engine, entries, i):
         if i % self.chunksize == 0:  # save to db in chunks so we don't overload RAM
@@ -69,7 +76,6 @@ class JurekoProcessor(DatasetConstructorComponent):
                 if len(type_df.index) > 0:
                     type_df.to_sql(type, engine, if_exists="append", index=False)
             entries = {'text': [], 'type': [], 'title': [], 'date': [], 'file_number': [], }
-        return entries
 
     def process_file(self, entries, file, reader):
         type_key = 'fileDesc::sourceDesc::biblStruct::type'
@@ -81,8 +87,11 @@ class JurekoProcessor(DatasetConstructorComponent):
         entries['text'].append(corpora.text)
         entries['type'].append(self.get_attribute(corpora, type_key))
         entries['title'].append(self.get_attribute(corpora, title_key))
-        entries['date'].append(self.get_attribute(corpora, date_key))
         entries['file_number'].append(self.get_attribute(corpora, file_number_key))
+        date = self.get_attribute(corpora, date_key)
+        if date == 'NoDate':
+            date = None
+        entries['date'].append(date)
 
     def get_attribute(self, corpora, key):
         attributes = list(corpora.documents)[0].attributes
