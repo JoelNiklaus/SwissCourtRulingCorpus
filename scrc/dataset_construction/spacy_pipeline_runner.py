@@ -73,7 +73,7 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
             if spider_list:
                 self.load_language_model(lang, lang_dir)
 
-            engine = self.get_engine(self.database)
+            engine = self.get_engine(self.db_scrc)
             self.add_column(engine, lang, col_name='num_tokens', data_type='bigint')  # add new column for num_tokens
 
             for spider in spider_list:
@@ -101,27 +101,7 @@ class SpacyPipelineRunner(DatasetConstructorComponent):
         """
         self.logger.info(f"Processing spider {spider}")
 
-        dfs = self.select(engine, lang, columns='id, text', where=f"spider='{spider}'")  # stream dfs from the db
-        for df in dfs:
-            df = df[['text', 'id']]  # reorder the df so that we get the text first and the id after
-            tuples = list(df.itertuples(index=False))  # convert df to list of tuples
-            # batch_size = max(int(len(texts) / self.num_cpus), 1) # a high batch_size can lead to lots of allocated memory
-            docs = tqdm(self.active_model.pipe(tuples, n_process=-1, batch_size=1, as_tuples=True), total=len(tuples))
-            num_tokens = []
-            self.logger.info("Saving spacy docs to disk")
-            for doc, id in docs:
-                path = lang_dir / (str(id) + ".spacy")
-                doc.to_disk(path, exclude=['tensor'])
-                num_tokens.append(len(doc))
-            df['num_tokens'] = num_tokens
-            columns = ['num_tokens']
-            self.logger.info("Saving num_tokens to db")
-            self.update(engine, df, lang, columns)
-
-            self.save_vocab(self.active_model.vocab, lang_dir)
-
-            gc.collect()
-            sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
+        self.run_spacy_pipe(engine, lang, lang_dir, f"spider='{spider}'", self.active_model, self.logger)
 
         memory_usage = psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3
         message = f"Your running process is currently using {memory_usage:.3f} GB of memory"

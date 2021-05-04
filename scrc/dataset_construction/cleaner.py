@@ -80,7 +80,7 @@ class Cleaner(DatasetConstructorComponent):
         spider_list, message = self.compute_remaining_spiders(processed_file_path)
         self.logger.info(message)
 
-        engine = self.get_engine(self.database)
+        engine = self.get_engine(self.db_scrc)
         for lang in self.languages:
             # add new columns to db
             self.add_column(engine, lang, col_name='text', data_type='text')

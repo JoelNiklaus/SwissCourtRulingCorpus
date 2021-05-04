@@ -7,7 +7,6 @@ import spacy
 from spacy.tokens import Doc
 from tqdm import tqdm
 import configparser
-import stopwordsiso as stopwords
 
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from root import ROOT_DIR
@@ -39,15 +38,12 @@ class CountComputer(DatasetConstructorComponent):
 
         self.lang_dir = None
         self.spacy_vocab = None
-        self.stopwords = stopwords.stopwords(self.languages)
-        # this should be filtered out by PUNCT pos tag already, but sometimes they are misclassified
-        self.stopwords |= {' ', '.', '!', '?'}
 
     @slack_alert
     def run_pipeline(self):
         self.logger.info("Started computing counts")
 
-        engine = self.get_engine(self.database)
+        engine = self.get_engine(self.db_scrc)
         for lang in self.languages:
             self.logger.info(f"Started processing language {lang}")
             self.lang_dir = self.spacy_subdir / lang
@@ -72,7 +68,9 @@ class CountComputer(DatasetConstructorComponent):
             self.spacy_vocab = self.load_vocab(self.lang_dir)
 
             for chamber in chambers:
-                self.compute_counters(engine, chamber, lang)
+                self.logger.info(f"Processing chamber {chamber}")
+                self.compute_counters(engine, lang, f"chamber='{chamber}'", self.spacy_vocab, self.lang_dir,
+                                      self.logger)
                 self.mark_as_processed(processed_file_path, chamber)
 
     def compute_aggregates(self, engine, lang):
@@ -134,32 +132,6 @@ class CountComputer(DatasetConstructorComponent):
             Column('counter', JSON),
         )
         return lang_level_table
-
-    def compute_counters(self, engine, chamber, lang):
-        """Computes the counter for each of the decisions in a given chamber and language"""
-        self.logger.info(f"Processing chamber {chamber}")
-
-        dfs = self.select(engine, lang, columns='id', where=f"chamber='{chamber}'")  # stream dfs from the db
-        for df in dfs:
-            ids = df.id.to_list()
-            self.logger.info(f"Loading {len(ids)} spacy docs")  # load
-            docs = [Doc(self.spacy_vocab).from_disk(self.lang_dir / (str(id) + ".spacy"), exclude=['tensor'])
-                    for id in ids]
-            self.logger.info("Computing the counters")  # map
-            df['counter'] = tqdm(map(self.create_counter_for_doc, docs), total=len(ids))
-            self.update(engine, df, lang, ['counter'])  # save
-        gc.collect()
-        sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
-
-    def create_counter_for_doc(self, doc: spacy.tokens.Doc) -> dict:
-        """
-        take lemma without underscore for faster computation (int instead of str)
-        take casefold of lemma to remove capital letters and ß
-        """
-        lemmas = [token.lemma_.casefold() for token in doc if token.pos_ not in ['NUM', 'PUNCT', 'SYM', 'X']]
-        # filter out stopwords (spacy is_stop filtering does not work well)
-        lemmas = [lemma for lemma in lemmas if lemma not in self.stopwords and lemma.isalpha()]
-        return dict(Counter(lemmas))
 
 
 if __name__ == '__main__':
