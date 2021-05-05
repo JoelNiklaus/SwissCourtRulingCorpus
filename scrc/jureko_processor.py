@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from tei_reader import TeiReader
 
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Date
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Date, JSON
 
 import pandas as pd
 
@@ -109,8 +109,8 @@ class JurekoProcessor(DatasetConstructorComponent):
             Column('title', String),
             Column('date', Date),
             Column('file_number', String),
-            Column('num_tokens', String),
-            Column('counter', String),
+            Column('num_tokens', Integer),
+            Column('counter', JSON),
         )
         meta.create_all(engine)
 
