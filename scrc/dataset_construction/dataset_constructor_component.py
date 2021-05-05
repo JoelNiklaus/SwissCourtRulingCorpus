@@ -18,6 +18,8 @@ import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy import MetaData, Table
 from sqlalchemy.sql.expression import bindparam
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Date, ARRAY, PickleType, JSON
+from sqlalchemy.dialects.postgresql import insert
 
 import stopwordsiso as stopwords
 
@@ -200,6 +202,39 @@ class DatasetConstructorComponent:
 
             gc.collect()
             sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
+
+
+    @staticmethod
+    def insert_counter(engine, table, level, level_instance, counter):
+        """Inserts a counter into an aggregate table"""
+        with engine.connect() as conn:
+            values = {level: level_instance, "counter": counter}
+            stmt = insert(table).values(values)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=[table.c[level]],
+                set_=dict(counter=counter)
+            )
+            conn.execute(stmt)
+
+    def compute_aggregate_counter(self, engine, table: str, where: str) -> dict:
+        """Computes an aggregate counter for the dfs queried by the parameters"""
+        dfs = self.select(engine, table, columns='counter', where=where)  # stream dfs from the db
+        aggregate_counter = Counter()
+        for df in dfs:
+            for counter in df.counter.to_list():
+                aggregate_counter += Counter(counter)
+        return dict(aggregate_counter)
+
+    def create_aggregate_table(self, engine, table, primary_key):
+        """Creates an aggregate table for a given level for storing the counter"""
+        meta = MetaData()
+        lang_level_table = Table(  # an aggregate table for storing level specific data like the vocabulary
+            table, meta,
+            Column(primary_key, String, primary_key=True),
+            Column('counter', JSON),
+        )
+        meta.create_all(engine)
+        return lang_level_table
 
     def compute_counters(self, engine, table, where, spacy_vocab, spacy_dir, logger):
         """Computes the counter for each of the decisions in a given chamber and language"""

@@ -34,6 +34,7 @@ class JurekoProcessor(DatasetConstructorComponent):
         nlp = spacy.load('de_core_news_lg', disable=disable_pipes)
         nlp.max_length = 3000000
 
+        self.logger.info("Running spacy pipeline")
         processed_file_path = self.jureko_subdir / f"types_spacied.txt"
         types, message = self.compute_remaining_parts(processed_file_path, self.types)
         self.logger.info(message)
@@ -42,6 +43,7 @@ class JurekoProcessor(DatasetConstructorComponent):
             self.run_spacy_pipe(engine, type, type_dir, "", nlp, self.logger)
             self.mark_as_processed(processed_file_path, type)
 
+        self.logger.info("Computing counters")
         processed_file_path = self.jureko_subdir / f"types_counted.txt"
         types, message = self.compute_remaining_parts(processed_file_path, self.types)
         self.logger.info(message)
@@ -50,6 +52,17 @@ class JurekoProcessor(DatasetConstructorComponent):
             spacy_vocab = self.load_vocab(type_dir)
             self.compute_counters(engine, type, "", spacy_vocab, type_dir, self.logger)
             self.mark_as_processed(processed_file_path, type)
+
+        self.logger.info("Aggregating counters")
+        agg_table = self.create_aggregate_table(engine, f"agg", "type")
+        processed_file_path = self.jureko_subdir / f"types_aggregated.txt"
+        types, message = self.compute_remaining_parts(processed_file_path, self.types)
+        self.logger.info(message)
+        for type in types:
+            aggregate_counter = self.compute_aggregate_counter(engine, type, "")
+            self.insert_counter(engine, agg_table, "type", type, aggregate_counter)
+            self.mark_as_processed(processed_file_path, type)
+
 
     def extract_to_db(self, engine):
         reader = TeiReader()

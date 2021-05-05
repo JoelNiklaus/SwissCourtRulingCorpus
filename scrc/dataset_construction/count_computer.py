@@ -84,9 +84,7 @@ class CountComputer(DatasetConstructorComponent):
         self.compute_aggregate_for_level(engine, lang, 'canton', f"{lang}_courts", compile_where)
 
     def compute_aggregate_for_level(self, engine, lang, level, table, compile_where):
-        meta = MetaData()
-        lang_level_table = self.create_aggregate_table(lang, meta, level)
-        meta.create_all(engine)
+        lang_level_table = self.create_aggregate_table(engine, f"{lang}_{level}s", level)
 
         self.logger.info(f"Computing the aggregate counters for the {level}s")
         level_instances = self.get_level_instances(engine, lang, level)
@@ -104,34 +102,7 @@ class CountComputer(DatasetConstructorComponent):
     def get_level_instances(self, engine, lang, level):
         return self.query(engine, f"SELECT DISTINCT {level} FROM {lang}")[level].to_list()
 
-    def insert_counter(self, engine, lang_level_table, level, level_instance, counter):
-        """Inserts a counter into an aggregate table"""
-        with engine.connect() as conn:
-            values = {level: level_instance, "counter": counter}
-            stmt = insert(lang_level_table).values(values)
-            stmt = stmt.on_conflict_do_update(
-                index_elements=[lang_level_table.c[level]],
-                set_=dict(counter=counter)
-            )
-            conn.execute(stmt)
 
-    def compute_aggregate_counter(self, engine, table: str, where: str) -> dict:
-        """Computes an aggregate counter for the dfs queried by the parameters"""
-        dfs = self.select(engine, table, columns='counter', where=where)  # stream dfs from the db
-        aggregate_counter = Counter()
-        for df in dfs:
-            for counter in df.counter.to_list():
-                aggregate_counter += Counter(counter)
-        return dict(aggregate_counter)
-
-    def create_aggregate_table(self, lang, meta, level):
-        """Creates an aggregate table for a given level for storing the counter"""
-        lang_level_table = Table(  # an aggregate table for storing level specific data like the vocabulary
-            f"{lang}_{level}s", meta,
-            Column(level, String, primary_key=True),
-            Column('counter', JSON),
-        )
-        return lang_level_table
 
 
 if __name__ == '__main__':
