@@ -224,12 +224,13 @@ class DatasetConstructorComponent:
             )
             conn.execute(stmt)
 
-    def compute_aggregate_counter(self, engine, table: str, where: str) -> dict:
+    def compute_aggregate_counter(self, engine, table: str, where: str, logger) -> dict:
         """Computes an aggregate counter for the dfs queried by the parameters"""
+        logger.info(f"Computing aggregate counter for {table}")
         dfs = self.select(engine, table, columns='counter', where=where)  # stream dfs from the db
         aggregate_counter = Counter()
         for df in dfs:
-            for counter in df.counter.to_list():
+            for counter in tqdm(df.counter.to_list()):
                 aggregate_counter += Counter(counter)
         return dict(aggregate_counter)
 

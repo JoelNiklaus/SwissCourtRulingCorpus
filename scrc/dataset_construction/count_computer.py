@@ -1,16 +1,7 @@
-import gc
-from collections import Counter
-from time import sleep
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Date, ARRAY, PickleType, JSON
-from sqlalchemy.dialects.postgresql import insert
-import spacy
-from spacy.tokens import Doc
-from tqdm import tqdm
 import configparser
 
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from root import ROOT_DIR
-from scrc.utils.decorators import slack_alert
 from scrc.utils.log_utils import get_logger
 
 # import scrc.utils.monkey_patch  # prevent memory leak with pandas
@@ -39,7 +30,6 @@ class CountComputer(DatasetConstructorComponent):
         self.lang_dir = None
         self.spacy_vocab = None
 
-    @slack_alert
     def run_pipeline(self):
         self.logger.info("Started computing counts")
 
@@ -95,14 +85,12 @@ class CountComputer(DatasetConstructorComponent):
         for level_instance in level_instances:
             self.logger.info(f"Processing {level} {level_instance}")
             where = compile_where(level_instance)
-            aggregate_counter = self.compute_aggregate_counter(engine, table, where)
+            aggregate_counter = self.compute_aggregate_counter(engine, table, where, self.logger)
             self.insert_counter(engine, lang_level_table, level, level_instance, aggregate_counter)
             self.mark_as_processed(processed_file_path, level_instance)
 
     def get_level_instances(self, engine, lang, level):
         return self.query(engine, f"SELECT DISTINCT {level} FROM {lang}")[level].to_list()
-
-
 
 
 if __name__ == '__main__':
