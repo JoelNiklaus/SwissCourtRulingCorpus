@@ -59,7 +59,7 @@ class JurekoProcessor(DatasetConstructorComponent):
         types, message = self.compute_remaining_parts(processed_file_path, self.types)
         self.logger.info(message)
         for type in types:
-            aggregate_counter = self.compute_aggregate_counter(engine, type, "")
+            aggregate_counter = self.compute_aggregate_counter(engine, type, "", self.logger)
             self.insert_counter(engine, agg_table, "type", type, aggregate_counter)
             self.mark_as_processed(processed_file_path, type)
 
