@@ -17,18 +17,6 @@ from scrc.dataset_construction.dataset_constructor_component import DatasetConst
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import clean_text
 
-sections = [
-    "header",
-    "title",
-    "judges",
-    "parties",
-    "topic",
-    "situation",
-    "considerations",
-    "rulings",
-    "footer"
-]
-
 
 class Cleaner(DatasetConstructorComponent):
     """
@@ -52,25 +40,18 @@ class Cleaner(DatasetConstructorComponent):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-        self.functions = {}
-        self.load_functions(config, 'cleaning_functions')
-        self.load_functions(config, 'section_splitting_functions')
-        self.load_cleaning_regexes(config)
+        self.cleaning_functions = self.load_functions(config, 'cleaning_functions')
+        self.logger.debug(self.cleaning_functions)
 
-    def load_functions(self, config, type):
-        """loads the cleaning functions used for html files"""
-        function_file = ROOT_DIR / config['files'][type]  # mainly used for html courts
-        spec = importlib.util.spec_from_file_location(type, function_file)
-        self.functions[type] = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(self.functions[type])
-        self.logger.debug(self.functions[type])
-
-    def load_cleaning_regexes(self, config):
-        """loads the cleaning regexes used for pdf files"""
-        regex_file = ROOT_DIR / config['files']['cleaning_regexes']  # mainly used for pdf spiders
-        with open(regex_file) as f:
-            self.cleaning_regexes = json.load(f)
+        self.cleaning_regexes = self.load_cleaning_regexes(config['files']['cleaning_regexes'])
         self.logger.debug(self.cleaning_regexes)
+
+    def load_cleaning_regexes(self, file_name):
+        """loads the cleaning regexes used for pdf files"""
+        regex_file = ROOT_DIR / file_name  # mainly used for pdf spiders
+        with open(regex_file) as f:
+            cleaning_regexes = json.load(f)
+        return cleaning_regexes
 
     def clean(self):
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
@@ -84,8 +65,6 @@ class Cleaner(DatasetConstructorComponent):
         for lang in self.languages:
             # add new columns to db
             self.add_column(engine, lang, col_name='text', data_type='text')
-            for section in sections:  # add empty section columns
-                self.add_column(engine, lang, col_name=section, data_type='text')
 
         # clean raw texts
         for spider in spider_list:
@@ -108,7 +87,6 @@ class Cleaner(DatasetConstructorComponent):
                     df = ddf.compute(scheduler='processes')
 
                 columns = ['text']
-                columns.extend(sections)  # also update sections
                 self.logger.info("Saving cleaned text and split sections to db")
                 self.update(engine, df, lang, columns)
 
@@ -129,11 +107,6 @@ class Cleaner(DatasetConstructorComponent):
             soup = bs4.BeautifulSoup(html_raw, "html.parser").find('body')
             assert soup
             html_clean = self.clean_html(spider, soup, namespace)
-
-            # this can be pushed to a later step in the pipeline if needed
-            sections = self.split_sections_with_functions(spider, soup, namespace)
-            if sections:
-                series = series.replace(sections)
 
         pdf_raw = series['pdf_raw']
         if pd.notna(pdf_raw) and pdf_raw not in [None, '']:
@@ -161,10 +134,10 @@ class Cleaner(DatasetConstructorComponent):
 
     def clean_with_functions(self, spider: str, soup: Any, namespace: dict) -> str:
         """Cleans html documents with cleaning functions"""
-        if not hasattr(self.functions['cleaning_functions'], spider):
+        if not hasattr(self.cleaning_functions, spider):
             self.logger.debug(f"There are no special functions for spider {spider}. Just performing default cleaning.")
         else:
-            cleaning_function = getattr(self.functions['cleaning_functions'],
+            cleaning_function = getattr(self.cleaning_functions,
                                         spider)  # retrieve cleaning function by spider
             soup = cleaning_function(soup, namespace)  # invoke cleaning function with soup and namespace
 
@@ -172,20 +145,6 @@ class Cleaner(DatasetConstructorComponent):
         # for table in soup.find_all("table"):
         #    table.decompose()  # remove all tables from content because they are not useful in raw text
         return soup.get_text()
-
-    def split_sections_with_functions(self, spider: str, soup: Any, namespace: dict) -> Optional[dict]:
-        """Splits sections with section splitting functions"""
-        if not hasattr(self.functions['section_splitting_functions'], spider):
-            self.logger.debug(
-                f"There are no special functions for spider {spider}. Not performing any section splitting.")
-            return None
-        else:
-            # retrieve cleaning function by spider
-            section_splitting_functions = getattr(self.functions['section_splitting_functions'], spider)
-            try:
-                return section_splitting_functions(soup, namespace)  # invoke cleaning function with soup and namespace
-            except ValueError:
-                return None  # just ignore the error for now. It would need much more rules to prevent this.
 
     def clean_with_regexes(self, spider: str, text: str, namespace: dict) -> str:
         """Cleans pdf documents with cleaning regexes"""

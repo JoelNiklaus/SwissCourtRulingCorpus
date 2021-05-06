@@ -72,6 +72,14 @@ class DatasetConstructorComponent:
         dir.mkdir(parents=True, exist_ok=True)  # create folder if it does not exist yet
         return dir
 
+    def load_functions(self, config, type):
+        """loads the cleaning functions used for html files"""
+        function_file = ROOT_DIR / config['files'][type]  # mainly used for html courts
+        spec = importlib.util.spec_from_file_location(type, function_file)
+        functions = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(functions)
+        return functions
+
     @staticmethod
     def mark_as_processed(processed_file_path: Path, part: str) -> None:
         with processed_file_path.open("a") as f:
