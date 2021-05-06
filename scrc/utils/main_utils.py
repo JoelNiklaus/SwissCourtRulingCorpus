@@ -62,7 +62,8 @@ def clean_text(text: str) -> str:
     :return:
     """
     cleaned_text = text
-    cleaned_text = unicodedata.normalize('NFKD', cleaned_text)  # normalize whitespace
+    # https://stackoverflow.com/questions/16467479/normalizing-unicode
+    cleaned_text = unicodedata.normalize('NFKC', cleaned_text)  # normalize strings
     cleaned_text = re.sub('(\w+)-\n+(\w+)', '\1\2', cleaned_text)  # remove hyphens before new line
     cleaned_text = re.sub(r"\u00a0", ' ', cleaned_text)  # replace NBSP with normal whitespace
     cleaned_text = re.sub(r"\xa0", ' ', cleaned_text)  # replace \xa0 with normal whitespace

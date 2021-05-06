@@ -1,37 +1,40 @@
-from typing import Any, Optional
+import unicodedata
+from typing import Any, Optional, Tuple, List, Dict
 
 import bs4
 import re
 
-from scrc.dataset_construction.cleaner import sections
+from scrc.dataset_construction.section_splitter import sections
 from scrc.utils.main_utils import clean_text
 
 
-def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
+def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, str]]]]:
     """
     IMPORTANT: So far, only German is supported!
     :param soup:        the soup parsed by bs4
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict, None if not in German
     """
-
     if namespace['language'] != 'de':
         return None
 
     # As soon as one of the strings in the list (value) is encountered we switch to the corresponding section (key)
     section_markers = {
         # "header" has no markers!
-        "title": ['Urteil vom'],
-        "judges": ['Besetzung', 'Es wirken mit', 'Bundesrichter'],
-        "parties": ['Parteien', 'Verfahrensbeteiligte', 'In Sachen'],
-        "topic": ['Gegenstand', 'betreffend'],
-        "situation": ['Sachverhalt', ', hat sich ergeben', 'Nach Einsicht'],
-        "considerations": ['Das Bundesgericht zieht in Erwägung', 'Erwägung', 'in Erwägung', 'Erwägungen',
-                           'Erwägungen'],
-        "rulings": ['Demnach erkennt das Bundesgericht', 'erkennt die Präsidentin', 'erkennt der Präsident', 'erkennt'],
+        # at some later point we can still divide rubrum into more fine-grained sections like title, judges, parties, topic
+        # "title": ['Urteil vom', 'Beschluss vom', 'Entscheid vom'],
+        # "judges": ['Besetzung', 'Es wirken mit', 'Bundesrichter'],
+        # "parties": ['Parteien', 'Verfahrensbeteiligte', 'In Sachen'],
+        # "topic": ['Gegenstand', 'betreffend'],
+        "situation": [r'Sachverhalt:', r'hat sich ergeben', r'Nach Einsicht'],
+        "considerations": [r'Erwägung:', r'in Erwägung', r'Erwägungen:'],
+        "rulings": [r'erkennt die Präsidentin', r'erkennt der Präsident', r'Demnach erkennt', r'beschliesst:'],
         "footer": [
             r'\w*,\s\d?\d\.\s(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?).*']
     }
+    # normalize strings to avoid problems with umlauts
+    for key, value in section_markers.items():
+        section_markers[key] = [unicodedata.normalize('NFC', marker) for marker in value]
 
     def get_paragraphs(soup):
         """
@@ -66,32 +69,41 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
     def associate_sections(paragraphs, section_markers):
         paragraph_data = []
         section_data = {key: "" for key in sections}
-        used_sections = ["header"]  # sections which were already found
         current_section = "header"
         for paragraph in paragraphs:
             # update the current section if it changed
-            current_section = update_section(current_section, paragraph, section_markers, used_sections)
+            current_section = update_section(current_section, paragraph, section_markers)
 
             # construct the list of sections with associated text
             section_data[current_section] += paragraph + " "
 
             # construct the list of annotated paragraphs (can be used for prodigy annotation
             paragraph_data.append({"text": paragraph, "section": current_section})
-        if len(used_sections) != len(sections):
-            unused_sections = set(sections) - set(used_sections)
-            raise ValueError(f"The following sections have not been used: {unused_sections}. Please check! "
-                             f"Here you have the url to the decision: {namespace['html_url']}")
+
+            if current_section == 'footer':
+                #TODO add other paragraphs to footer
+                break  # we made it to the end, hooray!
+        if current_section != 'footer':
+            message = f"We got stuck at section {current_section}. Please check! " \
+                      f"Here you have the url to the decision: {namespace['html_url']}"
+            raise ValueError(message)
         return section_data, paragraph_data
 
-    def update_section(current_section, paragraph, section_markers, used_sections):
-        for section, markers in section_markers.items():
-            if section not in used_sections:  # if we did not use this section yet
-                for marker in markers:  # check each marker in the list
-                    if re.search(marker, paragraph):
-                        used_sections.append(section)  # make sure one section is only used once
-                        return section  # change to the next section
+    def update_section(current_section, paragraph, section_markers):
+        next_section_index = sections.index(current_section) + 1
+        next_sections = sections[next_section_index:]  # consider all following sections
+        for next_section in next_sections:
+            markers = section_markers[next_section]
+            paragraph = unicodedata.normalize('NFC', paragraph)
+            for marker in markers:  # check each marker in the list
+                if re.search(marker, paragraph):
+                    return next_section  # change to the next section
         return current_section  # stay at the old section
 
     paragraphs = get_paragraphs(soup)
     section_data, paragraph_data = associate_sections(paragraphs, section_markers)
-    return section_data
+    return section_data, paragraph_data
+
+# This needs special care
+# def CH_BGE(soup: Any, namespace: dict) -> Optional[dict]:
+#    return CH_BGer(soup, namespace)

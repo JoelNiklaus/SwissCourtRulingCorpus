@@ -1,4 +1,5 @@
 import gc
+import importlib
 import json
 import multiprocessing
 from collections import Counter, Sized
@@ -22,7 +23,6 @@ from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, 
 from sqlalchemy.dialects.postgresql import insert
 
 import stopwordsiso as stopwords
-
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
@@ -161,8 +161,7 @@ class DatasetConstructorComponent:
         """
         with engine.connect() as conn:
             t = Table(table, MetaData(), autoload_with=engine)  # get the table
-            columns.append('id')  # id needs to be there for the where clause
-            df = df[columns]  # only update these cols
+            df = df[columns + ['id']]  # only update these cols, id needs to be there for the where clause
             df = df.rename(columns={'id': 'b_id'})  # cannot use the same name as the col name
             # updates all columns which are present in the df
             query = t.update().where(t.c.id == bindparam('b_id')).values()
@@ -210,7 +209,6 @@ class DatasetConstructorComponent:
 
             gc.collect()
             sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
-
 
     @staticmethod
     def insert_counter(engine, table, level, level_instance, counter):
