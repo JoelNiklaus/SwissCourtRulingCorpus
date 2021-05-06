@@ -80,9 +80,6 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, s
             # construct the list of annotated paragraphs (can be used for prodigy annotation
             paragraph_data.append({"text": paragraph, "section": current_section})
 
-            if current_section == 'footer':
-                #TODO add other paragraphs to footer
-                break  # we made it to the end, hooray!
         if current_section != 'footer':
             message = f"We got stuck at section {current_section}. Please check! " \
                       f"Here you have the url to the decision: {namespace['html_url']}"
@@ -90,6 +87,8 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, s
         return section_data, paragraph_data
 
     def update_section(current_section, paragraph, section_markers):
+        if current_section == 'footer':
+            return current_section  # we made it to the end, hooray!
         next_section_index = sections.index(current_section) + 1
         next_sections = sections[next_section_index:]  # consider all following sections
         for next_section in next_sections:

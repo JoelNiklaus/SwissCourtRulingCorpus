@@ -21,9 +21,9 @@ New approach:
 - Process each text with spacy, save doc to disk and store path in db, store num token count in separate db col
 doc.to_disk("/path/to/doc", exclude=['tensor']) # think about excluding tensor to save space (almost 4x less space)
 - compute lemma counts and save aggregates in separate tables
+- split BGer into sections (from html_raw)
 
 TODO
-- split BGer into sections (from html_raw)
 - extract BGer citations (from html_raw) using "artref" tags
 - extract judgement 
 
