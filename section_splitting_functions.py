@@ -16,7 +16,7 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, s
     :return:            the sections dict, None if not in German
     """
     if namespace['language'] != 'de':
-        return None
+        raise ValueError("This function is only implemented for the German language so far.")
 
     # As soon as one of the strings in the list (value) is encountered we switch to the corresponding section (key)
     section_markers = {

@@ -87,7 +87,7 @@ class Cleaner(DatasetConstructorComponent):
                     df = ddf.compute(scheduler='processes')
 
                 columns = ['text']
-                self.logger.info("Saving cleaned text and split sections to db")
+                self.logger.info("Saving cleaned text to db")
                 self.update(engine, df, lang, columns)
 
         self.logger.info(f"Finished cleaning {spider}")

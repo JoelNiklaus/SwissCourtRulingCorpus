@@ -67,7 +67,7 @@ class SectionSplitter(DatasetConstructorComponent):
             dfs = self.select(engine, lang, where=f"spider='{spider}'")  # stream dfs from the db
             for df in dfs:
                 df = df.apply(self.section_split_df_row, axis='columns')
-                self.logger.info("Saving cleaned text and split sections to db")
+                self.logger.info("Saving split sections to db")
                 self.update(engine, df, lang, sections + ['paragraphs'])
 
         self.logger.info(f"Finished section-splitting {spider}")
