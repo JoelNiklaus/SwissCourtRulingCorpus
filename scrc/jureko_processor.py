@@ -53,15 +53,8 @@ class JurekoProcessor(DatasetConstructorComponent):
             self.compute_counters(engine, type, "", spacy_vocab, type_dir, self.logger)
             self.mark_as_processed(processed_file_path, type)
 
-        self.logger.info("Aggregating counters")
-        agg_table = self.create_aggregate_table(engine, f"agg", "type")
-        processed_file_path = self.jureko_subdir / f"types_aggregated.txt"
-        types, message = self.compute_remaining_parts(processed_file_path, self.types)
-        self.logger.info(message)
-        for type in types:
-            aggregate_counter = self.compute_aggregate_counter(engine, type, "", self.logger)
-            self.insert_counter(engine, agg_table, "type", type, aggregate_counter)
-            self.mark_as_processed(processed_file_path, type)
+        self.compute_total_aggregate(engine, self.types, "type", self.logger)
+
 
 
     def extract_to_db(self, engine):
@@ -71,7 +64,7 @@ class JurekoProcessor(DatasetConstructorComponent):
         processed_file_path = self.jureko_subdir / f"files_extracted.txt"
         files, message = self.compute_remaining_parts(processed_file_path, file_names)
         self.logger.info(message)
-        entries = {'text': [], 'type': [], 'title': [], 'date': [], 'file_number': [], }
+        entries = {'text': [], 'table': [], 'title': [], 'date': [], 'file_number': [], }
         i = 0
         for file in tqdm(files, total=len(file_names)):
             self.process_file(entries, self.jureko_subdir / file, reader)
@@ -85,20 +78,20 @@ class JurekoProcessor(DatasetConstructorComponent):
             for type in set(df.type.to_list()):
                 self.types.add(type)  # update types list
                 self.create_type_table(engine, type)
-                type_df = df[df.type.str.contains(type, na=False)]  # select only decisions by type
+                type_df = df[df.type.str.contains(type, na=False)]  # select only decisions by table
                 if len(type_df.index) > 0:
                     type_df.to_sql(type, engine, if_exists="append", index=False)
-            entries = {'text': [], 'type': [], 'title': [], 'date': [], 'file_number': [], }
+            entries = {'text': [], 'table': [], 'title': [], 'date': [], 'file_number': [], }
 
     def process_file(self, entries, file, reader):
-        type_key = 'fileDesc::sourceDesc::biblStruct::type'
+        type_key = 'fileDesc::sourceDesc::biblStruct::table'
         title_key = 'fileDesc::titleStmt::title'
         date_key = 'fileDesc::sourceDesc::biblStruct::analytic'
         # the first one of these should be the Aktenzeichen
         file_number_key = 'fileDesc::sourceDesc::biblStruct::analytic::idno'
         corpora = reader.read_file(file)  # or read_string
         entries['text'].append(corpora.text)
-        entries['type'].append(self.get_attribute(corpora, type_key))
+        entries['table'].append(self.get_attribute(corpora, type_key))
         entries['title'].append(self.get_attribute(corpora, title_key))
         entries['file_number'].append(self.get_attribute(corpora, file_number_key))
         date = self.get_attribute(corpora, date_key)
@@ -118,7 +111,7 @@ class JurekoProcessor(DatasetConstructorComponent):
             type, meta,
             Column('id', Integer, primary_key=True),
             Column('text', String),
-            Column('type', String),
+            Column('table', String),
             Column('title', String),
             Column('date', Date),
             Column('file_number', String),

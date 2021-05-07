@@ -222,6 +222,17 @@ class DatasetConstructorComponent:
             )
             conn.execute(stmt)
 
+    def compute_total_aggregate(self, engine, tables, tables_name, logger):
+        logger.info("Aggregating counters")
+        agg_table = self.create_aggregate_table(engine, f"agg", tables_name)
+        processed_file_path = self.jureko_subdir / f"{tables_name}s_aggregated.txt"
+        tables_remaining, message = self.compute_remaining_parts(processed_file_path, tables)
+        logger.info(message)
+        for table in tables_remaining:
+            aggregate_counter = self.compute_aggregate_counter(engine, table, "", logger)
+            self.insert_counter(engine, agg_table, tables_name, table, aggregate_counter)
+            self.mark_as_processed(processed_file_path, table)
+
     def compute_aggregate_counter(self, engine, table: str, where: str, logger) -> dict:
         """Computes an aggregate counter for the dfs queried by the parameters"""
         logger.info(f"Computing aggregate counter for {table}")
