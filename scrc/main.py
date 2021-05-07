@@ -2,6 +2,7 @@ import configparser
 import faulthandler
 
 from root import ROOT_DIR
+from scrc.dataset_construction.citation_extractor import CitationExtractor
 from scrc.dataset_construction.cleaner import Cleaner
 from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.kaggle_dataset_creator import KaggleDatasetCreator
@@ -22,9 +23,9 @@ New approach:
 doc.to_disk("/path/to/doc", exclude=['tensor']) # think about excluding tensor to save space (almost 4x less space)
 - compute lemma counts and save aggregates in separate tables
 - split BGer into sections (from html_raw)
+- extract BGer citations (from html_raw) using "artref" tags
 
 TODO
-- extract BGer citations (from html_raw) using "artref" tags
 - extract judgement 
 
 
@@ -54,6 +55,9 @@ def main():
 
     section_splitter = SectionSplitter(config)
     section_splitter.split_sections()
+
+    citation_extractor = CitationExtractor(config)
+    citation_extractor.extract_citations()
 
     # kaggle_dataset_creator = KaggleDatasetCreator(config)
     # kaggle_dataset_creator.create_dataset()
