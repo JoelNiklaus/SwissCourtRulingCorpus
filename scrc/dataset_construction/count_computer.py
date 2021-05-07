@@ -73,7 +73,8 @@ class CountComputer(DatasetConstructorComponent):
         compile_where = lambda level_instance: f"court LIKE '{level_instance}_%'"
         self.compute_aggregate_for_level(engine, lang, 'canton', f"{lang}_courts", compile_where)
 
-        self.compute_total_aggregate(engine, self.languages, "lang", self.logger)
+        tables = [f"{lang}_cantons" for lang in self.languages]
+        self.compute_total_aggregate(engine, tables, "lang", self.data_dir, self.logger)
 
     def compute_aggregate_for_level(self, engine, lang, level, table, compile_where):
         lang_level_table = self.create_aggregate_table(engine, f"{lang}_{level}s", level)

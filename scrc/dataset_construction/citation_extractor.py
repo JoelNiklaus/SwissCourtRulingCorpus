@@ -22,7 +22,6 @@ class CitationExtractor(DatasetConstructorComponent):
         self.citation_extracting_functions = self.load_functions(config, 'citation_extracting_functions')
         self.logger.debug(self.citation_extracting_functions)
 
-    @slack_alert
     def extract_citations(self):
         """extract citations from all the raw court rulings with the defined functions"""
         self.logger.info("Started citation-extracting raw court rulings")

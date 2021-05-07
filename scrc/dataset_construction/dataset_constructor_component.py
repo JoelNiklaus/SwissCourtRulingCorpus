@@ -222,10 +222,10 @@ class DatasetConstructorComponent:
             )
             conn.execute(stmt)
 
-    def compute_total_aggregate(self, engine, tables, tables_name, logger):
+    def compute_total_aggregate(self, engine, tables, tables_name, base_dir, logger):
         logger.info("Aggregating counters")
         agg_table = self.create_aggregate_table(engine, f"agg", tables_name)
-        processed_file_path = self.jureko_subdir / f"{tables_name}s_aggregated.txt"
+        processed_file_path = base_dir / f"{tables_name}s_aggregated.txt"
         tables_remaining, message = self.compute_remaining_parts(processed_file_path, tables)
         logger.info(message)
         for table in tables_remaining:

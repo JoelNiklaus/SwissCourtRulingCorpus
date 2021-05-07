@@ -53,7 +53,7 @@ class JurekoProcessor(DatasetConstructorComponent):
             self.compute_counters(engine, type, "", spacy_vocab, type_dir, self.logger)
             self.mark_as_processed(processed_file_path, type)
 
-        self.compute_total_aggregate(engine, self.types, "type", self.logger)
+        self.compute_total_aggregate(engine, self.types, "type", self.jureko_subdir, self.logger)
 
 
 
