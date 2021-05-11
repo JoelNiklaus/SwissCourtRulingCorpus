@@ -70,37 +70,33 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
     def create_datasets(self):
         engine = self.get_engine(self.db_scrc)
 
-        datasets = ['judgement_prediction', 'citation_prediction', ]
-        # 'chamber_prediction', 'date_prediction','section_splitting']
+        datasets = ['judgement_prediction', 'citation_prediction', 'chamber_prediction']
+        # 'date_prediction','section_splitting']
         processed_file_path = self.data_dir / f"datasets_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, datasets)
         self.logger.info(message)
 
         for dataset in datasets:
             self.create_dataset(engine, dataset)
+            self.mark_as_processed(processed_file_path, dataset)
 
     def create_dataset(self, engine, dataset):
-        self.logger.info(f"Creating {dataset} Dataset")
+        self.logger.info(f"Creating {dataset} dataset")
 
         create_df = getattr(self, dataset)  # get the function called by the dataset name
 
         folder = self.create_dir(self.kaggle_subdir, dataset)
-        self.create_kaggle_dataset(create_df(engine), folder)
+        split_type = "date-stratified"
+        if dataset == "date_prediction":
+            split_type = "random"  # if we determined the splits by date the labelset would be very small
+        self.create_kaggle_dataset(create_df(engine), folder, split_type)
 
     def judgement_prediction(self, engine):
-        columns = "extract(year from date) as year, considerations, judgement"
-        where = "court = 'CH_BGer' AND considerations IS NOT NULL AND judgement IS NOT NULL"
-        order_by = "year"
-        df = next(self.select(engine, 'de', columns=columns, where=where, order_by=order_by, chunksize=int(1e7)))
-
-        df = df.rename(columns={"considerations": "text", "judgement": "label"})  # normalize column names
-        return df
+        df = self.get_df(engine, 'considerations', 'judgement')
+        return df.rename(columns={"considerations": "text", "judgement": "label"})  # normalize column names
 
     def citation_prediction(self, engine):
-        columns = "extract(year from date) as year, text, citations"
-        where = "court = 'CH_BGer' AND text IS NOT NULL AND citations IS NOT NULL"
-        order_by = "year"
-        df = next(self.select(engine, 'de', columns=columns, where=where, order_by=order_by, chunksize=int(1e7)))
+        df = self.get_df(engine, 'text', 'citations')
 
         def replace_citations(series):
             laws = series.citations['laws']
@@ -111,40 +107,51 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
             for ruling in rulings:
                 series.text = series.text.replace(ruling['text'], "<ruling-citation>")
 
+            return series
+
         df = df.apply(replace_citations, axis='columns')
+        print(df.head(20))
 
-        df = df.rename(columns={"text": "text", "citations": "label"})  # normalize column names
-
-        return df
+        return df.rename(columns={"text": "text", "citations": "label"})  # normalize column names
 
     def chamber_prediction(self, engine):
-        pass
+        df = self.get_df(engine, 'situation', 'chamber')
+        return df.rename(columns={"situation": "text", "chamber": "label"})  # normalize column names
 
     def date_prediction(self, engine):
-        pass
+        df = self.get_df(engine, 'text', 'date')
+        return df.rename(columns={"situation": "text", "date": "label"})  # normalize column names
 
     def section_splitting(self, engine):
         pass
 
-    def create_kaggle_dataset(self, df, folder, split_type="date-stratified"):
+    def get_df(self, engine, feature_col, label_col):
+        columns = f"extract(year from date) as year, {feature_col}, {label_col}"
+        where = f"{feature_col} IS NOT NULL AND {label_col} IS NOT NULL"
+        order_by = "year"
+        df = next(self.select(engine, 'de', columns=columns, where=where, order_by=order_by, chunksize=int(2e5)))
+        return df
+
+    def create_kaggle_dataset(self, df, folder, split_type="date-stratified", split=(0.7, 0.1, 0.2)):
         """
         creates all the files necessary for a kaggle dataset from a given df
         :param df:          needs to contain the columns text and label
         :param folder:      where to save the files
         :param split_type:  "date-stratified" or "random"
+        :param split:       how to split the data into train, val and test set: needs to sum up to 1
         :return:
         """
         self.logger.info("Splitting data into train, val and test set")
         if split_type == "random":
-            train, val, test = self.split_random(df)
+            train, val, test = self.split_random(df, split)
         elif split_type == "date-stratified":
-            train, val, test = self.split_date_stratified(df)
+            train, val, test = self.split_date_stratified(df, split)
         else:
             raise ValueError("Please supply a valid split_type")
 
         # create solution file
         solution = test.drop('text', axis='columns')  # drop text
-        solution = test.rename(columns={"label": "Expected"})  # rename according to kaggle conventions
+        solution = solution.rename(columns={"label": "Expected"})  # rename according to kaggle conventions
 
         # create test file
         test = test.drop('label', axis='columns')  # drop label
@@ -169,7 +176,7 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         with open(file_name, 'w', encoding='utf-8') as f:
             json.dump(json_labels, f, ensure_ascii=False, indent=4)
 
-    def split_date_stratified(self, df, split=(0.7, 0.1, 0.2)):
+    def split_date_stratified(self, df, split):
         last_year = 2020  # disregard partial year 2021
         first_year = 2000  # before the data is quite sparse and there might be too much differences in the language
         num_years = last_year - first_year + 1
@@ -190,7 +197,7 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
 
         return train, val, test
 
-    def split_random(self, df, split=(0.7, 0.1, 0.2)):
+    def split_random(self, df, split):
         # split into train, val and test sets
         train, val, test = dd.from_pandas(df, npartitions=1).random_split(list(split), random_state=self.seed)
 
