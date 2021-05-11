@@ -58,8 +58,8 @@ def main():
     count_computer = CountComputer(config)
     count_computer.run_pipeline()
 
-    # kaggle_dataset_creator = KaggleDatasetCreator(config)
-    # kaggle_dataset_creator.create_dataset()
+    kaggle_dataset_creator = KaggleDatasetCreator(config)
+    kaggle_dataset_creator.create_datasets()
 
 
 if __name__ == '__main__':

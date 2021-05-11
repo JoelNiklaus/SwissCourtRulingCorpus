@@ -1,9 +1,8 @@
 import configparser
-from typing import Optional, Any
+from typing import Optional
 
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
-from scrc.utils.decorators import slack_alert
 from scrc.utils.log_utils import get_logger
 
 
@@ -19,7 +18,6 @@ class JudgementExtractor(DatasetConstructorComponent):
         self.judgement_extracting_functions = self.load_functions(config, 'judgement_extracting_functions')
         self.logger.debug(self.judgement_extracting_functions)
 
-    @slack_alert
     def extract_judgements(self):
         """splits sections of all the raw court rulings with the defined functions"""
         self.logger.info("Started judgement-extracting raw court rulings")

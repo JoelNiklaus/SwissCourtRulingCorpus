@@ -131,21 +131,24 @@ class DatasetConstructorComponent:
             conn.execute(query)
 
     @staticmethod
-    def select(engine, table, columns="*", where=None, chunksize=1000):
+    def select(engine, table, columns="*", where=None, order_by=None, chunksize=1000):
         """
         This is the utility function to stream entries from the database.
 
-        :param engine:      the db engine to work upon
-        :param table:       the table (language) to select
-        :param columns:     the columns to retrieve (comma separated list)
-        :param where:       an sql WHERE clause to filter by certain collumn values
-        :param chunksize:   the number of rows to retrieve per chunk
-        :return:            a generator of pd.DataFrame
+        :param engine:          the db engine to work upon
+        :param table:           the table (language) to select
+        :param columns:         the columns to retrieve (comma separated list)
+        :param where:           an sql WHERE clause to filter by certain column values
+        :param order_by:        an sql ORDER BY clause to order the output
+        :param chunksize:       the number of rows to retrieve per chunk
+        :return:                a generator of pd.DataFrame
         """
         with engine.connect().execution_options(stream_results=True) as conn:
             query = f"SELECT {columns} FROM {table}"
             if where:
                 query += " WHERE " + where
+            if order_by:
+                query += " ORDER BY " + order_by
             for chunk_df in pd.read_sql(query, conn, chunksize=chunksize):
                 yield chunk_df
 
