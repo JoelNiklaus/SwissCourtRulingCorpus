@@ -5,6 +5,7 @@ from root import ROOT_DIR
 from scrc.dataset_construction.citation_extractor import CitationExtractor
 from scrc.dataset_construction.cleaner import Cleaner
 from scrc.dataset_construction.extractor import Extractor
+from scrc.dataset_construction.judgement_extractor import JudgementExtractor
 from scrc.dataset_construction.kaggle_dataset_creator import KaggleDatasetCreator
 from scrc.dataset_construction.scraper import Scraper, base_url
 from scrc.dataset_construction.section_splitter import SectionSplitter
@@ -12,7 +13,6 @@ from scrc.dataset_construction.spacy_pipeline_runner import SpacyPipelineRunner
 from scrc.dataset_construction.count_computer import CountComputer
 
 from filprofiler.api import profile
-
 
 """
 New approach:
@@ -24,11 +24,7 @@ doc.to_disk("/path/to/doc", exclude=['tensor']) # think about excluding tensor t
 - compute lemma counts and save aggregates in separate tables
 - split BGer into sections (from html_raw)
 - extract BGer citations (from html_raw) using "artref" tags
-
-TODO
 - extract judgement 
-
-
 """
 
 
@@ -47,17 +43,20 @@ def main():
     cleaner = Cleaner(config)
     cleaner.clean()
 
-    spacy_pipeline_runner = SpacyPipelineRunner(config)
-    spacy_pipeline_runner.run_pipeline()
-
-    count_computer = CountComputer(config)
-    count_computer.run_pipeline()
-
     section_splitter = SectionSplitter(config)
     section_splitter.split_sections()
 
     citation_extractor = CitationExtractor(config)
     citation_extractor.extract_citations()
+
+    judgement_extractor = JudgementExtractor(config)
+    judgement_extractor.extract_judgements()
+
+    spacy_pipeline_runner = SpacyPipelineRunner(config)
+    spacy_pipeline_runner.run_pipeline()
+
+    count_computer = CountComputer(config)
+    count_computer.run_pipeline()
 
     # kaggle_dataset_creator = KaggleDatasetCreator(config)
     # kaggle_dataset_creator.create_dataset()
