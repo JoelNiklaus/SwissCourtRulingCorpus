@@ -6,7 +6,7 @@ from scrc.dataset_construction.citation_extractor import CitationExtractor
 from scrc.dataset_construction.cleaner import Cleaner
 from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.judgement_extractor import JudgementExtractor
-from scrc.dataset_construction.kaggle_dataset_creator import KaggleDatasetCreator
+from scrc.dataset_construction.kaggle_dataset_creator import DatasetCreator
 from scrc.dataset_construction.scraper import Scraper, base_url
 from scrc.dataset_construction.section_splitter import SectionSplitter
 from scrc.dataset_construction.spacy_pipeline_runner import SpacyPipelineRunner
@@ -58,8 +58,8 @@ def main():
     count_computer = CountComputer(config)
     count_computer.run_pipeline()
 
-    kaggle_dataset_creator = KaggleDatasetCreator(config)
-    kaggle_dataset_creator.create_datasets()
+    dataset_creator = DatasetCreator(config)
+    dataset_creator.create_datasets()
 
 
 if __name__ == '__main__':

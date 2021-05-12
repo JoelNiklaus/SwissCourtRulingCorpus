@@ -44,7 +44,7 @@ class DatasetConstructorComponent:
 
         self.spiders_dir = self.create_dir(self.data_dir, config['dir']['spiders_subdir'])
         self.spacy_subdir = self.create_dir(self.data_dir, config['dir']['spacy_subdir'])
-        self.kaggle_subdir = self.create_dir(self.data_dir, config['dir']['kaggle_subdir'])
+        self.datasets_subdir = self.create_dir(self.data_dir, config['dir']['datasets_subdir'])
 
         self.corpora_subdir = self.create_dir(self.data_dir, config['dir']['corpora_subdir'])
         self.jureko_subdir = self.create_dir(self.corpora_subdir, config['dir']['jureko_subdir'])

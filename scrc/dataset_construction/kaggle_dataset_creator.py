@@ -59,7 +59,7 @@ Features:
 """
 
 
-class KaggleDatasetCreator(DatasetConstructorComponent):
+class DatasetCreator(DatasetConstructorComponent):
     """
     Creates the files for a kaggle dataset.
     """
@@ -73,7 +73,7 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
     def create_datasets(self):
         engine = self.get_engine(self.db_scrc)
 
-        datasets = ['judgement_prediction', 'citation_prediction', 'chamber_prediction', 'date_prediction', ]
+        datasets = ['judgement_prediction', 'citation_prediction', ]
         processed_file_path = self.data_dir / f"datasets_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, datasets)
         self.logger.info(message)
@@ -87,15 +87,17 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
 
         create_df = getattr(self, dataset)  # get the function called by the dataset name
 
-        folder = self.create_dir(self.kaggle_subdir, dataset)
+        folder = self.create_dir(self.datasets_subdir, dataset)
         split_type = "date-stratified"
         if dataset == "date_prediction":
             split_type = "random"  # if we determined the splits by date the labelset would be very small
         df, labels = create_df(engine)
-        self.create_kaggle_dataset(df, labels, folder, split_type)
+        self.save_dataset(df, labels, folder, split_type)
 
     def judgement_prediction(self, engine):
         df = self.get_df(engine, 'considerations', 'judgements')
+        # replace empty and whitespace strings with nan so that they can be removed
+        df.considerations = df.considerations.replace(r'^\s*$', np.nan, regex=True)
         df = df.dropna()  # drop null values not recognized by sql where clause
         df = df.reset_index(drop=True)  # reindex to get nice indices
         df = df.rename(columns={"considerations": "text", "judgements": "label"})  # normalize column names
@@ -122,12 +124,14 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         return df, labels
 
     def chamber_prediction(self, engine):
+        # TODO process in batches because otherwise too large
         df = self.get_df(engine, 'situation', 'chamber')
         df = df.rename(columns={"situation": "text", "chamber": "label"})  # normalize column names
         labels = list(df.label.unique())
         return df, labels
 
     def date_prediction(self, engine):
+        # TODO process in batches because otherwise too large
         df = self.get_df(engine, 'text', 'date')
         df = df.rename(columns={"situation": "text", "date": "label"})  # normalize column names
         labels = list(df.label.unique())
@@ -144,8 +148,8 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         df.year = df.year.astype(int)
         return df
 
-    def create_kaggle_dataset(self, df: pd.DataFrame, labels: list, folder: Path,
-                              split_type="date-stratified", split=(0.7, 0.1, 0.2)):
+    def save_dataset(self, df: pd.DataFrame, labels: list, folder: Path,
+                     split_type="date-stratified", split=(0.7, 0.1, 0.2), kaggle=True):
         """
         creates all the files necessary for a kaggle dataset from a given df
         :param df:          needs to contain the columns text and label
@@ -153,6 +157,7 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         :param folder:      where to save the files
         :param split_type:  "date-stratified" or "random"
         :param split:       how to split the data into train, val and test set: needs to sum up to 1
+        :param kaggle:      whether or not to create the special kaggle dataset
         :return:
         """
         self.logger.info("Splitting data into train, val and test set")
@@ -163,29 +168,39 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         else:
             raise ValueError("Please supply a valid split_type")
 
+        # save regular dataset
+        regular_dir = self.create_dir(folder, 'regular')
+        train.to_csv(regular_dir / 'train.csv', index_label='id')
+        val.to_csv(regular_dir / 'val.csv', index_label='id')
+        test.to_csv(regular_dir / 'test.csv', index_label='id')
+        self.save_labels(labels, regular_dir / 'labels.json')
+
+        if kaggle:
+            self.save_kaggle_dataset(folder, labels, test, train, val)
+
+        self.logger.info(f"Saved dataset files to {folder}")
+
+    def save_kaggle_dataset(self, folder, labels, test, train, val):
         # create solution file
         solution = test.drop('text', axis='columns')  # drop text
         solution = solution.rename(columns={"label": "Expected"})  # rename according to kaggle conventions
-
         # create test file
         test = test.drop('label', axis='columns')  # drop label
-
         # create sampleSubmission file
         sample_submission = solution.rename(columns={"Expected": "Predicted"})  # rename according to kaggle conventions
         sample_submission['Predicted'] = np.random.choice(labels, size=len(solution))  # set to random value
 
-        # save to folder
-        train.to_csv(folder / 'train.csv', index_label='Id')
-        val.to_csv(folder / 'val.csv', index_label='Id')
-        test.to_csv(folder / 'test.csv', index_label='Id')
-        solution.to_csv(folder / 'solution.csv', index_label='Id')
-        sample_submission.to_csv(folder / 'sampleSubmission.csv', index_label='Id')
-        self.save_labels(labels, folder / 'labels.json')
-        self.logger.info(f"Saved files necessary for competition to {folder}")
+        # save special kaggle files
+        kaggle_dir = self.create_dir(folder, 'kaggle')
+        train.to_csv(kaggle_dir / 'train.csv', index_label='Id')
+        val.to_csv(kaggle_dir / 'val.csv', index_label='Id')
+        test.to_csv(kaggle_dir / 'test.csv', index_label='Id')
+        solution.to_csv(kaggle_dir / 'solution.csv', index_label='Id')
+        sample_submission.to_csv(kaggle_dir / 'sampleSubmission.csv', index_label='Id')
 
     def save_labels(self, labels, file_name):
         labels_dict = dict(enumerate(labels))
-        json_labels = {"idx2label": labels_dict, "label2idx": {y: x for x, y in labels_dict.items()}}
+        json_labels = {"id2label": labels_dict, "label2id": {y: x for x, y in labels_dict.items()}}
         with open(file_name, 'w', encoding='utf-8') as f:
             json.dump(json_labels, f, ensure_ascii=False, indent=4)
 
@@ -226,5 +241,5 @@ if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
 
-    kaggle_dataset_creator = KaggleDatasetCreator(config)
-    kaggle_dataset_creator.create_datasets()
+    dataset_creator = DatasetCreator(config)
+    dataset_creator.create_datasets()
