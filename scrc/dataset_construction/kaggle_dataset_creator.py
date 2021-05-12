@@ -9,8 +9,11 @@ possible labels: chamber, (date)
 
 """
 import configparser
+from pathlib import Path
+
 import dask.dataframe as dd
 import numpy as np
+import pandas as pd
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
@@ -70,8 +73,7 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
     def create_datasets(self):
         engine = self.get_engine(self.db_scrc)
 
-        datasets = ['judgement_prediction', 'citation_prediction', 'chamber_prediction']
-        # 'date_prediction','section_splitting']
+        datasets = ['judgement_prediction', 'citation_prediction', 'chamber_prediction', 'date_prediction', ]
         processed_file_path = self.data_dir / f"datasets_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, datasets)
         self.logger.info(message)
@@ -89,38 +91,47 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         split_type = "date-stratified"
         if dataset == "date_prediction":
             split_type = "random"  # if we determined the splits by date the labelset would be very small
-        self.create_kaggle_dataset(create_df(engine), folder, split_type)
+        df, labels = create_df(engine)
+        self.create_kaggle_dataset(df, labels, folder, split_type)
 
     def judgement_prediction(self, engine):
-        df = self.get_df(engine, 'considerations', 'judgement')
-        return df.rename(columns={"considerations": "text", "judgement": "label"})  # normalize column names
+        df = self.get_df(engine, 'considerations', 'judgements')
+        df = df.dropna()  # drop null values not recognized by sql where clause
+        df = df.reset_index(drop=True)  # reindex to get nice indices
+        df = df.rename(columns={"considerations": "text", "judgements": "label"})  # normalize column names
+        labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
+        return df, labels
 
     def citation_prediction(self, engine):
         df = self.get_df(engine, 'text', 'citations')
 
         def replace_citations(series):
-            laws = series.citations['laws']
-            rulings = series.citations['rulings']
-
-            for law in laws:
+            series['labels'] = []
+            for law in series.citations['laws']:
                 series.text = series.text.replace(law['text'], "<law-citation>")
-            for ruling in rulings:
+                series.labels.append(law['text'])
+            for ruling in series.citations['rulings']:
                 series.text = series.text.replace(ruling['text'], "<ruling-citation>")
+                series.labels.append(ruling['text'])
 
             return series
 
         df = df.apply(replace_citations, axis='columns')
-        print(df.head(20))
-
-        return df.rename(columns={"text": "text", "citations": "label"})  # normalize column names
+        df = df.rename(columns={"text": "text", "citations": "label"})  # normalize column names
+        labels, _ = list(np.unique(np.hstack(df.labels), return_index=True))
+        return df, labels
 
     def chamber_prediction(self, engine):
         df = self.get_df(engine, 'situation', 'chamber')
-        return df.rename(columns={"situation": "text", "chamber": "label"})  # normalize column names
+        df = df.rename(columns={"situation": "text", "chamber": "label"})  # normalize column names
+        labels = list(df.label.unique())
+        return df, labels
 
     def date_prediction(self, engine):
         df = self.get_df(engine, 'text', 'date')
-        return df.rename(columns={"situation": "text", "date": "label"})  # normalize column names
+        df = df.rename(columns={"situation": "text", "date": "label"})  # normalize column names
+        labels = list(df.label.unique())
+        return df, labels
 
     def section_splitting(self, engine):
         pass
@@ -130,12 +141,15 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         where = f"{feature_col} IS NOT NULL AND {label_col} IS NOT NULL"
         order_by = "year"
         df = next(self.select(engine, 'de', columns=columns, where=where, order_by=order_by, chunksize=int(2e5)))
+        df.year = df.year.astype(int)
         return df
 
-    def create_kaggle_dataset(self, df, folder, split_type="date-stratified", split=(0.7, 0.1, 0.2)):
+    def create_kaggle_dataset(self, df: pd.DataFrame, labels: list, folder: Path,
+                              split_type="date-stratified", split=(0.7, 0.1, 0.2)):
         """
         creates all the files necessary for a kaggle dataset from a given df
         :param df:          needs to contain the columns text and label
+        :param labels:      all the labels
         :param folder:      where to save the files
         :param split_type:  "date-stratified" or "random"
         :param split:       how to split the data into train, val and test set: needs to sum up to 1
@@ -157,9 +171,8 @@ class KaggleDatasetCreator(DatasetConstructorComponent):
         test = test.drop('label', axis='columns')  # drop label
 
         # create sampleSubmission file
-        labels = df.label.unique()
         sample_submission = solution.rename(columns={"Expected": "Predicted"})  # rename according to kaggle conventions
-        sample_submission['Predicted'] = np.random.choice(list(labels), size=len(solution))  # set to random value
+        sample_submission['Predicted'] = np.random.choice(labels, size=len(solution))  # set to random value
 
         # save to folder
         train.to_csv(folder / 'train.csv', index_label='Id')

@@ -1,7 +1,7 @@
-from typing import Optional, Iterable
+from typing import Optional, List
 
 
-def CH_BGer(rulings: str, namespace: dict) -> Optional[Iterable[str]]:
+def CH_BGer(rulings: str, namespace: dict) -> Optional[List[str]]:
     """
     IMPORTANT: So far, only German is supported!
     :param rulings:     the string containing the rulings
@@ -12,10 +12,13 @@ def CH_BGer(rulings: str, namespace: dict) -> Optional[Iterable[str]]:
         return None
 
     judgement_markers = {'approval': ['In Gutheissung', 'aufgehoben', 'gutgeheissen', 'gutzuheissen'],
-                         'partial approval': ['teilweise gutgeheissen'],
+                         'partial_approval': ['teilweise gutgeheissen', 'In teilweiser Gutheissung'],
                          'dismissal': ['abgewiesen'],
-                         'partial dismissal': ['abgewiesen, soweit darauf einzutreten ist'],
-                         'formal problems': ['nicht eingetreten', 'als gegenstandslos abgeschrieben', 'Nichteintreten']}
+                         'partial_dismissal': ['abgewiesen, soweit darauf einzutreten ist',
+                                               'abzuweisen, soweit darauf einzutreten ist'],
+                         'not_admitted': ['nicht eingetreten', 'als gegenstandslos abgeschrieben', 'Nichteintreten', ],
+                         # 'soweit darauf einzutreten ist'],
+                         'write_off': ['abgeschrieben']}
 
     judgements = set()
     for judgement, markers in judgement_markers.items():
@@ -28,12 +31,12 @@ def CH_BGer(rulings: str, namespace: dict) -> Optional[Iterable[str]]:
         raise ValueError(message)
     elif len(judgements) > 1:
         if "partial_approval" in judgements:
-            judgements.remove("approval")  # if partial_approval is found, it will find approval as well
+            judgements.discard("approval")  # if partial_approval is found, it will find approval as well
         if "partial_dismissal" in judgements:
-            judgements.remove("dismissal")  # if partial_dismissal is found, it will find dismissal as well
+            judgements.discard("dismissal")  # if partial_dismissal is found, it will find dismissal as well
 
-    return judgements
+    return list(judgements)
 
 
-def CH_BGE(rulings: str, namespace: dict) -> Optional[Iterable[str]]:
+def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
     return CH_BGer(rulings, namespace)
