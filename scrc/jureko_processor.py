@@ -55,8 +55,6 @@ class JurekoProcessor(DatasetConstructorComponent):
 
         self.compute_total_aggregate(engine, self.types, "type", self.jureko_subdir, self.logger)
 
-
-
     def extract_to_db(self, engine):
         reader = TeiReader()
 

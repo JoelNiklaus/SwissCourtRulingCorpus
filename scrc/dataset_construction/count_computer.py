@@ -7,13 +7,8 @@ from scrc.utils.log_utils import get_logger
 # import scrc.utils.monkey_patch  # prevent memory leak with pandas
 
 """
-TODO: Here we have the problem that comparing corpora of unequal length is very difficult.
-=> 
-1. From cleaned text: sklearn CountVectorizer/HashingVectorizer to get bow 
-2. take top k (1000-10000) frequent words 
-3. take the intersection of these two lists and divide by k to get overlap
-
-Maybe use two bow representations to calculate tf-idf and then compare top k words of the two corpora
+TODO not only compute frequencies of words but also of POS tags.
+TODO do NOT remove stop words! They can still be removed later in the counts if we want to
 """
 
 
@@ -88,8 +83,9 @@ class CountComputer(DatasetConstructorComponent):
         for level_instance in level_instances:
             self.logger.info(f"Processing {level} {level_instance}")
             where = compile_where(level_instance)
-            aggregate_counter = self.compute_aggregate_counter(engine, table, where, self.logger)
-            self.insert_counter(engine, lang_level_table, level, level_instance, aggregate_counter)
+            for counter_type in self.counter_types:
+                aggregate_counter = self.compute_aggregate_counter(engine, table, where, counter_type, self.logger)
+                self.insert_counter(engine, lang_level_table, level, level_instance, counter_type, aggregate_counter)
             self.mark_as_processed(processed_file_path, level_instance)
 
     def get_level_instances(self, engine, lang, level):

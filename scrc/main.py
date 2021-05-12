@@ -14,6 +14,9 @@ from scrc.dataset_construction.count_computer import CountComputer
 
 from filprofiler.api import profile
 
+from scrc.jureko_processor import JurekoProcessor
+from scrc.utils.decorators import slack_alert
+
 """
 New approach:
 - Scrape data into spider folders
@@ -27,7 +30,7 @@ doc.to_disk("/path/to/doc", exclude=['tensor']) # think about excluding tensor t
 - extract judgement 
 """
 
-
+@slack_alert
 def main():
     # faulthandler.enable()  # can print a minimal threaddump in case of external termination
 
@@ -60,6 +63,9 @@ def main():
 
     dataset_creator = DatasetCreator(config)
     dataset_creator.create_datasets()
+
+    jureko_processor = JurekoProcessor(config)
+    jureko_processor.process()
 
 
 if __name__ == '__main__':

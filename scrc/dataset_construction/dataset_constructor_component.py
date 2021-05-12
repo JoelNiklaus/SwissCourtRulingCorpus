@@ -66,6 +66,8 @@ class DatasetConstructorComponent:
         # this should be filtered out by PUNCT pos tag already, but sometimes they are misclassified
         self.stopwords |= {' ', '.', '!', '?'}
 
+        self.counter_types = ['counter_lemma', 'counter_pos', 'counter_tag']
+
     @staticmethod
     def create_dir(parent_dir: Path, dir_name: str) -> Path:
         dir = parent_dir / dir_name
@@ -214,14 +216,14 @@ class DatasetConstructorComponent:
             sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
 
     @staticmethod
-    def insert_counter(engine, table, level, level_instance, counter):
+    def insert_counter(engine, table, level, level_instance, counter_type, counter):
         """Inserts a counter into an aggregate table"""
         with engine.connect() as conn:
-            values = {level: level_instance, "counter": counter}
+            values = {level: level_instance, counter_type: counter}
             stmt = insert(table).values(values)
             stmt = stmt.on_conflict_do_update(
                 index_elements=[table.c[level]],
-                set_=dict(counter=counter)
+                set_={counter_type: counter}
             )
             conn.execute(stmt)
 
@@ -232,17 +234,18 @@ class DatasetConstructorComponent:
         tables_remaining, message = self.compute_remaining_parts(processed_file_path, tables)
         logger.info(message)
         for table in tables_remaining:
-            aggregate_counter = self.compute_aggregate_counter(engine, table, "", logger)
-            self.insert_counter(engine, agg_table, tables_name, table, aggregate_counter)
+            for counter_type in self.counter_types:
+                aggregate_counter = self.compute_aggregate_counter(engine, table, "", counter_type, logger)
+                self.insert_counter(engine, agg_table, tables_name, table, counter_type, aggregate_counter)
             self.mark_as_processed(processed_file_path, table)
 
-    def compute_aggregate_counter(self, engine, table: str, where: str, logger) -> dict:
+    def compute_aggregate_counter(self, engine, table: str, where: str, counter_type, logger) -> dict:
         """Computes an aggregate counter for the dfs queried by the parameters"""
         logger.info(f"Computing aggregate counter for {table}")
-        dfs = self.select(engine, table, columns='counter', where=where)  # stream dfs from the db
+        dfs = self.select(engine, table, columns=counter_type, where=where)  # stream dfs from the db
         aggregate_counter = Counter()
         for df in dfs:
-            for counter in tqdm(df.counter.to_list()):
+            for counter in tqdm(df[counter_type].to_list()):
                 aggregate_counter += Counter(counter)
         return dict(aggregate_counter)
 
@@ -252,7 +255,9 @@ class DatasetConstructorComponent:
         lang_level_table = Table(  # an aggregate table for storing level specific data like the vocabulary
             table, meta,
             Column(primary_key, String, primary_key=True),
-            Column('counter', JSON),
+            Column('counter_lemma', JSON),
+            Column('counter_pos', JSON),
+            Column('counter_tag', JSON),
         )
         meta.create_all(engine)
         return lang_level_table
@@ -265,18 +270,32 @@ class DatasetConstructorComponent:
             logger.info(f"Loading {len(ids)} spacy docs")  # load
             docs = [Doc(spacy_vocab).from_disk(spacy_dir / (str(id) + ".spacy"), exclude=['tensor'])
                     for id in ids]
-            logger.info("Computing the counters")  # map
-            df['counter'] = tqdm(map(self.create_counter_for_doc, docs), total=len(ids))
-            self.update(engine, df, table, ['counter'])  # save
+            for counter_type in self.counter_types:
+                logger.info(f"Computing the counters for type {counter_type}")  # map
+                counter_type_list = [counter_type] * len(docs)
+                df[counter_type] = tqdm(map(self.create_counter_for_doc, docs, counter_type_list), total=len(ids))
+            self.update(engine, df, table, self.counter_types)  # save
         gc.collect()
         sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
 
-    def create_counter_for_doc(self, doc: spacy.tokens.Doc) -> dict:
+    def create_counter_for_doc(self, doc: spacy.tokens.Doc, counter_type, filter_stops=False) -> dict:
         """
         take lemma without underscore for faster computation (int instead of str)
-        take casefold of lemma to remove capital letters and ß
         """
-        lemmas = [token.lemma_.casefold() for token in doc if token.pos_ not in ['NUM', 'PUNCT', 'SYM', 'X']]
-        # filter out stopwords (spacy is_stop filtering does not work well)
-        lemmas = [lemma for lemma in lemmas if lemma not in self.stopwords and lemma.isalpha()]
-        return dict(Counter(lemmas))
+        if counter_type == 'counter_lemma':
+            # take casefold of lemma to remove capital letters and ß
+            lemmas = [token.lemma_.casefold() for token in doc if token.pos_ not in ['NUM', 'PUNCT', 'SYM', 'X']]
+            # only take alphanumeric lemmas to filter out digits
+            lemmas = [lemma for lemma in lemmas if lemma.isalpha()]
+            if filter_stops:  # don't do this at the moment because it can still be done later if needed
+                # filter out stopwords (spacy is_stop filtering does not work well)
+                lemmas = [lemma for lemma in lemmas if lemma not in self.stopwords]
+            return dict(Counter(lemmas))
+        elif counter_type == 'counter_pos':
+            poses = [token.pos_ for token in doc]
+            return dict(Counter(poses))
+        elif counter_type == 'counter_tag':
+            tags = [token.tag_ for token in doc]
+            return dict(Counter(tags))
+        else:
+            raise ValueError(f"You chose counter_type {counter_type}. Please choose one of {self.counter_types}.")
