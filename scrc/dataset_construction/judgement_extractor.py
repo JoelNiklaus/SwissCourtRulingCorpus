@@ -18,6 +18,8 @@ class JudgementExtractor(DatasetConstructorComponent):
         self.judgement_extracting_functions = self.load_functions(config, 'judgement_extracting_functions')
         self.logger.debug(self.judgement_extracting_functions)
 
+        self.col_name = "judgements"
+
     def extract_judgements(self):
         """splits sections of all the raw court rulings with the defined functions"""
         self.logger.info("Started judgement-extracting raw court rulings")
@@ -28,7 +30,7 @@ class JudgementExtractor(DatasetConstructorComponent):
 
         engine = self.get_engine(self.db_scrc)
         for lang in self.languages:
-            self.add_column(engine, lang, col_name='judgement', data_type='text')
+            self.add_column(engine, lang, col_name=self.col_name, data_type='jsonb')
 
         # clean raw texts
         for spider in spider_list:
@@ -50,7 +52,7 @@ class JudgementExtractor(DatasetConstructorComponent):
             for df in dfs:
                 df = df.apply(self.section_split_df_row, axis='columns')
                 self.logger.info("Saving cleaned text and split sections to db")
-                self.update(engine, df, lang, ['judgement'])
+                self.update(engine, df, lang, [self.col_name])
 
         self.logger.info(f"Finished judgement-extracting {spider}")
 
@@ -58,7 +60,7 @@ class JudgementExtractor(DatasetConstructorComponent):
         """Processes one row of a raw df"""
         self.logger.debug(f"Judgement-extracting court decision {series['file_name']}")
         namespace = series[['date', 'language', 'html_url']].to_dict()
-        series['judgement'] = self.extract_judgement_with_functions(series['spider'], series['rulings'], namespace)
+        series[self.col_name] = self.extract_judgement_with_functions(series['spider'], series['rulings'], namespace)
 
         return series
 
