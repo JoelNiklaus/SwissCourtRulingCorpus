@@ -1,13 +1,3 @@
-"""
-Take cleaned German aggregation
-keep columns chamber and text
-sample 100 decisions from each of the 10 most frequent chambers
-shuffle
-split into train, validation and test set
-remove labels
-possible labels: chamber, (date)
-
-"""
 import configparser
 from pathlib import Path
 
@@ -96,10 +86,6 @@ class DatasetCreator(DatasetConstructorComponent):
 
     def judgement_prediction(self, engine):
         df = self.get_df(engine, 'considerations', 'judgements')
-        # replace empty and whitespace strings with nan so that they can be removed
-        df.considerations = df.considerations.replace(r'^\s*$', np.nan, regex=True)
-        df = df.dropna()  # drop null values not recognized by sql where clause
-        df = df.reset_index(drop=True)  # reindex to get nice indices
         df = df.rename(columns={"considerations": "text", "judgements": "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
@@ -142,10 +128,18 @@ class DatasetCreator(DatasetConstructorComponent):
 
     def get_df(self, engine, feature_col, label_col):
         columns = f"extract(year from date) as year, {feature_col}, {label_col}"
-        where = f"{feature_col} IS NOT NULL AND {label_col} IS NOT NULL"
+        where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
         df = next(self.select(engine, 'de', columns=columns, where=where, order_by=order_by, chunksize=int(2e5)))
         df.year = df.year.astype(int)
+        df = self.clean_from_empty_strings(df, feature_col)
+        return df
+
+    def clean_from_empty_strings(self, df, column):
+        # replace empty and whitespace strings with nan so that they can be removed
+        df[column] = df[column].replace(r'^\s*$', np.nan, regex=True)
+        df = df.dropna()  # drop null values not recognized by sql where clause
+        df = df.reset_index(drop=True)  # reindex to get nice indices
         return df
 
     def save_dataset(self, df: pd.DataFrame, labels: list, folder: Path,
