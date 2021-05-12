@@ -41,7 +41,8 @@ class CountComputer(DatasetConstructorComponent):
         self.logger.info("Finished computing counts")
 
     def compute_counts_for_individual_decisions(self, engine, lang):
-        self.add_column(engine, lang, col_name='counter', data_type='jsonb')  # add new column for the rank_order
+        for counter_type in self.counter_types:
+            self.add_column(engine, lang, col_name=counter_type, data_type='jsonb')  # add new column for the rank_order
 
         chambers = self.get_level_instances(engine, lang, 'chamber')
         processed_file_path = self.data_dir / f"{lang}_chambers_counted.txt"
