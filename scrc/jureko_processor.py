@@ -114,7 +114,9 @@ class JurekoProcessor(DatasetConstructorComponent):
             Column('date', Date),
             Column('file_number', String),
             Column('num_tokens', Integer),
-            Column('counter', JSON),
+            Column('lemma_counter', JSON),
+            Column('pos_counter', JSON),
+            Column('tag_counter', JSON),
         )
         meta.create_all(engine)
 
