@@ -34,7 +34,9 @@ class CountComputer(DatasetConstructorComponent):
             self.lang_dir = self.spacy_subdir / lang
 
             self.compute_counts_for_individual_decisions(engine, lang)
-            self.compute_aggregates(engine, lang)
+            self.compute_level_aggregates(engine, lang)
+            tables = [f"{lang}_cantons" for lang in self.languages]
+            self.compute_total_aggregate(engine, tables, "lang", self.data_dir, self.logger)
 
             self.logger.info(f"Finished processing language {lang}")
 
@@ -59,7 +61,7 @@ class CountComputer(DatasetConstructorComponent):
                                       self.logger)
                 self.mark_as_processed(processed_file_path, chamber)
 
-    def compute_aggregates(self, engine, lang):
+    def compute_level_aggregates(self, engine, lang):
         compile_where = lambda level_instance: f"chamber='{level_instance}'"
         self.compute_aggregate_for_level(engine, lang, 'chamber', lang, compile_where)
 
@@ -68,9 +70,6 @@ class CountComputer(DatasetConstructorComponent):
 
         compile_where = lambda level_instance: f"court LIKE '{level_instance}_%'"
         self.compute_aggregate_for_level(engine, lang, 'canton', f"{lang}_courts", compile_where)
-
-        tables = [f"{lang}_cantons" for lang in self.languages]
-        self.compute_total_aggregate(engine, tables, "lang", self.data_dir, self.logger)
 
     def compute_aggregate_for_level(self, engine, lang, level, table, compile_where):
         lang_level_table = self.create_aggregate_table(engine, f"{lang}_{level}s", level)

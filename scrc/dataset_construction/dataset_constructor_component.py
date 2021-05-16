@@ -249,18 +249,18 @@ class DatasetConstructorComponent:
                 aggregate_counter += Counter(counter)
         return dict(aggregate_counter)
 
-    def create_aggregate_table(self, engine, table, primary_key):
+    def create_aggregate_table(self, engine, table_name, primary_key):
         """Creates an aggregate table for a given level for storing the counter"""
         meta = MetaData()
-        lang_level_table = Table(  # an aggregate table for storing level specific data like the vocabulary
-            table, meta,
+        table = Table(  # an aggregate table for storing level specific data like the vocabulary
+            table_name, meta,
             Column(primary_key, String, primary_key=True),
             Column('counter_lemma', JSON),
             Column('counter_pos', JSON),
             Column('counter_tag', JSON),
         )
         meta.create_all(engine)
-        return lang_level_table
+        return table
 
     def compute_counters(self, engine, table, where, spacy_vocab, spacy_dir, logger):
         """Computes the counter for each of the decisions in a given chamber and language"""
