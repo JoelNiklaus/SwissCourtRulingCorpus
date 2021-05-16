@@ -32,13 +32,11 @@ class CountComputer(DatasetConstructorComponent):
         for lang in self.languages:
             self.logger.info(f"Started processing language {lang}")
             self.lang_dir = self.spacy_subdir / lang
-
             self.compute_counts_for_individual_decisions(engine, lang)
             self.compute_level_aggregates(engine, lang)
-            tables = [f"{lang}_cantons" for lang in self.languages]
-            self.compute_total_aggregate(engine, tables, "lang", self.data_dir, self.logger)
-
             self.logger.info(f"Finished processing language {lang}")
+        tables = [f"{lang}_cantons" for lang in self.languages]
+        self.compute_total_aggregate(engine, tables, "lang", self.data_dir, self.logger)
 
         self.logger.info("Finished computing counts")
 
