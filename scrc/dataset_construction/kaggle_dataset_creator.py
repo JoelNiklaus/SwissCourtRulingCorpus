@@ -1,4 +1,5 @@
 import configparser
+from collections import Counter
 from pathlib import Path
 
 import dask.dataframe as dd
@@ -127,7 +128,7 @@ class DatasetCreator(DatasetConstructorComponent):
         pass
 
     def get_df(self, engine, feature_col, label_col):
-        columns = f"extract(year from date) as year, {feature_col}, {label_col}"
+        columns = f"extract(year from date) as year, num_tokens, {feature_col}, {label_col}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
         df = next(self.select(engine, 'de', columns=columns, where=where, order_by=order_by, chunksize=int(2e5)))
@@ -169,10 +170,21 @@ class DatasetCreator(DatasetConstructorComponent):
         test.to_csv(regular_dir / 'test.csv', index_label='id')
         self.save_labels(labels, regular_dir / 'labels.json')
 
+        self.save_report(df, folder)
+
         if kaggle:
             self.save_kaggle_dataset(folder, labels, test, train, val)
 
         self.logger.info(f"Saved dataset files to {folder}")
+
+    def save_report(self, df, folder):
+        # compute label imbalance
+        counter_dict = dict(Counter(np.hstack(df.label)))
+        label_counts = pd.DataFrame.from_dict(counter_dict, orient='index', columns=['num_occurrences'])
+        label_counts.to_csv(folder / 'label_distribution.csv', index_label='label')
+        label_counts.plot.bar(y='num_occurrences', rot=15).get_figure().savefig(folder / 'label_distribution.png')
+        # compute median input length
+        df.num_tokens.describe().to_csv(folder / 'input_length_distribution.csv', index_label='measure')
 
     def save_kaggle_dataset(self, folder, labels, test, train, val):
         # create solution file
