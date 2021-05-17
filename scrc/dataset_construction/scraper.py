@@ -4,7 +4,6 @@ from pathlib import Path
 import bs4
 import glob
 import requests
-from tqdm import tqdm
 from tqdm.contrib.concurrent import process_map
 
 from root import ROOT_DIR

@@ -16,13 +16,9 @@ from tqdm import tqdm
 from root import ROOT_DIR
 import pandas as pd
 
-from sqlalchemy import create_engine
-from sqlalchemy import MetaData, Table
 from sqlalchemy.sql.expression import bindparam
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Date, ARRAY, PickleType, JSON
 from sqlalchemy.dialects.postgresql import insert
-
-import stopwordsiso as stopwords
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)

@@ -5,7 +5,7 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Date
+from sqlalchemy import MetaData, Table, Column, Integer, String, Date
 
 import pandas as pd
 

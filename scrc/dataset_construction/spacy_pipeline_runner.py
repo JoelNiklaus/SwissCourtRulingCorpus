@@ -1,22 +1,11 @@
-import gc
-import multiprocessing
 import sys
-from pathlib import Path
-import glob
-from time import sleep
 from memory_profiler import profile
 import os, psutil
 
 import spacy
-from spacy.vocab import Vocab
-from tqdm import tqdm
-import pandas as pd
-import dask.dataframe as dd
-from dask.diagnostics import ProgressBar
 import configparser
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from root import ROOT_DIR
-from scrc.utils.decorators import slack_alert
 from scrc.utils.log_utils import get_logger
 
 # import scrc.utils.monkey_patch  # prevent memory leak with pandas
@@ -24,7 +13,6 @@ from scrc.utils.log_utils import get_logger
 # IMPORTANT: make sure you download these models first with: python -m spacy download de_dep_news_trf
 import de_core_news_lg, fr_core_news_lg, it_core_news_lg
 
-from scrc.utils.main_utils import get_file_gen
 from scrc.utils.slack_util import post_message_to_slack
 
 

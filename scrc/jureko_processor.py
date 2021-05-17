@@ -7,13 +7,12 @@ from tqdm import tqdm
 
 from tei_reader import TeiReader
 
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Date, JSON
+from sqlalchemy import MetaData, Table, Column, Integer, String, Date, JSON
 
 import pandas as pd
 
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
-from scrc.utils.decorators import slack_alert
 from scrc.utils.log_utils import get_logger
 
 
@@ -25,7 +24,6 @@ class JurekoProcessor(DatasetConstructorComponent):
 
         self.types = {'decision', 'statute'}
 
-    @slack_alert
     def process(self):
         engine = self.get_engine(self.db_jureko)
         self.extract_to_db(engine)
