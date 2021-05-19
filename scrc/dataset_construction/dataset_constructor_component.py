@@ -17,8 +17,10 @@ from root import ROOT_DIR
 import pandas as pd
 
 from sqlalchemy.sql.expression import bindparam
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Date, ARRAY, PickleType, JSON
+from sqlalchemy import create_engine, MetaData, Table, Column, String, JSON
 from sqlalchemy.dialects.postgresql import insert
+
+from stopwordsiso import stopwords
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
@@ -58,7 +60,7 @@ class DatasetConstructorComponent:
 
         self.num_cpus = multiprocessing.cpu_count()
 
-        self.stopwords = stopwords.stopwords(self.languages)
+        self.stopwords = stopwords(self.languages)
         # this should be filtered out by PUNCT pos tag already, but sometimes they are misclassified
         self.stopwords |= {' ', '.', '!', '?'}
 
