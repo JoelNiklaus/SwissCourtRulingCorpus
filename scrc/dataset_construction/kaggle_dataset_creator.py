@@ -60,6 +60,7 @@ class DatasetCreator(DatasetConstructorComponent):
         self.logger = get_logger(__name__)
 
         self.seed = 42
+        self.debug = False
 
     def create_datasets(self):
         engine = self.get_engine(self.db_scrc)
@@ -128,10 +129,15 @@ class DatasetCreator(DatasetConstructorComponent):
         pass
 
     def get_df(self, engine, feature_col, label_col):
+        self.logger.info("Loading the data from the database")
         columns = f"extract(year from date) as year, num_tokens, {feature_col}, {label_col}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
-        df = next(self.select(engine, 'de', columns=columns, where=where, order_by=order_by, chunksize=int(2e5)))
+        if self.debug:
+            chunksize = 2e2  # run on smaller dataset for testing
+        else:
+            chunksize = 2e5
+        df = next(self.select(engine, 'de', columns=columns, where=where, order_by=order_by, chunksize=int(chunksize)))
         df.year = df.year.astype(int)
         df = self.clean_from_empty_strings(df, feature_col)
         return df
@@ -164,6 +170,7 @@ class DatasetCreator(DatasetConstructorComponent):
             raise ValueError("Please supply a valid split_type")
 
         # save regular dataset
+        self.logger.info("Saving the regular dataset")
         regular_dir = self.create_dir(folder, 'regular')
         train.to_csv(regular_dir / 'train.csv', index_label='id')
         val.to_csv(regular_dir / 'val.csv', index_label='id')
@@ -178,15 +185,25 @@ class DatasetCreator(DatasetConstructorComponent):
         self.logger.info(f"Saved dataset files to {folder}")
 
     def save_report(self, df, folder):
+        self.logger.info("Computing metadata reports on the input lengths and the labels")
+
         # compute label imbalance
+        ax = df.label.astype(str).hist()
+        ax.tick_params(labelrotation=90)
+        ax.get_figure().savefig(folder / 'multi_label_distribution.png', bbox_inches="tight")
+
         counter_dict = dict(Counter(np.hstack(df.label)))
         label_counts = pd.DataFrame.from_dict(counter_dict, orient='index', columns=['num_occurrences'])
-        label_counts.to_csv(folder / 'label_distribution.csv', index_label='label')
-        label_counts.plot.bar(y='num_occurrences', rot=15).get_figure().savefig(folder / 'label_distribution.png')
+        label_counts.to_csv(folder / 'single_label_distribution.csv', index_label='label')
+
+        ax = label_counts.plot.bar(y='num_occurrences', rot=15)
+        ax.get_figure().savefig(folder / 'single_label_distribution.png')
+
         # compute median input length
         df.num_tokens.describe().to_csv(folder / 'input_length_distribution.csv', index_label='measure')
 
     def save_kaggle_dataset(self, folder, labels, test, train, val):
+        self.logger.info("Saving the data in kaggle format")
         # create solution file
         solution = test.drop('text', axis='columns')  # drop text
         solution = solution.rename(columns={"label": "Expected"})  # rename according to kaggle conventions
