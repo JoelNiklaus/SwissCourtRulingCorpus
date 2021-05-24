@@ -16,6 +16,7 @@ from filprofiler.api import profile
 
 from scrc.jureko_processor import JurekoProcessor
 from scrc.utils.decorators import slack_alert
+from scrc.wikipedia_processor import WikipediaProcessor
 
 """
 New approach:
@@ -66,6 +67,9 @@ def main():
 
     jureko_processor = JurekoProcessor(config)
     jureko_processor.process()
+
+    wikipedia_processor = WikipediaProcessor(config)
+    wikipedia_processor.process()
 
 
 if __name__ == '__main__':

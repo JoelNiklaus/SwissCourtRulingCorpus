@@ -48,6 +48,8 @@ class DatasetConstructorComponent:
         self.jureko_subdir = self.create_dir(self.corpora_subdir, config['dir']['jureko_subdir'])
         self.tei_subdir = self.create_dir(self.jureko_subdir, config['dir']['tei_subdir'])
         self.jureko_spacy_subdir = self.create_dir(self.jureko_subdir, config['dir']['spacy_subdir'])
+        self.wikipedia_subdir = self.create_dir(self.corpora_subdir, config['dir']['wikipedia_subdir'])
+        self.wikipedia_spacy_subdir = self.create_dir(self.wikipedia_subdir, config['dir']['spacy_subdir'])
 
         self.ip = config['postgres']['ip']
         self.port = config['postgres']['port']
@@ -55,6 +57,7 @@ class DatasetConstructorComponent:
         self.password = config['postgres']['password']
         self.db_scrc = config['postgres']['db_scrc']
         self.db_jureko = config['postgres']['db_jureko']
+        self.db_wikipedia = config['postgres']['db_wikipedia']
 
         self.indexes = json.loads(config['postgres']['indexes'])
 
