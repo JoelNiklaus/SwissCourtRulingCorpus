@@ -16,7 +16,8 @@ def CH_BGer(rulings: str, namespace: dict) -> Optional[List[str]]:
                          'dismissal': ['abgewiesen'],
                          'partial_dismissal': ['abgewiesen, soweit darauf einzutreten ist',
                                                'abzuweisen, soweit darauf einzutreten ist'],
-                         'not_admitted': ['nicht eingetreten', 'als gegenstandslos abgeschrieben', 'Nichteintreten', ],
+                         'not_admitted': ['nicht eingetreten', 'als gegenstandslos abgeschrieben', # TODO sollte dies nicht abschreibung sein?
+                                          'Nichteintreten', 'wird keine Folge geleistet'],
                          # 'soweit darauf einzutreten ist'],
                          'write_off': ['abgeschrieben']}
 

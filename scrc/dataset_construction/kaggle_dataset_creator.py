@@ -96,19 +96,21 @@ class DatasetCreator(DatasetConstructorComponent):
         df = self.get_df(engine, 'text', 'citations')
 
         def replace_citations(series):
-            series['labels'] = []
+            series['label'] = []
             for law in series.citations['laws']:
-                series.text = series.text.replace(law['text'], "<law-citation>")
-                series.labels.append(law['text'])
+                citation = law['text']
+                series.text = series.text.replace(citation, "<law-citation>")
+                series.label.append(citation)
             for ruling in series.citations['rulings']:
-                series.text = series.text.replace(ruling['text'], "<ruling-citation>")
-                series.labels.append(ruling['text'])
+                citation = ruling['text']
+                series.text = series.text.replace(citation, "<ruling-citation>")
+                series.label.append(ruling['text'])
 
             return series
 
         df = df.apply(replace_citations, axis='columns')
-        df = df.rename(columns={"text": "text", "citations": "label"})  # normalize column names
-        labels, _ = list(np.unique(np.hstack(df.labels), return_index=True))
+        df = df.rename(columns={"text": "text"})  # normalize column names
+        labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
 
     def chamber_prediction(self, engine):
