@@ -4,12 +4,8 @@ from scrc.dataset_construction.dataset_constructor_component import DatasetConst
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 
-# import scrc.utils.monkey_patch  # prevent memory leak with pandas
 
-"""
-TODO not only compute frequencies of words but also of POS tags.
-TODO do NOT remove stop words! They can still be removed later in the counts if we want to
-"""
+# import scrc.utils.monkey_patch  # prevent memory leak with pandas
 
 
 class CountComputer(DatasetConstructorComponent):

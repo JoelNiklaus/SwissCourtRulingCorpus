@@ -11,36 +11,49 @@ from scrc.utils.log_utils import get_logger
 import json
 
 """
+TODO: Find justification (Why?) for these tasks: talk this through with Matthias
+
 Datasets to be created:
 - Judgement prediction BGer:
     - text classification
-    - input (considerations) to label (judgement)
+    - input (considerations/situation) to label (judgement)
+    - Why?
 - Citation prediction
     - multilabel text classification
     - input (entire text with citations removed) to label (cited laws and court decisions)
     - Features:
         - Zero/One/Few Shot
-- Chamber/court prediction => proxy for legal area
+    - Why?: 
+- Citation Type labeling:
+    - fill mask
+    - input (entire text with citations removed by mask token)
+    - Tasks: predict citation type (law or ruling) or citation
+    - Why?: difficult LM Pretraining task
+- Chamber/court prediction
     - text classification
     - input (situation) to label (chamber/court code)
     - Features:
         - Zero/One/Few Shot
+    - Why?: proxy for legal area prediction to help lawyers find suitable laws
 - Date prediction
     - text classification
     - input (entire text) to label (date in different granularities: year, quarter, regression)
     - Features:
         - Zero/One/Few Shot
+    - Why?: learn temporal data shift
 - Section splitting: 
     - token classification (text zoning task)
     - input (entire text) to label (section tags per token)
+    - Why?: 
 - LM Pretraining:
     - masked language modeling
     - input (entire text)
     - Features:
         - largest openly published corpus of court decisions
+    - Why?: train Swiss Legal BERT
 
 - level of appeal prediction?
-    - ask Magda to annotate court_chambers.json with level of appeal for every court
+    - TODO ask Magda to annotate court_chambers.json with level of appeal for every court
 
 Features:
 - Time-stratified: train, val and test from different time ranges to simulate more realistic test scenario

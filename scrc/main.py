@@ -6,7 +6,7 @@ from scrc.dataset_construction.citation_extractor import CitationExtractor
 from scrc.dataset_construction.cleaner import Cleaner
 from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.judgement_extractor import JudgementExtractor
-from scrc.dataset_construction.kaggle_dataset_creator import DatasetCreator
+from scrc.dataset_construction.dataset_creator import DatasetCreator
 from scrc.dataset_construction.scraper import Scraper, base_url
 from scrc.dataset_construction.section_splitter import SectionSplitter
 from scrc.dataset_construction.spacy_pipeline_runner import SpacyPipelineRunner

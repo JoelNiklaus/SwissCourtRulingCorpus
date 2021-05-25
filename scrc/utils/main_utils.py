@@ -91,3 +91,10 @@ def get_file_gen(path):
         chunk += 1
         file = get_path(path, chunk)
     return None
+
+
+def string_contains_one_of_list(string, lst):
+    for item in lst:
+        if item in string:
+            return True
+    return False
