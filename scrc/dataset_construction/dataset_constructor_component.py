@@ -51,6 +51,8 @@ class DatasetConstructorComponent:
         self.wikipedia_subdir = self.create_dir(self.corpora_subdir, config['dir']['wikipedia_subdir'])
         self.wikipedia_spacy_subdir = self.create_dir(self.wikipedia_subdir, config['dir']['spacy_subdir'])
 
+        self.spider_specific_dir = self.create_dir(ROOT_DIR, config['dir']['spider_specific_dir'])
+
         self.ip = config['postgres']['ip']
         self.port = config['postgres']['port']
         self.user = config['postgres']['user']
@@ -77,7 +79,7 @@ class DatasetConstructorComponent:
 
     def load_functions(self, config, type):
         """loads the cleaning functions used for html files"""
-        function_file = ROOT_DIR / config['files'][type]  # mainly used for html courts
+        function_file = self.spider_specific_dir / config['files'][type]  # mainly used for html courts
         spec = importlib.util.spec_from_file_location(type, function_file)
         functions = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(functions)

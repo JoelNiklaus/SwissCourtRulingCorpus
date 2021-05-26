@@ -26,7 +26,7 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, s
         # "judges": ['Besetzung', 'Es wirken mit', 'Bundesrichter'],
         # "parties": ['Parteien', 'Verfahrensbeteiligte', 'In Sachen'],
         # "topic": ['Gegenstand', 'betreffend'],
-        "situation": [r'Sachverhalt:', r'hat sich ergeben', r'Nach Einsicht'],
+        "facts": [r'Sachverhalt:', r'hat sich ergeben', r'Nach Einsicht'],
         "considerations": [r'Erwägung:', r'in Erwägung', r'Erwägungen:'],
         "rulings": [r'erkennt die Präsidentin', r'erkennt der Präsident', r'Demnach erkennt', r'beschliesst:'],
         "footer": [

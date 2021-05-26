@@ -45,7 +45,7 @@ class Cleaner(DatasetConstructorComponent):
 
     def load_cleaning_regexes(self, file_name):
         """loads the cleaning regexes used for pdf files"""
-        regex_file = ROOT_DIR / file_name  # mainly used for pdf spiders
+        regex_file = self.spider_specific_dir / file_name  # mainly used for pdf spiders
         with open(regex_file) as f:
             cleaning_regexes = json.load(f)
         return cleaning_regexes

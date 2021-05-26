@@ -14,7 +14,7 @@ sections = [
     # "judges",
     # "parties",
     # "topic",
-    "situation",
+    "facts",
     "considerations",
     "rulings",
     "footer"

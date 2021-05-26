@@ -60,6 +60,6 @@ class LanguageIdentificationSingleton:
 
 
 if __name__ == '__main__':
-    lang_id = LanguageIdentification()
+    lang_id = LanguageIdentificationSingleton()
     lang = lang_id.predict_lang("Hej")
     print(lang)
