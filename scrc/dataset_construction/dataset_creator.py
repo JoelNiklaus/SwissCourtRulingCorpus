@@ -10,8 +10,10 @@ from scrc.dataset_construction.dataset_constructor_component import DatasetConst
 from scrc.utils.log_utils import get_logger
 import json
 
+from scrc.utils.main_utils import string_contains_one_of_list
+
 """
-TODO: Find justification (Why?) for these tasks: talk this through with Matthias
+TODO: Find justification (Why?) for these tasks: talk this through with Matthias/Ilias
 
 Datasets to be created:
 - Judgement prediction BGer:
@@ -78,7 +80,7 @@ class DatasetCreator(DatasetConstructorComponent):
     def create_datasets(self):
         engine = self.get_engine(self.db_scrc)
 
-        datasets = ['judgement_prediction', 'citation_prediction', ]
+        datasets = ['facts_judgement_prediction', 'considerations_judgement_prediction']
         processed_file_path = self.data_dir / f"datasets_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, datasets)
         self.logger.info(message)
@@ -99,9 +101,15 @@ class DatasetCreator(DatasetConstructorComponent):
         df, labels = create_df(engine)
         self.save_dataset(df, labels, folder, split_type)
 
-    def judgement_prediction(self, engine):
-        df = self.get_df(engine, 'considerations', 'judgements')
-        df = df.rename(columns={"considerations": "text", "judgements": "label"})  # normalize column names
+    def facts_judgement_prediction(self, engine):
+        return self.judgement_prediction(engine, 'facts')
+
+    def considerations_judgement_prediction(self, engine):
+        return self.judgement_prediction(engine, 'considerations')
+
+    def judgement_prediction(self, engine, input):
+        df = self.get_df(engine, input, 'judgements')
+        df = df.rename(columns={input: "text", "judgements": "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
 
@@ -184,6 +192,8 @@ class DatasetCreator(DatasetConstructorComponent):
         else:
             raise ValueError("Please supply a valid split_type")
 
+        self.save_report(df, folder)
+
         # save regular dataset
         self.logger.info("Saving the regular dataset")
         regular_dir = self.create_dir(folder, 'regular')
@@ -191,8 +201,6 @@ class DatasetCreator(DatasetConstructorComponent):
         val.to_csv(regular_dir / 'val.csv', index_label='id')
         test.to_csv(regular_dir / 'test.csv', index_label='id')
         self.save_labels(labels, regular_dir / 'labels.json')
-
-        self.save_report(df, folder)
 
         if kaggle:
             self.save_kaggle_dataset(folder, labels, test, train, val)
@@ -226,7 +234,7 @@ class DatasetCreator(DatasetConstructorComponent):
         test = test.drop('label', axis='columns')  # drop label
         # create sampleSubmission file
         sample_submission = solution.rename(columns={"Expected": "Predicted"})  # rename according to kaggle conventions
-        sample_submission['Predicted'] = np.random.choice(labels, size=len(solution))  # set to random value
+        sample_submission['Predicted'] = np.random.choice(solution.Expected, size=len(solution))  # set to random value
 
         # save special kaggle files
         kaggle_dir = self.create_dir(folder, 'kaggle')

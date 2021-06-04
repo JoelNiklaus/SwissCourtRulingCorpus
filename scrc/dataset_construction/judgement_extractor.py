@@ -32,31 +32,31 @@ class JudgementExtractor(DatasetConstructorComponent):
         for lang in self.languages:
             self.add_column(engine, lang, col_name=self.col_name, data_type='jsonb')
 
-        # clean raw texts
+        # extracting judgements from rulings
         for spider in spider_list:
             if hasattr(self.judgement_extracting_functions, spider):
-                self.section_split_spider(engine, spider)
+                self.judgement_extract_spider(engine, spider)
             else:
                 self.logger.debug(f"There are no special functions for spider {spider}. "
-                                  f"Not performing any section splitting.")
+                                  f"Not performing any judgement extracting.")
             self.mark_as_processed(processed_file_path, spider)
 
         self.logger.info("Finished judgement-extracting raw court rulings")
 
-    def section_split_spider(self, engine, spider):
+    def judgement_extract_spider(self, engine, spider):
         """Extracts judgements for one spider"""
         self.logger.info(f"Started judgement-extracting {spider}")
 
         for lang in self.languages:
             dfs = self.select(engine, lang, where=f"spider='{spider}'")  # stream dfs from the db
             for df in dfs:
-                df = df.apply(self.section_split_df_row, axis='columns')
-                self.logger.info("Saving cleaned text and split sections to db")
+                df = df.apply(self.judgement_extract_df_row, axis='columns')
+                self.logger.info("Saving extracted judgements to db")
                 self.update(engine, df, lang, [self.col_name])
 
         self.logger.info(f"Finished judgement-extracting {spider}")
 
-    def section_split_df_row(self, series):
+    def judgement_extract_df_row(self, series):
         """Processes one row of a raw df"""
         self.logger.debug(f"Judgement-extracting court decision {series['file_name']}")
         namespace = series[['date', 'language', 'html_url']].to_dict()
