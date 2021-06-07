@@ -2,13 +2,7 @@
 
 ## Overview of process done in building this dataset
 
-1. Scrape only the source files and store them in a folder named after the dataset_path (scraper.py)
-2. For each json file (metadata) look for a html and a pdf file with the same name.Extract the content and store it raw
-   in a pandas dataframe together with the filename and any metadata in additional columns. Store the files in a folder
-   csv/raw (extractor.py)
-3. Clean the raw content and store the resulting dataframe in a different folder csv/clean (cleaner.py)
-4. Aggregate all the courts into one file _all.csv and into language separated files _de.csv, _fr.csv and _it.csv (
-   aggregator.py)
+For an overview of the process used to construct this dataset, please consult the file [scrc/main.py](scrc/main.py).
 
 For extracting the raw text content from pdf files we used tika and for html files we used BeautifulSoup.
 
@@ -17,10 +11,6 @@ February 1st 2021.
 
 More information about this dataset can be found in the following
 spreadsheet: https://docs.google.com/spreadsheets/d/1bzW_7kpRAYxSis15g3s0HX8OcyXfWGgfJfybII9fN5s/edit?usp=sharing
-
-Time: 2010 or 2015 until 2020
-
-Task: Named Entity Recognition and Relation Extraction
 
 Export conda env with:
 ```conda env export > env.yml --no-builds```
@@ -61,61 +51,9 @@ jupyter notebook --no-browser --port=8888 --notebook-dir=scrc/notebooks
 ssh -N -f -L localhost:8888:localhost:8888 fdn-admin@fdn-sandbox3.inf.unibe.ch
 ```
 
-## MongoDB
+## Postgres
 
-The data is stored in a MongoDB so we can avoid loading into RAM the total data in order to work with it.
-
-### Structure
-
-Database: scrc
-
-Collection: rulings
-
-Hierarchy:
-- language (de, fr, it)
-   - cantons (CH, ZH, GE, etc.)
-      - courts (CH_BGer, AG_OG, TI_PP, etc.)
-         - chambers (CH_PATG_001, VD_TC_001, AR_OG_003, etc.)
-            - (documents containing the decisions and metadata => ruling document (see below))
-
-ruling document: 
-- "spider",
-- "language",
-- "canton",
-- "court",
-- "chamber",
-- "date",
-- "file_name",
-- "file_number",
-- "file_number_additional",
-- "html_url",
-- "html_bytes",
-- "html_raw",
-- "html_clean",
-- "pdf_url",
-- "pdf_bytes",
-- "pdf_raw",
-- "pdf_clean",
-- "text"
-
-### Setup
-
-You can run it with 
-```bash
-sudo docker run --name scrc-mongodb -p 27017:27017 -v /home/fdn-admin/mongodb:/data/db -d mongo:4-bionic 
-```
-which will download a docker image if not available yet and then start up the database. 
-More information can be found https://hub.docker.com/_/mongo
-
-Get the IP of the MongoDB container like this
-````bash
-docker inspect --format '{{ .NetworkSettings.IPAddress }}' scrc-mongodb
-````
-
-Install the python driver with 
-```bash
-python -m pip install pymongo
-```
+The data is stored in a Postgres DB so we can avoid loading into RAM the total data in order to work with it.
 
 ## Pandas Memory usage
 
