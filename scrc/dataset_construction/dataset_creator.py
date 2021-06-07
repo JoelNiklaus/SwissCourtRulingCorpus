@@ -67,7 +67,8 @@ Features:
 
 class DatasetCreator(DatasetConstructorComponent):
     """
-    Creates the files for a kaggle dataset.
+    Retrieves the data and preprocesses it for subdatasets of SCRC.
+    Also creates the necessary files for a kaggle dataset.
     """
 
     def __init__(self, config: dict):
@@ -90,6 +91,13 @@ class DatasetCreator(DatasetConstructorComponent):
             self.mark_as_processed(processed_file_path, dataset)
 
     def create_dataset(self, engine, dataset):
+        """
+        Retrieves the respective function named by the dataset and executes it to get the df for that dataset.
+
+        :param engine:  the engine to retrieve the data
+        :param dataset: the name of the dataset
+        :return:
+        """
         self.logger.info(f"Creating {dataset} dataset")
 
         create_df = getattr(self, dataset)  # get the function called by the dataset name
@@ -208,6 +216,12 @@ class DatasetCreator(DatasetConstructorComponent):
         self.logger.info(f"Saved dataset files to {folder}")
 
     def save_report(self, df, folder):
+        """
+        Saves statistics about the dataset in the form of csv tables and png graphs.
+        :param df:      the df containing the dataset
+        :param folder:  the base folder to save the report to
+        :return:
+        """
         self.logger.info("Computing metadata reports on the input lengths and the labels")
 
         # compute label imbalance
@@ -225,7 +239,16 @@ class DatasetCreator(DatasetConstructorComponent):
         # compute median input length
         df.num_tokens.describe().to_csv(folder / 'input_length_distribution.csv', index_label='measure')
 
-    def save_kaggle_dataset(self, folder, labels, test, train, val):
+    def save_kaggle_dataset(self, folder, train, val, test):
+        """
+        Saves the train, val and test set to a kaggle-style dataset
+        and also creates a solution and sampleSubmission file.
+        :param folder:  where to save the dataset
+        :param train:   the train set
+        :param val:     the val set
+        :param test:    the test set
+        :return:
+        """
         self.logger.info("Saving the data in kaggle format")
         # create solution file
         solution = test.drop('text', axis='columns')  # drop text
@@ -245,12 +268,24 @@ class DatasetCreator(DatasetConstructorComponent):
         sample_submission.to_csv(kaggle_dir / 'sampleSubmission.csv', index_label='Id')
 
     def save_labels(self, labels, file_name):
+        """
+        Saves the labels and the corresponding ids as a json file
+        :param labels:      the labels dict
+        :param file_name:   where to save the labels
+        :return:
+        """
         labels_dict = dict(enumerate(labels))
         json_labels = {"id2label": labels_dict, "label2id": {y: x for x, y in labels_dict.items()}}
         with open(file_name, 'w', encoding='utf-8') as f:
             json.dump(json_labels, f, ensure_ascii=False, indent=4)
 
     def split_date_stratified(self, df, split):
+        """
+        Splits the df into train, val and test based on the date
+        :param df:      the df to be split
+        :param split:   the exact split (how much of the data goes into train, val and test respectively)
+        :return:
+        """
         last_year = 2020  # disregard partial year 2021
         first_year = 2000  # before the data is quite sparse and there might be too much differences in the language
         num_years = last_year - first_year + 1
@@ -272,7 +307,12 @@ class DatasetCreator(DatasetConstructorComponent):
         return train, val, test
 
     def split_random(self, df, split):
-        # split into train, val and test sets
+        """
+        Splits the df randomly into train, val and test
+        :param df:
+        :param split:
+        :return:
+        """
         train, val, test = dd.from_pandas(df, npartitions=1).random_split(list(split), random_state=self.seed)
 
         # get pandas dfs again
