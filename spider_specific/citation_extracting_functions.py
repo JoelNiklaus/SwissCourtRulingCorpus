@@ -1,5 +1,10 @@
 from typing import Any, Optional
 
+"""
+This file is used to extract citations from decisions sorted by spiders.
+The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
+"""
+
 
 def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
     """

@@ -7,6 +7,10 @@ import re
 from scrc.dataset_construction.section_splitter import sections
 from scrc.utils.main_utils import clean_text
 
+"""
+This file is used to extract sections from decisions sorted by spiders.
+The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
+"""
 
 def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, str]]]]:
     """

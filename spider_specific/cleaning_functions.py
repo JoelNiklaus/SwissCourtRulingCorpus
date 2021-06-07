@@ -1,5 +1,10 @@
 from typing import Any
 
+"""
+This file is used to clean the text of decisions sorted by spiders.
+The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
+"""
+
 
 def CH_BGer(soup: Any, namespace: dict) -> Any:
     return soup.find_all("div", class_="content")[0]

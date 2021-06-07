@@ -65,6 +65,11 @@ judgement_markers['de'] = {'approval': ['aufgehoben', 'aufzuheben', 'gutgeheisse
                            'write_off': ['abgeschrieben', 'abzuschreiben', 'erweist sich als gegenstandslos']}
 
 
+"""
+This file is used to extract the judgement outcomes from decisions sorted by spiders.
+The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
+"""
+
 def CH_BGer(rulings: str, namespace: dict) -> Optional[List[str]]:
     """
     IMPORTANT: So far, only German is supported!

@@ -19,25 +19,43 @@ from scrc.utils.decorators import slack_alert
 from scrc.wikipedia_processor import WikipediaProcessor
 
 """
-New approach:
+This file aggregates all the pipeline components and can be a starting point for running the entire pipeline.
+
+Approach:
 - Scrape data into spider folders
 - Extract text and metadata content (save to Postgres DB because of easy interoperability with pandas (filtering and streaming))
 - Clean text  (keep raw content in db)
+- Split BGer into sections (from html_raw)
+- Extract BGer citations (from html_raw) using "artref" tags
+- Extract judgements 
 - Process each text with spacy, save doc to disk and store path in db, store num token count in separate db col
-doc.to_disk("/path/to/doc", exclude=['tensor']) # think about excluding tensor to save space (almost 4x less space)
-- compute lemma counts and save aggregates in separate tables
-- split BGer into sections (from html_raw)
-- extract BGer citations (from html_raw) using "artref" tags
-- extract judgement 
+- Compute lemma counts and save aggregates in separate tables
+- Create the smaller datasets derived from SCRC with the available metadata
 """
+
 
 @slack_alert
 def main():
+    """
+    Runs the entire pipeline.
+    :return:
+    """
     # faulthandler.enable()  # can print a minimal threaddump in case of external termination
 
     config = configparser.ConfigParser()
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
 
+    process_scrc(config)
+
+    process_external_corpora(config)
+
+
+def process_scrc(config):
+    """
+    Processes everything related to the core SCRC corpus
+    :param config:
+    :return:
+    """
     scraper = Scraper(config)
     scraper.download_subfolders(base_url + "docs/")
 
@@ -65,6 +83,13 @@ def main():
     dataset_creator = DatasetCreator(config)
     dataset_creator.create_datasets()
 
+
+def process_external_corpora(config):
+    """
+    Processes external corpora which can be compared to SCRC.
+    :param config:
+    :return:
+    """
     jureko_processor = JurekoProcessor(config)
     jureko_processor.process()
 
