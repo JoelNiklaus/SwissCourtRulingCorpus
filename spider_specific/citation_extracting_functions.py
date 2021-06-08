@@ -27,6 +27,6 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
 
     return {"laws": laws, "rulings": rulings}
 
-
-def CH_BGE(soup: Any, namespace: dict) -> Optional[dict]:
-    return CH_BGer(soup, namespace)
+# This needs special care
+# def CH_BGE(soup: Any, namespace: dict) -> Optional[dict]:
+#    return CH_BGer(soup, namespace)

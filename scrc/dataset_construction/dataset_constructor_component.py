@@ -206,7 +206,7 @@ class DatasetConstructorComponent:
             logger.info("Saving spacy docs to disk")
             for doc, id in docs:
                 path = spacy_dir / (str(id) + ".spacy")
-                doc.to_disk(path, exclude=['tensor'])
+                doc.to_disk(path, exclude=['tensor']) # this makes the space on the disk much smaller!
                 num_tokens.append(len(doc))
             df['num_tokens'] = num_tokens
             columns = ['num_tokens']

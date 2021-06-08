@@ -31,7 +31,7 @@ Hauptbegehren:
     - Teilweise Gutheissung (partial_approval) (materiell/inhaltlich): Ein Teil des Begehrens wird akzeptiert
     - Abweisung (dismissal) (materiell/inhaltlich): Das Begehren wird vollständig abgewiesen
     - Teilweise Abweisung (partial_dismissal) (materiell/inhaltlich): Ein Teil des Begehrens wird abgewiesen
-    - Nichteintreten (not_admitted) (formell): Das Gericht ist nicht zuständig für das Begehren, Formelle Mängel der Beschwerde 
+    - Nichteintreten (inadmissible) (formell): Das Gericht ist nicht zuständig für das Begehren, Formelle Mängel der Beschwerde 
     - Abschreibung (write_off) (formell): Gegenstandslosigkeit, Kein Grund für das Verfahren (der Entscheid wird nicht mehr benötigt, da bspw. die Parteien sich aussergerichtlich geeinigt haben oder da zwei Verfahren vereinigt werden)
 
 Nebenbegehren:
@@ -50,25 +50,28 @@ Formelle Mitteilung:
 
 """
 
-judgement_markers = {'de': {}, 'fr': {}, 'it': {}}
-judgement_markers['de'] = {'approval': ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung'],
-                           'partial_approval': ['teilweise gutgeheissen', 'teilweise gutzuheissen',
-                                                'In teilweiser Gutheissung'],
-                           'dismissal': ['abgewiesen', 'abzuweisen'],
-                           'partial_dismissal': ['abgewiesen, soweit darauf einzutreten ist',
-                                                 'abzuweisen, soweit darauf einzutreten ist',
-                                                 'abgewiesen, soweit auf sie einzutreten ist',
-                                                 'abzuweisen, soweit auf sie einzutreten ist'],
-                           'not_admitted': ['Nichteintreten', 'nicht eingetreten', 'wird keine Folge geleistet',
-                                            'wird nicht eingegangen',
-                                            'soweit darauf einzutreten ist', 'soweit auf sie einzutreten ist'],
-                           'write_off': ['abgeschrieben', 'abzuschreiben', 'erweist sich als gegenstandslos']}
-
+judgement_markers = {
+    'de': {'approval': ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung'],
+           'partial_approval': ['teilweise gutgeheissen', 'teilweise gutzuheissen',
+                                'In teilweiser Gutheissung'],
+           'dismissal': ['abgewiesen', 'abzuweisen'],
+           'partial_dismissal': ['abgewiesen, soweit darauf einzutreten ist',
+                                 'abzuweisen, soweit darauf einzutreten ist',
+                                 'abgewiesen, soweit auf sie einzutreten ist',
+                                 'abzuweisen, soweit auf sie einzutreten ist'],
+           'inadmissible': ['Nichteintreten', 'nicht eingetreten', 'wird keine Folge geleistet',
+                            'wird nicht eingegangen',
+                            'soweit darauf einzutreten ist', 'soweit auf sie einzutreten ist'],
+           'write_off': ['abgeschrieben', 'abzuschreiben', 'erweist sich als gegenstandslos']},
+    'fr': {},
+    'it': {}
+}
 
 """
 This file is used to extract the judgement outcomes from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
 """
+
 
 def CH_BGer(rulings: str, namespace: dict) -> Optional[List[str]]:
     """
@@ -154,6 +157,6 @@ def int_to_roman(num):
 
     return "".join([a for a in roman_num(num)])
 
-
-def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
-    return CH_BGer(rulings, namespace)
+# This needs special care
+# def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
+#    return CH_BGer(rulings, namespace)
