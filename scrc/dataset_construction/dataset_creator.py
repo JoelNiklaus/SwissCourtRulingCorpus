@@ -1,4 +1,5 @@
 import configparser
+import inspect
 from collections import Counter
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from scrc.utils.log_utils import get_logger
 import json
 
 from scrc.utils.main_utils import string_contains_one_of_list
+from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
 
 """
 TODO: Find justification (Why?) for these tasks: talk this through with Matthias/Ilias
@@ -76,12 +78,13 @@ class DatasetCreator(DatasetConstructorComponent):
         self.logger = get_logger(__name__)
 
         self.seed = 42
-        self.debug = False
+        self.debug = True
+        self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
 
     def create_datasets(self):
         engine = self.get_engine(self.db_scrc)
 
-        datasets = ['facts_judgement_prediction', 'considerations_judgement_prediction']
+        datasets = ['facts_judgement_prediction', 'considerations_judgement_prediction', 'citation_prediction']
         processed_file_path = self.data_dir / f"datasets_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, datasets)
         self.logger.info(message)
@@ -157,23 +160,82 @@ class DatasetCreator(DatasetConstructorComponent):
     def citation_prediction(self, engine):
         df = self.get_df(engine, 'text', 'citations')
 
-        def replace_citations(series):
-            series['label'] = []
+        this_function_name = inspect.currentframe().f_code.co_name
+        folder = self.create_dir(self.datasets_subdir, this_function_name)
+
+        # calculate most common BGE citations
+        most_common_rulings = self.get_most_common_citations(df, folder, 'rulings')
+
+        # list with only the most common laws
+        most_common_laws = self.get_most_common_citations(df, folder, 'laws')
+
+        laws_from_term_definitions = self.get_laws_from_term_definitions()
+
+        # TODO extend laws to other languages as well.
+        #  IMPORTANT: you need to take care of the fact that the laws are named differently in each language but refer to the same law!
+
+        def replace_citations(series, ref_mask_token="<ref>"):
+            # TODO think about splitting laws and rulings into two separate labels
+            labels = set()
             for law in series.citations['laws']:
                 citation = law['text']
-                series.text = series.text.replace(citation, "<law-citation>")
-                series.label.append(citation)
+                found_string_in_list = string_contains_one_of_list(citation, laws_from_term_definitions['de'])
+                if found_string_in_list:
+                    series.text = series.text.replace(citation, ref_mask_token)
+                    labels.add(found_string_in_list)
             for ruling in series.citations['rulings']:
                 citation = ruling['text']
-                series.text = series.text.replace(citation, "<ruling-citation>")
-                series.label.append(ruling['text'])
-
+                if string_contains_one_of_list(citation, most_common_rulings):
+                    series.text = series.text.replace(citation, ref_mask_token)
+                    labels.add(citation)
+            series['label'] = list(labels)
             return series
 
         df = df.apply(replace_citations, axis='columns')
         df = df.rename(columns={"text": "text"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
+
+    def get_most_common_citations(self, df, folder, type, plot_n_most_common=10):
+        """
+        Retrieves the most common citations of a given type (rulings/laws).
+        Additionally plots the plot_n_most_common most common citations
+        :param df:
+        :param folder:
+        :param type:
+        :return:
+        """
+        valid_types = ['rulings', 'laws']
+        if type not in valid_types:
+            raise ValueError(f"Please supply a valid citation type from {valid_types}")
+        type_citations = []
+        for citations in df.citations:
+            for type_citation in citations[type]:
+                type_citations.append(type_citation['text'])
+        most_common_with_frequency = Counter(type_citations).most_common(self.num_ruling_citations)
+        print(most_common_with_frequency)
+
+        # Plot the 10 most common citations
+        # remove BGG articles because they are obvious
+        most_common_interesting = [(k, v) for k, v in most_common_with_frequency if 'BGG' not in k]
+        ruling_citations = pd.DataFrame.from_records(most_common_interesting[:plot_n_most_common],
+                                                     columns=['citation', 'frequency'])
+        ax = ruling_citations.plot.bar(x='citation', y='frequency', rot=90)
+        ax.get_figure().savefig(folder / f'most_common_{type}_citations.png', bbox_inches="tight")
+
+        return list(dict(most_common_with_frequency).keys())
+
+    def get_laws_from_term_definitions(self):
+        term_definitions_extractor = TermDefinitionsExtractor()
+        term_definitions = term_definitions_extractor.extract_term_definitions()
+        laws_from_term_definitions = {lang: [] for lang in self.languages}
+        for lang in self.languages:
+            for definition in term_definitions[lang]:
+                for synonyms in definition:
+                    if synonyms['type'] == 'ab':  # ab stands for abbreviation
+                        # append the string of the abbreviation
+                        laws_from_term_definitions[lang].append(synonyms['text'])
+        return laws_from_term_definitions
 
     def chamber_prediction(self, engine):
         # TODO process in batches because otherwise too large
