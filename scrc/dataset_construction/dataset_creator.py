@@ -115,8 +115,41 @@ class DatasetCreator(DatasetConstructorComponent):
     def considerations_judgement_prediction(self, engine):
         return self.judgement_prediction(engine, 'considerations')
 
-    def judgement_prediction(self, engine, input):
+    def judgement_prediction(self, engine, input, with_write_off=False, with_partials=False, make_single_label=True):
         df = self.get_df(engine, input, 'judgements')
+
+        def clean(judgements):
+            out = []
+            if not with_write_off:
+                # remove write_off because reason for it happens mostly behind the scenes and not written in the facts
+                if 'write_off' in judgements:
+                    return np.nan  # set to nan so it can later be dropped easily
+
+            for judgement in judgements:
+                # remove "partial_" from all the items to merge them with full ones
+                if not with_partials:
+                    judgement = judgement.replace("partial_", "")
+
+                out.append(judgement)
+
+            # remove all labels which are complex combinations (reason: different questions => model cannot know which one to pick)
+            if make_single_label:
+                # contrary judgements point to multiple questions which is too complicated
+                if 'dismissal' in out and 'approval' in out:
+                    return np.nan
+                # if we have inadmissible and another one, we just remove inadmissible
+                if 'inadmissible' in out and len(out) > 1:
+                    out.remove('inadmissible')
+                if len(out) > 1:
+                    message = f"By now we should only have one label. But instead we still have the labels {out}"
+                    raise ValueError(message)
+                return out[0]  # just return the first label because we only have one left
+
+            return out
+
+        df.judgements = df.judgements.apply(clean)
+        df = df.dropna()  # drop empty labels introduced by cleaning before
+
         df = df.rename(columns={input: "text", "judgements": "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
@@ -160,7 +193,7 @@ class DatasetCreator(DatasetConstructorComponent):
         pass
 
     def get_df(self, engine, feature_col, label_col):
-        self.logger.info("Loading the data from the database")
+        self.logger.info("Started loading the data from the database")
         columns = f"extract(year from date) as year, num_tokens, {feature_col}, {label_col}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
@@ -171,6 +204,7 @@ class DatasetCreator(DatasetConstructorComponent):
         df = next(self.select(engine, 'de', columns=columns, where=where, order_by=order_by, chunksize=int(chunksize)))
         df.year = df.year.astype(int)
         df = self.clean_from_empty_strings(df, feature_col)
+        self.logger.info("Finished loading the data from the database")
         return df
 
     def clean_from_empty_strings(self, df, column):
@@ -211,7 +245,7 @@ class DatasetCreator(DatasetConstructorComponent):
         self.save_labels(labels, regular_dir / 'labels.json')
 
         if kaggle:
-            self.save_kaggle_dataset(folder, labels, test, train, val)
+            self.save_kaggle_dataset(folder, train, val, test)
 
         self.logger.info(f"Saved dataset files to {folder}")
 
@@ -234,7 +268,7 @@ class DatasetCreator(DatasetConstructorComponent):
         label_counts.to_csv(folder / 'single_label_distribution.csv', index_label='label')
 
         ax = label_counts.plot.bar(y='num_occurrences', rot=15)
-        ax.get_figure().savefig(folder / 'single_label_distribution.png')
+        ax.get_figure().savefig(folder / 'single_label_distribution.png', bbox_inches="tight")
 
         # compute median input length
         df.num_tokens.describe().to_csv(folder / 'input_length_distribution.csv', index_label='measure')
