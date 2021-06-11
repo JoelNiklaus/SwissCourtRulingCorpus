@@ -94,7 +94,10 @@ def get_file_gen(path):
 
 
 def string_contains_one_of_list(string, lst):
+    """If the string contains an item in the list,
+     we return that item (which can also be used as a truth value in if conditions)
+     and otherwise we return False"""
     for item in lst:
         if item in string:
-            return True
+            return item
     return False

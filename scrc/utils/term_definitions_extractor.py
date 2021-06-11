@@ -51,7 +51,8 @@ class TermDefinitionsExtractor:
     def extract_term_definitions(self):
         output_file = self.base_dir / 'term_definitions.json'
         if output_file.exists():
-            raise ValueError(f"The file {output_file} exists already. Please delete it to rerun the extraction.")
+            self.logger.info(f"The file {output_file} exists already. Please delete it to rerun the extraction.")
+            return json.loads(output_file.read_text())
 
         original_file = self.base_dir / 'ABR19_Titel_Bundeserlasse.xml'
         content = self.read_original_file(original_file)
@@ -80,6 +81,7 @@ class TermDefinitionsExtractor:
                     self.append_syns(syns, output, lang)
 
         output_file.write_text(json.dumps(output))
+        self.logger.info("Successfully extracted the term definitions.")
         return output
 
 
