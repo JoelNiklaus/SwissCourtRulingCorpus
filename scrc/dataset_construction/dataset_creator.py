@@ -124,22 +124,33 @@ class DatasetCreator(DatasetConstructorComponent):
     def considerations_judgement_prediction(self, engine):
         return self.judgement_prediction(engine, 'considerations')
 
-    def judgement_prediction(self, engine, input, with_write_off=False, with_partials=False, make_single_label=True):
+    def judgement_prediction(self, engine, input, with_write_off=False, with_inadmissible=False, with_partials=False,
+                             make_single_label=True):
         df = self.get_df(engine, input, 'judgements')
+
+        # Delete cases with "Nach Einsicht" from the dataset because they are mostly inadmissible or otherwise dismissal
+        # => too easily learnable for the model (because of spurious correlation)
+        df = df[~df[input].str.startswith('Nach Einsicht')]
 
         def clean(judgements):
             out = []
-            if not with_write_off:
-                # remove write_off because reason for it happens mostly behind the scenes and not written in the facts
-                if 'write_off' in judgements:
-                    return np.nan  # set to nan so it can later be dropped easily
-
             for judgement in judgements:
                 # remove "partial_" from all the items to merge them with full ones
                 if not with_partials:
                     judgement = judgement.replace("partial_", "")
 
                 out.append(judgement)
+
+            if not with_write_off:
+                # remove write_off because reason for it happens mostly behind the scenes and not written in the facts
+                if 'write_off' in judgements:
+                    out.remove('write_off')
+
+            if not with_inadmissible:
+                # remove inadmissible because it is a formal reason and not that interesting semantically.
+                # Facts are formulated/summarized in a way to justify the decision of inadmissibility
+                if 'inadmissible' in judgements:
+                    out.remove('inadmissible')
 
             # remove all labels which are complex combinations (reason: different questions => model cannot know which one to pick)
             if make_single_label:
@@ -152,7 +163,10 @@ class DatasetCreator(DatasetConstructorComponent):
                 if len(out) > 1:
                     message = f"By now we should only have one label. But instead we still have the labels {out}"
                     raise ValueError(message)
-                return out[0]  # just return the first label because we only have one left
+                elif len(out) == 1:
+                    return out[0]  # just return the first label because we only have one left
+                else:
+                    return np.nan
 
             return out
 
@@ -245,15 +259,15 @@ class DatasetCreator(DatasetConstructorComponent):
 
     def chamber_prediction(self, engine):
         # TODO process in batches because otherwise too large
-        df = self.get_df(engine, 'situation', 'chamber')
-        df = df.rename(columns={"situation": "text", "chamber": "label"})  # normalize column names
+        df = self.get_df(engine, 'facts', 'chamber')
+        df = df.rename(columns={"facts": "text", "chamber": "label"})  # normalize column names
         labels = list(df.label.unique())
         return df, labels
 
     def date_prediction(self, engine):
         # TODO process in batches because otherwise too large
-        df = self.get_df(engine, 'text', 'date')
-        df = df.rename(columns={"situation": "text", "date": "label"})  # normalize column names
+        df = self.get_df(engine, 'facts', 'date')
+        df = df.rename(columns={"facts": "text", "date": "label"})  # normalize column names
         labels = list(df.label.unique())
         return df, labels
 
