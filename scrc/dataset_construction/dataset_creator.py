@@ -6,10 +6,16 @@ from pathlib import Path
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
+from transformers import AutoTokenizer
+
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 import json
+
+from spacy.lang.de import German
+from spacy.lang.fr import French
+from spacy.lang.it import Italian
 
 from scrc.utils.main_utils import string_contains_one_of_list
 from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
@@ -254,20 +260,38 @@ class DatasetCreator(DatasetConstructorComponent):
     def section_splitting(self, engine):
         pass
 
-    def get_df(self, engine, feature_col, label_col):
+    def get_df(self, engine, feature_col, label_col, lang='de'):
         self.logger.info("Started loading the data from the database")
-        columns = f"extract(year from date) as year, num_tokens, {feature_col}, {label_col}"
+        columns = f"extract(year from date) as year, {feature_col}, {label_col}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
         if self.debug:
             chunksize = 2e2  # run on smaller dataset for testing
         else:
             chunksize = 2e5
-        df = next(self.select(engine, 'de', columns=columns, where=where, order_by=order_by, chunksize=int(chunksize)))
+        df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by, chunksize=int(chunksize)))
         df.year = df.year.astype(int)
         df = self.clean_from_empty_strings(df, feature_col)
+        # calculate both the num_tokens for regular words and subwords
+        spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
+        df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
+        df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
         self.logger.info("Finished loading the data from the database")
         return df
+
+    def get_tokenizers(self, lang):
+        if lang == 'de':
+            spacy = German()
+            bert = "deepset/gbert-base"
+        elif lang == 'fr':
+            spacy = French()
+            bert = "camembert/camembert-base-ccnet"
+        elif lang == 'it':
+            spacy = Italian()
+            bert = "dbmdz/bert-base-italian-cased"
+        else:
+            raise ValueError(f"Please choose one of the following languages: {self.languages}")
+        return spacy.tokenizer, AutoTokenizer.from_pretrained(bert)
 
     def clean_from_empty_strings(self, df, column):
         # replace empty and whitespace strings with nan so that they can be removed
@@ -333,7 +357,8 @@ class DatasetCreator(DatasetConstructorComponent):
         ax.get_figure().savefig(folder / 'single_label_distribution.png', bbox_inches="tight")
 
         # compute median input length
-        df.num_tokens.describe().to_csv(folder / 'input_length_distribution.csv', index_label='measure')
+        input_length_distribution = df[['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
+        input_length_distribution.to_csv(folder / 'input_length_distribution.csv', index_label='measure')
 
     def save_kaggle_dataset(self, folder, train, val, test):
         """
