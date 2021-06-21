@@ -21,49 +21,85 @@ from scrc.utils.main_utils import string_contains_one_of_list
 from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
 
 """
-TODO: Find justification (Why?) for these tasks: talk this through with Matthias/Ilias
-
+Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 day per court)
 Datasets to be created:
-- Judgement prediction BGer:
+- Judgements
+    - Judgement prediction BGer:
+        - text classification
+        - input (considerations/facts) to label (judgement)
+        - Why? 
+- Citations
+    - Citation prediction
+        - multilabel text classification
+        - input (entire text with citations removed) to label (cited laws and court decisions)
+            labels:
+                - all possible rulings
+                - most frequent rulings
+                - all law articles
+                - most frequent law articles
+                - law books (without article number)
+        - Features:
+            - Zero/One/Few Shot
+        - Why?: 
+    - Citation labeling (similar: https://github.com/reglab/casehold):
+        - fill mask
+        - input (entire text with citations removed by mask token)
+        - Tasks: 
+            - predict citation type (law or ruling) or citation
+            - multiple choice question answering (choose from say 5 options)
+        - Why?: difficult LM Pretraining task
+    - Semantic Textual Similarity
+        - regression (similarity of two decisions)
+        - input: two decision texts
+        - label: similarity (between 0 and 1)
+        - the more citations are in common, the more similar two decisions are
+        - the more similar the common citations the higher the similarity of the decisions
+- Criticality Prediction
+    - level of appeal prediction
+        - text classification/regression (error of model makes more sense))
+        - input: facts and considerations (remove information which makes it obvious)
+        - label: predict level of appeal of current case
+        - Why?: 
+    - controversial case prediction
+        - (binary) text classification
+        - input: entire case of a local court (1st level of appeal)
+        - label: predict top level of appeal the case will end up in
+        - Why?: very interesting conclusions contentwise 
+            (e.g. if we predict that the case might end up in the supreme court => speed up process because the case is very important)
+    - case importance prediction (criticality)
+        - regression task
+        - input: entire text
+        - label: level of criticality (normalized citation count (e.g. 1 to 10, 0 to 1))
+        - Why?: Can the criticality be determined only by the text? Are specific topics very controversial?
+- Chamber/court prediction (proxy for legal area)
     - text classification
-    - input (considerations/situation) to label (judgement)
-    - Why?
-- Citation prediction
-    - multilabel text classification
-    - input (entire text with citations removed) to label (cited laws and court decisions)
-    - Features:
-        - Zero/One/Few Shot
-    - Why?: 
-- Citation Type labeling:
-    - fill mask
-    - input (entire text with citations removed by mask token)
-    - Tasks: predict citation type (law or ruling) or citation
-    - Why?: difficult LM Pretraining task
-- Chamber/court prediction
-    - text classification
-    - input (situation) to label (chamber/court code)
+    - input (facts) to label (chamber/court code)
     - Features:
         - Zero/One/Few Shot
     - Why?: proxy for legal area prediction to help lawyers find suitable laws
-- Date prediction
-    - text classification
-    - input (entire text) to label (date in different granularities: year, quarter, regression)
-    - Features:
-        - Zero/One/Few Shot
-    - Why?: learn temporal data shift
-- Section splitting: 
-    - token classification (text zoning task)
-    - input (entire text) to label (section tags per token)
-    - Why?: 
 - LM Pretraining:
     - masked language modeling
     - input (entire text)
     - Features:
         - largest openly published corpus of court decisions
     - Why?: train Swiss Legal BERT
-
-- level of appeal prediction?
-    - TODO ask Magda to annotate court_chambers.json with level of appeal for every court
+    
+    
+- To maybe be considered later 
+    - Section splitting: 
+        - comment: if it can be split with regexes => not interesting
+            - if the splitting is non-standard => more interesting, but manual annotation needed!
+        - token classification (text zoning task), text segmentation
+        - input (entire text) to label (section tags per token)
+        - Why?: 
+    - Date prediction
+        - text classification
+        - input (entire text) to label (date in different granularities: year, quarter, regression)
+        - Features:
+            - Zero/One/Few Shot
+        - Why?: learn temporal data shift
+        - not sure if interesting
+    
 
 Features:
 - Time-stratified: train, val and test from different time ranges to simulate more realistic test scenario
