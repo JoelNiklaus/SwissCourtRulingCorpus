@@ -91,11 +91,11 @@ def process_external_corpora(config):
     :param config:
     :return:
     """
-    jureko_processor = JurekoProcessor(config)
-    jureko_processor.process()
 
     wikipedia_processor = WikipediaProcessor(config)
     wikipedia_processor.process()
+    jureko_processor = JurekoProcessor(config)
+    jureko_processor.process()
 
     slc_processor = SlcProcessor(config)
     slc_processor.process()

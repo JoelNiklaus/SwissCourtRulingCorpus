@@ -1,9 +1,4 @@
 import configparser
-import glob
-from pathlib import Path
-
-import spacy
-from tqdm import tqdm
 
 from tei_reader import TeiReader
 
@@ -12,81 +7,41 @@ from sqlalchemy import MetaData, Table, Column, Integer, String, Date, JSON
 import pandas as pd
 
 from root import ROOT_DIR
-from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
+from scrc.external_corpora.external_corpus_processor import ExternalCorpusProcessor
 from scrc.utils.log_utils import get_logger
 
 
-class JurekoProcessor(DatasetConstructorComponent):
+class JurekoProcessor(ExternalCorpusProcessor):
 
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-        self.types = {'decision', 'statute'}
-
-    def process(self):
-        engine = self.get_engine(self.db_jureko)
-        self.extract_to_db(engine)
-
-        disable_pipes = ['senter', 'ner', 'attribute_ruler', 'textcat']
-        nlp = spacy.load('de_core_news_lg', disable=disable_pipes)
-        nlp.max_length = 3000000
-
-        self.logger.info("Running spacy pipeline")
-        processed_file_path = self.jureko_subdir / f"types_spacied.txt"
-        types, message = self.compute_remaining_parts(processed_file_path, self.types)
-        self.logger.info(message)
-        for type in types:
-            type_dir = self.create_dir(self.jureko_spacy_subdir, type)
-            self.run_spacy_pipe(engine, type, type_dir, "", nlp, self.logger)
-            self.mark_as_processed(processed_file_path, type)
-
-        self.logger.info("Computing counters")
-        processed_file_path = self.jureko_subdir / f"types_counted.txt"
-        types, message = self.compute_remaining_parts(processed_file_path, self.types)
-        self.logger.info(message)
-        for type in types:
-            type_dir = self.jureko_spacy_subdir / type
-            spacy_vocab = self.load_vocab(type_dir)
-            self.compute_counters(engine, type, "", spacy_vocab, type_dir, self.logger)
-            self.mark_as_processed(processed_file_path, type)
-
-        self.compute_total_aggregate(engine, self.types, "type", self.jureko_subdir, self.logger)
-
-    def extract_to_db(self, engine):
-        reader = TeiReader()
-
-        file_names = [Path(file_path).name for file_path in glob.glob(str(self.tei_subdir / "*.txt"))]
-        processed_file_path = self.jureko_subdir / f"files_extracted.txt"
-        files, message = self.compute_remaining_parts(processed_file_path, file_names)
-        self.logger.info(message)
-        entries = {'text': [], 'table': [], 'title': [], 'date': [], 'file_number': [], }
-        i = 1
-        for file in tqdm(files, total=len(files)):
-            self.process_file(entries, self.jureko_subdir / file, reader)
-            self.mark_as_processed(processed_file_path, file)
-            self.save_to_db(engine, entries, i)
-            i += 1
-        self.save_to_db(engine, entries, 0)  # save the last chunk (smaller than chunksize)
+        self.subdir = self.jureko_subdir
+        self.spacy_subdir = self.jureko_spacy_subdir
+        self.db = self.db_jureko
+        self.tables_name = "type"
+        self.tables = {'decision', 'statute'}
+        self.entries_template = {'text': [], 'table': [], 'title': [], 'date': [], 'file_number': []}
+        self.glob_str = "tei/*.txt"
 
     def save_to_db(self, engine, entries, i):
         if i % self.chunksize == 0:  # save to db in chunks so we don't overload RAM
             df = pd.DataFrame.from_dict(entries)
-            for type in set(df.type.to_list()):
-                self.types.add(type)  # update types list
-                self.create_type_table(engine, type)
-                type_df = df[df.type.str.contains(type, na=False)]  # select only decisions by table
-                if len(type_df.index) > 0:
-                    type_df.to_sql(type, engine, if_exists="append", index=False)
-            entries = {'text': [], 'table': [], 'title': [], 'date': [], 'file_number': [], }
+            for table in set(df.table.to_list()):
+                self.create_type_table(engine, table)
+                table_df = df[df.table.str.contains(table, na=False)]  # select only decisions by table
+                if len(table_df.index) > 0:
+                    table_df.to_sql(table, engine, if_exists="append", index=False)
+            entries = self.entries_template
 
-    def process_file(self, entries, file, reader):
-        type_key = 'fileDesc::sourceDesc::biblStruct::table'
+    def process_file(self, entries, file):
+        type_key = 'fileDesc::sourceDesc::biblStruct::type'
         title_key = 'fileDesc::titleStmt::title'
         date_key = 'fileDesc::sourceDesc::biblStruct::analytic'
         # the first one of these should be the Aktenzeichen
         file_number_key = 'fileDesc::sourceDesc::biblStruct::analytic::idno'
-        corpora = reader.read_file(file)  # or read_string
+        corpora = TeiReader().read_file(file)  # or read_string
         entries['text'].append(corpora.text)
         entries['table'].append(self.get_attribute(corpora, type_key))
         entries['title'].append(self.get_attribute(corpora, title_key))

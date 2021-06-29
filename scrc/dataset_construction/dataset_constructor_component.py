@@ -48,7 +48,6 @@ class DatasetConstructorComponent:
         self.slc_subdir = self.create_dir(self.corpora_subdir, config['dir']['slc_subdir'])
         self.slc_spacy_subdir = self.create_dir(self.slc_subdir, config['dir']['spacy_subdir'])
         self.jureko_subdir = self.create_dir(self.corpora_subdir, config['dir']['jureko_subdir'])
-        self.tei_subdir = self.create_dir(self.jureko_subdir, config['dir']['tei_subdir'])
         self.jureko_spacy_subdir = self.create_dir(self.jureko_subdir, config['dir']['spacy_subdir'])
         self.wikipedia_subdir = self.create_dir(self.corpora_subdir, config['dir']['wikipedia_subdir'])
         self.wikipedia_spacy_subdir = self.create_dir(self.wikipedia_subdir, config['dir']['spacy_subdir'])
@@ -209,7 +208,7 @@ class DatasetConstructorComponent:
             logger.info("Saving spacy docs to disk")
             for doc, id in docs:
                 path = spacy_dir / (str(id) + ".spacy")
-                doc.to_disk(path, exclude=['tensor']) # this makes the space on the disk much smaller!
+                doc.to_disk(path, exclude=['tensor'])  # this makes the space on the disk much smaller!
                 num_tokens.append(len(doc))
             df['num_tokens'] = num_tokens
             columns = ['num_tokens']
