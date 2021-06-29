@@ -71,12 +71,13 @@ class WikipediaProcessor(DatasetConstructorComponent):
         self.logger.info(message)
 
         entries = {'wiki_id': [], 'title': [], 'url': [], 'text': []}
-        i = 0
-        for file in tqdm(files, total=len(file_names)):
+        i = 1
+        for file in tqdm(files, total=len(files)):
             self.process_file(entries, file)
             self.mark_as_processed(processed_file_path, file)
             self.save_to_db(engine, entries, i)
             i += 1
+        self.save_to_db(engine, entries, 0)  # save the last chunk (smaller than chunksize)
 
     def save_to_db(self, engine, entries, i):
         self.create_table(engine)

@@ -89,6 +89,9 @@ Datasets to be created:
     - Section splitting: 
         - comment: if it can be split with regexes => not interesting
             - if the splitting is non-standard => more interesting, but manual annotation needed!
+            - similar to paper: Structural Text Segmentation of Legal Documents
+            - structure can be taken from html (=> labels) and input can be raw text => easy way to get a lot of ground truth!
+                - for example splitting into coherent paragraphs
         - token classification (text zoning task), text segmentation
         - input (entire text) to label (section tags per token)
         - Why?: 

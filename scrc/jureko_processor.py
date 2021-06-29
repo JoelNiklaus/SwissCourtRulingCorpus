@@ -61,12 +61,13 @@ class JurekoProcessor(DatasetConstructorComponent):
         files, message = self.compute_remaining_parts(processed_file_path, file_names)
         self.logger.info(message)
         entries = {'text': [], 'table': [], 'title': [], 'date': [], 'file_number': [], }
-        i = 0
-        for file in tqdm(files, total=len(file_names)):
+        i = 1
+        for file in tqdm(files, total=len(files)):
             self.process_file(entries, self.jureko_subdir / file, reader)
             self.mark_as_processed(processed_file_path, file)
             self.save_to_db(engine, entries, i)
             i += 1
+        self.save_to_db(engine, entries, 0)  # save the last chunk (smaller than chunksize)
 
     def save_to_db(self, engine, entries, i):
         if i % self.chunksize == 0:  # save to db in chunks so we don't overload RAM
