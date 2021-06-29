@@ -15,6 +15,7 @@ from scrc.dataset_construction.count_computer import CountComputer
 from filprofiler.api import profile
 
 from scrc.jureko_processor import JurekoProcessor
+from scrc.slc_processor import SlcProcessor
 from scrc.utils.decorators import slack_alert
 from scrc.wikipedia_processor import WikipediaProcessor
 
@@ -95,6 +96,9 @@ def process_external_corpora(config):
 
     wikipedia_processor = WikipediaProcessor(config)
     wikipedia_processor.process()
+
+    slc_processor = SlcProcessor(config)
+    slc_processor.process()
 
 
 if __name__ == '__main__':

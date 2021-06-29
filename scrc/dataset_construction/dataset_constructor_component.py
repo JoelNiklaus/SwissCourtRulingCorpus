@@ -45,6 +45,8 @@ class DatasetConstructorComponent:
         self.datasets_subdir = self.create_dir(self.data_dir, config['dir']['datasets_subdir'])
 
         self.corpora_subdir = self.create_dir(self.data_dir, config['dir']['corpora_subdir'])
+        self.slc_subdir = self.create_dir(self.corpora_subdir, config['dir']['slc_subdir'])
+        self.slc_spacy_subdir = self.create_dir(self.slc_subdir, config['dir']['spacy_subdir'])
         self.jureko_subdir = self.create_dir(self.corpora_subdir, config['dir']['jureko_subdir'])
         self.tei_subdir = self.create_dir(self.jureko_subdir, config['dir']['tei_subdir'])
         self.jureko_spacy_subdir = self.create_dir(self.jureko_subdir, config['dir']['spacy_subdir'])
@@ -59,6 +61,7 @@ class DatasetConstructorComponent:
         self.password = config['postgres']['password']
         self.db_scrc = config['postgres']['db_scrc']
         self.db_jureko = config['postgres']['db_jureko']
+        self.db_slc = config['postgres']['db_slc']
         self.db_wikipedia = config['postgres']['db_wikipedia']
 
         self.indexes = json.loads(config['postgres']['indexes'])
