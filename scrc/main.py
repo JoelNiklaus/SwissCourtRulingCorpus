@@ -14,10 +14,10 @@ from scrc.dataset_construction.count_computer import CountComputer
 
 from filprofiler.api import profile
 
-from scrc.jureko_processor import JurekoProcessor
-from scrc.slc_processor import SlcProcessor
+from scrc.external_corpora.jureko_processor import JurekoProcessor
+from scrc.external_corpora.slc_processor import SlcProcessor
+from scrc.external_corpora.wikipedia_processor import WikipediaProcessor
 from scrc.utils.decorators import slack_alert
-from scrc.wikipedia_processor import WikipediaProcessor
 
 """
 This file aggregates all the pipeline components and can be a starting point for running the entire pipeline.
