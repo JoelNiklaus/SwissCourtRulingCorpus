@@ -5,13 +5,11 @@ from pprint import pprint
 import xmltodict
 
 from root import ROOT_DIR
-from scrc.utils.language_identification_singleton import LanguageIdentificationSingleton
 from scrc.utils.log_utils import get_logger
 
 
 class TermDefinitionsExtractor:
     base_dir = ROOT_DIR / 'term_definitions'
-    lang_id = LanguageIdentificationSingleton()
     languages = ['de', 'fr', 'it', 'rm', 'en', 'es']
 
     def __init__(self, ):
@@ -39,7 +37,7 @@ class TermDefinitionsExtractor:
             if int(metadata['ZuverlaessigkeitsCode']) < 3:  # increase to 4 or 5 for better confidence
                 continue  # skip bad reliability ones
             term = OrderedDict({
-                'id': entry['@Id'],
+                'id': int(entry['@Id']),
                 'collection': metadata['Sammlung'],
                 'areas': metadata['Sachgebiete'],
                 'languages': {lang: [] for lang in self.languages}

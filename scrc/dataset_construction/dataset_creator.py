@@ -228,20 +228,19 @@ class DatasetCreator(DatasetConstructorComponent):
         # list with only the most common laws
         most_common_laws = self.get_most_common_citations(df, folder, 'laws')
 
-        laws_from_term_definitions = self.get_laws_from_term_definitions()
+        law_abbr_by_lang = self.get_law_abbr_by_lang()
 
-        # TODO extend laws to other languages as well.
-        #  IMPORTANT: you need to take care of the fact that the laws are named differently in each language but refer to the same law!
+        #  IMPORTANT: we need to take care of the fact that the laws are named differently in each language but refer to the same law!
 
         def replace_citations(series, ref_mask_token="<ref>"):
             # TODO think about splitting laws and rulings into two separate labels
             labels = set()
             for law in series.citations['laws']:
                 citation = law['text']
-                found_string_in_list = string_contains_one_of_list(citation, laws_from_term_definitions['de'])
+                found_string_in_list = string_contains_one_of_list(citation, list(law_abbr_by_lang['de'].keys()))
                 if found_string_in_list:
                     series.text = series.text.replace(citation, ref_mask_token)
-                    labels.add(found_string_in_list)
+                    labels.add(law_abbr_by_lang['de'][found_string_in_list])
             for ruling in series.citations['rulings']:
                 citation = ruling['text']
                 if string_contains_one_of_list(citation, most_common_rulings):
@@ -272,7 +271,7 @@ class DatasetCreator(DatasetConstructorComponent):
             for type_citation in citations[type]:
                 type_citations.append(type_citation['text'])
         most_common_with_frequency = Counter(type_citations).most_common(self.num_ruling_citations)
-        print(most_common_with_frequency)
+        # print(most_common_with_frequency)
 
         # Plot the 10 most common citations
         # remove BGG articles because they are obvious
@@ -284,17 +283,18 @@ class DatasetCreator(DatasetConstructorComponent):
 
         return list(dict(most_common_with_frequency).keys())
 
-    def get_laws_from_term_definitions(self):
-        term_definitions_extractor = TermDefinitionsExtractor()
-        term_definitions = term_definitions_extractor.extract_term_definitions()
-        laws_from_term_definitions = {lang: [] for lang in self.languages}
-        for lang in self.languages:
-            for definition in term_definitions[lang]:
-                for synonyms in definition:
-                    if synonyms['type'] == 'ab':  # ab stands for abbreviation
-                        # append the string of the abbreviation
-                        laws_from_term_definitions[lang].append(synonyms['text'])
-        return laws_from_term_definitions
+    def get_law_abbr_by_lang(self):
+        term_definitions = TermDefinitionsExtractor().extract_term_definitions()
+        law_abbr_by_lang = {lang: dict() for lang in self.languages}
+
+        for definition in term_definitions:
+            for lang in definition['languages']:
+                if lang in self.languages:
+                    for entry in definition['languages'][lang]:
+                        if entry['type'] == 'ab':  # ab stands for abbreviation
+                            # append the string of the abbreviation as key and the id as value
+                            law_abbr_by_lang[lang][entry['text']] = definition['id']
+        return law_abbr_by_lang
 
     def chamber_prediction(self, engine):
         # TODO process in batches because otherwise too large
