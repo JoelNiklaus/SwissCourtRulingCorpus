@@ -64,18 +64,32 @@ class SectionSplitter(DatasetConstructorComponent):
         self.logger.info(f"Started section-splitting {spider}")
 
         for lang in self.languages:
-            dfs = self.select(engine, lang, where=f"spider='{spider}'")  # stream dfs from the db
+            count = pd.read_sql(f"SELECT count(*) FROM {lang} WHERE spider='{spider}'", engine.connect())['count'][0]
+            current = 0
+            dfs = self.select(engine, lang, where=f"spider='{spider}'", chunksize=1000)  # stream dfs from the db
             for df in dfs:
                 df = df.apply(self.section_split_df_row, axis='columns')
                 self.logger.info("Saving split sections to db")
                 self.update(engine, df, lang, sections + ['paragraphs'])
+                current = current + 1000
+                self.logger.info(f"{current} / {count}")
+            successful_attempts = pd.read_sql(f"SELECT count(footer) FROM {lang} WHERE spider='{spider}'", engine.connect())['count'][0]
+            self.logger.info(f"Finished section-splitting {spider} in {lang} with {successful_attempts} / {count} ({successful_attempts/count:.2%}) working")
 
-        self.logger.info(f"Finished section-splitting {spider}")
+            def readColumn(name):
+                return pd.read_sql(f"SELECT count({name}) FROM {lang} WHERE spider={chr(39)+'CH_BGer'+chr(39)} AND {name} <> {chr(39)+chr(39)}", engine.connect())['count'][0]
+            self.logger.info(f"header: {readColumn('header')}")
+            self.logger.info(f"facts: {readColumn('facts')}")
+            self.logger.info(f"considerations: {readColumn('considerations')}")
+            self.logger.info(f"rulings: {readColumn('rulings')}")
+            self.logger.info(f"footer: {readColumn('footer')}")
+
+        
 
     def section_split_df_row(self, series):
         """Cleans one row of a raw df"""
         self.logger.debug(f"Section-splitting court decision {series['file_name']}")
-        namespace = series[['date', 'language', 'html_url']].to_dict()
+        namespace = series[['date', 'language', 'html_url', 'id']].to_dict()
         spider = series['spider']
 
         html_raw = series['html_raw']
