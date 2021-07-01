@@ -163,8 +163,8 @@ class DatasetCreator(DatasetConstructorComponent):
     def considerations_judgement_prediction(self, engine):
         return self.judgement_prediction(engine, 'considerations')
 
-    def judgement_prediction(self, engine, input, with_write_off=False, with_inadmissible=False, with_partials=False,
-                             make_single_label=True):
+    def judgement_prediction(self, engine, input, with_write_off=False, with_unification=False, with_inadmissible=False,
+                             with_partials=False, make_single_label=True):
         df = self.get_df(engine, input, 'judgements')
 
         # Delete cases with "Nach Einsicht" from the dataset because they are mostly inadmissible or otherwise dismissal
@@ -185,9 +185,15 @@ class DatasetCreator(DatasetConstructorComponent):
                 if 'write_off' in judgements:
                     out.remove('write_off')
 
+            if not with_unification:
+                # remove unification because reason for it happens mostly behind the scenes and not written in the facts
+                if 'unification' in judgements:
+                    out.remove('unification')
+
             if not with_inadmissible:
                 # remove inadmissible because it is a formal reason and not that interesting semantically.
                 # Facts are formulated/summarized in a way to justify the decision of inadmissibility
+                # hard to know solely because of the facts (formal reasons, not visible from the facts)
                 if 'inadmissible' in judgements:
                     out.remove('inadmissible')
 

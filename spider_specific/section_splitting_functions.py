@@ -55,14 +55,13 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, s
         }
     }
 
-
     if namespace['language'] not in all_section_markers:
-        raise ValueError(
-            "This function is only implemented for the German, French and Italian language so far.")
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
 
     section_markers = all_section_markers[namespace['language']]
 
-    #combine multiple regex into one for each section due to performance reasons
+    # combine multiple regex into one for each section due to performance reasons
     section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
 
     # normalize strings to avoid problems with umlauts

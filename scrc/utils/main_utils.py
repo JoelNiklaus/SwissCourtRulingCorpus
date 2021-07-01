@@ -94,17 +94,24 @@ def get_file_gen(path):
     return None
 
 
-def string_contains_one_of_list(string, lst):
-    """If the string contains an item in the list,
+def string_contains_one_of_list(string: str, lst: list):
+    """
+    If the string contains an item in the list,
      we return that item (which can also be used as a truth value in if conditions)
-     and otherwise we return False"""
+     and otherwise we return False
+     """
     for item in lst:
         if item in string:
             return item
     return False
 
 
-def int_to_roman(num):
+def int_to_roman(num: int) -> str:
+    """
+    Converts an integer to a roman numeral string
+    :param num: the input number
+    :return:    the output roman numeral string
+    """
     roman = OrderedDict()
     roman[1000] = "M"
     roman[900] = "CM"
