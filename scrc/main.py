@@ -91,9 +91,9 @@ def process_external_corpora(config):
     :param config:
     :return:
     """
-
     wikipedia_processor = WikipediaProcessor(config)
     wikipedia_processor.process()
+
     jureko_processor = JurekoProcessor(config)
     jureko_processor.process()
 

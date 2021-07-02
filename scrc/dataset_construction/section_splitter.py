@@ -64,23 +64,24 @@ class SectionSplitter(DatasetConstructorComponent):
         self.logger.info(f"Started section-splitting {spider}")
 
         for lang in self.languages:
-            count = pd.read_sql(f"SELECT count(*) FROM {lang} WHERE spider='{spider}'", engine.connect())['count'][0]
-            current = 0
-            dfs = self.select(engine, lang, where=f"spider='{spider}'", chunksize=1000)  # stream dfs from the db
+            where = f"WHERE spider='{spider}'"
+            count = pd.read_sql(f"SELECT count(*) FROM {lang} {where}", engine.connect())['count'][0]
+            dfs = self.select(engine, lang, where=f"spider='{spider}'")  # stream dfs from the db
             for df in dfs:
                 df = df.apply(self.section_split_df_row, axis='columns')
                 self.logger.info("Saving split sections to db")
                 self.update(engine, df, lang, sections + ['paragraphs'])
-                current += 1000
-                self.logger.info(f"{current} / {count}")
-            query = f"SELECT count(footer) FROM {lang} WHERE spider='{spider}'"
+
+            query = f"SELECT count(footer) FROM {lang} {where}"
             successful_attempts = pd.read_sql(query, engine.connect())['count'][0]
             self.logger.info(f"Finished section-splitting {spider} in {lang} with "
                              f"{successful_attempts} / {count} ({successful_attempts / count:.2%}) working")
 
+            self.logger.info(f"Finished section-splitting {spider}")
+
             def readColumn(name):
                 qte = chr(39)  # single quote
-                query = f"SELECT count({name}) FROM {lang} WHERE spider={qte + 'CH_BGer' + qte} AND {name} <> {qte + qte}"
+                query = f"SELECT count({name}) FROM {lang} {where} AND {name} <> {qte + qte}"
                 return pd.read_sql(query, engine.connect())['count'][0]
 
             self.logger.info(f"header:\t{readColumn('header')}")
