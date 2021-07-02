@@ -84,17 +84,23 @@ judgement_markers = {
         'unification': [],
     },
     'it': {
-        'approval': ['accolto', 'accolti', 'accolta', 'è annullato'],
+        'approval': ['accolt',  # accolt o/i/a/e
+                     'annullat'],  # annullat o/i/a/e
         'partial_approval': ['Nella misura in cui è ammissibile, il ricorso è parzialmente accolto',
                              'In parziale accoglimento del ricorso'],
-        'dismissal': ['respinto', 'respinti', 'respinta'],
+        'dismissal': ['respint',  # respint o/i/a/e
+                      'irricevibil',  # irricevibil o/i/a/e
+                      ],
         'partial_dismissal': ['Nella misura in cui è ammissibile, il ricorso è respinto',
                               'Nella misura in cui è ammissibile, il ricorso di diritto pubblico è respinto',
                               'Nella misura in cui è ammissibile, la domanda di revisione è respinta'],
-        'inadmissible': ['inammissibile', 'inammissibili', 'inammissibila'],
-        'write_off': ['Il ricorso è divenuto privo d\'oggetto', 'Il ricorso è diventato privo d\'oggetto',
-                      'in quanto divenuta priva d\'oggetto',
-                      'La causa è stralciata dai ruoli a seguito del ritiro del ricorso'],
+        'inadmissible': ['inammissibil'],  # inamissibil o/i/a/e
+        'write_off': ['privo d\'oggetto', 'priva d\'oggetto', 'privo di oggetto', 'priva di oggetto',
+                      'è stralciata dai ruoli a seguito del ritiro del ricorso',
+                      'è stralciata dai ruoli in seguito al ritiro del ricorso',
+                      'stralciata dai ruoli',  # maybe too many mistakes
+                      'radiata dai ruoli',  # maybe too many mistakes
+                      ],
         'unification': ['sono congiunte'],
     }
 }
