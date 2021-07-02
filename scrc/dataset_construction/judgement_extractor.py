@@ -57,7 +57,7 @@ class JudgementExtractor(DatasetConstructorComponent):
                 self.logger.info("Saving extracted judgements to db")
                 self.update(engine, df, lang, [self.col_name])
 
-            query = f"SELECT count({self.col_name}) FROM {lang} WHERE {where} AND {self.col_name} <> ''"
+            query = f"SELECT count({self.col_name}) FROM {lang} WHERE {where} AND {self.col_name} <> 'null'"
             successful_attempts = pd.read_sql(query, engine.connect())['count'][0]
             self.logger.info(f"Finished judgement-extracting  {spider} in {lang} with "
                              f"{successful_attempts} / {count} ({successful_attempts / count:.2%}) working")

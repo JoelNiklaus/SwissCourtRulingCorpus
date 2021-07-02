@@ -80,8 +80,7 @@ class SectionSplitter(DatasetConstructorComponent):
             self.logger.info(f"Finished section-splitting {spider}")
 
             def readColumn(name):
-                qte = chr(39)  # single quote
-                query = f"SELECT count({name}) FROM {lang} WHERE {where} AND {name} <> {qte + qte}"
+                query = f"SELECT count({name}) FROM {lang} WHERE {where} AND {name} <> ''"
                 return pd.read_sql(query, engine.connect())['count'][0]
 
             self.logger.info(f"header:\t{readColumn('header')}")
