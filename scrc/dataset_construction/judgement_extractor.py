@@ -4,6 +4,7 @@ from typing import Optional
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
+import pandas as pd
 
 
 class JudgementExtractor(DatasetConstructorComponent):
@@ -48,11 +49,18 @@ class JudgementExtractor(DatasetConstructorComponent):
         self.logger.info(f"Started judgement-extracting {spider}")
 
         for lang in self.languages:
-            dfs = self.select(engine, lang, where=f"spider='{spider}'")  # stream dfs from the db
+            where = f"spider='{spider}' AND rulings IS NOT NULL AND rulings <> ''"
+            count = pd.read_sql(f"SELECT count(*) FROM {lang} WHERE {where}", engine.connect())['count'][0]
+            dfs = self.select(engine, lang, where=where)  # stream dfs from the db
             for df in dfs:
                 df = df.apply(self.judgement_extract_df_row, axis='columns')
                 self.logger.info("Saving extracted judgements to db")
                 self.update(engine, df, lang, [self.col_name])
+
+            query = f"SELECT count({self.col_name}) FROM {lang} WHERE {where} AND {self.col_name} <> ''"
+            successful_attempts = pd.read_sql(query, engine.connect())['count'][0]
+            self.logger.info(f"Finished judgement-extracting  {spider} in {lang} with "
+                             f"{successful_attempts} / {count} ({successful_attempts / count:.2%}) working")
 
         self.logger.info(f"Finished judgement-extracting {spider}")
 

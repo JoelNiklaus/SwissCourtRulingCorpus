@@ -89,12 +89,13 @@ judgement_markers = {
         'partial_approval': ['Nella misura in cui è ammissibile, il ricorso è parzialmente accolto',
                              'In parziale accoglimento del ricorso'],
         'dismissal': ['respint',  # respint o/i/a/e
-                      'irricevibil',  # irricevibil o/i/a/e
                       ],
         'partial_dismissal': ['Nella misura in cui è ammissibile, il ricorso è respinto',
                               'Nella misura in cui è ammissibile, il ricorso di diritto pubblico è respinto',
                               'Nella misura in cui è ammissibile, la domanda di revisione è respinta'],
-        'inadmissible': ['inammissibil'],  # inamissibil o/i/a/e
+        'inadmissible': ['inammissibil',  # inamissibil o/i/a/e
+                         'irricevibil',  # irricevibil o/i/a/e
+                         ],
         'write_off': ['privo d\'oggetto', 'priva d\'oggetto', 'privo di oggetto', 'priva di oggetto',
                       'è stralciata dai ruoli a seguito del ritiro del ricorso',
                       'è stralciata dai ruoli in seguito al ritiro del ricorso',
