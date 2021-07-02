@@ -66,8 +66,7 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, s
 
     # normalize strings to avoid problems with umlauts
     for key, value in section_markers.items():
-        section_markers[key] = unicodedata.normalize(
-            'NFC', value)
+        section_markers[key] = unicodedata.normalize('NFC', value)
 
     def get_paragraphs(soup):
         """
@@ -107,15 +106,13 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, s
         current_section = "header"
         for paragraph in paragraphs:
             # update the current section if it changed
-            current_section = update_section(
-                current_section, paragraph, section_markers)
+            current_section = update_section(current_section, paragraph, section_markers)
 
             # construct the list of sections with associated text
             section_data[current_section] += paragraph + " "
 
             # construct the list of annotated paragraphs (can be used for prodigy annotation
-            paragraph_data.append(
-                {"text": paragraph, "section": current_section})
+            paragraph_data.append({"text": paragraph, "section": current_section})
 
         if current_section != 'footer':
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \

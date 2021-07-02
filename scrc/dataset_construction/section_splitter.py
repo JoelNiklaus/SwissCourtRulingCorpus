@@ -71,20 +71,23 @@ class SectionSplitter(DatasetConstructorComponent):
                 df = df.apply(self.section_split_df_row, axis='columns')
                 self.logger.info("Saving split sections to db")
                 self.update(engine, df, lang, sections + ['paragraphs'])
-                current = current + 1000
+                current += 1000
                 self.logger.info(f"{current} / {count}")
-            successful_attempts = pd.read_sql(f"SELECT count(footer) FROM {lang} WHERE spider='{spider}'", engine.connect())['count'][0]
-            self.logger.info(f"Finished section-splitting {spider} in {lang} with {successful_attempts} / {count} ({successful_attempts/count:.2%}) working")
+            query = f"SELECT count(footer) FROM {lang} WHERE spider='{spider}'"
+            successful_attempts = pd.read_sql(query, engine.connect())['count'][0]
+            self.logger.info(f"Finished section-splitting {spider} in {lang} with "
+                             f"{successful_attempts} / {count} ({successful_attempts / count:.2%}) working")
 
             def readColumn(name):
-                return pd.read_sql(f"SELECT count({name}) FROM {lang} WHERE spider={chr(39)+'CH_BGer'+chr(39)} AND {name} <> {chr(39)+chr(39)}", engine.connect())['count'][0]
-            self.logger.info(f"header: {readColumn('header')}")
-            self.logger.info(f"facts: {readColumn('facts')}")
-            self.logger.info(f"considerations: {readColumn('considerations')}")
-            self.logger.info(f"rulings: {readColumn('rulings')}")
-            self.logger.info(f"footer: {readColumn('footer')}")
+                qte = chr(39)  # single quote
+                query = f"SELECT count({name}) FROM {lang} WHERE spider={qte + 'CH_BGer' + qte} AND {name} <> {qte + qte}"
+                return pd.read_sql(query, engine.connect())['count'][0]
 
-        
+            self.logger.info(f"header:\t{readColumn('header')}")
+            self.logger.info(f"facts:\t{readColumn('facts')}")
+            self.logger.info(f"considerations:\t{readColumn('considerations')}")
+            self.logger.info(f"rulings:\t{readColumn('rulings')}")
+            self.logger.info(f"footer:\t{readColumn('footer')}")
 
     def section_split_df_row(self, series):
         """Cleans one row of a raw df"""
