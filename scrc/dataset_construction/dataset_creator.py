@@ -123,7 +123,8 @@ class DatasetCreator(DatasetConstructorComponent):
         self.logger = get_logger(__name__)
 
         self.seed = 42
-        self.debug = True
+        self.debug = False
+        self.debug_chunksize = 2e2
         self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
 
     def create_datasets(self):
@@ -148,24 +149,26 @@ class DatasetCreator(DatasetConstructorComponent):
         """
         self.logger.info(f"Creating {dataset} dataset")
 
-        create_df = getattr(self, dataset)  # get the function called by the dataset name
-
-        folder = self.create_dir(self.datasets_subdir, dataset)
         split_type = "date-stratified"
         if dataset == "date_prediction":
             split_type = "random"  # if we determined the splits by date the labelset would be very small
-        df, labels = create_df(engine)
-        self.save_dataset(df, labels, folder, split_type)
 
-    def facts_judgement_prediction(self, engine):
-        return self.judgement_prediction(engine, 'facts')
+        dataset_folder = self.create_dir(self.datasets_subdir, dataset)
+        for lang in self.languages:
+            df, labels = getattr(self, dataset)(engine, lang)  # get and call the function called by the dataset name
+            lang_folder = self.create_dir(dataset_folder, lang)
+            self.save_dataset(df, labels, lang_folder, split_type)
 
-    def considerations_judgement_prediction(self, engine):
-        return self.judgement_prediction(engine, 'considerations')
+    def facts_judgement_prediction(self, engine, lang):
+        return self.judgement_prediction(engine, 'facts', lang)
 
-    def judgement_prediction(self, engine, input, with_write_off=False, with_unification=False, with_inadmissible=False,
+    def considerations_judgement_prediction(self, engine, lang):
+        return self.judgement_prediction(engine, 'considerations', lang)
+
+    def judgement_prediction(self, engine, input, lang, with_write_off=False, with_unification=False,
+                             with_inadmissible=False,
                              with_partials=False, make_single_label=True):
-        df = self.get_df(engine, input, 'judgements')
+        df = self.get_df(engine, input, 'judgements', lang)
 
         # Delete cases with "Nach Einsicht" from the dataset because they are mostly inadmissible or otherwise dismissal
         # => too easily learnable for the model (because of spurious correlation)
@@ -222,8 +225,8 @@ class DatasetCreator(DatasetConstructorComponent):
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
 
-    def citation_prediction(self, engine):
-        df = self.get_df(engine, 'text', 'citations')
+    def citation_prediction(self, engine, lang):
+        df = self.get_df(engine, 'text', 'citations', lang)
 
         this_function_name = inspect.currentframe().f_code.co_name
         folder = self.create_dir(self.datasets_subdir, this_function_name)
@@ -302,30 +305,27 @@ class DatasetCreator(DatasetConstructorComponent):
                             law_abbr_by_lang[lang][entry['text']] = definition['id']
         return law_abbr_by_lang
 
-    def chamber_prediction(self, engine):
+    def chamber_prediction(self, engine, lang):
         # TODO process in batches because otherwise too large
-        df = self.get_df(engine, 'facts', 'chamber')
+        df = self.get_df(engine, 'facts', 'chamber', lang)
         df = df.rename(columns={"facts": "text", "chamber": "label"})  # normalize column names
         labels = list(df.label.unique())
         return df, labels
 
-    def date_prediction(self, engine):
+    def date_prediction(self, engine, lang):
         # TODO process in batches because otherwise too large
-        df = self.get_df(engine, 'facts', 'date')
+        df = self.get_df(engine, 'facts', 'date', lang)
         df = df.rename(columns={"facts": "text", "date": "label"})  # normalize column names
         labels = list(df.label.unique())
         return df, labels
 
-    def section_splitting(self, engine):
-        pass
-
-    def get_df(self, engine, feature_col, label_col, lang='de'):
+    def get_df(self, engine, feature_col, label_col, lang):
         self.logger.info("Started loading the data from the database")
         columns = f"extract(year from date) as year, {feature_col}, {label_col}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
         if self.debug:
-            chunksize = 2e2  # run on smaller dataset for testing
+            chunksize = self.debug_chunksize  # run on smaller dataset for testing
         else:
             chunksize = 2e5
         df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by, chunksize=int(chunksize)))
