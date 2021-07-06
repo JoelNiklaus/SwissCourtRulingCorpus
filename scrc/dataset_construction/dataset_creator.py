@@ -422,12 +422,23 @@ class DatasetCreator(DatasetConstructorComponent):
         input_length_distribution = df[['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
         input_length_distribution.to_csv(folder / 'input_length_distribution.csv', index_label='measure')
 
+        # bin outliers together at the cutoff point
+        cutoff = 3500
+        df[df.num_tokens_spacy > cutoff] = cutoff
+        df[df.num_tokens_bert > cutoff] = cutoff
+
         hist_df = pd.concat([df.num_tokens_spacy, df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
         hist_df = hist_df.reset_index(level=0)
         hist_df = hist_df.rename(columns={'level_0': 'kind', 0: 'number of tokens'})
 
         plot = sns.displot(hist_df, x="number of tokens", hue="kind", bins=50, kde=True, fill=True)
-        plot.savefig(folder / 'input_length_distribution.png', bbox_inches="tight")
+        plot.savefig(folder / 'input_length_distribution-histogram.png', bbox_inches="tight")
+
+        plot = sns.displot(hist_df, x="number of tokens", hue="kind", kind="ecdf")
+        plot.savefig(folder / 'input_length_distribution-cumulative.png', bbox_inches="tight")
+
+        plot = sns.displot(df, x="num_tokens_spacy", y="num_tokens_bert", cbar=True)
+        plot.savefig(folder / 'input_length_distribution-bivariate.png', bbox_inches="tight")
 
     def save_kaggle_dataset(self, folder, train, val, test):
         """
