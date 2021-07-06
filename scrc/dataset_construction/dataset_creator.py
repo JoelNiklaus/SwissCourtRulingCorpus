@@ -3,6 +3,8 @@ import inspect
 from collections import Counter
 from pathlib import Path
 
+import seaborn as sns
+
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
@@ -155,6 +157,7 @@ class DatasetCreator(DatasetConstructorComponent):
 
         dataset_folder = self.create_dir(self.datasets_subdir, dataset)
         for lang in self.languages:
+            self.logger.info(f"Processing language {lang}")
             df, labels = getattr(self, dataset)(engine, lang)  # get and call the function called by the dataset name
             lang_folder = self.create_dir(dataset_folder, lang)
             self.save_dataset(df, labels, lang_folder, split_type)
@@ -418,6 +421,13 @@ class DatasetCreator(DatasetConstructorComponent):
         # compute median input length
         input_length_distribution = df[['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
         input_length_distribution.to_csv(folder / 'input_length_distribution.csv', index_label='measure')
+
+        hist_df = pd.concat([df.num_tokens_spacy, df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
+        hist_df = hist_df.reset_index(level=0)
+        hist_df = hist_df.rename(columns={'level_0': 'kind', 0: 'number of tokens'})
+
+        plot = sns.displot(hist_df, x="number of tokens", hue="kind", bins=50, kde=True, fill=True)
+        plot.savefig(folder / 'input_length_distribution.png', bbox_inches="tight")
 
     def save_kaggle_dataset(self, folder, train, val, test):
         """

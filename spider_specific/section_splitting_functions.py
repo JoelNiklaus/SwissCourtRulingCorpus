@@ -67,6 +67,7 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, s
     # normalize strings to avoid problems with umlauts
     for key, value in section_markers.items():
         section_markers[key] = unicodedata.normalize('NFC', value)
+        # section_markers[key] = clean_text(value) # maybe this would solve some problems because of more cleaning
 
     def get_paragraphs(soup):
         """
