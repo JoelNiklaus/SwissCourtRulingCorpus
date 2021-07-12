@@ -48,13 +48,15 @@ class LowerCourtExtractor(DatasetConstructorComponent):
         self.logger.info(f"Started lower-court-extracting {spider}")
 
         for lang in self.languages:
+            if lang != 'fr':
+                continue
             where = f"spider='{spider}' AND header IS NOT NULL AND header <> ''"
             #count = pd.read_sql(f"SELECT count(*) FROM {lang} WHERE {where}", engine.connect())['count'][0]
             dfs = self.select(engine, lang, where=where)  # stream dfs from the db
             for df in dfs:
                 df = df.apply(self.lower_court_extract_df_row, axis='columns')
                 self.logger.info("Saving extracted lower courts to db")
-                #self.update(engine, df, lang, [self.col_name])
+                self.update(engine, df, lang, [self.col_name])
 
             query = f"SELECT count({self.col_name}) FROM {lang} WHERE {where} AND {self.col_name} <> 'null'"
             successful_attempts = pd.read_sql(query, engine.connect())['count'][0]
