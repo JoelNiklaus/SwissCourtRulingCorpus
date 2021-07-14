@@ -379,10 +379,14 @@ class DatasetCreator(DatasetConstructorComponent):
             train, val, test = self.split_random(df, split)
         elif split_type == "date-stratified":
             train, val, test = self.split_date_stratified(df, split)
+            df = pd.concat([train, val, test])  # we need to update it since some entries have been removed
         else:
             raise ValueError("Please supply a valid split_type")
 
-        self.save_report(df, folder)
+        self.save_report(train, folder, 'train')
+        self.save_report(val, folder, 'val')
+        self.save_report(test, folder, 'test')
+        self.save_report(df, folder, 'all')
 
         # save regular dataset
         self.logger.info("Saving the regular dataset")
@@ -397,7 +401,7 @@ class DatasetCreator(DatasetConstructorComponent):
 
         self.logger.info(f"Saved dataset files to {folder}")
 
-    def save_report(self, df, folder):
+    def save_report(self, df, folder, split):
         """
         Saves statistics about the dataset in the form of csv tables and png graphs.
         :param df:      the df containing the dataset
@@ -406,21 +410,22 @@ class DatasetCreator(DatasetConstructorComponent):
         """
         self.logger.info("Computing metadata reports on the input lengths and the labels")
 
+        split_folder = self.create_dir(folder, f'reports/{split}')
         # compute label imbalance
         ax = df.label.astype(str).hist()
         ax.tick_params(labelrotation=90)
-        ax.get_figure().savefig(folder / 'multi_label_distribution.png', bbox_inches="tight")
+        ax.get_figure().savefig(split_folder / 'multi_label_distribution.png', bbox_inches="tight")
 
         counter_dict = dict(Counter(np.hstack(df.label)))
         label_counts = pd.DataFrame.from_dict(counter_dict, orient='index', columns=['num_occurrences'])
-        label_counts.to_csv(folder / 'single_label_distribution.csv', index_label='label')
+        label_counts.to_csv(split_folder / 'single_label_distribution.csv', index_label='label')
 
         ax = label_counts.plot.bar(y='num_occurrences', rot=15)
-        ax.get_figure().savefig(folder / 'single_label_distribution.png', bbox_inches="tight")
+        ax.get_figure().savefig(split_folder / 'single_label_distribution.png', bbox_inches="tight")
 
         # compute median input length
         input_length_distribution = df[['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
-        input_length_distribution.to_csv(folder / 'input_length_distribution.csv', index_label='measure')
+        input_length_distribution.to_csv(split_folder / 'input_length_distribution.csv', index_label='measure')
 
         # bin outliers together at the cutoff point
         cutoff = 3500
@@ -432,13 +437,13 @@ class DatasetCreator(DatasetConstructorComponent):
         hist_df = hist_df.rename(columns={'level_0': 'kind', 0: 'number of tokens'})
 
         plot = sns.displot(hist_df, x="number of tokens", hue="kind", bins=50, kde=True, fill=True)
-        plot.savefig(folder / 'input_length_distribution-histogram.png', bbox_inches="tight")
+        plot.savefig(split_folder / 'input_length_distribution-histogram.png', bbox_inches="tight")
 
         plot = sns.displot(hist_df, x="number of tokens", hue="kind", kind="ecdf")
-        plot.savefig(folder / 'input_length_distribution-cumulative.png', bbox_inches="tight")
+        plot.savefig(split_folder / 'input_length_distribution-cumulative.png', bbox_inches="tight")
 
         plot = sns.displot(df, x="num_tokens_spacy", y="num_tokens_bert", cbar=True)
-        plot.savefig(folder / 'input_length_distribution-bivariate.png', bbox_inches="tight")
+        plot.savefig(split_folder / 'input_length_distribution-bivariate.png', bbox_inches="tight")
 
     def save_kaggle_dataset(self, folder, train, val, test):
         """
