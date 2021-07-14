@@ -19,7 +19,7 @@ from spacy.lang.de import German
 from spacy.lang.fr import French
 from spacy.lang.it import Italian
 
-from scrc.utils.main_utils import string_contains_one_of_list
+from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area
 from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
 
 """
@@ -283,7 +283,6 @@ class DatasetCreator(DatasetConstructorComponent):
             for type_citation in citations[type]:
                 type_citations.append(type_citation['text'])
         most_common_with_frequency = Counter(type_citations).most_common(self.num_ruling_citations)
-        # print(most_common_with_frequency)
 
         # Plot the 10 most common citations
         # remove BGG articles because they are obvious
@@ -324,7 +323,7 @@ class DatasetCreator(DatasetConstructorComponent):
 
     def get_df(self, engine, feature_col, label_col, lang):
         self.logger.info("Started loading the data from the database")
-        columns = f"extract(year from date) as year, {feature_col}, {label_col}"
+        columns = f"extract(year from date) as year, chamber, {feature_col}, {label_col}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
         if self.debug:
@@ -408,21 +407,44 @@ class DatasetCreator(DatasetConstructorComponent):
         :param folder:  the base folder to save the report to
         :return:
         """
-        self.logger.info("Computing metadata reports on the input lengths and the labels")
+        self.logger.info(f"Computing metadata reports on the chambers, the input lengths and the labels for split {split}")
 
         split_folder = self.create_dir(folder, f'reports/{split}')
+
+        self.plot_legal_areas(df, split_folder)
+        self.plot_input_length(df, split_folder)
+        self.plot_labels(df, split_folder)
+
+    def plot_legal_areas(self, df, split_folder):
+        df['legal_area'] = df.chamber.apply(get_legal_area)
+        legal_area_df = df.legal_area.value_counts().to_frame()
+        total = len(df.index)
+        legal_area_df.at['all', 'legal_area'] = total
+        legal_area_df = legal_area_df.reset_index(level=0)
+        legal_area_df = legal_area_df.rename(columns={'index': 'legal area', 'legal_area': 'number of decisions'})
+        legal_area_df['percent'] = round(legal_area_df['number of decisions'] / total, 4)
+
+        plot = sns.barplot(x="legal area", y="number of decisions", data=legal_area_df)
+        plot.get_figure().savefig(split_folder / 'legal_area_distribution-histogram.png', bbox_inches="tight")
+
+        legal_area_df.to_csv(split_folder / 'legal_area_distribution.csv')
+
+    def plot_labels(self, df, split_folder):
         # compute label imbalance
         ax = df.label.astype(str).hist()
         ax.tick_params(labelrotation=90)
         ax.get_figure().savefig(split_folder / 'multi_label_distribution.png', bbox_inches="tight")
 
         counter_dict = dict(Counter(np.hstack(df.label)))
+        counter_dict['all'] = sum(counter_dict.values())
         label_counts = pd.DataFrame.from_dict(counter_dict, orient='index', columns=['num_occurrences'])
+        label_counts['percent'] = round(label_counts['num_occurrences'] / counter_dict['all'], 4)
         label_counts.to_csv(split_folder / 'single_label_distribution.csv', index_label='label')
 
-        ax = label_counts.plot.bar(y='num_occurrences', rot=15)
+        ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
         ax.get_figure().savefig(split_folder / 'single_label_distribution.png', bbox_inches="tight")
 
+    def plot_input_length(self, df, split_folder):
         # compute median input length
         input_length_distribution = df[['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
         input_length_distribution.to_csv(split_folder / 'input_length_distribution.csv', index_label='measure')
@@ -431,7 +453,6 @@ class DatasetCreator(DatasetConstructorComponent):
         cutoff = 3500
         df[df.num_tokens_spacy > cutoff] = cutoff
         df[df.num_tokens_bert > cutoff] = cutoff
-
         hist_df = pd.concat([df.num_tokens_spacy, df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
         hist_df = hist_df.reset_index(level=0)
         hist_df = hist_df.rename(columns={'level_0': 'kind', 0: 'number of tokens'})
