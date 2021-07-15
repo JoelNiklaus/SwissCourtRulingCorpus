@@ -19,8 +19,10 @@ from spacy.lang.de import German
 from spacy.lang.fr import French
 from spacy.lang.it import Italian
 
-from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area
+from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area, legal_areas
 from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
+
+pd.options.mode.chained_assignment = None  # default='warn'
 
 """
 Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 day per court)
@@ -132,7 +134,7 @@ class DatasetCreator(DatasetConstructorComponent):
     def create_datasets(self):
         engine = self.get_engine(self.db_scrc)
 
-        datasets = ['facts_judgement_prediction', 'considerations_judgement_prediction', 'citation_prediction']
+        datasets = ['facts_judgement_prediction']  # , 'considerations_judgement_prediction', 'citation_prediction']
         processed_file_path = self.data_dir / f"datasets_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, datasets)
         self.logger.info(message)
@@ -337,6 +339,7 @@ class DatasetCreator(DatasetConstructorComponent):
         spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
         df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
         df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
+        df['legal_area'] = df.chamber.apply(get_legal_area)
         self.logger.info("Finished loading the data from the database")
         return df
 
@@ -373,50 +376,107 @@ class DatasetCreator(DatasetConstructorComponent):
         :param kaggle:      whether or not to create the special kaggle dataset
         :return:
         """
+        splits = self.create_splits(df, split, split_type)
+        special_splits = self.create_special_splits(split_type, splits)
+
+        self.logger.info(f"Computing metadata reports")
+        for name, df in splits.items():
+            self.save_report(folder, name, df)
+
+        # save regular dataset
+        self.logger.info("Saving the regular dataset")
+        regular_dir = self.create_dir(folder, 'regular')
+        self.save_labels(labels, regular_dir / 'labels.json')
+        for name, df in {**splits, **special_splits}.items():
+            df.to_csv(regular_dir / f'{name}.csv', index_label='id')
+
+        if kaggle:
+            self.logger.info("Saving the data in kaggle format")
+            # create solution file
+            splits['solution'] = splits['test'].drop('text', axis='columns')  # drop text
+            # rename according to kaggle conventions
+            splits['solution'] = splits['solution'].rename(columns={"label": "Expected"})
+            # create test file
+            splits['test'] = splits['test'].drop('label', axis='columns')  # drop label
+            # create sampleSubmission file
+            # rename according to kaggle conventions
+            sample_submission = splits['solution'].rename(columns={"Expected": "Predicted"})
+            # set to random value
+            sample_submission['Predicted'] = np.random.choice(splits['solution'].Expected, size=len(splits['solution']))
+            splits['sample_submission'] = sample_submission
+
+            # save special kaggle files
+            kaggle_dir = self.create_dir(folder, 'kaggle')
+            for name, df in splits.items():
+                df.to_csv(kaggle_dir / f'{name}.csv', index_label='id')
+
+        self.logger.info(f"Saved dataset files to {folder}")
+
+    def create_splits(self, df, split, split_type):
         self.logger.info("Splitting data into train, val and test set")
         if split_type == "random":
             train, val, test = self.split_random(df, split)
         elif split_type == "date-stratified":
             train, val, test = self.split_date_stratified(df, split)
-            df = pd.concat([train, val, test])  # we need to update it since some entries have been removed
         else:
             raise ValueError("Please supply a valid split_type")
+        all = pd.concat([train, val, test])  # we need to update it since some entries have been removed
+        return {'train': train, 'val': val, 'test': test, 'all': all}
 
-        self.save_report(train, folder, 'train')
-        self.save_report(val, folder, 'val')
-        self.save_report(test, folder, 'test')
-        self.save_report(df, folder, 'all')
-
-        # save regular dataset
-        self.logger.info("Saving the regular dataset")
-        regular_dir = self.create_dir(folder, 'regular')
-        train.to_csv(regular_dir / 'train.csv', index_label='id')
-        val.to_csv(regular_dir / 'val.csv', index_label='id')
-        test.to_csv(regular_dir / 'test.csv', index_label='id')
-        self.save_labels(labels, regular_dir / 'labels.json')
-
-        if kaggle:
-            self.save_kaggle_dataset(folder, train, val, test)
-
-        self.logger.info(f"Saved dataset files to {folder}")
-
-    def save_report(self, df, folder, split):
+    def create_special_splits(self, split_type, splits):
         """
-        Saves statistics about the dataset in the form of csv tables and png graphs.
-        :param df:      the df containing the dataset
-        :param folder:  the base folder to save the report to
+        Creates special splits for applications extending beyond the normal splits
+        :param split_type:
+        :param splits:      the dictionary containing the split dataframes
         :return:
         """
-        self.logger.info(f"Computing metadata reports on the chambers, the input lengths and the labels for split {split}")
+        self.logger.info("Creating special splits")
+        test = splits['test']
 
+        # test set split by input length
+        special_splits = dict()
+        boundaries = [0, 512, 1024, 2048, 4096, 8192]
+        for i in range(len(boundaries) - 1):
+            lower, higher = boundaries[i] + 1, boundaries[i + 1]
+            key = f'test-input_length-between({lower},{higher})'
+            special_splits[key] = test[test.num_tokens_bert.between(lower, higher)]
+
+        # test set split by year
+        if split_type == "date-stratified":
+            for year in range(2017, 2020 + 1):
+                special_splits[f'test-year-{year}'] = test[test.year == year]
+
+        # test set split by legal area
+        for legal_area in legal_areas.keys():
+            special_splits[f'test-legal_area-{legal_area}'] = test[test.legal_area.str.contains(legal_area)]
+
+        # test set split by canton
+        # TODO wait for Adrian here
+
+        return special_splits
+
+    def save_report(self, folder, split, df):
+        """
+        Saves statistics about the dataset in the form of csv tables and png graphs.
+        :param folder:  the base folder to save the report to
+        :param split:   the name of the split
+        :param df:      the df containing the dataset
+        :return:
+        """
         split_folder = self.create_dir(folder, f'reports/{split}')
 
         self.plot_legal_areas(df, split_folder)
         self.plot_input_length(df, split_folder)
         self.plot_labels(df, split_folder)
 
-    def plot_legal_areas(self, df, split_folder):
-        df['legal_area'] = df.chamber.apply(get_legal_area)
+    @staticmethod
+    def plot_legal_areas(df, split_folder):
+        """
+        Plots the legal area distribution of the decisions in the given dataframe
+        :param df:              the dataframe containing the legal areas
+        :param split_folder:    where to save the plots and csv files
+        :return:
+        """
         legal_area_df = df.legal_area.value_counts().to_frame()
         total = len(df.index)
         legal_area_df.at['all', 'legal_area'] = total
@@ -429,7 +489,14 @@ class DatasetCreator(DatasetConstructorComponent):
 
         legal_area_df.to_csv(split_folder / 'legal_area_distribution.csv')
 
-    def plot_labels(self, df, split_folder):
+    @staticmethod
+    def plot_labels(df, split_folder):
+        """
+        Plots the label distribution of the decisions in the given dataframe
+        :param df:              the dataframe containing the labels
+        :param split_folder:    where to save the plots and csv files
+        :return:
+        """
         # compute label imbalance
         ax = df.label.astype(str).hist()
         ax.tick_params(labelrotation=90)
@@ -444,7 +511,14 @@ class DatasetCreator(DatasetConstructorComponent):
         ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
         ax.get_figure().savefig(split_folder / 'single_label_distribution.png', bbox_inches="tight")
 
-    def plot_input_length(self, df, split_folder):
+    @staticmethod
+    def plot_input_length(df, split_folder):
+        """
+        Plots the input length of the decisions in the given dataframe
+        :param df:              the dataframe containing the decision texts
+        :param split_folder:    where to save the plots and csv files
+        :return:
+        """
         # compute median input length
         input_length_distribution = df[['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
         input_length_distribution.to_csv(split_folder / 'input_length_distribution.csv', index_label='measure')
@@ -466,35 +540,8 @@ class DatasetCreator(DatasetConstructorComponent):
         plot = sns.displot(df, x="num_tokens_spacy", y="num_tokens_bert", cbar=True)
         plot.savefig(split_folder / 'input_length_distribution-bivariate.png', bbox_inches="tight")
 
-    def save_kaggle_dataset(self, folder, train, val, test):
-        """
-        Saves the train, val and test set to a kaggle-style dataset
-        and also creates a solution and sampleSubmission file.
-        :param folder:  where to save the dataset
-        :param train:   the train set
-        :param val:     the val set
-        :param test:    the test set
-        :return:
-        """
-        self.logger.info("Saving the data in kaggle format")
-        # create solution file
-        solution = test.drop('text', axis='columns')  # drop text
-        solution = solution.rename(columns={"label": "Expected"})  # rename according to kaggle conventions
-        # create test file
-        test = test.drop('label', axis='columns')  # drop label
-        # create sampleSubmission file
-        sample_submission = solution.rename(columns={"Expected": "Predicted"})  # rename according to kaggle conventions
-        sample_submission['Predicted'] = np.random.choice(solution.Expected, size=len(solution))  # set to random value
-
-        # save special kaggle files
-        kaggle_dir = self.create_dir(folder, 'kaggle')
-        train.to_csv(kaggle_dir / 'train.csv', index_label='Id')
-        val.to_csv(kaggle_dir / 'val.csv', index_label='Id')
-        test.to_csv(kaggle_dir / 'test.csv', index_label='Id')
-        solution.to_csv(kaggle_dir / 'solution.csv', index_label='Id')
-        sample_submission.to_csv(kaggle_dir / 'sampleSubmission.csv', index_label='Id')
-
-    def save_labels(self, labels, file_name):
+    @staticmethod
+    def save_labels(labels, file_name):
         """
         Saves the labels and the corresponding ids as a json file
         :param labels:      the labels dict
@@ -506,7 +553,8 @@ class DatasetCreator(DatasetConstructorComponent):
         with open(file_name, 'w', encoding='utf-8') as f:
             json.dump(json_labels, f, ensure_ascii=False, indent=4)
 
-    def split_date_stratified(self, df, split):
+    @staticmethod
+    def split_date_stratified(df, split):
         """
         Splits the df into train, val and test based on the date
         :param df:      the df to be split
