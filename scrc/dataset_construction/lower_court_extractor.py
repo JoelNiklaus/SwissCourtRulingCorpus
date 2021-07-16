@@ -46,22 +46,21 @@ class LowerCourtExtractor(DatasetConstructorComponent):
     def lower_court_extract_spider(self, engine, spider):
         """Extracts lower courts for one spider"""
         self.logger.info(f"Started lower-court-extracting {spider}")
-
         for lang in self.languages:
-            if lang != 'fr':
-                continue
+            counter = 0
             where = f"spider='{spider}' AND header IS NOT NULL AND header <> ''"
-            #count = pd.read_sql(f"SELECT count(*) FROM {lang} WHERE {where}", engine.connect())['count'][0]
+            count = pd.read_sql(f"SELECT count(*) FROM {lang} WHERE {where}", engine.connect())['count'][0]
             dfs = self.select(engine, lang, where=where)  # stream dfs from the db
             for df in dfs:
                 df = df.apply(self.lower_court_extract_df_row, axis='columns')
                 self.logger.info("Saving extracted lower courts to db")
                 self.update(engine, df, lang, [self.col_name])
-
+                counter = counter + 1000
+                print(counter, count, sep=" / ")
             query = f"SELECT count({self.col_name}) FROM {lang} WHERE {where} AND {self.col_name} <> 'null'"
             successful_attempts = pd.read_sql(query, engine.connect())['count'][0]
-            #self.logger.info(f"Finished lower-court-extracting  {spider} in {lang} with "
-            #                 f"{successful_attempts} / {count} ({successful_attempts / count:.2%}) working")
+            self.logger.info(f"Finished lower-court-extracting  {spider} in {lang} with "
+                            f"{successful_attempts} / {count} ({successful_attempts / count:.2%}) working")
 
         self.logger.info(f"Finished lower-court-extracting {spider}")
 

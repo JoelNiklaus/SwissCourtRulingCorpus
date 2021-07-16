@@ -12,8 +12,7 @@ This file is used to extract the lower courts from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
 """
 
-
-
+# check if court got assigned shortcut: SELECT count(*) from de WHERE lower_court is not null and lower_court <> 'null' and lower_court::json#>>'{court}'~'[A-Z1-9_]{2,}';
 def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
     """
     Extract lower courts from decisions of the Federal Supreme Court of Switzerland
@@ -21,36 +20,19 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
-    supported_languages = ['de', 'fr']
+    supported_languages = ['de', 'fr', 'it']
     if namespace['language'] not in supported_languages:
         message = f"This function is only implemented for the languages {supported_languages} so far."
         raise ValueError(message)
 
+    information_start_regex = r'Vorinstanz|Beschwerde\sgegen|Instance précédente|recours|révision de|ricorso|ricorrente|rettifica'
 
-    file_number_regex = [r"""(?<=\() # find opening paranthesis without including it in result
-        (?P<ID>[A-Z1-9]{0,4})
-        (\.|\s)? # Split by point or whitespace or nothing
-        (?P<YEAR>\d{2,4})
-        (\.|\s)? # Split by point or whitespace or nothing
-        (?P<NUMBER>\d{0,8})
-        (?=\)) # find closing paranthesis without including it in result
-    """, 
-    r"""
-    (?<=\() # find opening paranthesis without including it in result
-    [A-Z]{1,2}
-    (\-)?
-    \d{2,4}
-    (\/)?
-    \d{0,4}
-    (?=\)) # find closing paranthesis without including it in result
-    """]
-
-    information_start_regex = r'Beschwerde\sgegen\sd(?:as\sUrteil|en\s(Entscheid|Beschluss))\s|Instance précédente|recours'
     information_regex = {
         'court': [
-            r'(\w*gericht(?=s[^\w]))',
-            r'Tribunal .*?(?=[,\.]|du)',
-            r'[Cc]our *?(?=[,\.]|du)'
+            r'(\w*gericht(?=s?[^\w]))',
+            r'(?P<high_prio>Tribunal .*?(?=[,\.]| du| de la République et canton))',
+            r'(?<![Rr]e)[Cc]our .*?(?=[,\.]| du| de la République et canton)',
+            r'Tribunale .*?(?=[,\.]| del Cantone)'
         ],
         'canton': [
             r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))))(Appenzell Innerrhoden|Appenzell Rhodes-Intérieures|Appenzello Interno)',
@@ -60,29 +42,29 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
             r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))))(St\. Gallen|San Gallo)',
             r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))\svon\s))[\wäöü-]*',
             r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))))[\wäöü-]*',
-            r'(?<=canton de )[\wéè]*',
+            r'(?<=canton d[eu] )[\wéè]*',
             r'(?<=de l\'Etat de )[\wéè]*',
+            r'(?<=del Cantone dei )[\wéè]*',
+            r'(?<=del Cantone )[\wéè]*'
+
         ],
         'date': [
-            r'(?P<DATE>(?P<DAY>\d?\d)\.?\s(?P<MONTH>\w{2,12})\s(?P<YEAR>\d{4}))'
+            r'(?P<DATE>(?P<DAY>\d?\d|1(re|er)|2e|3e|premier|première|deuxième|troisième|1°)\.?\s(?P<MONTH>\w{2,12})\s(?P<YEAR>\d{4}))'
         ],
         'chamber': [
             r'[IVX\d]+.\s\w*ammer',
             r'\w*ammer',
             r'[IVX\d]+.\s\w*our',
-            r'[Cc]hambre.*?(?=[,\.]|du)',
-            r'(?<![Rr]e)[Cc]our.*?(?=[,\.]|du)'
+            r'(?P<high_prio>[Cc]hambre.*?(?=[,\.]| du| de la [Cc]our))',
+            r'(?<![Rr]e)[Cc]our.*?(?=[,\.]| du| de la [Cc]our)',
+            r'[Cc]orte.*?(?=[,\.]| del Tribunale| del Cantone)',
+            r'[Cc]amera.*?(?=[,\.]| del Tribunale| del Cantone)'
+        ], 
+        'file_number': [
+            r'(?<=\()(?P<ID>[A-Z1-9]{0,4})(\.|\s)?(?P<YEAR>\d{2,4})(\.|\s)?(?P<NUMBER>\d{0,8})(?=\))', # ex: (AB12.2021.13)
+            r'(?<=\()[A-Z1-9]{1,2}([\-_\/])?\d{2,4}(\/)?\d{0,4}(?=\))' # ex: AB-12/2021
         ]
     }
-
-     # combine multiple regex into one for each section due to performance reasons
-    file_number_regex ='|'.join(file_number_regex)
-    # normalize strings to avoid problems with umlauts
-    file_number_regex = unicodedata.normalize('NFC', file_number_regex)
-        
-    def get_lower_court_file_number(header: str, namespace: dict) -> Optional[Match]:
-        result = re.search(file_number_regex, header, re.X)
-        return result
 
     def get_lower_court_by_file_number(file_number: Match) -> Optional[str]:
         languages = ['de', 'fr', 'it']
@@ -123,24 +105,26 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
     def prepareDateForQuery(date: str) -> str:
         translation_dict = {
             "Januar": "Jan", "Februar": "Feb", "März": "Mar", "Mai": "May", "Juni": "June", "Juli": "July", "Oktober": "Oct", "Dezember": "Dec",
-            "janvier": "Jan", "février": "Feb", "mars": "Mar", "juin": "june", "juillet": "July", "août": "Aug", "septembre": "Aept", "octobre": "Oct", "novembre": "Nov", "décembre": "Dec",
-            "Gennaio": "Jan", "Febbraio": "Feb", "Marzo": "Mar", "Aprile": "Apr", "Maggio": "May", "Giugno": "June", "Luglio": "July", "Agosto": "Aug", "Settembre": "Sept", "Ottobre": "Oct", "Novembre": "Nov", "Dicembre": "Dec"
+            "Janvier": "Jan", "Février": "Feb", "Mars": "Mar", "Avril": "April", "Juin": "june", "Juillet": "July", "Août": "Aug", "Septembre": "Sept", "Octobre": "Oct", "Novembre": "Nov", "Décembre": "Dec",
+            "Gennaio": "Jan", "Febbraio": "Feb", "Marzo": "Mar", "Aprile": "Apr", "Maggio": "May", "Giugno": "June", "Luglio": "July", "Agosto": "Aug", "Settembre": "Sept", "Ottobre": "Oct", "Novembre": "Nov", "Dicembre": "Dec",
+            "1er": "01", "1re": "01", "2e": "02", "3e": "03", "premier": "01", "première": "01", "deuxième": "02", "troisième": "03", "1°": "01"
         }
 
         for k,v in translation_dict.items():
             date = date.replace(k, v)
+            date = date.replace(k.lower(), v)
 
-        return pd.to_datetime(date, errors='ignore', dayfirst=True).strftime('%Y-%m-%d')
-        
+        return pd.to_datetime(date, errors='ignore', dayfirst=True).strftime('%Y-%m-%d')   
 
     def get_lower_court_by_date_and_court(lower_court_information) -> Optional[str]:
         languages = ['de', 'fr', 'it']
         chamber = None
 
         if 'canton' in lower_court_information:
+            canton = lower_court_information['canton']
             court_chambers_data = json.loads(Path("court_chambers.json").read_text())
             lower_court_information['canton'] = prepareCantonForQuery(lower_court_information['canton'], court_chambers_data)
-            if 'court' in lower_court_information:
+            if 'court' in lower_court_information and lower_court_information['canton'] is not None:
                 lower_court_information['court'] = prepareCourtForQuery(lower_court_information['court'], lower_court_information['canton'], court_chambers_data)
 
         else:
@@ -149,7 +133,8 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
                 lower_court_information['court'] = prepareCourtForQuery(lower_court_information['court'], 'CH', court_chambers_data)
                 if re.match(r'CH_',lower_court_information['court']):
                     lower_court_information['canton'] = 'CH'
-        lower_court_information['date'] = prepareDateForQuery(lower_court_information['date'])
+        if 'date' in lower_court_information:
+            lower_court_information['date'] = prepareDateForQuery(lower_court_information['date'])
 
         # try to find file in database
         """ for lang in languages:
@@ -176,9 +161,14 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
             # not a normal regex search so we find last occurence
             regex_result = None
             for regex_result in re.finditer(regex, header):
+                if 'high_prio' in regex_result.groupdict() and regex_result.group('high_prio') != None:
+                    break
                 pass
             if regex_result:
-                result[information_key] = regex_result.group()
+                if 'high_prio' in regex_result.groupdict() and regex_result.group('high_prio') != None:
+                    result[information_key] = regex_result.group('high_prio')
+                else:
+                    result[information_key] = regex_result.group()
         
         return result
 
@@ -198,11 +188,10 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
     if lower_court is None:
         try:
             lower_court = get_lower_court_by_date_and_court(lower_court_information)
-            print(header, lower_court, sep="\n")
-            input()
+            #print(header, lower_court, sep="\n")
         except:
             return None
-    return lower_court
+    return lower_court or None
 
 # This needs special care
 # def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
