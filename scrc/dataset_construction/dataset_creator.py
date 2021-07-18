@@ -22,7 +22,7 @@ from spacy.lang.it import Italian
 from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area, legal_areas, get_region
 from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
 
-pd.options.mode.chained_assignment = None  # default='warn'
+#pd.options.mode.chained_assignment = None  # default='warn'
 
 """
 Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 day per court)
@@ -542,8 +542,9 @@ class DatasetCreator(DatasetConstructorComponent):
 
         # bin outliers together at the cutoff point
         cutoff = 3500
-        df[df.num_tokens_spacy > cutoff] = cutoff
-        df[df.num_tokens_bert > cutoff] = cutoff
+        df.loc[df.num_tokens_spacy > cutoff, 'num_tokens_spacy'] = cutoff
+        df.loc[df.num_tokens_bert > cutoff, 'num_tokens_bert'] = cutoff
+
         hist_df = pd.concat([df.num_tokens_spacy, df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
         hist_df = hist_df.reset_index(level=0)
         hist_df = hist_df.rename(columns={'level_0': 'kind', 0: 'number of tokens'})
