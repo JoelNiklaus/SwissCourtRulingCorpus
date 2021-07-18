@@ -542,10 +542,11 @@ class DatasetCreator(DatasetConstructorComponent):
 
         # bin outliers together at the cutoff point
         cutoff = 3500
-        df.loc[df.num_tokens_spacy > cutoff, 'num_tokens_spacy'] = cutoff
-        df.loc[df.num_tokens_bert > cutoff, 'num_tokens_bert'] = cutoff
+        cut_df = df[['num_tokens_spacy', 'num_tokens_bert']]
+        cut_df.loc[cut_df.num_tokens_spacy > cutoff, 'num_tokens_spacy'] = cutoff
+        cut_df.loc[cut_df.num_tokens_bert > cutoff, 'num_tokens_bert'] = cutoff
 
-        hist_df = pd.concat([df.num_tokens_spacy, df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
+        hist_df = pd.concat([cut_df.num_tokens_spacy, cut_df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
         hist_df = hist_df.reset_index(level=0)
         hist_df = hist_df.rename(columns={'level_0': 'kind', 0: 'number of tokens'})
 
@@ -555,7 +556,7 @@ class DatasetCreator(DatasetConstructorComponent):
         plot = sns.displot(hist_df, x="number of tokens", hue="kind", kind="ecdf")
         plot.savefig(split_folder / 'input_length_distribution-cumulative.png', bbox_inches="tight")
 
-        plot = sns.displot(df, x="num_tokens_spacy", y="num_tokens_bert", cbar=True)
+        plot = sns.displot(cut_df, x="num_tokens_spacy", y="num_tokens_bert", cbar=True)
         plot.savefig(split_folder / 'input_length_distribution-bivariate.png', bbox_inches="tight")
 
     @staticmethod
