@@ -19,7 +19,7 @@ from spacy.lang.de import German
 from spacy.lang.fr import French
 from spacy.lang.it import Italian
 
-from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area, legal_areas
+from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area, legal_areas, get_region
 from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
 
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -325,7 +325,8 @@ class DatasetCreator(DatasetConstructorComponent):
 
     def get_df(self, engine, feature_col, label_col, lang):
         self.logger.info("Started loading the data from the database")
-        columns = f"extract(year from date) as year, chamber, {feature_col}, {label_col}"
+        lower_court_canton = "lower_court::json#>>'{canton}' AS lower_court_canton"
+        columns = f"extract(year from date) as year, chamber, {lower_court_canton}, {feature_col}, {label_col}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
         if self.debug:
@@ -340,6 +341,7 @@ class DatasetCreator(DatasetConstructorComponent):
         df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
         df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
         df['legal_area'] = df.chamber.apply(get_legal_area)
+        df['lower_court_region'] = df.lower_court_canton.apply(get_region)
         self.logger.info("Finished loading the data from the database")
         return df
 
@@ -387,8 +389,12 @@ class DatasetCreator(DatasetConstructorComponent):
         self.logger.info("Saving the regular dataset")
         regular_dir = self.create_dir(folder, 'regular')
         self.save_labels(labels, regular_dir / 'labels.json')
-        for name, df in {**splits, **special_splits}.items():
+        for name, df in splits.items():
             df.to_csv(regular_dir / f'{name}.csv', index_label='id')
+
+        special_splits_dir = self.create_dir(regular_dir, 'special_splits')
+        for name, df in special_splits.items():
+            df.to_csv(special_splits_dir / f'{name}.csv', index_label='id')
 
         if kaggle:
             self.logger.info("Saving the data in kaggle format")
@@ -438,7 +444,7 @@ class DatasetCreator(DatasetConstructorComponent):
         boundaries = [0, 512, 1024, 2048, 4096, 8192]
         for i in range(len(boundaries) - 1):
             lower, higher = boundaries[i] + 1, boundaries[i + 1]
-            key = f'test-input_length-between({lower},{higher})'
+            key = f'test-input_length-between({lower:04d},{higher:04d})'
             special_splits[key] = test[test.num_tokens_bert.between(lower, higher)]
 
         # test set split by year
@@ -450,8 +456,11 @@ class DatasetCreator(DatasetConstructorComponent):
         for legal_area in legal_areas.keys():
             special_splits[f'test-legal_area-{legal_area}'] = test[test.legal_area.str.contains(legal_area)]
 
-        # test set split by canton
-        # TODO wait for Adrian here
+        # test set split by origin canton and region
+        for canton in test.lower_court_canton.unique().tolist():
+            special_splits[f'test-lower_court_canton-{canton}'] = test[test.lower_court_canton.str.contains(canton)]
+        for region in test.lower_court_region.unique().tolist():
+            special_splits[f'test-lower_court_region-{region}'] = test[test.lower_court_region.str.contains(region)]
 
         return special_splits
 
@@ -465,29 +474,37 @@ class DatasetCreator(DatasetConstructorComponent):
         """
         split_folder = self.create_dir(folder, f'reports/{split}')
 
-        self.plot_legal_areas(df, split_folder)
+        barplot_attributes = ['legal_area', 'lower_court_canton', 'lower_court_region']
+        for attribute in barplot_attributes:
+            self.plot_barplot_attribute(df, split_folder, attribute)
+
         self.plot_input_length(df, split_folder)
         self.plot_labels(df, split_folder)
 
     @staticmethod
-    def plot_legal_areas(df, split_folder):
+    def plot_barplot_attribute(df, split_folder, attribute):
         """
-        Plots the legal area distribution of the decisions in the given dataframe
+        Plots the distribution of the attribute of the decisions in the given dataframe
         :param df:              the dataframe containing the legal areas
         :param split_folder:    where to save the plots and csv files
+        :param attribute:       the attribute to barplot
         :return:
         """
-        legal_area_df = df.legal_area.value_counts().to_frame()
+        attribute_df = df[attribute].value_counts().to_frame()
         total = len(df.index)
-        legal_area_df.at['all', 'legal_area'] = total
-        legal_area_df = legal_area_df.reset_index(level=0)
-        legal_area_df = legal_area_df.rename(columns={'index': 'legal area', 'legal_area': 'number of decisions'})
-        legal_area_df['percent'] = round(legal_area_df['number of decisions'] / total, 4)
+        attribute_df.at['all', attribute] = total
+        attribute_df = attribute_df.reset_index(level=0)
+        attribute_df = attribute_df.rename(columns={'index': attribute, attribute: 'number of decisions'})
+        attribute_df['number of decisions'] = attribute_df['number of decisions'].astype(int)
+        attribute_df['percent'] = round(attribute_df['number of decisions'] / total, 4)
 
-        plot = sns.barplot(x="legal area", y="number of decisions", data=legal_area_df)
-        plot.get_figure().savefig(split_folder / 'legal_area_distribution-histogram.png', bbox_inches="tight")
+        attribute_df.to_csv(split_folder / f'{attribute}_distribution.csv')
 
-        legal_area_df.to_csv(split_folder / 'legal_area_distribution.csv')
+        # TODO make these plots nicer. They are strange now
+        attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
+        ax = sns.barplot(x=attribute, y="number of decisions", data=attribute_df)
+        ax.tick_params(labelrotation=30)
+        ax.get_figure().savefig(split_folder / f'{attribute}_distribution-histogram.png', bbox_inches="tight")
 
     @staticmethod
     def plot_labels(df, split_folder):
@@ -499,7 +516,7 @@ class DatasetCreator(DatasetConstructorComponent):
         """
         # compute label imbalance
         ax = df.label.astype(str).hist()
-        ax.tick_params(labelrotation=90)
+        ax.tick_params(labelrotation=30)
         ax.get_figure().savefig(split_folder / 'multi_label_distribution.png', bbox_inches="tight")
 
         counter_dict = dict(Counter(np.hstack(df.label)))
