@@ -8,7 +8,6 @@
         "de": "Bundesgericht",
         "fr": "Tribunal f\u00e9d\u00e9ral",
         "it": "Tribunale federale",
-        "Gerichtsinstanz": "",
         "kammern": {
           "CH_BGer_001": {
             "spider": "CH_BGer",
@@ -151,7 +150,6 @@
         "de": "Bundesgericht (BGE)",
         "fr": "Tribunal f\u00e9d\u00e9ral (ATF)",
         "it": "Tribunale federale (DTF)",
-        "Gerichtsinstanz": "",
         "kammern": {
           "CH_BGE_001": {
             "spider": "CH_BGE",
@@ -267,7 +265,6 @@
         "de": "Bundesverwaltungsgericht",
         "fr": "Bundesverwaltungsgericht",
         "it": "Bundesverwaltungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "CH_BVGE_001": {
             "spider": "CH_BVGer",
@@ -281,7 +278,6 @@
         "de": "Bundespatentgericht",
         "fr": "Bundespatentgericht",
         "it": "Bundespatentgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "CH_PATG_001": {
             "spider": "CH_BPatG",
@@ -295,7 +291,6 @@
         "de": "Bundesstrafgericht",
         "fr": "Tribunal p\u00e9nal f\u00e9d\u00e9ral",
         "it": "Tribunale penale federale",
-        "Gerichtsinstanz": "",
         "kammern": {
           "CH_BSTG_001": {
             "spider": "CH_BSTG",
@@ -309,7 +304,6 @@
         "de": "Wettbewerbskommission",
         "fr": "Wettbewerbskommission",
         "it": "Wettbewerbskommission",
-        "Gerichtsinstanz": "",
         "kammern": {
           "CH_WBK_001": {
             "spider": "CH_WEKO",
@@ -323,7 +317,6 @@
         "de": "Eidgen\u00f6ssischer Datenschutz- und \u00d6ffentlichkeitsbeauftragter",
         "fr": "Eidgen\u00f6ssischer Datenschutz- und \u00d6ffentlichkeitsbeauftragter",
         "it": "Eidgen\u00f6ssischer Datenschutz- und \u00d6ffentlichkeitsbeauftragter",
-        "Gerichtsinstanz": "",
         "kammern": {
           "CH_ED\u00d6B_001": {
             "spider": "CH_EDOEB",
@@ -337,7 +330,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "CH_XX_001": {
             "spider": "CH_BGer",
@@ -358,7 +350,6 @@
         "de": "Obergericht",
         "fr": "Obergericht",
         "it": "Obergericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_OG_001": {
             "spider": "AG_Gerichte",
@@ -411,7 +402,6 @@
         "de": "Anwaltskommission",
         "fr": "Anwaltskommission",
         "it": "Anwaltskommission",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_AK_001": {
             "spider": "AG_Gerichte",
@@ -425,7 +415,6 @@
         "de": "Landwirtschaftliche Rekurskommission",
         "fr": "Landwirtschaftliche Rekurskommission",
         "it": "Landwirtschaftliche Rekurskommission",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_LWRK_001": {
             "spider": "AG_Gerichte",
@@ -439,7 +428,6 @@
         "de": "Obergericht/Handelsgericht",
         "fr": "Obergericht/Handelsgericht",
         "it": "Obergericht/Handelsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_HG_001": {
             "spider": "AG_Gerichte",
@@ -453,7 +441,6 @@
         "de": "Personalrekursgericht",
         "fr": "Personalrekursgericht",
         "it": "Personalrekursgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_PRG_001": {
             "spider": "AG_Gerichte",
@@ -467,7 +454,6 @@
         "de": "Rekursgericht im Ausl\u00e4nderrecht",
         "fr": "Rekursgericht im Ausl\u00e4nderrecht",
         "it": "Rekursgericht im Ausl\u00e4nderrecht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_RGAR_001": {
             "spider": "AG_Gerichte",
@@ -481,7 +467,6 @@
         "de": "Sch\u00e4tzungskommission nach Baugesetz",
         "fr": "Sch\u00e4tzungskommission nach Baugesetz",
         "it": "Sch\u00e4tzungskommission nach Baugesetz",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_SKBG_001": {
             "spider": "AG_Gerichte",
@@ -495,7 +480,6 @@
         "de": "Steuerrekursgericht",
         "fr": "Steuerrekursgericht",
         "it": "Steuerrekursgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_SRG_001": {
             "spider": "AG_Gerichte",
@@ -509,7 +493,6 @@
         "de": "Versicherungsgericht",
         "fr": "Versicherungsgericht",
         "it": "Versicherungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_VSG_001": {
             "spider": "AG_Gerichte",
@@ -523,7 +506,6 @@
         "de": "Verwaltungsgericht",
         "fr": "Verwaltungsgericht",
         "it": "Verwaltungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_VG_001": {
             "spider": "AG_Gerichte",
@@ -537,7 +519,6 @@
         "de": "Spezialverwaltungsgericht",
         "fr": "Spezialverwaltungsgericht",
         "it": "Spezialverwaltungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_SVWG_001": {
             "spider": "AG_Gerichte",
@@ -551,7 +532,6 @@
         "de": "Verwaltungsbeh\u00f6rden",
         "fr": "Verwaltungsbeh\u00f6rden",
         "it": "Verwaltungsbeh\u00f6rden",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_VB_001": {
             "spider": "AG_Gerichte",
@@ -565,7 +545,6 @@
         "de": "Obersch\u00e4tzungsbeh\u00f6rde nach Versicherungsgesetz",
         "fr": "Obersch\u00e4tzungsbeh\u00f6rde nach Versicherungsgesetz",
         "it": "Obersch\u00e4tzungsbeh\u00f6rde nach Versicherungsgesetz",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_OSB_001": {
             "spider": "AG_Gerichte",
@@ -579,7 +558,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AG_XX_001": {
             "spider": "AG_Gerichte",
@@ -600,7 +578,6 @@
         "de": "Bezirksgericht",
         "fr": "Bezirksgericht",
         "it": "Bezirksgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AI_BZG_001": {
             "spider": "AI_Aktuell",
@@ -614,7 +591,6 @@
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
         "it": "Kantonsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AI_KG_001": {
             "spider": "AI_Aktuell",
@@ -628,7 +604,6 @@
         "de": "Sammelwerk",
         "fr": "Sammelwerk",
         "it": "Sammelwerk",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AI_XX_001": {
             "spider": "AI_Bericht",
@@ -649,7 +624,6 @@
         "de": "Obergericht",
         "fr": "Obergericht",
         "it": "Obergericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AR_OG_001": {
             "spider": "AR_Gerichte",
@@ -738,7 +712,6 @@
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
         "it": "Kantonsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AR_KG_001": {
             "spider": "AR_Gerichte",
@@ -800,7 +773,6 @@
         "de": "Verwaltungsbeh\u00f6rden",
         "fr": "Verwaltungsbeh\u00f6rden",
         "it": "Verwaltungsbeh\u00f6rden",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AR_VB_001": {
             "spider": "AR_Gerichte",
@@ -814,7 +786,6 @@
         "de": "Steuerrekurskommission",
         "fr": "Steuerrekurskommission",
         "it": "Steuerrekurskommission",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AR_SRK_001": {
             "spider": "AR_Gerichte",
@@ -831,7 +802,6 @@
         "de": "Regierungsrat",
         "fr": "Regierungsrat",
         "it": "Regierungsrat",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AR_RR_001": {
             "spider": "AR_Gerichte",
@@ -848,7 +818,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "AR_XX_001": {
             "spider": "AR_Gerichte",
@@ -869,7 +838,6 @@
         "de": "Obergericht",
         "fr": "Cour supr\u00eame",
         "it": "Obergericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BE_OG_001": {
             "spider": "BE_ZivilStraf",
@@ -940,7 +908,6 @@
         "de": "Kantonale Anwaltsaufsichtsbeh\u00f6rde",
         "fr": "Autorit\u00e9 cantonale de surveillance des avocats",
         "it": "Kantonale Anwaltsaufsichtsbeh\u00f6rde",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BE_AK_001": {
             "spider": "BE_Anwaltsaufsicht",
@@ -954,7 +921,6 @@
         "de": "Verwaltungsgericht",
         "fr": "Tribunal administratif",
         "it": "Verwaltungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BE_VG_001": {
             "spider": "BE_Verwaltungsgericht",
@@ -971,7 +937,6 @@
         "de": "Steuerrekurskommission",
         "fr": "Commission des recours en mati\u00e8re fiscale",
         "it": "Steuerrekurskommission",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BE_SRK_001": {
             "spider": "BE_Steuerrekurs",
@@ -985,7 +950,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BE_XX_001": {
             "spider": "BE_ZivilStraf",
@@ -1006,7 +970,6 @@
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
         "it": "Kantonsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BL_KG_001": {
             "spider": "BL_Gerichte",
@@ -1020,7 +983,6 @@
         "de": "Steuergericht",
         "fr": "Steuergericht",
         "it": "Steuergericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BL_SG_001": {
             "spider": "BL_Gerichte",
@@ -1034,7 +996,6 @@
         "de": "Enteignungsgericht",
         "fr": "Enteignungsgericht",
         "it": "Enteignungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BL_EG_001": {
             "spider": "BL_Gerichte",
@@ -1048,7 +1009,6 @@
         "de": "Zwangsmassnahmengericht",
         "fr": "Zwangsmassnahmengericht",
         "it": "Zwangsmassnahmengericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BL_ZMG_001": {
             "spider": "BL_Gerichte",
@@ -1062,7 +1022,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BL_XX_001": {
             "spider": "BL_Gerichte",
@@ -1083,7 +1042,6 @@
         "de": "Appellationsgericht",
         "fr": "Appellationsgericht",
         "it": "Appellationsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BS_APG_001": {
             "spider": "BS_Omni",
@@ -1097,7 +1055,6 @@
         "de": "Sozialversicherungsgericht",
         "fr": "Sozialversicherungsgericht",
         "it": "Sozialversicherungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BS_SVG_001": {
             "spider": "BS_Omni",
@@ -1111,7 +1068,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "BS_XX_001": {
             "spider": "BS_Omni",
@@ -1132,7 +1088,6 @@
         "de": "Kantonsgericht",
         "fr": "Tribunal cantonal",
         "it": "Kantonsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "FR_TC_001": {
             "spider": "FR_Gerichte",
@@ -1230,7 +1185,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "FR_XX_001": {
             "spider": "FR_Gerichte",
@@ -1251,7 +1205,6 @@
         "de": "Court d'appel du pouvoir judiciaire",
         "fr": "Court d'appel du pouvoir judiciaire",
         "it": "Court d'appel du pouvoir judiciaire",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GE_CAPJ_001": {
             "spider": "GE_Gerichte",
@@ -1265,7 +1218,6 @@
         "de": "Cour de Justice (Cour civile)",
         "fr": "Cour de Justice (Cour civile)",
         "it": "Cour de Justice (Cour civile)",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GE_CJ_001": {
             "spider": "GE_Gerichte",
@@ -1417,7 +1369,6 @@
         "de": "Tribunal p\u00e9nal",
         "fr": "Tribunal p\u00e9nal",
         "it": "Tribunal p\u00e9nal",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GE_TP_001": {
             "spider": "GE_Gerichte",
@@ -1431,7 +1382,6 @@
         "de": "Tribunal administratif de premi\u00e8re instance en mati\u00e8re fiscale",
         "fr": "Tribunal administratif de premi\u00e8re instance en mati\u00e8re fiscale",
         "it": "Tribunal administratif de premi\u00e8re instance en mati\u00e8re fiscale",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GE_TAPI_001": {
             "spider": "GE_Gerichte",
@@ -1445,7 +1395,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GE_XX_001": {
             "spider": "GE_Gerichte",
@@ -1466,7 +1415,6 @@
         "de": "Obergericht",
         "fr": "Obergericht",
         "it": "Obergericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GL_OG_001": {
             "spider": "GL_Omni",
@@ -1480,7 +1428,6 @@
         "de": "Verwaltungsgericht",
         "fr": "Verwaltungsgericht",
         "it": "Verwaltungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GL_VG_001": {
             "spider": "GL_Omni",
@@ -1494,7 +1441,6 @@
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
         "it": "Kantonsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GL_KG_001": {
             "spider": "GL_Omni",
@@ -1529,7 +1475,6 @@
         "de": "sonstige Gerichte",
         "fr": "sonstige Gerichte",
         "it": "sonstige Gerichte",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GL_XX_999": {
             "spider": "GL_Omni",
@@ -1553,7 +1498,6 @@
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
         "it": "Tribunale cantonale",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GR_KG_001": {
             "spider": "GR_Gerichte",
@@ -1633,7 +1577,6 @@
         "de": "Verwaltungsgericht",
         "fr": "Verwaltungsgericht",
         "it": "Tribunale amministrativo",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GR_VG_001": {
             "spider": "GR_Gerichte",
@@ -1704,7 +1647,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "GR_XX_001": {
             "spider": "GR_Gerichte",
@@ -1725,7 +1667,6 @@
         "de": "Tribunal Cantonal",
         "fr": "Tribunal Cantonal",
         "it": "Tribunal Cantonal",
-        "Gerichtsinstanz": "",
         "kammern": {
           "JU_TC_001": {
             "spider": "JU_Gerichte",
@@ -1832,7 +1773,6 @@
         "de": "Tribunal de premi\u00e8re instance",
         "fr": "Tribunal de premi\u00e8re instance",
         "it": "Tribunal de premi\u00e8re instance",
-        "Gerichtsinstanz": "",
         "kammern": {
           "JU_TPI_001": {
             "spider": "JU_Gerichte",
@@ -1876,7 +1816,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "JU_XX_001": {
             "spider": "JU_Gerichte",
@@ -1897,7 +1836,6 @@
         "de": "Erstinstanzliche Gerichte",
         "fr": "Erstinstanzliche Gerichte",
         "it": "Erstinstanzliche Gerichte",
-        "Gerichtsinstanz": "",
         "kammern": {
           "LU_BZG_001": {
             "spider": "LU_Gerichte",
@@ -1911,7 +1849,6 @@
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
         "it": "Kantonsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "LU_KG_001": {
             "spider": "LU_Gerichte",
@@ -1973,7 +1910,6 @@
         "de": "Regierungsrat",
         "fr": "Regierungsrat",
         "it": "Regierungsrat",
-        "Gerichtsinstanz": "",
         "kammern": {
           "LU_RR_001": {
             "spider": "LU_Gerichte",
@@ -1987,7 +1923,6 @@
         "de": "Justiz- und Sicherheitsdepartement",
         "fr": "Justiz- und Sicherheitsdepartement",
         "it": "Justiz- und Sicherheitsdepartement",
-        "Gerichtsinstanz": "",
         "kammern": {
           "LU_JSD_001": {
             "spider": "LU_Gerichte",
@@ -2001,7 +1936,6 @@
         "de": "Bildungs- und Kulturdepartement",
         "fr": "Bildungs- und Kulturdepartement",
         "it": "Bildungs- und Kulturdepartement",
-        "Gerichtsinstanz": "",
         "kammern": {
           "LU_BKD_001": {
             "spider": "LU_Gerichte",
@@ -2015,7 +1949,6 @@
         "de": "Gesundheits- und Sozialdepartement",
         "fr": "Gesundheits- und Sozialdepartement",
         "it": "Gesundheits- und Sozialdepartement",
-        "Gerichtsinstanz": "",
         "kammern": {
           "LU_GSD_001": {
             "spider": "LU_Gerichte",
@@ -2029,7 +1962,6 @@
         "de": "Regierungsstatthalter",
         "fr": "Regierungsstatthalter",
         "it": "Regierungsstatthalter",
-        "Gerichtsinstanz": "",
         "kammern": {
           "LU_RSH_001": {
             "spider": "LU_Gerichte",
@@ -2043,7 +1975,6 @@
         "de": "Aufsichtsbeh\u00f6rden und Kommissionen",
         "fr": "Aufsichtsbeh\u00f6rden und Kommissionen",
         "it": "Aufsichtsbeh\u00f6rden und Kommissionen",
-        "Gerichtsinstanz": "",
         "kammern": {
           "LU_AUK_001": {
             "spider": "LU_Gerichte",
@@ -2057,7 +1988,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "LU_XX_001": {
             "spider": "LU_Gerichte",
@@ -2078,7 +2008,6 @@
         "de": "Tribunal Cantonal",
         "fr": "Tribunal Cantonal",
         "it": "Tribunal Cantonal",
-        "Gerichtsinstanz": "",
         "kammern": {
           "NE_TC_001": {
             "spider": "NE_Omni",
@@ -2230,7 +2159,6 @@
         "de": "Tribunaux r\u00e9gional - Civil",
         "fr": "Tribunaux r\u00e9gional - Civil",
         "it": "Tribunaux r\u00e9gional - Civil",
-        "Gerichtsinstanz": "",
         "kammern": {
           "NE_TR_001": {
             "spider": "NE_Omni",
@@ -2259,7 +2187,6 @@
         "de": "Autorit\u00e9 de recours des avocates, des avocats et du notariat",
         "fr": "Autorit\u00e9 de recours des avocates, des avocats et du notariat",
         "it": "Autorit\u00e9 de recours des avocates, des avocats et du notariat",
-        "Gerichtsinstanz": "",
         "kammern": {
           "NE_ARA_001": {
             "spider": "NE_Omni",
@@ -2273,7 +2200,6 @@
         "de": "Autorit\u00e9 de surveillance LP",
         "fr": "Autorit\u00e9 de surveillance LP",
         "it": "Autorit\u00e9 de surveillance LP",
-        "Gerichtsinstanz": "",
         "kammern": {
           "NE_ASL_001": {
             "spider": "NE_Omni",
@@ -2287,7 +2213,6 @@
         "de": "Autorit\u00e9 sup\u00e9rieure de surveillance LP",
         "fr": "Autorit\u00e9 sup\u00e9rieure de surveillance LP",
         "it": "Autorit\u00e9 sup\u00e9rieure de surveillance LP",
-        "Gerichtsinstanz": "",
         "kammern": {
           "NE_ASS_001": {
             "spider": "NE_Omni",
@@ -2301,7 +2226,6 @@
         "de": "Autorit\u00e9 tut\u00e9laire de surveillance",
         "fr": "Autorit\u00e9 tut\u00e9laire de surveillance",
         "it": "Autorit\u00e9 tut\u00e9laire de surveillance",
-        "Gerichtsinstanz": "",
         "kammern": {
           "NE_ATS_001": {
             "spider": "NE_Omni",
@@ -2315,7 +2239,6 @@
         "de": "Autorit\u00e9 de surveillance des avocats",
         "fr": "Autorit\u00e9 de surveillance des avocats",
         "it": "Autorit\u00e9 de surveillance des avocats",
-        "Gerichtsinstanz": "",
         "kammern": {
           "NE_CA_001": {
             "spider": "NE_Omni",
@@ -2329,7 +2252,6 @@
         "de": "Autorit\u00e9 de surveillance du notariat",
         "fr": "Autorit\u00e9 de surveillance du notariat",
         "it": "Autorit\u00e9 de surveillance du notariat",
-        "Gerichtsinstanz": "",
         "kammern": {
           "NE_CN_001": {
             "spider": "NE_Omni",
@@ -2343,7 +2265,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "NE_XX_001": {
             "spider": "NE_Omni",
@@ -2364,7 +2285,6 @@
         "de": "Gerichte",
         "fr": "Gerichte",
         "it": "Gerichte",
-        "Gerichtsinstanz": "",
         "kammern": {
           "NW_OG_001": {
             "spider": "NW_Gerichte",
@@ -2378,7 +2298,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "NW_XX_001": {
             "spider": "NW_Gerichte",
@@ -2399,7 +2318,6 @@
         "de": "Verwaltungs- und Verwaltungsgerichtsentscheide (VVGE)",
         "fr": "Verwaltungs- und Verwaltungsgerichtsentscheide (VVGE)",
         "it": "Verwaltungs- und Verwaltungsgerichtsentscheide (VVGE)",
-        "Gerichtsinstanz": "",
         "kammern": {
           "OW_VG_001": {
             "spider": "OW_Gerichte",
@@ -2413,7 +2331,6 @@
         "de": "Amtsbericht \u00fcber die Rechtspflege (AbR)",
         "fr": "Amtsbericht \u00fcber die Rechtspflege (AbR)",
         "it": "Amtsbericht \u00fcber die Rechtspflege (AbR)",
-        "Gerichtsinstanz": "",
         "kammern": {
           "OW_OG_001": {
             "spider": "OW_Gerichte",
@@ -2427,7 +2344,6 @@
         "de": "Gerichts- und Verwaltungsentscheide (OGVE)",
         "fr": "Gerichts- und Verwaltungsentscheide (OGVE)",
         "it": "Gerichts- und Verwaltungsentscheide (OGVE)",
-        "Gerichtsinstanz": "",
         "kammern": {
           "OW_VB_001": {
             "spider": "OW_Gerichte",
@@ -2441,7 +2357,6 @@
         "de": "Sonstiges",
         "fr": "Sonstiges",
         "it": "Sonstiges",
-        "Gerichtsinstanz": "",
         "kammern": {
           "OW_XX_001": {
             "spider": "OW_Gerichte",
@@ -2462,7 +2377,6 @@
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
         "it": "Kantonsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SG_KG_001": {
             "spider": "SG_Gerichte",
@@ -2506,7 +2420,6 @@
         "de": "Handelsgericht",
         "fr": "Handelsgericht",
         "it": "Handelsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SG_HG_001": {
             "spider": "SG_Gerichte",
@@ -2520,7 +2433,6 @@
         "de": "Kantonale Aufsichtsbeh\u00f6rde f\u00fcr Schuldbetreibung und Konkurs",
         "fr": "Kantonale Aufsichtsbeh\u00f6rde f\u00fcr Schuldbetreibung und Konkurs",
         "it": "Kantonale Aufsichtsbeh\u00f6rde f\u00fcr Schuldbetreibung und Konkurs",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SG_ABSK_001": {
             "spider": "SG_Gerichte",
@@ -2534,7 +2446,6 @@
         "de": "Verwaltungsrekurskommission",
         "fr": "Verwaltungsrekurskommission",
         "it": "Verwaltungsrekurskommission",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SG_VWEK_001": {
             "spider": "SG_Gerichte",
@@ -2548,7 +2459,6 @@
         "de": "Versicherungsgericht",
         "fr": "Versicherungsgericht",
         "it": "Versicherungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SG_VSG_001": {
             "spider": "SG_Gerichte",
@@ -2562,7 +2472,6 @@
         "de": "Verwaltungsgericht",
         "fr": "Verwaltungsgericht",
         "it": "Verwaltungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SG_VG_001": {
             "spider": "SG_Gerichte",
@@ -2576,7 +2485,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SG_XX_001": {
             "spider": "SG_Gerichte",
@@ -2597,7 +2505,6 @@
         "de": "Obergericht",
         "fr": "Obergericht",
         "it": "Obergericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SH_OG_001": {
             "spider": "SH_OG",
@@ -2611,7 +2518,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SH_XX_001": {
             "spider": "SH_OG",
@@ -2632,7 +2538,6 @@
         "de": "Obergericht",
         "fr": "Obergericht",
         "it": "Obergericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SO_OG_001": {
             "spider": "SO_Omni",
@@ -2676,7 +2581,6 @@
         "de": "Obergericht",
         "fr": "Obergericht",
         "it": "Obergericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SG_OG_002": {
             "spider": "SO_Omni",
@@ -2720,7 +2624,6 @@
         "de": "Versicherungsgericht",
         "fr": "Versicherungsgericht",
         "it": "Versicherungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SO_VSG_001": {
             "spider": "SO_Omni",
@@ -2734,7 +2637,6 @@
         "de": "Verwaltungsgericht",
         "fr": "Verwaltungsgericht",
         "it": "Verwaltungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SO_VG_001": {
             "spider": "SO_Omni",
@@ -2748,7 +2650,6 @@
         "de": "Sch\u00e4tzungskommission",
         "fr": "Sch\u00e4tzungskommission",
         "it": "Sch\u00e4tzungskommission",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SO_SK_001": {
             "spider": "SO_Omni",
@@ -2762,7 +2663,6 @@
         "de": "Steuergericht",
         "fr": "Steuergericht",
         "it": "Steuergericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SO_STG_001": {
             "spider": "SO_Omni",
@@ -2776,7 +2676,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SO_XX_001": {
             "spider": "SO_Omni",
@@ -2797,7 +2696,6 @@
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
         "it": "Kantonsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SZ_KG_001": {
             "spider": "SZ_Gerichte",
@@ -2850,7 +2748,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "SZ_XX_001": {
             "spider": "SZ_Gerichte",
@@ -2871,7 +2768,6 @@
         "de": "Il Presidente della Pretura Penale",
         "fr": "Il Presidente della Pretura Penale",
         "it": "Il Presidente della Pretura Penale",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_PP_001": {
             "spider": "TI_Gerichte",
@@ -2885,7 +2781,6 @@
         "de": "Tribunale cantonale amministrativo",
         "fr": "Tribunale cantonale amministrativo",
         "it": "Tribunale cantonale amministrativo",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_TCA_001": {
             "spider": "TI_Gerichte",
@@ -2899,7 +2794,6 @@
         "de": "Tribunale cantonale delle assicurazioni",
         "fr": "Tribunale cantonale delle assicurazioni",
         "it": "Tribunale cantonale delle assicurazioni",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_TCAS_001": {
             "spider": "TI_Gerichte",
@@ -2913,7 +2807,6 @@
         "de": "Camera di diritto tributario",
         "fr": "Camera di diritto tributario",
         "it": "Camera di diritto tributario",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_CATI_001": {
             "spider": "TI_Gerichte",
@@ -2927,7 +2820,6 @@
         "de": "Tribunale di espropriazione",
         "fr": "Tribunale di espropriazione",
         "it": "Tribunale di espropriazione",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_TE_001": {
             "spider": "TI_Gerichte",
@@ -2941,7 +2833,6 @@
         "de": "Tribunale di appello diritto civile",
         "fr": "Tribunale di appello diritto civile",
         "it": "Tribunale di appello diritto civile",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_TRAC_001": {
             "spider": "TI_Gerichte",
@@ -3021,7 +2912,6 @@
         "de": "Tribunale di appello diritto penale",
         "fr": "Tribunale di appello diritto penale",
         "it": "Tribunale di appello diritto penale",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_TRAP_001": {
             "spider": "TI_Gerichte",
@@ -3056,7 +2946,6 @@
         "de": "Tribunale penale cantonale",
         "fr": "Tribunale penale cantonale",
         "it": "Tribunale penale cantonale",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_TPC_001": {
             "spider": "TI_Gerichte",
@@ -3070,7 +2959,6 @@
         "de": "Corte di appello e di revisione penale",
         "fr": "Corte di appello e di revisione penale",
         "it": "Corte di appello e di revisione penale",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_CARP_001": {
             "spider": "TI_Gerichte",
@@ -3084,7 +2972,6 @@
         "de": "Ufficio del giudice dei provvedimenti coercitivi",
         "fr": "Ufficio del giudice dei provvedimenti coercitivi",
         "it": "Ufficio del giudice dei provvedimenti coercitivi",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_GPC_001": {
             "spider": "TI_Gerichte",
@@ -3098,7 +2985,6 @@
         "de": "Tribunale della pianificazione",
         "fr": "Tribunale della pianificazione",
         "it": "Tribunale della pianificazione",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_TRPI_001": {
             "spider": "TI_Gerichte",
@@ -3112,7 +2998,6 @@
         "de": "Camera dei ricorsi penali",
         "fr": "Camera dei ricorsi penali",
         "it": "Camera dei ricorsi penali",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_CRP_001": {
             "spider": "TI_Gerichte",
@@ -3126,7 +3011,6 @@
         "de": "Il Giudice dell'istruzione e dell'arresto",
         "fr": "Il Giudice dell'istruzione e dell'arresto",
         "it": "Il Giudice dell'istruzione e dell'arresto",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_GIAR_001": {
             "spider": "TI_Gerichte",
@@ -3140,7 +3024,6 @@
         "de": "Diversi",
         "fr": "Diversi",
         "it": "Diversi",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TI_XX_999": {
             "spider": "TI_Gerichte",
@@ -3161,7 +3044,6 @@
         "de": "Obergericht",
         "fr": "Obergericht",
         "it": "Obergericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TG_OG_001": {
             "spider": "TG_OG",
@@ -3178,7 +3060,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "TG_XX_001": {
             "spider": "TG_OG",
@@ -3199,7 +3080,6 @@
         "de": "Rechenschaftsbericht u\u0308ber die Rechtspflege\n",
         "fr": "Rechenschaftsbericht u\u0308ber die Rechtspflege\n",
         "it": "Rechenschaftsbericht u\u0308ber die Rechtspflege\n",
-        "Gerichtsinstanz": "",
         "kammern": {
           "UR_REB_001": {
             "spider": "UR_Gerichte",
@@ -3213,7 +3093,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "UR_XX_001": {
             "spider": "UR_Gerichte",
@@ -3234,7 +3113,6 @@
         "de": "Tribunal cantonal",
         "fr": "Tribunal cantonal",
         "it": "Tribunal cantonal",
-        "Gerichtsinstanz": "",
         "kammern": {
           "VD_TC_001": {
             "spider": "VD_FindInfo",
@@ -3440,7 +3318,6 @@
         "de": "Tribunal de Prud'hommes de l'Administration cantonale",
         "fr": "Tribunal de Prud'hommes de l'Administration cantonale",
         "it": "Tribunal de Prud'hommes de l'Administration cantonale",
-        "Gerichtsinstanz": "",
         "kammern": {
           "VD_TPHA_001": {
             "spider": "VD_FindInfo",
@@ -3454,7 +3331,6 @@
         "de": "Conseil d'\u00c9tat",
         "fr": "Conseil d'\u00c9tat",
         "it": "Conseil d'\u00c9tat",
-        "Gerichtsinstanz": "",
         "kammern": {
           "VD_SR_001": {
             "spider": "VD_Omni",
@@ -3468,7 +3344,6 @@
         "de": "Tribunal neutre",
         "fr": "Tribunal neutre",
         "it": "Tribunal neutre",
-        "Gerichtsinstanz": "",
         "kammern": {
           "VD_TN_001": {
             "spider": "VD_Omni",
@@ -3482,7 +3357,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "VD_XX_001": {
             "spider": "VD_FindInfo",
@@ -3503,7 +3377,6 @@
         "de": "Bezirksgericht",
         "fr": "Tribunal du district",
         "it": "Bezirksgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "VS_BZG_001": {
             "spider": "VS_Gerichte",
@@ -3601,7 +3474,6 @@
         "de": "Arbeitsgericht",
         "fr": "Tribunal du travail",
         "it": "Arbeitsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "VS_AG_001": {
             "spider": "VS_Gerichte",
@@ -3615,7 +3487,6 @@
         "de": "Kantonale Steuerrekurskommission",
         "fr": "Commission cantonale de recours en mati\u00e8re fiscale",
         "it": "Kantonale Steuerrekurskommission",
-        "Gerichtsinstanz": "",
         "kammern": {
           "VS_SRK_001": {
             "spider": "VS_Gerichte",
@@ -3629,7 +3500,6 @@
         "de": "Kantonsgericht",
         "fr": "Tribunal cantonal",
         "it": "Kantonsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "VS_TC_001": {
             "spider": "VS_Gerichte",
@@ -3643,7 +3513,6 @@
         "de": "Sonstiges",
         "fr": "Autres",
         "it": "Sonstiges",
-        "Gerichtsinstanz": "",
         "kammern": {
           "VS_XX_001": {
             "spider": "VS_Gerichte",
@@ -3664,7 +3533,6 @@
         "de": "Verwaltungsgericht",
         "fr": "Verwaltungsgericht",
         "it": "Verwaltungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "ZG_VG_001": {
             "spider": "ZG_Verwaltungsgericht",
@@ -3717,7 +3585,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "ZG_XX_001": {
             "spider": "ZG_Verwaltungsgericht",
@@ -3738,7 +3605,6 @@
         "de": "Bezirksgerichte",
         "fr": "Bezirksgerichte",
         "it": "Bezirksgerichte",
-        "Gerichtsinstanz": "",
         "kammern": {
           "ZH_BK_004": {
             "spider": "ZH_Obergericht",
@@ -3755,7 +3621,6 @@
         "de": "Obergericht",
         "fr": "Obergericht",
         "it": "Obergericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "ZH_OG_001": {
             "spider": "ZH_Obergericht",
@@ -3823,7 +3688,6 @@
         "de": "Handelsgericht",
         "fr": "Handelsgericht",
         "it": "Handelsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "ZH_HG_001": {
             "spider": "ZH_Obergericht",
@@ -3837,7 +3701,6 @@
         "de": "Andere Beh\u00f6rden und Gerichte",
         "fr": "Andere Beh\u00f6rden und Gerichte",
         "it": "Andere Beh\u00f6rden und Gerichte",
-        "Gerichtsinstanz": "",
         "kammern": {
           "ZH_SOBE_001": {
             "spider": "ZH_Obergericht",
@@ -3851,7 +3714,6 @@
         "de": "Verwaltungsgericht",
         "fr": "Verwaltungsgericht",
         "it": "Verwaltungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "ZH_VG_001": {
             "spider": "ZH_Verwaltungsgericht",
@@ -3865,7 +3727,6 @@
         "de": "Sozialverischerungsgericht",
         "fr": "Sozialverischerungsgericht",
         "it": "Sozialverischerungsgericht",
-        "Gerichtsinstanz": "",
         "kammern": {
           "ZH_SVG_001": {
             "spider": "ZH_Sozialversicherungsgericht",
@@ -3879,7 +3740,6 @@
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
         "it": "corte sconosciuta",
-        "Gerichtsinstanz": "",
         "kammern": {
           "ZH_XX_001": {
             "spider": "ZH_Obergericht",
