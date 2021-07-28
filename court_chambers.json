@@ -456,7 +456,7 @@
   "AR": {
     "de": "Appenzell Ausserrhoden",
     "fr": "Appenzell Rhodes-Ext\u00e9rieures",
-    "it": "Appenzello Interno",
+    "it": "Appenzello Esterno",
     "gerichte": {
       "AR_OG": {
         "de": "Obergericht",
@@ -1748,7 +1748,7 @@
     }
   },
   "SG": {
-    "de": "St.Gallen",
+    "de": "St. Gallen",
     "fr": "Saint-Gall",
     "it": "San Gallo",
     "gerichte": {
@@ -2758,9 +2758,9 @@
         }
       },
       "ZH_SVG": {
-        "de": "Sozialverischerungsgericht",
-        "fr": "Sozialverischerungsgericht",
-        "it": "Sozialverischerungsgericht",
+        "de": "Sozialversicherungsgericht",
+        "fr": "Sozialversicherungsgericht",
+        "it": "Sozialversicherungsgericht",
         "kammern": {
           "ZH_SVG_001": {
             "spider": "ZH_Sozialversicherungsgericht"
