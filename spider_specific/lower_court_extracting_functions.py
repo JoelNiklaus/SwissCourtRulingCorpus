@@ -12,7 +12,7 @@ This file is used to extract the lower courts from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
 """
 
-# check if court got assigned shortcut: SELECT count(*) from de WHERE lower_court is not null and lower_court <> 'null' and lower_court::json#>>'{court}'~'[A-Z1-9_]{2,}';
+# check if court got assigned shortcut: SELECT count(*) from de WHERE lower_court is not null and lower_court <> 'null' and lower_court::json#>>'{court}'~'[A-Z0-9_]{2,}';
 def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
     """
     Extract lower courts from decisions of the Federal Supreme Court of Switzerland
@@ -25,7 +25,7 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
         message = f"This function is only implemented for the languages {supported_languages} so far."
         raise ValueError(message)
 
-    information_start_regex = r'Vorinstanz|Beschwerde\sgegen|Instance précédente|recours|révision de|ricorso|ricorrente|rettifica'
+    information_start_regex = r'Vorinstanz|Beschwerden?\sgegen|gegen\sden\s(Entscheid|Beschluss)|gegen\sdas\sUrteil|Gegenstand|Instance précédente|recours|révision de|ricorso|ricorrente|rettifica'
 
     information_regex = {
         'court': [
@@ -58,11 +58,14 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
             r'(?P<high_prio>[Cc]hambre.*?(?=[,\.]| du| de la [Cc]our))',
             r'(?<![Rr]e)[Cc]our.*?(?=[,\.]| du| de la [Cc]our)',
             r'[Cc]orte.*?(?=[,\.]| del Tribunale| del Cantone)',
-            r'[Cc]amera.*?(?=[,\.]| del Tribunale| del Cantone)'
+            r'[Cc]amera.*?(?=[,\.]| del Tribunale| del Cantone)',
+            r'Abteilung\s[\dIVX]+',
+            r'[IVX\d]+.\s(\w+\s)?Abteilung'
         ], 
         'file_number': [
-            r'(?<=\()(?P<ID>[A-Z1-9]{0,4})(\.|\s)?(?P<YEAR>\d{2,4})(\.|\s)?(?P<NUMBER>\d{0,8})(?=\))', # ex: (AB12.2021.13)
-            r'(?<=\()[A-Z1-9]{1,2}([\-_\/])?\d{2,4}(\/)?\d{0,4}(?=\))' # ex: AB-12/2021
+            r'(?P<ID>[A-Z0-9]{2,6})[\.\s\-]?(?P<YEAR>\d{2,4})[\.\s\-]?(?P<NUMBER>[\dA-Z\-]{2,8})(?=\))', # ex: AB12.2021.13
+            r'[A-Z0-9]{1,4}([\.\-_\/\s])\d{1,8}[\.\/\-]?(\d{4}|[A-Z\/]+(\d+)?)', # ex: AB-12/2021
+            r'[A-Z0-9]{1,3}(\s|\.)((([\d]{3,6})|\/)\s??){2,6}' # ex: 720 16 328 / 176
         ]
     }
 
@@ -102,6 +105,24 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
                 return current_court_short
         return court # court shortcut not found, then return original string
 
+    def prepareChamberForQuery(chamber: str, court: str, canton:str, court_chambers_data) -> str:
+        if court not in court_chambers_data[canton]['gerichte']:
+            return chamber
+        possible_labels = court_chambers_data[canton]['gerichte'][court]['kammern']
+        for current_short in possible_labels:
+            current_court_data = court_chambers_data[canton]['gerichte'][court]['kammern'][current_short]
+            if {'de', 'fr', 'it'} <= current_court_data.keys():
+                if chamber in current_court_data['de'] or \
+                    chamber in current_court_data['fr'] or \
+                    chamber in current_court_data['it']:
+                    return current_short
+                chamber_without_number = re.sub(r'[IV0-9]*.\s', '', chamber)
+                if chamber_without_number in current_court_data['de'] or \
+                    chamber_without_number in current_court_data['fr'] or \
+                    chamber_without_number in current_court_data['it']:
+                    return current_short
+        return chamber # court shortcut not found, then return original string
+
     def prepareDateForQuery(date: str) -> str:
         translation_dict = {
             "Januar": "Jan", "Februar": "Feb", "März": "Mar", "Mai": "May", "Juni": "June", "Juli": "July", "Oktober": "Oct", "Dezember": "Dec",
@@ -121,18 +142,19 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
         chamber = None
 
         if 'canton' in lower_court_information:
-            canton = lower_court_information['canton']
             court_chambers_data = json.loads(Path("court_chambers.json").read_text())
             lower_court_information['canton'] = prepareCantonForQuery(lower_court_information['canton'], court_chambers_data)
             if 'court' in lower_court_information and lower_court_information['canton'] is not None:
                 lower_court_information['court'] = prepareCourtForQuery(lower_court_information['court'], lower_court_information['canton'], court_chambers_data)
-
         else:
             if 'court' in lower_court_information:
                 court_chambers_data = json.loads(Path("court_chambers.json").read_text())
                 lower_court_information['court'] = prepareCourtForQuery(lower_court_information['court'], 'CH', court_chambers_data)
                 if re.match(r'CH_',lower_court_information['court']):
                     lower_court_information['canton'] = 'CH'
+
+        if {'canton', 'chamber', 'court'} <= lower_court_information.keys() and all(value is not None for value in [lower_court_information['chamber'], lower_court_information['court'], lower_court_information['canton']]):
+            lower_court_information['chamber'] = prepareChamberForQuery(lower_court_information['chamber'], lower_court_information['court'], lower_court_information['canton'], json.loads(Path("court_chambers.json").read_text()))
         if 'date' in lower_court_information:
             lower_court_information['date'] = prepareDateForQuery(lower_court_information['date'])
 
@@ -152,7 +174,7 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
 
     def get_court_information(header, namespace):
         result = {}
-        start_pos = re.search(information_start_regex, header)
+        start_pos = re.search(information_start_regex, header) or re.search(r', gegen|Beschwerdeführer', header)
         if start_pos:
             header = header[start_pos.span()[0]:]
         
