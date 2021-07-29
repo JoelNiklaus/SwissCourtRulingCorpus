@@ -18,17 +18,6 @@ class JudgementExtractor(Extractor):
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         return f"spider='{spider}' AND rulings IS NOT NULL AND rulings <> ''"
 
-    def coverage_getTotal(self, engine, spider, lang) -> int:
-        """
-        Returns total amount of valid entries to be processed by extractor
-        """
-        return pd.read_sql(f"SELECT count(*) FROM {lang} WHERE {self.getDatabaseSelectionString(spider, lang)}", engine.connect())['count'][0]
-
-    def coverage_getSuccessful(self, engine, spider, lang) -> int:
-        """Returns the total entries that got processed successfully"""
-        query = f"SELECT count({self.col_name}) FROM {lang} WHERE {self.getDatabaseSelectionString(spider, lang)} AND {self.col_name} <> 'null'"
-        return pd.read_sql(query, engine.connect())['count'][0]
-
     def getRequiredData(self, series) -> Any:
         return series['rulings']
 
