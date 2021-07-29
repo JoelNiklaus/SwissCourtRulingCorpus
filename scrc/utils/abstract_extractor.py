@@ -78,12 +78,11 @@ class Extractor(ABC, DatasetConstructorComponent):
         for lang in self.languages:
             where = self.getDatabaseSelectionString(spider, lang)
             self.startProgress(engine, spider, lang)
-            chunksize = 1000
-            dfs = self.select(engine, lang, where=where, chunksize=chunksize)  # stream dfs from the db
+            dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)  # stream dfs from the db
             for df in dfs:
                 df = df.apply(self.processOneDFRow, axis='columns')
                 self.update(engine, df, lang, [self.col_name])
-                self.logProgress(chunksize)
+                self.logProgress(self.chunksize)
             
             self.logCoverage(engine, spider, lang)
 
