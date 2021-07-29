@@ -4,7 +4,6 @@ import re
 import unicodedata
 import json
 import pandas as pd
-from sqlalchemy.engine.base import Engine
 from scrc.utils.main_utils import clean_text
 
 """
@@ -13,7 +12,7 @@ The name of the functions should be equal to the spider! Otherwise, they won't b
 """
 
 # check if court got assigned shortcut: SELECT count(*) from de WHERE lower_court is not null and lower_court <> 'null' and lower_court::json#>>'{court}'~'[A-Z0-9_]{2,}';
-def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
+def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     """
     Extract lower courts from decisions of the Federal Supreme Court of Switzerland
     :param header:     the string containing the header
@@ -68,23 +67,6 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
             r'[A-Z0-9]{1,3}(\s|\.)?((([\d]{3,6})|\/)\s??){2,6}(-[A-Z])?' # ex: 720 16 328 / 176
         ]
     }
-
-    def get_lower_court_by_file_number(file_number: Match) -> Optional[str]:
-        chamber = None
-        
-        for lang in supported_languages:
-            if file_number.group('YEAR'):
-                id = file_number.group('ID')
-                year = file_number.group('YEAR')
-                number = file_number.group('NUMBER')
-                print(f"Special Case: \n{file_number.group()}\n")
-                chamber = pd.read_sql(f"SELECT chamber FROM {lang} WHERE file_number LIKE '{id}%{year}%{number}'", engine.connect())
-            else: 
-                print(f"Normal Case: \n{file_number.group()}\n")
-                chamber = pd.read_sql(f"SELECT chamber FROM {lang} WHERE file_number = '{file_number.group()}'", engine.connect())
-            print(chamber)
-        
-        return None
 
     def prepareCantonForQuery(canton: str, court_chambers_data) -> str:
         for canton_short in court_chambers_data:
@@ -157,17 +139,6 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
         if 'date' in lower_court_information:
             lower_court_information['date'] = prepareDateForQuery(lower_court_information['date'])
 
-        # try to find file in database
-        """ for lang in languages:
-            query = f"SELECT chamber, court, canton FROM {lang} WHERE date = '{prepareDateForQuery(lower_court_information['date'])}'"
-            for item in lower_court_information:
-                if item == 'date':
-                    continue
-                if lower_court_information[item] == None:
-                    continue
-                query += f" AND {item} = '{lower_court_information[item]}'"
-            chamber = pd.read_sql(query, engine.connect())
-            print(query, chamber, sep="\n") """
         
         return lower_court_information
 

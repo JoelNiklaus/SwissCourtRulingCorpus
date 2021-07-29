@@ -8,7 +8,7 @@
             "name": "Python: Modul",
             "type": "python",
             "request": "launch",
-            "module": "scrc.dataset_construction.lower_court_extractor",
+            "module": "scrc.dataset_construction.judgement_extractor",
             "python": "python"
         }
     ]
