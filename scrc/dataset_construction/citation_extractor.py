@@ -1,5 +1,5 @@
 import configparser
-from scrc.utils.abstract_extractor import Extractor
+from scrc.utils.abstract_extractor import AbstractExtractor
 from typing import Optional, Any
 
 import bs4
@@ -8,7 +8,7 @@ import pandas as pd
 from root import ROOT_DIR
 
 
-class CitationExtractor(Extractor):
+class CitationExtractor(AbstractExtractor):
     """
     Extract citations from the html documents
     """

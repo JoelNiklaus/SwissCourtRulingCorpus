@@ -5,7 +5,7 @@ import pandas as pd
 
 from typing import Any, Optional
 
-class Extractor(ABC, DatasetConstructorComponent):
+class AbstractExtractor(ABC, DatasetConstructorComponent):
 
     
     loggerInfo = {
