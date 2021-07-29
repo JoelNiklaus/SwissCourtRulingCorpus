@@ -24,20 +24,8 @@ class Extractor(ABC, DatasetConstructorComponent):
         pass
 
     @abstractmethod
-    def coverage_getTotal(self, engine, spider, lang) -> int:
-        """
-        Returns total amount of valid entries to be processed by extractor
-        """
-        pass
-
-    @abstractmethod
     def getDatabaseSelectionString(self, spider, lang) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-        pass
-
-    @abstractmethod
-    def coverage_getSuccessful(self, engine, spider, lang) -> int:
-        """Returns the total entries that got processed successfully"""
         pass
 
     def checkConditionBeforeProcess(self, spider: str, data: Any, namespace: dict) -> bool:
@@ -107,10 +95,10 @@ class Extractor(ABC, DatasetConstructorComponent):
         namespace = series[['date', 'language', 'html_url', 'id']].to_dict()
         data = self.getRequiredData(series)
         assert data
-        series[self.col_name] = self.processOneEntry(series['spider'], data, namespace)
+        series[self.col_name] = self.callProcessingFunction(series['spider'], data, namespace)
         return series
 
-    def processOneEntry(self, spider: str, data: Any, namespace: dict) -> Optional[Any]:
+    def callProcessingFunction(self, spider: str, data: Any, namespace: dict) -> Optional[Any]:
         if not self.checkConditionBeforeProcess(spider, data, namespace):
             return None
         extracting_functions = getattr(self.processing_functions, spider)
@@ -120,6 +108,17 @@ class Extractor(ABC, DatasetConstructorComponent):
             self.logger.warning(e)
             return None  # just ignore the error for now. It would need much more rules to prevent this.
 
+    def coverage_getTotal(self, engine, spider, lang) -> int:
+        """
+        Returns total amount of valid entries to be processed by extractor
+        """
+        return pd.read_sql(f"SELECT count(*) FROM {lang} WHERE {self.getDatabaseSelectionString(spider, lang)}", engine.connect())['count'][0]
+    
+    def coverage_getSuccessful(self, engine, spider, lang) -> int:
+        """Returns the total entries that got processed successfully"""
+        query = f"SELECT count({self.col_name}) FROM {lang} WHERE {self.getDatabaseSelectionString(spider, lang)} AND {self.col_name} <> 'null'"
+        return pd.read_sql(query, engine.connect())['count'][0]
+    
     def startProgress(self, engine, spider, lang):
         self.processedAmount = 0
         self.totalToProcess = self.coverage_getTotal(engine, spider, lang)
