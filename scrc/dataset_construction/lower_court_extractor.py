@@ -2,10 +2,10 @@ import configparser
 from typing import Optional, Any
 
 from root import ROOT_DIR
-from scrc.utils.abstract_extractor import Extractor
+from scrc.utils.abstract_extractor import AbstractExtractor
 import pandas as pd
 
-class LowerCourtExtractor(Extractor):
+class LowerCourtExtractor(AbstractExtractor):
     """
     Extracts the lower courts from the header section
     """
