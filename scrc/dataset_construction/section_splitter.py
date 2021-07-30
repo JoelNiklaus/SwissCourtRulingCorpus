@@ -48,19 +48,34 @@ class SectionSplitter(AbstractExtractor):
                 self.add_column(engine, lang, col_name=section, data_type='text')
             self.add_column(engine, lang, col_name='paragraphs', data_type='jsonb')
 
-    def readColumn(self, engine, name, lang):
-                query = f"SELECT count({name}) FROM {lang} WHERE {self.getDatabaseSelectionString()} AND {name} <> ''"
+    def readColumn(self, engine, spider, name, lang):
+                query = f"SELECT count({name}) FROM {lang} WHERE {self.getDatabaseSelectionString(spider, lang)} AND {name} <> ''"
                 return pd.read_sql(query, engine.connect())['count'][0]
     
     def logCoverage(self, engine, spider, lang):
         """Override method to get custom coverage report"""
         self.logger.info(f"{self.loggerInfo['finish_spider']} in {lang} with the following amount recognized:")
         for section in sections:
-            section_amount = self.readColumn(engine, section, lang)
+            section_amount = self.readColumn(engine, spider, section, lang)
             self.logger.info(
                 f"{section.capitalize()}:\t{section_amount} / {self.totalToProcess} ()"
                 f"({section_amount / self.totalToProcess:.2%}) "
             )
+    def processOneSpider(self, engine, spider):
+        self.logger.info(self.loggerInfo['start_spider'] + ' ' + spider)
+
+        for lang in self.languages:
+            where = self.getDatabaseSelectionString(spider, lang)
+            self.startProgress(engine, spider, lang)
+            dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)  # stream dfs from the db
+            for df in dfs:
+                df = df.apply(self.processOneDFRow, axis='columns')
+                self.update(engine, df, lang, sections + ['paragraphs'])
+                self.logProgress(self.chunksize)
+            
+            self.logCoverage(engine, spider, lang)
+
+        self.logger.info(f"{self.loggerInfo['finish_spider']} {spider}")
 
     def processOneDFRow(self, series):
         """Override method to handle section data and paragraph data individually"""
@@ -68,9 +83,8 @@ class SectionSplitter(AbstractExtractor):
         namespace = series[['date', 'language', 'html_url', 'id']].to_dict()
         data = self.getRequiredData(series)
         assert data
-        series[self.col_name] = self.callProcessingFunction(series['spider'], data, namespace)
         try:
-            section_data, paragraph_data = self.split_sections_with_functions(series['spider'], data, namespace)
+            section_data, paragraph_data = self.callProcessingFunction(series['spider'], data, namespace) or (None, None)
             if section_data:
                 for key, value in section_data.items():
                     series[key] = value

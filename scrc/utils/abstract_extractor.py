@@ -121,6 +121,7 @@ class AbstractExtractor(ABC, DatasetConstructorComponent):
     def startProgress(self, engine, spider, lang):
         self.processedAmount = 0
         self.totalToProcess = self.coverage_getTotal(engine, spider, lang)
+        self.logger.info(f"Total: {self.totalToProcess}")
 
     def logProgress(self, chunksize):
         self.processedAmount = min(self.processedAmount + chunksize, self.totalToProcess)

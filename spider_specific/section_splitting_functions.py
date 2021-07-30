@@ -30,11 +30,11 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, s
             # "judges": ['Besetzung', 'Es wirken mit', 'Bundesrichter'],
             # "parties": ['Parteien', 'Verfahrensbeteiligte', 'In Sachen'],
             # "topic": ['Gegenstand', 'betreffend'],
-            "facts": [r'Sachverhalt:', r'hat sich ergeben', r'Nach Einsicht'],
-            "considerations": [r'Erwägung:', r'in Erwägung', r'Erwägungen:'],
-            "rulings": [r'erkennt die Präsidentin', r'erkennt der Präsident', r'Demnach erkennt', r'beschliesst:'],
+            "facts": [r'Sachverhalt:', r'hat sich ergeben', r'Nach Einsicht', r'A.-'],
+            "considerations": [r'Erwägung:', r'[Ii]n Erwägung', r'Erwägungen:'],
+            "rulings": [r'erkennt d[\w]{2} Präsident', r'Demnach (erkennt|beschliesst)', r'beschliesst.*:\s*$', r'verfügt.*:\s*$', r'erk[ae]nnt.*:\s*$', r'Demnach verfügt'],
             "footer": [
-                r'\w*,\s\d?\d\.\s(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?).*']
+                r'^[\-\s\w]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))']
         },
         'fr': {
             "facts": [r'Faits\s?:', r'en fait et en droit', r'(?:V|v)u\s?:', r'A.-'],
