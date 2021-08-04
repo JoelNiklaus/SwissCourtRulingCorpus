@@ -34,7 +34,8 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, s
             "considerations": [r'Erwägung:', r'[Ii]n Erwägung', r'Erwägungen:'],
             "rulings": [r'erkennt d[\w]{2} Präsident', r'Demnach (erkennt|beschliesst)', r'beschliesst.*:\s*$', r'verfügt.*:\s*$', r'erk[ae]nnt.*:\s*$', r'Demnach verfügt'],
             "footer": [
-                r'^[\-\s\w]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))']
+                r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))',
+                r'Im Namen des']
         },
         'fr': {
             "facts": [r'Faits\s?:', r'en fait et en droit', r'(?:V|v)u\s?:', r'A.-'],
