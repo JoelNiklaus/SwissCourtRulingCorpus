@@ -22,7 +22,7 @@ from spacy.lang.it import Italian
 from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area, legal_areas, get_region
 from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
 
-#pd.options.mode.chained_assignment = None  # default='warn'
+# pd.options.mode.chained_assignment = None  # default='warn'
 
 """
 Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 day per court)
@@ -171,22 +171,22 @@ class DatasetCreator(DatasetConstructorComponent):
         return self.judgement_prediction(engine, 'considerations', lang)
 
     def judgement_prediction(self, engine, input, lang, with_write_off=False, with_unification=False,
-                             with_inadmissible=False,
-                             with_partials=False, make_single_label=True):
+                             with_inadmissible=False, with_partials=False, make_single_label=True):
         df = self.get_df(engine, input, 'judgements', lang)
 
         # Delete cases with "Nach Einsicht" from the dataset because they are mostly inadmissible or otherwise dismissal
         # => too easily learnable for the model (because of spurious correlation)
-        df = df[~df[input].str.startswith('Nach Einsicht')]
+        if with_inadmissible:
+            df = df[~df[input].str.startswith('Nach Einsicht')]
 
         def clean(judgements):
-            out = []
+            out = set()
             for judgement in judgements:
                 # remove "partial_" from all the items to merge them with full ones
                 if not with_partials:
                     judgement = judgement.replace("partial_", "")
 
-                out.append(judgement)
+                out.add(judgement)
 
             if not with_write_off:
                 # remove write_off because reason for it happens mostly behind the scenes and not written in the facts
@@ -217,11 +217,11 @@ class DatasetCreator(DatasetConstructorComponent):
                     message = f"By now we should only have one label. But instead we still have the labels {out}"
                     raise ValueError(message)
                 elif len(out) == 1:
-                    return out[0]  # just return the first label because we only have one left
+                    return out.pop()  # just return the first label because we only have one left
                 else:
                     return np.nan
 
-            return out
+            return list(out)
 
         df.judgements = df.judgements.apply(clean)
         df = df.dropna()  # drop empty labels introduced by cleaning before
@@ -325,8 +325,11 @@ class DatasetCreator(DatasetConstructorComponent):
 
     def get_df(self, engine, feature_col, label_col, lang):
         self.logger.info("Started loading the data from the database")
-        lower_court_canton = "lower_court::json#>>'{canton}' AS lower_court_canton"
-        columns = f"extract(year from date) as year, chamber, {lower_court_canton}, {feature_col}, {label_col}"
+        origin_canton = "lower_court::json#>>'{canton}' AS origin_canton"
+        origin_court = "lower_court::json#>>'{court}' AS origin_court"
+        origin_chamber = "lower_court::json#>>'{chamber}' AS origin_chamber"
+        columns = f"{feature_col}, {label_col}, extract(year from date) as year, chamber, " \
+                  f"{origin_canton}, {origin_court}, {origin_chamber}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
         if self.debug:
@@ -341,7 +344,7 @@ class DatasetCreator(DatasetConstructorComponent):
         df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
         df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
         df['legal_area'] = df.chamber.apply(get_legal_area)
-        df['lower_court_region'] = df.lower_court_canton.apply(get_region)
+        df['origin_region'] = df.origin_canton.apply(get_region)
         self.logger.info("Finished loading the data from the database")
         return df
 
@@ -393,8 +396,10 @@ class DatasetCreator(DatasetConstructorComponent):
             df.to_csv(regular_dir / f'{name}.csv', index_label='id')
 
         special_splits_dir = self.create_dir(regular_dir, 'special_splits')
-        for name, df in special_splits.items():
-            df.to_csv(special_splits_dir / f'{name}.csv', index_label='id')
+        for category, special_split in special_splits.items():
+            category_dir = self.create_dir(special_splits_dir, category)
+            for name, df in special_split.items():
+                df.to_csv(category_dir / f'{name}.csv', index_label='id')
 
         if kaggle:
             self.logger.info("Saving the data in kaggle format")
@@ -439,28 +444,37 @@ class DatasetCreator(DatasetConstructorComponent):
         self.logger.info("Creating special splits")
         test = splits['test']
 
+        special_splits = {
+            'input_length': dict(), 'year': dict(), 'legal_area': dict(),
+            'origin_region': dict(), 'origin_canton': dict(),
+            'origin_court': dict(), 'origin_chamber': dict(),
+        }
+
         # test set split by input length
-        special_splits = dict()
         boundaries = [0, 512, 1024, 2048, 4096, 8192]
         for i in range(len(boundaries) - 1):
             lower, higher = boundaries[i] + 1, boundaries[i + 1]
-            key = f'test-input_length-between({lower:04d},{higher:04d})'
-            special_splits[key] = test[test.num_tokens_bert.between(lower, higher)]
+            key = f'test-between({lower:04d},{higher:04d})'
+            special_splits['input_length'][key] = test[test.num_tokens_bert.between(lower, higher)]
 
         # test set split by year
         if split_type == "date-stratified":
             for year in range(2017, 2020 + 1):
-                special_splits[f'test-year-{year}'] = test[test.year == year]
+                special_splits['year'][f'test-{year}'] = test[test.year == year]
 
         # test set split by legal area
         for legal_area in legal_areas.keys():
-            special_splits[f'test-legal_area-{legal_area}'] = test[test.legal_area.str.contains(legal_area)]
+            special_splits['legal_area'][f'test-{legal_area}'] = test[test.legal_area.str.contains(legal_area)]
 
-        # test set split by origin canton and region
-        for canton in test.lower_court_canton.unique().tolist():
-            special_splits[f'test-lower_court_canton-{canton}'] = test[test.lower_court_canton.str.contains(canton)]
-        for region in test.lower_court_region.unique().tolist():
-            special_splits[f'test-lower_court_region-{region}'] = test[test.lower_court_region.str.contains(region)]
+        # test set split by origin region, canton, court and chamber
+        for region in test.origin_region.unique().tolist():
+            special_splits['origin_region'][f'test-{region}'] = test[test.origin_region.str.contains(region)]
+        for canton in test.origin_canton.unique().tolist():
+            special_splits['origin_canton'][f'test-{canton}'] = test[test.origin_canton.str.contains(canton)]
+        for court in test.origin_court.unique().tolist():
+            special_splits['origin_court'][f'test-{court}'] = test[test.origin_court.str.contains(court)]
+        for chamber in test.origin_chamber.unique().tolist():
+            special_splits['origin_chamber'][f'test-{chamber}'] = test[test.origin_chamber.str.contains(chamber)]
 
         return special_splits
 
@@ -474,7 +488,7 @@ class DatasetCreator(DatasetConstructorComponent):
         """
         split_folder = self.create_dir(folder, f'reports/{split}')
 
-        barplot_attributes = ['legal_area', 'lower_court_canton', 'lower_court_region']
+        barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
         for attribute in barplot_attributes:
             self.plot_barplot_attribute(df, split_folder, attribute)
 
@@ -499,6 +513,8 @@ class DatasetCreator(DatasetConstructorComponent):
         attribute_df['percent'] = round(attribute_df['number of decisions'] / total, 4)
 
         attribute_df.to_csv(split_folder / f'{attribute}_distribution.csv')
+
+        # TODO refactor this huge class into multiple ones (one for each dataset)
 
         # TODO make these plots nicer. They are strange now
         attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
