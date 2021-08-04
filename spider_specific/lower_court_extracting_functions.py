@@ -28,7 +28,7 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
     information_start_regex = r'Vorinstanz|Beschwerden?\sgegen|gegen\sden\s(Entscheid|Beschluss)|gegen\sdas\sUrteil|Gegenstand|Instance précédente|recours|révision de|ricorso|ricorrente|rettifica'
 
     information_regex = {
-        'court': [
+        'court_string': [
             r'(\w*gericht(?=s?[^\w]))',
             r'(?P<high_prio>Tribunal .*?(?=[,\.]| du| de la République et canton))',
             r'(?<![Rr]e)[Cc]our .*?(?=[,\.]| du| de la République et canton)',
@@ -37,21 +37,26 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
         'canton': [
             r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))))(Appenzell Innerrhoden|Appenzell Rhodes-Intérieures|Appenzello Interno)',
             r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))))(Appenzell Ausserrhoden|Appenzell Rhodes-Extérieures|Appenzello Esterno)',
-            r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))))(Basilea Campagna|Basel-Land)',
-            r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))))(Basilea Città)',
-            r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))))(St\. Gallen|San Gallo)',
-            r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))\svon\s))[\wäöü-]*',
+            r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))))Basel-Land',
+            r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))))(St(\.)?\s?Gallen|San Gallo)',
+            r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\svon\s))))[\wäöü-]*',
             r'((?<=des\s(?:Kantons\s))|((?<=des\s(?:Kantonsgerichts\s))))[\wäöü-]*',
+            r'(?<=canton d[eu] )Bâle-(Ville|Campagne)',
             r'(?<=canton d[eu] )[\wéè]*',
             r'(?<=de l\'Etat de )[\wéè]*',
+            r'((?<=del Cantone )|(?<=del Cantone di )|(?<=del Cantone dei ))(San Gallo)',
+            r'((?<=del Cantone )|(?<=del Cantone di )|(?<=del Cantone dei ))(Appenzello (Interno|Esterno))',
+            r'((?<=del Cantone )|(?<=del Cantone di )|(?<=del Cantone dei ))(Basilea (Città|Campagna))',
             r'(?<=del Cantone dei )[\wéè]*',
+            r'(?<=del Cantone di )[\wéè]*',
+            r'(?<=del Cantone del )[\wéè]*',
             r'(?<=del Cantone )[\wéè]*'
 
         ],
         'date': [
             r'(?P<DATE>(?P<DAY>\d?\d|1(re|er)|2e|3e|premier|première|deuxième|troisième|1°)\.?\s(?P<MONTH>\w{2,12})\s(?P<YEAR>\d{4}))'
         ],
-        'chamber': [
+        'chamber_string': [
             r'[IVX\d]+.\s\w*ammer',
             r'\w*ammer',
             r'[IVX\d]+.\s\w*our',
@@ -69,24 +74,6 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
         ]
     }
 
-    def get_lower_court_by_file_number(file_number: Match) -> Optional[str]:
-        languages = ['de', 'fr', 'it']
-        chamber = None
-        
-        for lang in languages:
-            if file_number.group('YEAR'):
-                id = file_number.group('ID')
-                year = file_number.group('YEAR')
-                number = file_number.group('NUMBER')
-                print(f"Special Case: \n{file_number.group()}\n")
-                chamber = pd.read_sql(f"SELECT chamber FROM {lang} WHERE file_number LIKE '{id}%{year}%{number}'", engine.connect())
-            else: 
-                print(f"Normal Case: \n{file_number.group()}\n")
-                chamber = pd.read_sql(f"SELECT chamber FROM {lang} WHERE file_number = '{file_number.group()}'", engine.connect())
-            print(chamber)
-        
-        return None
-
     def prepareCantonForQuery(canton: str, court_chambers_data) -> str:
         for canton_short in court_chambers_data:
             current_canton = court_chambers_data[canton_short]
@@ -94,6 +81,7 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
                 current_canton['fr'] == canton or \
                 current_canton['it'] == canton:
                 return canton_short
+        print(canton)
 
     def prepareCourtForQuery(court: str, canton:str, court_chambers_data) -> str:
         canton_court_data = court_chambers_data[canton]
@@ -103,7 +91,6 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
                 current_court['fr'] == court or \
                 current_court['it'] == court:
                 return current_court_short
-        return court # court shortcut not found, then return original string
 
     def prepareChamberForQuery(chamber: str, court: str, canton:str, court_chambers_data) -> str:
         if court not in court_chambers_data[canton]['gerichte']:
@@ -121,7 +108,6 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
                     chamber_without_number in current_court_data['fr'] or \
                     chamber_without_number in current_court_data['it']:
                     return current_short
-        return chamber # court shortcut not found, then return original string
 
     def prepareDateForQuery(date: str) -> str:
         translation_dict = {
@@ -144,17 +130,17 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
         if 'canton' in lower_court_information:
             court_chambers_data = json.loads(Path("court_chambers.json").read_text())
             lower_court_information['canton'] = prepareCantonForQuery(lower_court_information['canton'], court_chambers_data)
-            if 'court' in lower_court_information and lower_court_information['canton'] is not None:
-                lower_court_information['court'] = prepareCourtForQuery(lower_court_information['court'], lower_court_information['canton'], court_chambers_data)
+            if 'court_string' in lower_court_information and lower_court_information['canton'] is not None:
+                lower_court_information['court'] = prepareCourtForQuery(lower_court_information['court_string'], lower_court_information['canton'], court_chambers_data)
         else:
-            if 'court' in lower_court_information:
+            if 'court_string' in lower_court_information:
                 court_chambers_data = json.loads(Path("court_chambers.json").read_text())
-                lower_court_information['court'] = prepareCourtForQuery(lower_court_information['court'], 'CH', court_chambers_data)
+                lower_court_information['court'] = prepareCourtForQuery(lower_court_information['court_string'], 'CH', court_chambers_data)
                 if re.match(r'CH_',lower_court_information['court']):
                     lower_court_information['canton'] = 'CH'
 
-        if {'canton', 'chamber', 'court'} <= lower_court_information.keys() and all(value is not None for value in [lower_court_information['chamber'], lower_court_information['court'], lower_court_information['canton']]):
-            lower_court_information['chamber'] = prepareChamberForQuery(lower_court_information['chamber'], lower_court_information['court'], lower_court_information['canton'], json.loads(Path("court_chambers.json").read_text()))
+        if {'canton', 'chamber_string', 'court'} <= lower_court_information.keys() and all(value is not None for value in [lower_court_information['chamber_string'], lower_court_information['court'], lower_court_information['canton']]):
+            lower_court_information['chamber'] = prepareChamberForQuery(lower_court_information['chamber_string'], lower_court_information['court'], lower_court_information['canton'], json.loads(Path("court_chambers.json").read_text()))
         if 'date' in lower_court_information:
             lower_court_information['date'] = prepareDateForQuery(lower_court_information['date'])
 
@@ -196,9 +182,12 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
 
     # make sure we don't have any nasty unicode problems
     header = clean_text(header)
-    header.replace('Appenzell I.Rh.', 'Appenzell Innerrhoden')
-    header.replace('Appenzell A.Rh.', 'Appenzell Ausserrhoden')
-
+    header = header.replace('Appenzell I.Rh.', 'Appenzell Innerrhoden')
+    header = header.replace('Appenzell A.Rh.', 'Appenzell Ausserrhoden')
+    header = header.replace('Appenzell I. Rh.', 'Appenzell Innerrhoden')
+    header = header.replace('Appenzell A. Rh.', 'Appenzell Ausserrhoden')
+    header = header.replace('Waadt', 'Waadtland')
+    header = header.replace('Basilea-Città', 'Basilea Città')
 
     lower_court = None
     #lower_court_file_number = get_lower_court_file_number(header, namespace)

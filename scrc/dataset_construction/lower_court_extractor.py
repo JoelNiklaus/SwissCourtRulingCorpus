@@ -47,6 +47,8 @@ class LowerCourtExtractor(DatasetConstructorComponent):
         """Extracts lower courts for one spider"""
         self.logger.info(f"Started lower-court-extracting {spider}")
         for lang in self.languages:
+            if lang != 'fr':
+                continue
             counter = 0
             where = f"spider='{spider}' AND header IS NOT NULL AND header <> ''"
             count = pd.read_sql(f"SELECT count(*) FROM {lang} WHERE {where}", engine.connect())['count'][0]
