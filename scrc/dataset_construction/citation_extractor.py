@@ -1,86 +1,31 @@
 import configparser
+from scrc.utils.abstract_extractor import AbstractExtractor
 from typing import Optional, Any
 
 import bs4
 import pandas as pd
 
 from root import ROOT_DIR
-from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
-from scrc.utils.log_utils import get_logger
 
 
-class CitationExtractor(DatasetConstructorComponent):
+class CitationExtractor(AbstractExtractor):
     """
     Extract citations from the html documents
     """
 
     def __init__(self, config: dict):
-        super().__init__(config)
-        self.logger = get_logger(__name__)
+        super().__init__(config, function_name='citation_extracting_functions', col_name='citations')
 
-        self.citation_extracting_functions = self.load_functions(config, 'citation_extracting_functions')
-        self.logger.debug(self.citation_extracting_functions)
-
-    def extract_citations(self):
-        """extract citations from all the raw court rulings with the defined functions"""
-        self.logger.info("Started citation-extracting raw court rulings")
-
-        processed_file_path = self.data_dir / "spiders_citation_extracted.txt"
-        spider_list, message = self.compute_remaining_spiders(processed_file_path)
-        self.logger.info(message)
-
-        engine = self.get_engine(self.db_scrc)
-        for lang in self.languages:
-            self.add_column(engine, lang, col_name='citations', data_type='jsonb')
-
-        for spider in spider_list:
-            if hasattr(self.citation_extracting_functions, spider):
-                self.citation_extract_spider(engine, spider)
-            else:
-                self.logger.debug(f"There are no special functions for spider {spider}. "
-                                  f"Not performing any citation extraction.")
-            self.mark_as_processed(processed_file_path, spider)
-
-        self.logger.info("Finished citation-extracting raw court rulings")
-
-    def citation_extract_spider(self, engine, spider):
-        """Extracts citations for one spider"""
-        self.logger.info(f"Started citation-extracting {spider}")
-
-        for lang in self.languages:
-            dfs = self.select(engine, lang, where=f"spider='{spider}'")  # stream dfs from the db
-            for df in dfs:
-                df = df.apply(self.citation_extract_df_row, axis='columns')
-                self.logger.info("Saving extracted citations to db")
-                self.update(engine, df, lang, ['citations'])
-
-        self.logger.info(f"Finished citation-extracting {spider}")
-
-    def citation_extract_df_row(self, series):
-        """Extracts citations of one row of a raw df"""
-        self.logger.debug(f"Citation-extracting court decision {series['file_name']}")
-        namespace = series[['date', 'language', 'html_url']].to_dict()
-        spider = series['spider']
-
+    def getRequiredData(self, series) -> Any:
         html_raw = series['html_raw']
         if pd.notna(html_raw) and html_raw not in [None, '']:
             # Parses the html string with bs4 and returns the body content
-            soup = bs4.BeautifulSoup(html_raw, "html.parser").find('body')
-            assert soup
+            return bs4.BeautifulSoup(html_raw, "html.parser").find('body')
+        return None
 
-            series['citations'] = self.split_sections_with_functions(spider, soup, namespace)
-
-        return series
-
-    def split_sections_with_functions(self, spider: str, soup: Any, namespace: dict) -> Optional:
-        """Extract citations with citation extracting functions"""
-        # retrieve function by spider
-        citation_extracting_functions = getattr(self.citation_extracting_functions, spider)
-        try:
-            return citation_extracting_functions(soup, namespace)  # invoke function with soup and namespace
-        except ValueError as e:
-            self.logger.warning(e)
-            return None  # just ignore the error for now. It would need much more rules to prevent this.
+    def getDatabaseSelectionString(self, spider, lang) -> str:
+        """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
+        return f"spider='{spider}'"
 
 
 if __name__ == '__main__':
@@ -88,4 +33,14 @@ if __name__ == '__main__':
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
 
     citation_extractor = CitationExtractor(config)
-    citation_extractor.extract_citations()
+    citation_extractor.processed_file_path = citation_extractor.data_dir / "spiders_citation_extracted.txt"
+    citation_extractor.loggerInfo = {
+        'start': 'Started extracting citations', 
+        'finished': 'Finished extracting citations', 
+        'start_spider': 'Started extracting citations for spider', 
+        'finish_spider': 'Finished extracting citations for spider', 
+        'saving': 'Saving chunk of citations',
+        'processing_one': 'Extracting citations from',
+        'no_functions': 'Not extracting citations.'
+        }
+    citation_extractor.start()

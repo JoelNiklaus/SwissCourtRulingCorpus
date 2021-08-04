@@ -4,7 +4,6 @@ import re
 import unicodedata
 import json
 import pandas as pd
-from sqlalchemy.engine.base import Engine
 from scrc.utils.main_utils import clean_text
 
 """
@@ -13,7 +12,7 @@ The name of the functions should be equal to the spider! Otherwise, they won't b
 """
 
 # check if court got assigned shortcut: SELECT count(*) from de WHERE lower_court is not null and lower_court <> 'null' and lower_court::json#>>'{court}'~'[A-Z0-9_]{2,}';
-def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
+def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     """
     Extract lower courts from decisions of the Federal Supreme Court of Switzerland
     :param header:     the string containing the header
@@ -70,7 +69,7 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
         'file_number': [
             r'(?P<ID>[A-Z0-9]{2,6})[\.\s\-]?(?P<YEAR>\d{2,4})[\.\s\-]?(?P<NUMBER>[\dA-Z\-]{2,8})(?=\))', # ex: AB12.2021.13
             r'[A-Z0-9]{1,4}([\.\-_\/\s])\d{1,8}[\.\/\-]?(\d{4}|[A-Z\/]+(\d+)?)', # ex: AB-12/2021
-            r'[A-Z0-9]{1,3}(\s|\.)((([\d]{3,6})|\/)\s??){2,6}' # ex: 720 16 328 / 176
+            r'[A-Z0-9]{1,3}(\s|\.)?((([\d]{3,6})|\/)\s??){2,6}(-[A-Z])?' # ex: 720 16 328 / 176
         ]
     }
 
@@ -144,17 +143,6 @@ def CH_BGer(header: str, namespace: dict, engine: Engine) -> Optional[str]:
         if 'date' in lower_court_information:
             lower_court_information['date'] = prepareDateForQuery(lower_court_information['date'])
 
-        # try to find file in database
-        """ for lang in languages:
-            query = f"SELECT chamber, court, canton FROM {lang} WHERE date = '{prepareDateForQuery(lower_court_information['date'])}'"
-            for item in lower_court_information:
-                if item == 'date':
-                    continue
-                if lower_court_information[item] == None:
-                    continue
-                query += f" AND {item} = '{lower_court_information[item]}'"
-            chamber = pd.read_sql(query, engine.connect())
-            print(query, chamber, sep="\n") """
         
         return lower_court_information
 

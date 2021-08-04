@@ -19,8 +19,10 @@ from spacy.lang.de import German
 from spacy.lang.fr import French
 from spacy.lang.it import Italian
 
-from scrc.utils.main_utils import string_contains_one_of_list
+from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area, legal_areas, get_region
 from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
+
+#pd.options.mode.chained_assignment = None  # default='warn'
 
 """
 Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 day per court)
@@ -132,7 +134,7 @@ class DatasetCreator(DatasetConstructorComponent):
     def create_datasets(self):
         engine = self.get_engine(self.db_scrc)
 
-        datasets = ['facts_judgement_prediction', 'considerations_judgement_prediction', 'citation_prediction']
+        datasets = ['facts_judgement_prediction']  # , 'considerations_judgement_prediction', 'citation_prediction']
         processed_file_path = self.data_dir / f"datasets_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, datasets)
         self.logger.info(message)
@@ -283,7 +285,6 @@ class DatasetCreator(DatasetConstructorComponent):
             for type_citation in citations[type]:
                 type_citations.append(type_citation['text'])
         most_common_with_frequency = Counter(type_citations).most_common(self.num_ruling_citations)
-        # print(most_common_with_frequency)
 
         # Plot the 10 most common citations
         # remove BGG articles because they are obvious
@@ -324,7 +325,8 @@ class DatasetCreator(DatasetConstructorComponent):
 
     def get_df(self, engine, feature_col, label_col, lang):
         self.logger.info("Started loading the data from the database")
-        columns = f"extract(year from date) as year, {feature_col}, {label_col}"
+        lower_court_canton = "lower_court::json#>>'{canton}' AS lower_court_canton"
+        columns = f"extract(year from date) as year, chamber, {lower_court_canton}, {feature_col}, {label_col}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
         if self.debug:
@@ -338,6 +340,8 @@ class DatasetCreator(DatasetConstructorComponent):
         spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
         df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
         df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
+        df['legal_area'] = df.chamber.apply(get_legal_area)
+        df['lower_court_region'] = df.lower_court_canton.apply(get_region)
         self.logger.info("Finished loading the data from the database")
         return df
 
@@ -374,6 +378,47 @@ class DatasetCreator(DatasetConstructorComponent):
         :param kaggle:      whether or not to create the special kaggle dataset
         :return:
         """
+        splits = self.create_splits(df, split, split_type)
+        special_splits = self.create_special_splits(split_type, splits)
+
+        self.logger.info(f"Computing metadata reports")
+        for name, df in splits.items():
+            self.save_report(folder, name, df)
+
+        # save regular dataset
+        self.logger.info("Saving the regular dataset")
+        regular_dir = self.create_dir(folder, 'regular')
+        self.save_labels(labels, regular_dir / 'labels.json')
+        for name, df in splits.items():
+            df.to_csv(regular_dir / f'{name}.csv', index_label='id')
+
+        special_splits_dir = self.create_dir(regular_dir, 'special_splits')
+        for name, df in special_splits.items():
+            df.to_csv(special_splits_dir / f'{name}.csv', index_label='id')
+
+        if kaggle:
+            self.logger.info("Saving the data in kaggle format")
+            # create solution file
+            splits['solution'] = splits['test'].drop('text', axis='columns')  # drop text
+            # rename according to kaggle conventions
+            splits['solution'] = splits['solution'].rename(columns={"label": "Expected"})
+            # create test file
+            splits['test'] = splits['test'].drop('label', axis='columns')  # drop label
+            # create sampleSubmission file
+            # rename according to kaggle conventions
+            sample_submission = splits['solution'].rename(columns={"Expected": "Predicted"})
+            # set to random value
+            sample_submission['Predicted'] = np.random.choice(splits['solution'].Expected, size=len(splits['solution']))
+            splits['sample_submission'] = sample_submission
+
+            # save special kaggle files
+            kaggle_dir = self.create_dir(folder, 'kaggle')
+            for name, df in splits.items():
+                df.to_csv(kaggle_dir / f'{name}.csv', index_label='id')
+
+        self.logger.info(f"Saved dataset files to {folder}")
+
+    def create_splits(self, df, split, split_type):
         self.logger.info("Splitting data into train, val and test set")
         if split_type == "random":
             train, val, test = self.split_random(df, split)
@@ -381,94 +426,141 @@ class DatasetCreator(DatasetConstructorComponent):
             train, val, test = self.split_date_stratified(df, split)
         else:
             raise ValueError("Please supply a valid split_type")
+        all = pd.concat([train, val, test])  # we need to update it since some entries have been removed
+        return {'train': train, 'val': val, 'test': test, 'all': all}
 
-        self.save_report(df, folder)
-
-        # save regular dataset
-        self.logger.info("Saving the regular dataset")
-        regular_dir = self.create_dir(folder, 'regular')
-        train.to_csv(regular_dir / 'train.csv', index_label='id')
-        val.to_csv(regular_dir / 'val.csv', index_label='id')
-        test.to_csv(regular_dir / 'test.csv', index_label='id')
-        self.save_labels(labels, regular_dir / 'labels.json')
-
-        if kaggle:
-            self.save_kaggle_dataset(folder, train, val, test)
-
-        self.logger.info(f"Saved dataset files to {folder}")
-
-    def save_report(self, df, folder):
+    def create_special_splits(self, split_type, splits):
         """
-        Saves statistics about the dataset in the form of csv tables and png graphs.
-        :param df:      the df containing the dataset
-        :param folder:  the base folder to save the report to
+        Creates special splits for applications extending beyond the normal splits
+        :param split_type:
+        :param splits:      the dictionary containing the split dataframes
         :return:
         """
-        self.logger.info("Computing metadata reports on the input lengths and the labels")
+        self.logger.info("Creating special splits")
+        test = splits['test']
 
+        # test set split by input length
+        special_splits = dict()
+        boundaries = [0, 512, 1024, 2048, 4096, 8192]
+        for i in range(len(boundaries) - 1):
+            lower, higher = boundaries[i] + 1, boundaries[i + 1]
+            key = f'test-input_length-between({lower:04d},{higher:04d})'
+            special_splits[key] = test[test.num_tokens_bert.between(lower, higher)]
+
+        # test set split by year
+        if split_type == "date-stratified":
+            for year in range(2017, 2020 + 1):
+                special_splits[f'test-year-{year}'] = test[test.year == year]
+
+        # test set split by legal area
+        for legal_area in legal_areas.keys():
+            special_splits[f'test-legal_area-{legal_area}'] = test[test.legal_area.str.contains(legal_area)]
+
+        # test set split by origin canton and region
+        for canton in test.lower_court_canton.unique().tolist():
+            special_splits[f'test-lower_court_canton-{canton}'] = test[test.lower_court_canton.str.contains(canton)]
+        for region in test.lower_court_region.unique().tolist():
+            special_splits[f'test-lower_court_region-{region}'] = test[test.lower_court_region.str.contains(region)]
+
+        return special_splits
+
+    def save_report(self, folder, split, df):
+        """
+        Saves statistics about the dataset in the form of csv tables and png graphs.
+        :param folder:  the base folder to save the report to
+        :param split:   the name of the split
+        :param df:      the df containing the dataset
+        :return:
+        """
+        split_folder = self.create_dir(folder, f'reports/{split}')
+
+        barplot_attributes = ['legal_area', 'lower_court_canton', 'lower_court_region']
+        for attribute in barplot_attributes:
+            self.plot_barplot_attribute(df, split_folder, attribute)
+
+        self.plot_input_length(df, split_folder)
+        self.plot_labels(df, split_folder)
+
+    @staticmethod
+    def plot_barplot_attribute(df, split_folder, attribute):
+        """
+        Plots the distribution of the attribute of the decisions in the given dataframe
+        :param df:              the dataframe containing the legal areas
+        :param split_folder:    where to save the plots and csv files
+        :param attribute:       the attribute to barplot
+        :return:
+        """
+        attribute_df = df[attribute].value_counts().to_frame()
+        total = len(df.index)
+        attribute_df.at['all', attribute] = total
+        attribute_df = attribute_df.reset_index(level=0)
+        attribute_df = attribute_df.rename(columns={'index': attribute, attribute: 'number of decisions'})
+        attribute_df['number of decisions'] = attribute_df['number of decisions'].astype(int)
+        attribute_df['percent'] = round(attribute_df['number of decisions'] / total, 4)
+
+        attribute_df.to_csv(split_folder / f'{attribute}_distribution.csv')
+
+        # TODO make these plots nicer. They are strange now
+        attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
+        ax = sns.barplot(x=attribute, y="number of decisions", data=attribute_df)
+        ax.tick_params(labelrotation=30)
+        ax.get_figure().savefig(split_folder / f'{attribute}_distribution-histogram.png', bbox_inches="tight")
+
+    @staticmethod
+    def plot_labels(df, split_folder):
+        """
+        Plots the label distribution of the decisions in the given dataframe
+        :param df:              the dataframe containing the labels
+        :param split_folder:    where to save the plots and csv files
+        :return:
+        """
         # compute label imbalance
         ax = df.label.astype(str).hist()
-        ax.tick_params(labelrotation=90)
-        ax.get_figure().savefig(folder / 'multi_label_distribution.png', bbox_inches="tight")
+        ax.tick_params(labelrotation=30)
+        ax.get_figure().savefig(split_folder / 'multi_label_distribution.png', bbox_inches="tight")
 
         counter_dict = dict(Counter(np.hstack(df.label)))
+        counter_dict['all'] = sum(counter_dict.values())
         label_counts = pd.DataFrame.from_dict(counter_dict, orient='index', columns=['num_occurrences'])
-        label_counts.to_csv(folder / 'single_label_distribution.csv', index_label='label')
+        label_counts['percent'] = round(label_counts['num_occurrences'] / counter_dict['all'], 4)
+        label_counts.to_csv(split_folder / 'single_label_distribution.csv', index_label='label')
 
-        ax = label_counts.plot.bar(y='num_occurrences', rot=15)
-        ax.get_figure().savefig(folder / 'single_label_distribution.png', bbox_inches="tight")
+        ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
+        ax.get_figure().savefig(split_folder / 'single_label_distribution.png', bbox_inches="tight")
 
+    @staticmethod
+    def plot_input_length(df, split_folder):
+        """
+        Plots the input length of the decisions in the given dataframe
+        :param df:              the dataframe containing the decision texts
+        :param split_folder:    where to save the plots and csv files
+        :return:
+        """
         # compute median input length
         input_length_distribution = df[['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
-        input_length_distribution.to_csv(folder / 'input_length_distribution.csv', index_label='measure')
+        input_length_distribution.to_csv(split_folder / 'input_length_distribution.csv', index_label='measure')
 
         # bin outliers together at the cutoff point
         cutoff = 3500
-        df[df.num_tokens_spacy > cutoff] = cutoff
-        df[df.num_tokens_bert > cutoff] = cutoff
+        cut_df = df[['num_tokens_spacy', 'num_tokens_bert']]
+        cut_df.loc[cut_df.num_tokens_spacy > cutoff, 'num_tokens_spacy'] = cutoff
+        cut_df.loc[cut_df.num_tokens_bert > cutoff, 'num_tokens_bert'] = cutoff
 
-        hist_df = pd.concat([df.num_tokens_spacy, df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
+        hist_df = pd.concat([cut_df.num_tokens_spacy, cut_df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
         hist_df = hist_df.reset_index(level=0)
         hist_df = hist_df.rename(columns={'level_0': 'kind', 0: 'number of tokens'})
 
         plot = sns.displot(hist_df, x="number of tokens", hue="kind", bins=50, kde=True, fill=True)
-        plot.savefig(folder / 'input_length_distribution-histogram.png', bbox_inches="tight")
+        plot.savefig(split_folder / 'input_length_distribution-histogram.png', bbox_inches="tight")
 
         plot = sns.displot(hist_df, x="number of tokens", hue="kind", kind="ecdf")
-        plot.savefig(folder / 'input_length_distribution-cumulative.png', bbox_inches="tight")
+        plot.savefig(split_folder / 'input_length_distribution-cumulative.png', bbox_inches="tight")
 
-        plot = sns.displot(df, x="num_tokens_spacy", y="num_tokens_bert", cbar=True)
-        plot.savefig(folder / 'input_length_distribution-bivariate.png', bbox_inches="tight")
+        plot = sns.displot(cut_df, x="num_tokens_spacy", y="num_tokens_bert", cbar=True)
+        plot.savefig(split_folder / 'input_length_distribution-bivariate.png', bbox_inches="tight")
 
-    def save_kaggle_dataset(self, folder, train, val, test):
-        """
-        Saves the train, val and test set to a kaggle-style dataset
-        and also creates a solution and sampleSubmission file.
-        :param folder:  where to save the dataset
-        :param train:   the train set
-        :param val:     the val set
-        :param test:    the test set
-        :return:
-        """
-        self.logger.info("Saving the data in kaggle format")
-        # create solution file
-        solution = test.drop('text', axis='columns')  # drop text
-        solution = solution.rename(columns={"label": "Expected"})  # rename according to kaggle conventions
-        # create test file
-        test = test.drop('label', axis='columns')  # drop label
-        # create sampleSubmission file
-        sample_submission = solution.rename(columns={"Expected": "Predicted"})  # rename according to kaggle conventions
-        sample_submission['Predicted'] = np.random.choice(solution.Expected, size=len(solution))  # set to random value
-
-        # save special kaggle files
-        kaggle_dir = self.create_dir(folder, 'kaggle')
-        train.to_csv(kaggle_dir / 'train.csv', index_label='Id')
-        val.to_csv(kaggle_dir / 'val.csv', index_label='Id')
-        test.to_csv(kaggle_dir / 'test.csv', index_label='Id')
-        solution.to_csv(kaggle_dir / 'solution.csv', index_label='Id')
-        sample_submission.to_csv(kaggle_dir / 'sampleSubmission.csv', index_label='Id')
-
-    def save_labels(self, labels, file_name):
+    @staticmethod
+    def save_labels(labels, file_name):
         """
         Saves the labels and the corresponding ids as a json file
         :param labels:      the labels dict
@@ -480,7 +572,8 @@ class DatasetCreator(DatasetConstructorComponent):
         with open(file_name, 'w', encoding='utf-8') as f:
             json.dump(json_labels, f, ensure_ascii=False, indent=4)
 
-    def split_date_stratified(self, df, split):
+    @staticmethod
+    def split_date_stratified(df, split):
         """
         Splits the df into train, val and test based on the date
         :param df:      the df to be split
