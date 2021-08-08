@@ -224,7 +224,7 @@ class DatasetCreator(DatasetConstructorComponent):
             return list(out)
 
         df.judgements = df.judgements.apply(clean)
-        df = df.dropna()  # drop empty labels introduced by cleaning before
+        df = df.dropna(subset=['judgements'])  # drop empty labels introduced by cleaning before
 
         df = df.rename(columns={input: "text", "judgements": "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
@@ -245,7 +245,6 @@ class DatasetCreator(DatasetConstructorComponent):
         law_abbr_by_lang = self.get_law_abbr_by_lang()
 
         #  IMPORTANT: we need to take care of the fact that the laws are named differently in each language but refer to the same law!
-
         def replace_citations(series, ref_mask_token="<ref>"):
             # TODO think about splitting laws and rulings into two separate labels
             labels = set()
@@ -365,12 +364,12 @@ class DatasetCreator(DatasetConstructorComponent):
     def clean_from_empty_strings(self, df, column):
         # replace empty and whitespace strings with nan so that they can be removed
         df[column] = df[column].replace(r'^\s*$', np.nan, regex=True)
-        df = df.dropna()  # drop null values not recognized by sql where clause
+        df = df.dropna(subset=[column])  # drop null values not recognized by sql where clause
         df = df.reset_index(drop=True)  # reindex to get nice indices
         return df
 
     def save_dataset(self, df: pd.DataFrame, labels: list, folder: Path,
-                     split_type="date-stratified", split=(0.7, 0.1, 0.2), kaggle=True):
+                     split_type="date-stratified", split=(0.7, 0.1, 0.2), kaggle=False):
         """
         creates all the files necessary for a kaggle dataset from a given df
         :param df:          needs to contain the columns text and label
@@ -390,12 +389,11 @@ class DatasetCreator(DatasetConstructorComponent):
 
         # save regular dataset
         self.logger.info("Saving the regular dataset")
-        regular_dir = self.create_dir(folder, 'regular')
-        self.save_labels(labels, regular_dir / 'labels.json')
+        self.save_labels(labels, folder / 'labels.json')
         for name, df in splits.items():
-            df.to_csv(regular_dir / f'{name}.csv', index_label='id')
+            df.to_csv(folder / f'{name}.csv', index_label='id')
 
-        special_splits_dir = self.create_dir(regular_dir, 'special_splits')
+        special_splits_dir = self.create_dir(folder, 'special_splits')
         for category, special_split in special_splits.items():
             category_dir = self.create_dir(special_splits_dir, category)
             for name, df in special_split.items():
