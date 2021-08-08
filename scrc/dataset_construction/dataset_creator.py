@@ -223,6 +223,7 @@ class DatasetCreator(DatasetConstructorComponent):
 
             return list(out)
 
+        df = df.dropna(subset=['judgements'])
         df.judgements = df.judgements.apply(clean)
         df = df.dropna(subset=['judgements'])  # drop empty labels introduced by cleaning before
 
@@ -465,14 +466,21 @@ class DatasetCreator(DatasetConstructorComponent):
             special_splits['legal_area'][f'test-{legal_area}'] = test[test.legal_area.str.contains(legal_area)]
 
         # test set split by origin region, canton, court and chamber
-        for region in test.origin_region.unique().tolist():
-            special_splits['origin_region'][f'test-{region}'] = test[test.origin_region.str.contains(region)]
-        for canton in test.origin_canton.unique().tolist():
-            special_splits['origin_canton'][f'test-{canton}'] = test[test.origin_canton.str.contains(canton)]
-        for court in test.origin_court.unique().tolist():
-            special_splits['origin_court'][f'test-{court}'] = test[test.origin_court.str.contains(court)]
-        for chamber in test.origin_chamber.unique().tolist():
-            special_splits['origin_chamber'][f'test-{chamber}'] = test[test.origin_chamber.str.contains(chamber)]
+        region_test = test.dropna(subset=['origin_region'])
+        for region in region_test.origin_region.unique().tolist():
+            special_splits['origin_region'][f'test-{region}'] = region_test[region_test.origin_region.str.contains(region)]
+
+        canton_test = test.dropna(subset=['origin_canton'])
+        for canton in canton_test.origin_canton.unique().tolist():
+            special_splits['origin_canton'][f'test-{canton}'] = canton_test[canton_test.origin_canton.str.contains(canton)]
+
+        court_test = test.dropna(subset=['origin_court'])
+        for court in court_test.origin_court.unique().tolist():
+            special_splits['origin_court'][f'test-{court}'] = court_test[court_test.origin_court.str.contains(court)]
+
+        chamber_test = test.dropna(subset=['origin_chamber'])
+        for chamber in chamber_test.origin_chamber.unique().tolist():
+            special_splits['origin_chamber'][f'test-{chamber}'] = chamber_test[chamber_test.origin_chamber.str.contains(chamber)]
 
         return special_splits
 
