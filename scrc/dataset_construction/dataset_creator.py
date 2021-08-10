@@ -468,11 +468,13 @@ class DatasetCreator(DatasetConstructorComponent):
         # test set split by origin region, canton, court and chamber
         region_test = test.dropna(subset=['origin_region'])
         for region in region_test.origin_region.unique().tolist():
-            special_splits['origin_region'][f'test-{region}'] = region_test[region_test.origin_region.str.contains(region)]
+            special_splits['origin_region'][f'test-{region}'] = region_test[
+                region_test.origin_region.str.contains(region)]
 
         canton_test = test.dropna(subset=['origin_canton'])
         for canton in canton_test.origin_canton.unique().tolist():
-            special_splits['origin_canton'][f'test-{canton}'] = canton_test[canton_test.origin_canton.str.contains(canton)]
+            special_splits['origin_canton'][f'test-{canton}'] = canton_test[
+                canton_test.origin_canton.str.contains(canton)]
 
         court_test = test.dropna(subset=['origin_court'])
         for court in court_test.origin_court.unique().tolist():
@@ -480,7 +482,8 @@ class DatasetCreator(DatasetConstructorComponent):
 
         chamber_test = test.dropna(subset=['origin_chamber'])
         for chamber in chamber_test.origin_chamber.unique().tolist():
-            special_splits['origin_chamber'][f'test-{chamber}'] = chamber_test[chamber_test.origin_chamber.str.contains(chamber)]
+            special_splits['origin_chamber'][f'test-{chamber}'] = chamber_test[
+                chamber_test.origin_chamber.str.contains(chamber)]
 
         return special_splits
 
@@ -512,6 +515,9 @@ class DatasetCreator(DatasetConstructorComponent):
         """
         attribute_df = df[attribute].value_counts().to_frame()
         total = len(df.index)
+        # we deleted the ones where we did not find any attribute: also mention them in this table
+        uncategorized = total - attribute_df[attribute].sum()
+        attribute_df.at['uncategorized', attribute] = uncategorized
         attribute_df.at['all', attribute] = total
         attribute_df = attribute_df.reset_index(level=0)
         attribute_df = attribute_df.rename(columns={'index': attribute, attribute: 'number of decisions'})
