@@ -147,11 +147,13 @@ regions = {
     "Espace_Mittelland": ["BE", "SO", "FR", "NE", "JU"],
     "Région lémanique": ["GE", "VD", "VS"],
     "Ticino": ["TI"],
-    "Federation": ["CH"], # this is a hack to map CH to a region too
+    "Federation": ["CH"],  # this is a hack to map CH to a region too
 }
 
 
 def get_region(canton: str):
+    if canton is None:
+        return None
     for region, cantons in regions.items():
         if canton in cantons:
             return region
@@ -169,6 +171,8 @@ legal_areas = {
 
 
 def get_legal_area(chamber: str):
+    if chamber is None:
+        return None
     if not chamber.startswith('CH_BGer_'):
         raise ValueError("So far this method is only implemented for the Federal Supreme Court")
 
