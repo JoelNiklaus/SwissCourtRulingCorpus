@@ -18,7 +18,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.debug = False
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
-        self.inputs = ['facts', 'considerations']
+        self.inputs = ['facts']  # , 'considerations']
 
         self.with_write_off = False
         self.with_unification = False

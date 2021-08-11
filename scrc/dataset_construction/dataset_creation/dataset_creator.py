@@ -1,8 +1,10 @@
 import abc
+import os
 from collections import Counter
 from pathlib import Path
 
 import seaborn as sns
+import plotly.express as px
 
 import dask.dataframe as dd
 import numpy as np
@@ -133,6 +135,8 @@ class DatasetCreator(DatasetConstructorComponent):
         self.dataset_name = None  # to be overridden
         self.inputs = ["text"]  # to be overridden
 
+        self.languages = ['it']
+
     @abc.abstractmethod
     def get_dataset(self, input, lang):
         pass
@@ -184,9 +188,13 @@ class DatasetCreator(DatasetConstructorComponent):
         df['legal_area'] = df.chamber.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
         self.logger.info("Finished loading the data from the database")
+
+        # TODO we could filter out entriew where the feature_col (text/facts/considerations) is less than 10/20/50 characters because then it is most likely faulty
+
         return df
 
     def get_tokenizers(self, lang):
+        os.environ['TOKENIZERS_PARALLELISM'] = "True"
         if lang == 'de':
             spacy = German()
             bert = "deepset/gbert-base"
@@ -223,20 +231,22 @@ class DatasetCreator(DatasetConstructorComponent):
         special_splits = self.create_special_splits(split_type, splits)
 
         self.logger.info(f"Computing metadata reports")
-        for name, df in splits.items():
-            self.save_report(folder, name, df)
+        for split, df in splits.items():
+            self.logger.info(f"Processing split {split}")
+            self.save_report(folder, split, df)
 
         # save regular dataset
         self.logger.info("Saving the regular dataset")
         self.save_labels(labels, folder / 'labels.json')
-        for name, df in splits.items():
-            df.to_csv(folder / f'{name}.csv', index_label='id')
+        for split, df in splits.items():
+            self.logger.info(f"Processing split {split}")
+            df.to_csv(folder / f'{split}.csv', index_label='id')
 
         special_splits_dir = self.create_dir(folder, 'special_splits')
         for category, special_split in special_splits.items():
             category_dir = self.create_dir(special_splits_dir, category)
-            for name, df in special_split.items():
-                df.to_csv(category_dir / f'{name}.csv', index_label='id')
+            for split, df in special_split.items():
+                df.to_csv(category_dir / f'{split}.csv', index_label='id')
 
         if kaggle:
             self.logger.info("Saving the data in kaggle format")
@@ -255,8 +265,8 @@ class DatasetCreator(DatasetConstructorComponent):
 
             # save special kaggle files
             kaggle_dir = self.create_dir(folder, 'kaggle')
-            for name, df in splits.items():
-                df.to_csv(kaggle_dir / f'{name}.csv', index_label='id')
+            for split, df in splits.items():
+                df.to_csv(kaggle_dir / f'{split}.csv', index_label='id')
 
         self.logger.info(f"Saved dataset files to {folder}")
 
@@ -364,11 +374,9 @@ class DatasetCreator(DatasetConstructorComponent):
 
         attribute_df.to_csv(split_folder / f'{attribute}_distribution.csv')
 
-        # TODO make these plots nicer. They are strange now
         attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
-        ax = sns.barplot(x=attribute, y="number of decisions", data=attribute_df)
-        ax.tick_params(labelrotation=30)
-        ax.get_figure().savefig(split_folder / f'{attribute}_distribution-histogram.png', bbox_inches="tight")
+        fig = px.bar(attribute_df, x=attribute, y="number of decisions")
+        fig.write_image(split_folder / f'{attribute}_distribution-histogram.png')
 
     @staticmethod
     def plot_labels(df, split_folder):
