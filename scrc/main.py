@@ -4,9 +4,10 @@ import faulthandler
 from root import ROOT_DIR
 from scrc.dataset_construction.citation_extractor import CitationExtractor
 from scrc.dataset_construction.cleaner import Cleaner
+from scrc.dataset_construction.dataset_creation.citation_dataset_creator import CitationDatasetCreator
+from scrc.dataset_construction.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
 from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.judgement_extractor import JudgementExtractor
-from scrc.dataset_construction.dataset_creator import DatasetCreator
 from scrc.dataset_construction.scraper import Scraper, base_url
 from scrc.dataset_construction.section_splitter import SectionSplitter
 from scrc.dataset_construction.spacy_pipeline_runner import SpacyPipelineRunner
@@ -81,8 +82,11 @@ def process_scrc(config):
     count_computer = CountComputer(config)
     count_computer.run_pipeline()
 
-    dataset_creator = DatasetCreator(config)
-    dataset_creator.create_datasets()
+    judgment_dataset_creator = JudgmentDatasetCreator(config)
+    judgment_dataset_creator.create_dataset()
+
+    citation_dataset_creator = CitationDatasetCreator(config)
+    citation_dataset_creator.create_dataset()
 
 
 def process_external_corpora(config):

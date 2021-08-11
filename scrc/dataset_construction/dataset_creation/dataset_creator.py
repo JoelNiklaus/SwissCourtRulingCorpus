@@ -1,5 +1,4 @@
-import configparser
-import inspect
+import abc
 from collections import Counter
 from pathlib import Path
 
@@ -10,7 +9,6 @@ import numpy as np
 import pandas as pd
 from transformers import AutoTokenizer
 
-from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 import json
@@ -25,7 +23,7 @@ from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
 # pd.options.mode.chained_assignment = None  # default='warn'
 
 """
-Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 day per court)
+Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 days per court)
 Datasets to be created:
 - Judgements
     - Judgement prediction BGer:
@@ -123,205 +121,45 @@ class DatasetCreator(DatasetConstructorComponent):
     """
 
     def __init__(self, config: dict):
+        __metaclass__ = abc.ABCMeta
         super().__init__(config)
         self.logger = get_logger(__name__)
 
         self.seed = 42
-        self.debug = False
         self.debug_chunksize = 2e2
-        self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
 
-    def create_datasets(self):
-        engine = self.get_engine(self.db_scrc)
+        self.debug = False
+        self.split_type = None  # to be overridden
+        self.dataset_name = None  # to be overridden
+        self.inputs = ["text"]  # to be overridden
 
-        datasets = ['facts_judgement_prediction']  # , 'considerations_judgement_prediction', 'citation_prediction']
-        processed_file_path = self.data_dir / f"datasets_created.txt"
-        datasets, message = self.compute_remaining_parts(processed_file_path, datasets)
-        self.logger.info(message)
+    @abc.abstractmethod
+    def get_dataset(self, input, lang):
+        pass
 
-        for dataset in datasets:
-            self.create_dataset(engine, dataset)
-            self.mark_as_processed(processed_file_path, dataset)
-
-    def create_dataset(self, engine, dataset):
+    def create_dataset(self):
         """
         Retrieves the respective function named by the dataset and executes it to get the df for that dataset.
-
-        :param engine:  the engine to retrieve the data
-        :param dataset: the name of the dataset
         :return:
         """
-        self.logger.info(f"Creating {dataset} dataset")
+        self.logger.info(f"Creating {self.dataset_name} dataset")
 
-        split_type = "date-stratified"
-        if dataset == "date_prediction":
-            split_type = "random"  # if we determined the splits by date the labelset would be very small
+        dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
-        dataset_folder = self.create_dir(self.datasets_subdir, dataset)
-        for lang in self.languages:
-            self.logger.info(f"Processing language {lang}")
-            df, labels = getattr(self, dataset)(engine, lang)  # get and call the function called by the dataset name
-            lang_folder = self.create_dir(dataset_folder, lang)
-            self.save_dataset(df, labels, lang_folder, split_type)
+        processed_file_path = self.data_dir / f"{self.dataset_name}_created.txt"
+        datasets, message = self.compute_remaining_parts(processed_file_path, self.inputs)
+        self.logger.info(message)
 
-    def facts_judgement_prediction(self, engine, lang):
-        return self.judgement_prediction(engine, 'facts', lang)
+        for input in self.inputs:
+            self.logger.info(f"Processing dataset input {input}")
+            input_folder = self.create_dir(dataset_folder, input)
+            for lang in self.languages:
+                self.logger.info(f"Processing language {lang}")
+                lang_folder = self.create_dir(input_folder, lang)
+                df, labels = self.get_dataset(input, lang)
+                self.save_dataset(df, labels, lang_folder, self.split_type)
 
-    def considerations_judgement_prediction(self, engine, lang):
-        return self.judgement_prediction(engine, 'considerations', lang)
-
-    def judgement_prediction(self, engine, input, lang, with_write_off=False, with_unification=False,
-                             with_inadmissible=False, with_partials=False, make_single_label=True):
-        df = self.get_df(engine, input, 'judgements', lang)
-
-        # Delete cases with "Nach Einsicht" from the dataset because they are mostly inadmissible or otherwise dismissal
-        # => too easily learnable for the model (because of spurious correlation)
-        if with_inadmissible:
-            df = df[~df[input].str.startswith('Nach Einsicht')]
-
-        def clean(judgements):
-            out = set()
-            for judgement in judgements:
-                # remove "partial_" from all the items to merge them with full ones
-                if not with_partials:
-                    judgement = judgement.replace("partial_", "")
-
-                out.add(judgement)
-
-            if not with_write_off:
-                # remove write_off because reason for it happens mostly behind the scenes and not written in the facts
-                if 'write_off' in judgements:
-                    out.remove('write_off')
-
-            if not with_unification:
-                # remove unification because reason for it happens mostly behind the scenes and not written in the facts
-                if 'unification' in judgements:
-                    out.remove('unification')
-
-            if not with_inadmissible:
-                # remove inadmissible because it is a formal reason and not that interesting semantically.
-                # Facts are formulated/summarized in a way to justify the decision of inadmissibility
-                # hard to know solely because of the facts (formal reasons, not visible from the facts)
-                if 'inadmissible' in judgements:
-                    out.remove('inadmissible')
-
-            # remove all labels which are complex combinations (reason: different questions => model cannot know which one to pick)
-            if make_single_label:
-                # contrary judgements point to multiple questions which is too complicated
-                if 'dismissal' in out and 'approval' in out:
-                    return np.nan
-                # if we have inadmissible and another one, we just remove inadmissible
-                if 'inadmissible' in out and len(out) > 1:
-                    out.remove('inadmissible')
-                if len(out) > 1:
-                    message = f"By now we should only have one label. But instead we still have the labels {out}"
-                    raise ValueError(message)
-                elif len(out) == 1:
-                    return out.pop()  # just return the first label because we only have one left
-                else:
-                    return np.nan
-
-            return list(out)
-
-        df = df.dropna(subset=['judgements'])
-        df.judgements = df.judgements.apply(clean)
-        df = df.dropna(subset=['judgements'])  # drop empty labels introduced by cleaning before
-
-        df = df.rename(columns={input: "text", "judgements": "label"})  # normalize column names
-        labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
-        return df, labels
-
-    def citation_prediction(self, engine, lang):
-        df = self.get_df(engine, 'text', 'citations', lang)
-
-        this_function_name = inspect.currentframe().f_code.co_name
-        folder = self.create_dir(self.datasets_subdir, this_function_name)
-
-        # calculate most common BGE citations
-        most_common_rulings = self.get_most_common_citations(df, folder, 'rulings')
-
-        # list with only the most common laws
-        most_common_laws = self.get_most_common_citations(df, folder, 'laws')
-
-        law_abbr_by_lang = self.get_law_abbr_by_lang()
-
-        #  IMPORTANT: we need to take care of the fact that the laws are named differently in each language but refer to the same law!
-        def replace_citations(series, ref_mask_token="<ref>"):
-            # TODO think about splitting laws and rulings into two separate labels
-            labels = set()
-            for law in series.citations['laws']:
-                citation = law['text']
-                found_string_in_list = string_contains_one_of_list(citation, list(law_abbr_by_lang['de'].keys()))
-                if found_string_in_list:
-                    series.text = series.text.replace(citation, ref_mask_token)
-                    labels.add(law_abbr_by_lang['de'][found_string_in_list])
-            for ruling in series.citations['rulings']:
-                citation = ruling['text']
-                if string_contains_one_of_list(citation, most_common_rulings):
-                    series.text = series.text.replace(citation, ref_mask_token)
-                    labels.add(citation)
-            series['label'] = list(labels)
-            return series
-
-        df = df.apply(replace_citations, axis='columns')
-        df = df.rename(columns={"text": "text"})  # normalize column names
-        labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
-        return df, labels
-
-    def get_most_common_citations(self, df, folder, type, plot_n_most_common=10):
-        """
-        Retrieves the most common citations of a given type (rulings/laws).
-        Additionally plots the plot_n_most_common most common citations
-        :param df:
-        :param folder:
-        :param type:
-        :return:
-        """
-        valid_types = ['rulings', 'laws']
-        if type not in valid_types:
-            raise ValueError(f"Please supply a valid citation type from {valid_types}")
-        type_citations = []
-        for citations in df.citations:
-            for type_citation in citations[type]:
-                type_citations.append(type_citation['text'])
-        most_common_with_frequency = Counter(type_citations).most_common(self.num_ruling_citations)
-
-        # Plot the 10 most common citations
-        # remove BGG articles because they are obvious
-        most_common_interesting = [(k, v) for k, v in most_common_with_frequency if 'BGG' not in k]
-        ruling_citations = pd.DataFrame.from_records(most_common_interesting[:plot_n_most_common],
-                                                     columns=['citation', 'frequency'])
-        ax = ruling_citations.plot.bar(x='citation', y='frequency', rot=90)
-        ax.get_figure().savefig(folder / f'most_common_{type}_citations.png', bbox_inches="tight")
-
-        return list(dict(most_common_with_frequency).keys())
-
-    def get_law_abbr_by_lang(self):
-        term_definitions = TermDefinitionsExtractor().extract_term_definitions()
-        law_abbr_by_lang = {lang: dict() for lang in self.languages}
-
-        for definition in term_definitions:
-            for lang in definition['languages']:
-                if lang in self.languages:
-                    for entry in definition['languages'][lang]:
-                        if entry['type'] == 'ab':  # ab stands for abbreviation
-                            # append the string of the abbreviation as key and the id as value
-                            law_abbr_by_lang[lang][entry['text']] = definition['id']
-        return law_abbr_by_lang
-
-    def chamber_prediction(self, engine, lang):
-        # TODO process in batches because otherwise too large
-        df = self.get_df(engine, 'facts', 'chamber', lang)
-        df = df.rename(columns={"facts": "text", "chamber": "label"})  # normalize column names
-        labels = list(df.label.unique())
-        return df, labels
-
-    def date_prediction(self, engine, lang):
-        # TODO process in batches because otherwise too large
-        df = self.get_df(engine, 'facts', 'date', lang)
-        df = df.rename(columns={"facts": "text", "date": "label"})  # normalize column names
-        labels = list(df.label.unique())
-        return df, labels
+            self.mark_as_processed(processed_file_path, input)
 
     def get_df(self, engine, feature_col, label_col, lang):
         self.logger.info("Started loading the data from the database")
@@ -526,8 +364,6 @@ class DatasetCreator(DatasetConstructorComponent):
 
         attribute_df.to_csv(split_folder / f'{attribute}_distribution.csv')
 
-        # TODO refactor this huge class into multiple ones (one for each dataset)
-
         # TODO make these plots nicer. They are strange now
         attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
         ax = sns.barplot(x=attribute, y="number of decisions", data=attribute_df)
@@ -643,11 +479,3 @@ class DatasetCreator(DatasetConstructorComponent):
         test = test.compute(scheduler='processes')
 
         return train, val, test
-
-
-if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
-
-    dataset_creator = DatasetCreator(config)
-    dataset_creator.create_datasets()
