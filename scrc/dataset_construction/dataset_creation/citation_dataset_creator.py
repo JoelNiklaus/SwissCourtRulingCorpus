@@ -48,7 +48,7 @@ class CitationDatasetCreator(DatasetCreator):
             labels = set()
             for law in series.citations['laws']:
                 citation = law['text']
-                found_string_in_list = string_contains_one_of_list(citation, list(law_abbr_by_lang['de'].keys()))
+                found_string_in_list = string_contains_one_of_list(citation, list(law_abbr_by_lang[lang].keys()))
                 if found_string_in_list:
                     series.text = series.text.replace(citation, ref_mask_token)
                     labels.add(law_abbr_by_lang['de'][found_string_in_list])

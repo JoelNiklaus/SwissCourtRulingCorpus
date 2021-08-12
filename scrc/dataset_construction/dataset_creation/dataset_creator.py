@@ -135,8 +135,6 @@ class DatasetCreator(DatasetConstructorComponent):
         self.dataset_name = None  # to be overridden
         self.inputs = ["text"]  # to be overridden
 
-        self.languages = ['it']
-
     @abc.abstractmethod
     def get_dataset(self, input, lang):
         pass
