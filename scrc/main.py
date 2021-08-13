@@ -8,6 +8,8 @@ from scrc.dataset_construction.dataset_creation.citation_dataset_creator import 
 from scrc.dataset_construction.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
 from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.judgement_extractor import JudgementExtractor
+from scrc.dataset_construction.lower_court_extractor import LowerCourtExtractor
+from scrc.dataset_construction.dataset_creator import DatasetCreator
 from scrc.dataset_construction.scraper import Scraper, base_url
 from scrc.dataset_construction.section_splitter import SectionSplitter
 from scrc.dataset_construction.spacy_pipeline_runner import SpacyPipelineRunner
@@ -29,7 +31,7 @@ Approach:
 - Clean text  (keep raw content in db)
 - Split BGer into sections (from html_raw)
 - Extract BGer citations (from html_raw) using "artref" tags
-- Extract judgements 
+- Extract judgements
 - Process each text with spacy, save doc to disk and store path in db, store num token count in separate db col
 - Compute lemma counts and save aggregates in separate tables
 - Create the smaller datasets derived from SCRC with the available metadata
@@ -68,13 +70,15 @@ def process_scrc(config):
     cleaner.clean()
 
     section_splitter = SectionSplitter(config)
-    section_splitter.split_sections()
+    section_splitter.start()
 
     citation_extractor = CitationExtractor(config)
-    citation_extractor.extract_citations()
+    citation_extractor.start()
 
     judgement_extractor = JudgementExtractor(config)
-    judgement_extractor.extract_judgements()
+    judgement_extractor.start()
+    lower_court_extractor = LowerCourtExtractor(config)
+    lower_court_extractor.start()
 
     spacy_pipeline_runner = SpacyPipelineRunner(config)
     spacy_pipeline_runner.run_pipeline()
