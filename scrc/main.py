@@ -7,6 +7,7 @@ from scrc.dataset_construction.cleaner import Cleaner
 from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.judgement_extractor import JudgementExtractor
 from scrc.dataset_construction.lower_court_extractor import LowerCourtExtractor
+from scrc.dataset_construction.personal_information_extractor import PersonalInformationExtractor
 from scrc.dataset_construction.dataset_creator import DatasetCreator
 from scrc.dataset_construction.scraper import Scraper, base_url
 from scrc.dataset_construction.section_splitter import SectionSplitter
@@ -68,15 +69,17 @@ def process_scrc(config):
     cleaner.clean()
 
     section_splitter = SectionSplitter(config)
-    section_splitter.split_sections()
+    section_splitter.start()
 
     citation_extractor = CitationExtractor(config)
-    citation_extractor.extract_citations()
+    citation_extractor.start()
 
     judgement_extractor = JudgementExtractor(config)
-    judgement_extractor.extract_judgements()
+    judgement_extractor.start()
     lower_court_extractor = LowerCourtExtractor(config)
-    lower_court_extractor.extract_lower_courts()
+    lower_court_extractor.start()
+    personal_information_extractor = PersonalInformationExtractor(config)
+    personal_information_extractor.start()
 
     spacy_pipeline_runner = SpacyPipelineRunner(config)
     spacy_pipeline_runner.run_pipeline()

@@ -9,7 +9,7 @@
             "name": "Python: Modul",
             "type": "python",
             "request": "launch",
-            "module": "scrc.dataset_construction.section_splitter",
+            "module": "scrc.dataset_construction.personal_information_extractor",
             "python": "python"
         }
     ]
