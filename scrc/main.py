@@ -29,7 +29,7 @@ Approach:
 - Clean text  (keep raw content in db)
 - Split BGer into sections (from html_raw)
 - Extract BGer citations (from html_raw) using "artref" tags
-- Extract judgements 
+- Extract judgements
 - Process each text with spacy, save doc to disk and store path in db, store num token count in separate db col
 - Compute lemma counts and save aggregates in separate tables
 - Create the smaller datasets derived from SCRC with the available metadata
@@ -68,15 +68,15 @@ def process_scrc(config):
     cleaner.clean()
 
     section_splitter = SectionSplitter(config)
-    section_splitter.split_sections()
+    section_splitter.start()
 
     citation_extractor = CitationExtractor(config)
-    citation_extractor.extract_citations()
+    citation_extractor.start()
 
     judgement_extractor = JudgementExtractor(config)
-    judgement_extractor.extract_judgements()
+    judgement_extractor.start()
     lower_court_extractor = LowerCourtExtractor(config)
-    lower_court_extractor.extract_lower_courts()
+    lower_court_extractor.start()
 
     spacy_pipeline_runner = SpacyPipelineRunner(config)
     spacy_pipeline_runner.run_pipeline()
