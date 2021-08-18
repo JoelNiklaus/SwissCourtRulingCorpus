@@ -5,6 +5,7 @@ from pathlib import Path
 
 import seaborn as sns
 import plotly.express as px
+import matplotlib.pyplot as plt
 
 import dask.dataframe as dd
 import numpy as np
@@ -228,22 +229,28 @@ class DatasetCreator(DatasetConstructorComponent):
         splits = self.create_splits(df, split, split_type)
         special_splits = self.create_special_splits(split_type, splits)
 
-        self.logger.info(f"Computing metadata reports")
-        for split, df in splits.items():
-            self.logger.info(f"Processing split {split}")
-            self.save_report(folder, split, df)
-
-        # save regular dataset
-        self.logger.info("Saving the regular dataset")
         self.save_labels(labels, folder / 'labels.json')
         for split, df in splits.items():
             self.logger.info(f"Processing split {split}")
+
+            self.save_report(folder, split, df)
+            self.logger.info("Saving csv file")
             df.to_csv(folder / f'{split}.csv', index_label='id')
 
         special_splits_dir = self.create_dir(folder, 'special_splits')
         for category, special_split in special_splits.items():
+            self.logger.info(f"Processing special split category {category}")
             category_dir = self.create_dir(special_splits_dir, category)
+            self.save_labels(labels, category_dir / 'labels.json')
             for split, df in special_split.items():
+                if len(df.index) < 2:
+                    self.logger.info(f"Skipping split {split} because "
+                                     f"{len(df.index)} entries are not enough to create reports.")
+                    continue
+                self.logger.info(f"Processing special split {split}")
+
+                self.save_report(category_dir, split, df)
+                self.logger.info("Saving csv file")
                 df.to_csv(category_dir / f'{split}.csv', index_label='id')
 
         if kaggle:
@@ -341,6 +348,7 @@ class DatasetCreator(DatasetConstructorComponent):
         :param df:      the df containing the dataset
         :return:
         """
+        self.logger.info(f"Computing metadata reports")
         split_folder = self.create_dir(folder, f'reports/{split}')
 
         barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
@@ -385,18 +393,18 @@ class DatasetCreator(DatasetConstructorComponent):
         :return:
         """
         # compute label imbalance
-        ax = df.label.astype(str).hist()
-        ax.tick_params(labelrotation=30)
-        ax.get_figure().savefig(split_folder / 'multi_label_distribution.png', bbox_inches="tight")
+        # ax = df.label.astype(str).hist()
+        # ax.tick_params(labelrotation=30)
+        # ax.get_figure().savefig(split_folder / 'multi_label_distribution.png', bbox_inches="tight")
 
         counter_dict = dict(Counter(np.hstack(df.label)))
         counter_dict['all'] = sum(counter_dict.values())
         label_counts = pd.DataFrame.from_dict(counter_dict, orient='index', columns=['num_occurrences'])
         label_counts['percent'] = round(label_counts['num_occurrences'] / counter_dict['all'], 4)
-        label_counts.to_csv(split_folder / 'single_label_distribution.csv', index_label='label')
+        label_counts.to_csv(split_folder / 'label_distribution.csv', index_label='label')
 
         ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
-        ax.get_figure().savefig(split_folder / 'single_label_distribution.png', bbox_inches="tight")
+        ax.get_figure().savefig(split_folder / 'label_distribution.png', bbox_inches="tight")
 
     @staticmethod
     def plot_input_length(df, split_folder):
@@ -418,15 +426,20 @@ class DatasetCreator(DatasetConstructorComponent):
 
         hist_df = pd.concat([cut_df.num_tokens_spacy, cut_df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
         hist_df = hist_df.reset_index(level=0)
-        hist_df = hist_df.rename(columns={'level_0': 'kind', 0: 'number of tokens'})
+        hist_df = hist_df.rename(columns={'level_0': 'tokenizer', 0: 'Number of tokens'})
 
-        plot = sns.displot(hist_df, x="number of tokens", hue="kind", bins=50, kde=True, fill=True)
+        plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer",
+                           bins=50, kde=True, fill=True, legend=False)
+        plt.ylabel('Number of court cases')
+        plt.legend(["SpaCy", "BERT"], loc='upper right', title='Tokenizer')
         plot.savefig(split_folder / 'input_length_distribution-histogram.png', bbox_inches="tight")
 
-        plot = sns.displot(hist_df, x="number of tokens", hue="kind", kind="ecdf")
+        plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer", kind="ecdf", legend=False)
+        plt.ylabel('Number of court cases')
+        plt.legend(["SpaCy", "BERT"], loc='lower right', title='Tokenizer')
         plot.savefig(split_folder / 'input_length_distribution-cumulative.png', bbox_inches="tight")
 
-        plot = sns.displot(cut_df, x="num_tokens_spacy", y="num_tokens_bert", cbar=True)
+        plot = sns.displot(cut_df, x="num_tokens_spacy", y="num_tokens_bert")
         plot.savefig(split_folder / 'input_length_distribution-bivariate.png', bbox_inches="tight")
 
     @staticmethod
