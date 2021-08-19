@@ -2,6 +2,7 @@ import abc
 import os
 from collections import Counter
 from pathlib import Path
+from typing import Union
 
 import seaborn as sns
 import plotly.express as px
@@ -153,7 +154,7 @@ class DatasetCreator(DatasetConstructorComponent):
         datasets, message = self.compute_remaining_parts(processed_file_path, self.inputs)
         self.logger.info(message)
 
-        for input in self.inputs:
+        for input in datasets:
             self.logger.info(f"Processing dataset input {input}")
             input_folder = self.create_dir(dataset_folder, input)
             for lang in self.languages:
@@ -227,31 +228,17 @@ class DatasetCreator(DatasetConstructorComponent):
         :return:
         """
         splits = self.create_splits(df, split, split_type)
-        special_splits = self.create_special_splits(split_type, splits)
-
         self.save_labels(labels, folder / 'labels.json')
-        for split, df in splits.items():
-            self.logger.info(f"Processing split {split}")
+        self.save_splits(splits, labels, folder)
 
-            self.save_report(folder, split, df)
-            self.logger.info("Saving csv file")
-            df.to_csv(folder / f'{split}.csv', index_label='id')
-
-        special_splits_dir = self.create_dir(folder, 'special_splits')
-        for category, special_split in special_splits.items():
-            self.logger.info(f"Processing special split category {category}")
-            category_dir = self.create_dir(special_splits_dir, category)
-            self.save_labels(labels, category_dir / 'labels.json')
-            for split, df in special_split.items():
-                if len(df.index) < 2:
-                    self.logger.info(f"Skipping split {split} because "
-                                     f"{len(df.index)} entries are not enough to create reports.")
-                    continue
-                self.logger.info(f"Processing special split {split}")
-
-                self.save_report(category_dir, split, df)
-                self.logger.info("Saving csv file")
-                df.to_csv(category_dir / f'{split}.csv', index_label='id')
+        sub_datasets = self.create_sub_datasets(splits, split_type)
+        sub_datasets_dir = self.create_dir(folder, 'sub_datasets')
+        for category, sub_dataset_category in sub_datasets.items():
+            self.logger.info(f"Processing sub dataset category {category}")
+            category_dir = self.create_dir(sub_datasets_dir, category)
+            for sub_dataset, sub_dataset_splits in sub_dataset_category.items():
+                sub_dataset_dir = self.create_dir(category_dir, sub_dataset)
+                self.save_splits(sub_dataset_splits, labels, sub_dataset_dir, save_csvs=['test'])
 
         if kaggle:
             self.logger.info("Saving the data in kaggle format")
@@ -270,10 +257,39 @@ class DatasetCreator(DatasetConstructorComponent):
 
             # save special kaggle files
             kaggle_dir = self.create_dir(folder, 'kaggle')
-            for split, df in splits.items():
-                df.to_csv(kaggle_dir / f'{split}.csv', index_label='id')
+            self.save_splits(splits, labels, kaggle_dir, save_reports=False)
 
         self.logger.info(f"Saved dataset files to {folder}")
+
+    def save_splits(self, splits: dict, labels: list, folder: Path,
+                    save_reports=True, save_csvs: Union[list, bool] = True):
+        """
+        Saves the splits to the filesystem and generates reports
+        :param splits:          the splits dictionary to be saved
+        :param labels:          the labels to be saved
+        :param folder:          where to save the splits
+        :param save_reports:    whether to save reports
+        :param save_csvs:       whether to save csv files
+        :return:
+        """
+        self.save_labels(labels, folder / 'labels.json')
+        for split, df in splits.items():
+            if len(df.index) < 2:
+                self.logger.info(f"Skipping split {split} because "
+                                 f"{len(df.index)} entries are not enough to create reports.")
+                continue
+            self.logger.info(f"Processing split {split}")
+
+            if save_reports:
+                self.logger.info(f"Computing metadata reports")
+                self.save_report(folder, split, df)
+
+            if save_csvs:
+                if isinstance(save_csvs, list):
+                    if split not in save_csvs:
+                        continue  # Only save if the split is in the list
+                self.logger.info("Saving csv file")
+                df.to_csv(folder / f'{split}.csv', index_label='id')
 
     def create_splits(self, df, split, split_type):
         self.logger.info("Splitting data into train, val and test set")
@@ -286,59 +302,71 @@ class DatasetCreator(DatasetConstructorComponent):
         all = pd.concat([train, val, test])  # we need to update it since some entries have been removed
         return {'train': train, 'val': val, 'test': test, 'all': all}
 
-    def create_special_splits(self, split_type, splits):
+    def create_sub_datasets(self, splits, split_type):
         """
-        Creates special splits for applications extending beyond the normal splits
-        :param split_type:
+        Creates sub datasets for applications extending beyond the normal splits
+        :param split_type:  the type of splitting the data (date-stratified or random)
         :param splits:      the dictionary containing the split dataframes
         :return:
         """
-        self.logger.info("Creating special splits")
-        test = splits['test']
+        self.logger.info("Creating sub datasets")
 
-        special_splits = {
+        # set up data structure
+        sub_datasets = {
             'input_length': dict(), 'year': dict(), 'legal_area': dict(),
-            'origin_region': dict(), 'origin_canton': dict(),
-            'origin_court': dict(), 'origin_chamber': dict(),
+            'origin_region': dict(), 'origin_canton': dict(), 'origin_court': dict(), 'origin_chamber': dict(),
         }
 
-        # test set split by input length
+        self.logger.info(f"Processing sub dataset input_length")
         boundaries = [0, 512, 1024, 2048, 4096, 8192]
         for i in range(len(boundaries) - 1):
             lower, higher = boundaries[i] + 1, boundaries[i + 1]
-            key = f'test-between({lower:04d},{higher:04d})'
-            special_splits['input_length'][key] = test[test.num_tokens_bert.between(lower, higher)]
+            sub_dataset = sub_datasets['input_length'][f'between({lower:04d},{higher:04d})'] = dict()
+            for split_name, split_df in splits.items():
+                sub_dataset[split_name] = split_df[split_df.num_tokens_bert.between(lower, higher)]
 
-        # test set split by year
+        self.logger.info(f"Processing sub dataset year")
         if split_type == "date-stratified":
             for year in range(2017, 2020 + 1):
-                special_splits['year'][f'test-{year}'] = test[test.year == year]
+                sub_dataset = sub_datasets['year'][str(year)] = dict()
+                for split_name, split_df in splits.items():
+                    sub_dataset[split_name] = split_df[split_df.year == year]
 
-        # test set split by legal area
+        self.logger.info(f"Processing sub dataset legal_area")
         for legal_area in legal_areas.keys():
-            special_splits['legal_area'][f'test-{legal_area}'] = test[test.legal_area.str.contains(legal_area)]
+            sub_dataset = sub_datasets['legal_area'][legal_area] = dict()
+            for split_name, split_df in splits.items():
+                sub_dataset[split_name] = split_df[split_df.legal_area.str.contains(legal_area)]
 
-        # test set split by origin region, canton, court and chamber
-        region_test = test.dropna(subset=['origin_region'])
-        for region in region_test.origin_region.unique().tolist():
-            special_splits['origin_region'][f'test-{region}'] = region_test[
-                region_test.origin_region.str.contains(region)]
+        self.logger.info(f"Processing sub dataset origin_region")
+        for region in splits['all'].origin_region.dropna().unique().tolist():
+            sub_dataset = sub_datasets['origin_region'][region] = dict()
+            for split_name, split_df in splits.items():
+                region_df = split_df.dropna(subset=['origin_region'])
+                sub_dataset[split_name] = region_df[region_df.origin_region.str.contains(region)]
 
-        canton_test = test.dropna(subset=['origin_canton'])
-        for canton in canton_test.origin_canton.unique().tolist():
-            special_splits['origin_canton'][f'test-{canton}'] = canton_test[
-                canton_test.origin_canton.str.contains(canton)]
+        self.logger.info(f"Processing sub dataset origin_canton")
+        for canton in splits['all'].origin_canton.dropna().unique().tolist():
+            sub_dataset = sub_datasets['origin_canton'][canton] = dict()
+            for split_name, split_df in splits.items():
+                canton_df = split_df.dropna(subset=['origin_canton'])
+                sub_dataset[split_name] = canton_df[canton_df.origin_canton.str.contains(canton)]
 
-        court_test = test.dropna(subset=['origin_court'])
-        for court in court_test.origin_court.unique().tolist():
-            special_splits['origin_court'][f'test-{court}'] = court_test[court_test.origin_court.str.contains(court)]
+        self.logger.info(f"Processing sub dataset origin_court")
+        for court in splits['all'].origin_court.dropna().unique().tolist():
+            sub_dataset = sub_datasets['origin_court'][court] = dict()
+            for split_name, split_df in splits.items():
+                court_df = split_df.dropna(subset=['origin_court'])
+                sub_dataset[split_name] = court_df[court_df.origin_court.str.contains(court)]
 
-        chamber_test = test.dropna(subset=['origin_chamber'])
-        for chamber in chamber_test.origin_chamber.unique().tolist():
-            special_splits['origin_chamber'][f'test-{chamber}'] = chamber_test[
-                chamber_test.origin_chamber.str.contains(chamber)]
+        self.logger.info(f"Processing sub dataset origin_chamber")
+        for chamber in splits['all'].origin_chamber.dropna().unique().tolist():
+            sub_dataset = sub_datasets['origin_chamber'][chamber] = dict()
+            for split_name, split_df in splits.items():
+                chamber_df = split_df.dropna(subset=['origin_chamber'])
+                sub_dataset[split_name] = chamber_df[chamber_df.origin_chamber.str.contains(chamber)]
 
-        return special_splits
+        return sub_datasets
 
     def save_report(self, folder, split, df):
         """
@@ -348,7 +376,6 @@ class DatasetCreator(DatasetConstructorComponent):
         :param df:      the df containing the dataset
         :return:
         """
-        self.logger.info(f"Computing metadata reports")
         split_folder = self.create_dir(folder, f'reports/{split}')
 
         barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
@@ -383,6 +410,7 @@ class DatasetCreator(DatasetConstructorComponent):
         attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
         fig = px.bar(attribute_df, x=attribute, y="number of decisions")
         fig.write_image(split_folder / f'{attribute}_distribution-histogram.png')
+        plt.clf()
 
     @staticmethod
     def plot_labels(df, split_folder):
@@ -405,6 +433,7 @@ class DatasetCreator(DatasetConstructorComponent):
 
         ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
         ax.get_figure().savefig(split_folder / 'label_distribution.png', bbox_inches="tight")
+        plt.clf()
 
     @staticmethod
     def plot_input_length(df, split_folder):
@@ -421,8 +450,8 @@ class DatasetCreator(DatasetConstructorComponent):
         # bin outliers together at the cutoff point
         cutoff = 3500
         cut_df = df[['num_tokens_spacy', 'num_tokens_bert']]
-        cut_df.loc[cut_df.num_tokens_spacy > cutoff, 'num_tokens_spacy'] = cutoff
-        cut_df.loc[cut_df.num_tokens_bert > cutoff, 'num_tokens_bert'] = cutoff
+        cut_df.num_tokens_bert = cut_df.num_tokens_bert.clip(upper=cutoff)
+        cut_df.num_tokens_spacy = cut_df.num_tokens_spacy.clip(upper=cutoff)
 
         hist_df = pd.concat([cut_df.num_tokens_spacy, cut_df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
         hist_df = hist_df.reset_index(level=0)
@@ -433,14 +462,17 @@ class DatasetCreator(DatasetConstructorComponent):
         plt.ylabel('Number of court cases')
         plt.legend(["SpaCy", "BERT"], loc='upper right', title='Tokenizer')
         plot.savefig(split_folder / 'input_length_distribution-histogram.png', bbox_inches="tight")
+        plt.clf()
 
         plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer", kind="ecdf", legend=False)
         plt.ylabel('Number of court cases')
         plt.legend(["SpaCy", "BERT"], loc='lower right', title='Tokenizer')
         plot.savefig(split_folder / 'input_length_distribution-cumulative.png', bbox_inches="tight")
+        plt.clf()
 
         plot = sns.displot(cut_df, x="num_tokens_spacy", y="num_tokens_bert")
         plot.savefig(split_folder / 'input_length_distribution-bivariate.png', bbox_inches="tight")
+        plt.clf()
 
     @staticmethod
     def save_labels(labels, file_name):
@@ -486,8 +518,8 @@ class DatasetCreator(DatasetConstructorComponent):
     def split_random(self, df, split):
         """
         Splits the df randomly into train, val and test
-        :param df:
-        :param split:
+        :param df:      the df to be split
+        :param split:   the exact split (how much of the data goes into train, val and test respectively)
         :return:
         """
         train, val, test = dd.from_pandas(df, npartitions=1).random_split(list(split), random_state=self.seed)
