@@ -25,7 +25,8 @@ from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area, l
 from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
 
 # pd.options.mode.chained_assignment = None  # default='warn'
-
+sns.set(rc={"figure.dpi": 500, 'savefig.dpi': 500})
+sns.set_style("whitegrid")
 """
 Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 days per court)
 Datasets to be created:
@@ -448,7 +449,7 @@ class DatasetCreator(DatasetConstructorComponent):
         input_length_distribution.to_csv(split_folder / 'input_length_distribution.csv', index_label='measure')
 
         # bin outliers together at the cutoff point
-        cutoff = 3500
+        cutoff = 4000
         cut_df = df[['num_tokens_spacy', 'num_tokens_bert']]
         cut_df.num_tokens_bert = cut_df.num_tokens_bert.clip(upper=cutoff)
         cut_df.num_tokens_spacy = cut_df.num_tokens_spacy.clip(upper=cutoff)
@@ -458,9 +459,10 @@ class DatasetCreator(DatasetConstructorComponent):
         hist_df = hist_df.rename(columns={'level_0': 'tokenizer', 0: 'Number of tokens'})
 
         plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer",
-                           bins=50, kde=True, fill=True, legend=False)
+                           bins=100, kde=True, fill=True, height=5, aspect=2.5, legend=False)
+        plot.set(xticks=list(range(0, 4500, 500)))
         plt.ylabel('Number of court cases')
-        plt.legend(["SpaCy", "BERT"], loc='upper right', title='Tokenizer')
+        plt.legend(["SpaCy", "BERT"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
         plot.savefig(split_folder / 'input_length_distribution-histogram.png', bbox_inches="tight")
         plt.clf()
 
