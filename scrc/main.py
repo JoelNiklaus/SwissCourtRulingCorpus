@@ -1,5 +1,6 @@
 import configparser
 import faulthandler
+from scrc.dataset_construction.court_composition_extractor import CourtCompositionExtractor
 
 from root import ROOT_DIR
 from scrc.dataset_construction.citation_extractor import CitationExtractor
@@ -9,7 +10,6 @@ from scrc.dataset_construction.dataset_creation.judgment_dataset_creator import 
 from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.judgement_extractor import JudgementExtractor
 from scrc.dataset_construction.lower_court_extractor import LowerCourtExtractor
-from scrc.dataset_construction.personal_information_extractor import PersonalInformationExtractor
 from scrc.dataset_construction.dataset_creator import DatasetCreator
 from scrc.dataset_construction.scraper import Scraper, base_url
 from scrc.dataset_construction.section_splitter import SectionSplitter
@@ -80,8 +80,8 @@ def process_scrc(config):
     judgement_extractor.start()
     lower_court_extractor = LowerCourtExtractor(config)
     lower_court_extractor.start()
-    personal_information_extractor = PersonalInformationExtractor(config)
-    personal_information_extractor.start()
+    court_composition_extractor = CourtCompositionExtractor(config)
+    court_composition_extractor.start()
 
     spacy_pipeline_runner = SpacyPipelineRunner(config)
     spacy_pipeline_runner.run_pipeline()

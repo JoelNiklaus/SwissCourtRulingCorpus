@@ -131,7 +131,7 @@ class AbstractExtractor(ABC, DatasetConstructorComponent):
         """Returns the total entries that got processed successfully"""
         query = (
             f"SELECT count({self.col_name}) FROM {lang} WHERE"
-            " {self.get_database_selection_string(spider, lang)} AND {self.col_name} <> 'null'"
+            f" {self.get_database_selection_string(spider, lang)} AND {self.col_name} <> 'null'"
         )
         return pd.read_sql(query, engine.connect())["count"][0]
 
