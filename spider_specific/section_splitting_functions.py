@@ -32,7 +32,7 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, s
             # "topic": ['Gegenstand', 'betreffend'],
             "facts": [r'Sachverhalt:', r'hat sich ergeben', r'Nach Einsicht', r'A.-'],
             "considerations": [r'Erwägung:', r'[Ii]n Erwägung', r'Erwägungen:'],
-            "rulings": [r'erkennt d[\w]{2} Präsident', r'Demnach (erkennt|beschliesst)', r'beschliesst.*:\s*$', r'verfügt.*:\s*$', r'erk[ae]nnt.*:\s*$', r'Demnach verfügt'],
+            "rulings": [r'erkennt d[\w]{2} Präsident', r'Demnach (erkennt|beschliesst)', r'beschliesst.*:\s*$', r'verfügt(\s[\wäöü]*){0,3}:\s*$', r'erk[ae]nnt(\s[\wäöü]*){0,3}:\s*$', r'Demnach verfügt[^e]'],
             "footer": [
                 r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))',
                 r'Im Namen des']

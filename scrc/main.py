@@ -4,6 +4,8 @@ import faulthandler
 from root import ROOT_DIR
 from scrc.dataset_construction.citation_extractor import CitationExtractor
 from scrc.dataset_construction.cleaner import Cleaner
+from scrc.dataset_construction.dataset_creation.citation_dataset_creator import CitationDatasetCreator
+from scrc.dataset_construction.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
 from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.judgement_extractor import JudgementExtractor
 from scrc.dataset_construction.lower_court_extractor import LowerCourtExtractor
@@ -30,7 +32,7 @@ Approach:
 - Clean text  (keep raw content in db)
 - Split BGer into sections (from html_raw)
 - Extract BGer citations (from html_raw) using "artref" tags
-- Extract judgements 
+- Extract judgements
 - Process each text with spacy, save doc to disk and store path in db, store num token count in separate db col
 - Compute lemma counts and save aggregates in separate tables
 - Create the smaller datasets derived from SCRC with the available metadata
@@ -87,8 +89,11 @@ def process_scrc(config):
     count_computer = CountComputer(config)
     count_computer.run_pipeline()
 
-    dataset_creator = DatasetCreator(config)
-    dataset_creator.create_datasets()
+    judgment_dataset_creator = JudgmentDatasetCreator(config)
+    judgment_dataset_creator.create_dataset()
+
+    citation_dataset_creator = CitationDatasetCreator(config)
+    citation_dataset_creator.create_dataset()
 
 
 def process_external_corpora(config):

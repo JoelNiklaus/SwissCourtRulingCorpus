@@ -1,16 +1,16 @@
-import configparser
-import inspect
+import abc
+import os
 from collections import Counter
 from pathlib import Path
 
 import seaborn as sns
+import plotly.express as px
 
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 from transformers import AutoTokenizer
 
-from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 import json
@@ -22,10 +22,10 @@ from spacy.lang.it import Italian
 from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area, legal_areas, get_region
 from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
 
-#pd.options.mode.chained_assignment = None  # default='warn'
+# pd.options.mode.chained_assignment = None  # default='warn'
 
 """
-Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 day per court)
+Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 days per court)
 Datasets to be created:
 - Judgements
     - Judgement prediction BGer:
@@ -123,210 +123,55 @@ class DatasetCreator(DatasetConstructorComponent):
     """
 
     def __init__(self, config: dict):
+        __metaclass__ = abc.ABCMeta
         super().__init__(config)
         self.logger = get_logger(__name__)
 
         self.seed = 42
-        self.debug = False
         self.debug_chunksize = 2e2
-        self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
 
-    def create_datasets(self):
-        engine = self.get_engine(self.db_scrc)
+        self.debug = False
+        self.split_type = None  # to be overridden
+        self.dataset_name = None  # to be overridden
+        self.inputs = ["text"]  # to be overridden
 
-        datasets = ['facts_judgement_prediction']  # , 'considerations_judgement_prediction', 'citation_prediction']
-        processed_file_path = self.data_dir / f"datasets_created.txt"
-        datasets, message = self.compute_remaining_parts(processed_file_path, datasets)
-        self.logger.info(message)
+        self.languages = ['it']
 
-        for dataset in datasets:
-            self.create_dataset(engine, dataset)
-            self.mark_as_processed(processed_file_path, dataset)
+    @abc.abstractmethod
+    def get_dataset(self, input, lang):
+        pass
 
-    def create_dataset(self, engine, dataset):
+    def create_dataset(self):
         """
         Retrieves the respective function named by the dataset and executes it to get the df for that dataset.
-
-        :param engine:  the engine to retrieve the data
-        :param dataset: the name of the dataset
         :return:
         """
-        self.logger.info(f"Creating {dataset} dataset")
+        self.logger.info(f"Creating {self.dataset_name} dataset")
 
-        split_type = "date-stratified"
-        if dataset == "date_prediction":
-            split_type = "random"  # if we determined the splits by date the labelset would be very small
+        dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
-        dataset_folder = self.create_dir(self.datasets_subdir, dataset)
-        for lang in self.languages:
-            self.logger.info(f"Processing language {lang}")
-            df, labels = getattr(self, dataset)(engine, lang)  # get and call the function called by the dataset name
-            lang_folder = self.create_dir(dataset_folder, lang)
-            self.save_dataset(df, labels, lang_folder, split_type)
+        processed_file_path = self.data_dir / f"{self.dataset_name}_created.txt"
+        datasets, message = self.compute_remaining_parts(processed_file_path, self.inputs)
+        self.logger.info(message)
 
-    def facts_judgement_prediction(self, engine, lang):
-        return self.judgement_prediction(engine, 'facts', lang)
+        for input in self.inputs:
+            self.logger.info(f"Processing dataset input {input}")
+            input_folder = self.create_dir(dataset_folder, input)
+            for lang in self.languages:
+                self.logger.info(f"Processing language {lang}")
+                lang_folder = self.create_dir(input_folder, lang)
+                df, labels = self.get_dataset(input, lang)
+                self.save_dataset(df, labels, lang_folder, self.split_type)
 
-    def considerations_judgement_prediction(self, engine, lang):
-        return self.judgement_prediction(engine, 'considerations', lang)
-
-    def judgement_prediction(self, engine, input, lang, with_write_off=False, with_unification=False,
-                             with_inadmissible=False,
-                             with_partials=False, make_single_label=True):
-        df = self.get_df(engine, input, 'judgements', lang)
-
-        # Delete cases with "Nach Einsicht" from the dataset because they are mostly inadmissible or otherwise dismissal
-        # => too easily learnable for the model (because of spurious correlation)
-        df = df[~df[input].str.startswith('Nach Einsicht')]
-
-        def clean(judgements):
-            out = []
-            for judgement in judgements:
-                # remove "partial_" from all the items to merge them with full ones
-                if not with_partials:
-                    judgement = judgement.replace("partial_", "")
-
-                out.append(judgement)
-
-            if not with_write_off:
-                # remove write_off because reason for it happens mostly behind the scenes and not written in the facts
-                if 'write_off' in judgements:
-                    out.remove('write_off')
-
-            if not with_unification:
-                # remove unification because reason for it happens mostly behind the scenes and not written in the facts
-                if 'unification' in judgements:
-                    out.remove('unification')
-
-            if not with_inadmissible:
-                # remove inadmissible because it is a formal reason and not that interesting semantically.
-                # Facts are formulated/summarized in a way to justify the decision of inadmissibility
-                # hard to know solely because of the facts (formal reasons, not visible from the facts)
-                if 'inadmissible' in judgements:
-                    out.remove('inadmissible')
-
-            # remove all labels which are complex combinations (reason: different questions => model cannot know which one to pick)
-            if make_single_label:
-                # contrary judgements point to multiple questions which is too complicated
-                if 'dismissal' in out and 'approval' in out:
-                    return np.nan
-                # if we have inadmissible and another one, we just remove inadmissible
-                if 'inadmissible' in out and len(out) > 1:
-                    out.remove('inadmissible')
-                if len(out) > 1:
-                    message = f"By now we should only have one label. But instead we still have the labels {out}"
-                    raise ValueError(message)
-                elif len(out) == 1:
-                    return out[0]  # just return the first label because we only have one left
-                else:
-                    return np.nan
-
-            return out
-
-        df.judgements = df.judgements.apply(clean)
-        df = df.dropna()  # drop empty labels introduced by cleaning before
-
-        df = df.rename(columns={input: "text", "judgements": "label"})  # normalize column names
-        labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
-        return df, labels
-
-    def citation_prediction(self, engine, lang):
-        df = self.get_df(engine, 'text', 'citations', lang)
-
-        this_function_name = inspect.currentframe().f_code.co_name
-        folder = self.create_dir(self.datasets_subdir, this_function_name)
-
-        # calculate most common BGE citations
-        most_common_rulings = self.get_most_common_citations(df, folder, 'rulings')
-
-        # list with only the most common laws
-        most_common_laws = self.get_most_common_citations(df, folder, 'laws')
-
-        law_abbr_by_lang = self.get_law_abbr_by_lang()
-
-        #  IMPORTANT: we need to take care of the fact that the laws are named differently in each language but refer to the same law!
-
-        def replace_citations(series, ref_mask_token="<ref>"):
-            # TODO think about splitting laws and rulings into two separate labels
-            labels = set()
-            for law in series.citations['laws']:
-                citation = law['text']
-                found_string_in_list = string_contains_one_of_list(citation, list(law_abbr_by_lang['de'].keys()))
-                if found_string_in_list:
-                    series.text = series.text.replace(citation, ref_mask_token)
-                    labels.add(law_abbr_by_lang['de'][found_string_in_list])
-            for ruling in series.citations['rulings']:
-                citation = ruling['text']
-                if string_contains_one_of_list(citation, most_common_rulings):
-                    series.text = series.text.replace(citation, ref_mask_token)
-                    labels.add(citation)
-            series['label'] = list(labels)
-            return series
-
-        df = df.apply(replace_citations, axis='columns')
-        df = df.rename(columns={"text": "text"})  # normalize column names
-        labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
-        return df, labels
-
-    def get_most_common_citations(self, df, folder, type, plot_n_most_common=10):
-        """
-        Retrieves the most common citations of a given type (rulings/laws).
-        Additionally plots the plot_n_most_common most common citations
-        :param df:
-        :param folder:
-        :param type:
-        :return:
-        """
-        valid_types = ['rulings', 'laws']
-        if type not in valid_types:
-            raise ValueError(f"Please supply a valid citation type from {valid_types}")
-        type_citations = []
-        for citations in df.citations:
-            for type_citation in citations[type]:
-                type_citations.append(type_citation['text'])
-        most_common_with_frequency = Counter(type_citations).most_common(self.num_ruling_citations)
-
-        # Plot the 10 most common citations
-        # remove BGG articles because they are obvious
-        most_common_interesting = [(k, v) for k, v in most_common_with_frequency if 'BGG' not in k]
-        ruling_citations = pd.DataFrame.from_records(most_common_interesting[:plot_n_most_common],
-                                                     columns=['citation', 'frequency'])
-        ax = ruling_citations.plot.bar(x='citation', y='frequency', rot=90)
-        ax.get_figure().savefig(folder / f'most_common_{type}_citations.png', bbox_inches="tight")
-
-        return list(dict(most_common_with_frequency).keys())
-
-    def get_law_abbr_by_lang(self):
-        term_definitions = TermDefinitionsExtractor().extract_term_definitions()
-        law_abbr_by_lang = {lang: dict() for lang in self.languages}
-
-        for definition in term_definitions:
-            for lang in definition['languages']:
-                if lang in self.languages:
-                    for entry in definition['languages'][lang]:
-                        if entry['type'] == 'ab':  # ab stands for abbreviation
-                            # append the string of the abbreviation as key and the id as value
-                            law_abbr_by_lang[lang][entry['text']] = definition['id']
-        return law_abbr_by_lang
-
-    def chamber_prediction(self, engine, lang):
-        # TODO process in batches because otherwise too large
-        df = self.get_df(engine, 'facts', 'chamber', lang)
-        df = df.rename(columns={"facts": "text", "chamber": "label"})  # normalize column names
-        labels = list(df.label.unique())
-        return df, labels
-
-    def date_prediction(self, engine, lang):
-        # TODO process in batches because otherwise too large
-        df = self.get_df(engine, 'facts', 'date', lang)
-        df = df.rename(columns={"facts": "text", "date": "label"})  # normalize column names
-        labels = list(df.label.unique())
-        return df, labels
+            self.mark_as_processed(processed_file_path, input)
 
     def get_df(self, engine, feature_col, label_col, lang):
         self.logger.info("Started loading the data from the database")
-        lower_court_canton = "lower_court::json#>>'{canton}' AS lower_court_canton"
-        columns = f"extract(year from date) as year, chamber, {lower_court_canton}, {feature_col}, {label_col}"
+        origin_canton = "lower_court::json#>>'{canton}' AS origin_canton"
+        origin_court = "lower_court::json#>>'{court}' AS origin_court"
+        origin_chamber = "lower_court::json#>>'{chamber}' AS origin_chamber"
+        columns = f"{feature_col}, {label_col}, extract(year from date) as year, chamber, " \
+                  f"{origin_canton}, {origin_court}, {origin_chamber}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
         if self.debug:
@@ -341,11 +186,15 @@ class DatasetCreator(DatasetConstructorComponent):
         df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
         df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
         df['legal_area'] = df.chamber.apply(get_legal_area)
-        df['lower_court_region'] = df.lower_court_canton.apply(get_region)
+        df['origin_region'] = df.origin_canton.apply(get_region)
         self.logger.info("Finished loading the data from the database")
+
+        # TODO we could filter out entriew where the feature_col (text/facts/considerations) is less than 10/20/50 characters because then it is most likely faulty
+
         return df
 
     def get_tokenizers(self, lang):
+        os.environ['TOKENIZERS_PARALLELISM'] = "True"
         if lang == 'de':
             spacy = German()
             bert = "deepset/gbert-base"
@@ -362,12 +211,12 @@ class DatasetCreator(DatasetConstructorComponent):
     def clean_from_empty_strings(self, df, column):
         # replace empty and whitespace strings with nan so that they can be removed
         df[column] = df[column].replace(r'^\s*$', np.nan, regex=True)
-        df = df.dropna()  # drop null values not recognized by sql where clause
+        df = df.dropna(subset=[column])  # drop null values not recognized by sql where clause
         df = df.reset_index(drop=True)  # reindex to get nice indices
         return df
 
     def save_dataset(self, df: pd.DataFrame, labels: list, folder: Path,
-                     split_type="date-stratified", split=(0.7, 0.1, 0.2), kaggle=True):
+                     split_type="date-stratified", split=(0.7, 0.1, 0.2), kaggle=False):
         """
         creates all the files necessary for a kaggle dataset from a given df
         :param df:          needs to contain the columns text and label
@@ -382,19 +231,22 @@ class DatasetCreator(DatasetConstructorComponent):
         special_splits = self.create_special_splits(split_type, splits)
 
         self.logger.info(f"Computing metadata reports")
-        for name, df in splits.items():
-            self.save_report(folder, name, df)
+        for split, df in splits.items():
+            self.logger.info(f"Processing split {split}")
+            self.save_report(folder, split, df)
 
         # save regular dataset
         self.logger.info("Saving the regular dataset")
-        regular_dir = self.create_dir(folder, 'regular')
-        self.save_labels(labels, regular_dir / 'labels.json')
-        for name, df in splits.items():
-            df.to_csv(regular_dir / f'{name}.csv', index_label='id')
+        self.save_labels(labels, folder / 'labels.json')
+        for split, df in splits.items():
+            self.logger.info(f"Processing split {split}")
+            df.to_csv(folder / f'{split}.csv', index_label='id')
 
-        special_splits_dir = self.create_dir(regular_dir, 'special_splits')
-        for name, df in special_splits.items():
-            df.to_csv(special_splits_dir / f'{name}.csv', index_label='id')
+        special_splits_dir = self.create_dir(folder, 'special_splits')
+        for category, special_split in special_splits.items():
+            category_dir = self.create_dir(special_splits_dir, category)
+            for split, df in special_split.items():
+                df.to_csv(category_dir / f'{split}.csv', index_label='id')
 
         if kaggle:
             self.logger.info("Saving the data in kaggle format")
@@ -413,8 +265,8 @@ class DatasetCreator(DatasetConstructorComponent):
 
             # save special kaggle files
             kaggle_dir = self.create_dir(folder, 'kaggle')
-            for name, df in splits.items():
-                df.to_csv(kaggle_dir / f'{name}.csv', index_label='id')
+            for split, df in splits.items():
+                df.to_csv(kaggle_dir / f'{split}.csv', index_label='id')
 
         self.logger.info(f"Saved dataset files to {folder}")
 
@@ -439,28 +291,47 @@ class DatasetCreator(DatasetConstructorComponent):
         self.logger.info("Creating special splits")
         test = splits['test']
 
+        special_splits = {
+            'input_length': dict(), 'year': dict(), 'legal_area': dict(),
+            'origin_region': dict(), 'origin_canton': dict(),
+            'origin_court': dict(), 'origin_chamber': dict(),
+        }
+
         # test set split by input length
-        special_splits = dict()
         boundaries = [0, 512, 1024, 2048, 4096, 8192]
         for i in range(len(boundaries) - 1):
             lower, higher = boundaries[i] + 1, boundaries[i + 1]
-            key = f'test-input_length-between({lower:04d},{higher:04d})'
-            special_splits[key] = test[test.num_tokens_bert.between(lower, higher)]
+            key = f'test-between({lower:04d},{higher:04d})'
+            special_splits['input_length'][key] = test[test.num_tokens_bert.between(lower, higher)]
 
         # test set split by year
         if split_type == "date-stratified":
             for year in range(2017, 2020 + 1):
-                special_splits[f'test-year-{year}'] = test[test.year == year]
+                special_splits['year'][f'test-{year}'] = test[test.year == year]
 
         # test set split by legal area
         for legal_area in legal_areas.keys():
-            special_splits[f'test-legal_area-{legal_area}'] = test[test.legal_area.str.contains(legal_area)]
+            special_splits['legal_area'][f'test-{legal_area}'] = test[test.legal_area.str.contains(legal_area)]
 
-        # test set split by origin canton and region
-        for canton in test.lower_court_canton.unique().tolist():
-            special_splits[f'test-lower_court_canton-{canton}'] = test[test.lower_court_canton.str.contains(canton)]
-        for region in test.lower_court_region.unique().tolist():
-            special_splits[f'test-lower_court_region-{region}'] = test[test.lower_court_region.str.contains(region)]
+        # test set split by origin region, canton, court and chamber
+        region_test = test.dropna(subset=['origin_region'])
+        for region in region_test.origin_region.unique().tolist():
+            special_splits['origin_region'][f'test-{region}'] = region_test[
+                region_test.origin_region.str.contains(region)]
+
+        canton_test = test.dropna(subset=['origin_canton'])
+        for canton in canton_test.origin_canton.unique().tolist():
+            special_splits['origin_canton'][f'test-{canton}'] = canton_test[
+                canton_test.origin_canton.str.contains(canton)]
+
+        court_test = test.dropna(subset=['origin_court'])
+        for court in court_test.origin_court.unique().tolist():
+            special_splits['origin_court'][f'test-{court}'] = court_test[court_test.origin_court.str.contains(court)]
+
+        chamber_test = test.dropna(subset=['origin_chamber'])
+        for chamber in chamber_test.origin_chamber.unique().tolist():
+            special_splits['origin_chamber'][f'test-{chamber}'] = chamber_test[
+                chamber_test.origin_chamber.str.contains(chamber)]
 
         return special_splits
 
@@ -474,7 +345,7 @@ class DatasetCreator(DatasetConstructorComponent):
         """
         split_folder = self.create_dir(folder, f'reports/{split}')
 
-        barplot_attributes = ['legal_area', 'lower_court_canton', 'lower_court_region']
+        barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
         for attribute in barplot_attributes:
             self.plot_barplot_attribute(df, split_folder, attribute)
 
@@ -492,6 +363,9 @@ class DatasetCreator(DatasetConstructorComponent):
         """
         attribute_df = df[attribute].value_counts().to_frame()
         total = len(df.index)
+        # we deleted the ones where we did not find any attribute: also mention them in this table
+        uncategorized = total - attribute_df[attribute].sum()
+        attribute_df.at['uncategorized', attribute] = uncategorized
         attribute_df.at['all', attribute] = total
         attribute_df = attribute_df.reset_index(level=0)
         attribute_df = attribute_df.rename(columns={'index': attribute, attribute: 'number of decisions'})
@@ -500,11 +374,9 @@ class DatasetCreator(DatasetConstructorComponent):
 
         attribute_df.to_csv(split_folder / f'{attribute}_distribution.csv')
 
-        # TODO make these plots nicer. They are strange now
         attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
-        ax = sns.barplot(x=attribute, y="number of decisions", data=attribute_df)
-        ax.tick_params(labelrotation=30)
-        ax.get_figure().savefig(split_folder / f'{attribute}_distribution-histogram.png', bbox_inches="tight")
+        fig = px.bar(attribute_df, x=attribute, y="number of decisions")
+        fig.write_image(split_folder / f'{attribute}_distribution-histogram.png')
 
     @staticmethod
     def plot_labels(df, split_folder):
@@ -615,11 +487,3 @@ class DatasetCreator(DatasetConstructorComponent):
         test = test.compute(scheduler='processes')
 
         return train, val, test
-
-
-if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
-
-    dataset_creator = DatasetCreator(config)
-    dataset_creator.create_datasets()
