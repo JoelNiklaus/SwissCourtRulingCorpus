@@ -25,7 +25,7 @@ from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area, l
 from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
 
 # pd.options.mode.chained_assignment = None  # default='warn'
-sns.set(rc={"figure.dpi": 500, 'savefig.dpi': 500})
+sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
 sns.set_style("whitegrid")
 """
 Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 days per court)
