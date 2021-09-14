@@ -41,7 +41,7 @@ class SectionSplitter(AbstractExtractor):
             'processing_one': 'Splitting sections from file',
             'no_functions': 'Not splitting into sections.'
         }
-        self.processed_file_path = self.data_dir + "spiders_section_split.txt"
+        self.processed_file_path = self.data_dir / "spiders_section_split.txt"
 
     def get_required_data(self, series: pd.DataFrame) -> Optional[bs4.BeautifulSoup]:
         html_raw = series['html_raw']
