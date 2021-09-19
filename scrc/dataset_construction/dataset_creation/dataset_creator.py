@@ -149,7 +149,7 @@ class DatasetCreator(DatasetConstructorComponent):
         else:
             return int(self.real_chunksize)
 
-    def create_dataset(self):
+    def create_dataset(self, sub_datasets=False, kaggle=False, save_reports=False):
         """
         Retrieves the respective function named by the dataset and executes it to get the df for that dataset.
         :return:
@@ -169,7 +169,8 @@ class DatasetCreator(DatasetConstructorComponent):
                 self.logger.info(f"Processing language {lang}")
                 lang_folder = self.create_dir(input_folder, lang)
                 df, labels = self.get_dataset(input, lang)
-                self.save_dataset(df, labels, lang_folder, self.split_type)
+                self.save_dataset(df, labels, lang_folder, self.split_type,
+                                  sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
 
             self.mark_as_processed(processed_file_path, input)
 
@@ -228,7 +229,7 @@ class DatasetCreator(DatasetConstructorComponent):
 
     def save_dataset(self, df: pd.DataFrame, labels: list, folder: Path,
                      split_type="date-stratified", split=(0.7, 0.1, 0.2),
-                     sub_datasets_dict=False, kaggle=False):
+                     sub_datasets=False, kaggle=False, save_reports=False):
         """
         creates all the files necessary for a kaggle dataset from a given df
         :param df:          needs to contain the columns text and label
@@ -236,15 +237,16 @@ class DatasetCreator(DatasetConstructorComponent):
         :param folder:      where to save the files
         :param split_type:  "date-stratified" or "random"
         :param split:       how to split the data into train, val and test set: needs to sum up to 1
-        :param sub_datasets_dict:whether or not to create the special sub dataset for testing of biases
+        :param sub_datasets:whether or not to create the special sub dataset for testing of biases
         :param kaggle:      whether or not to create the special kaggle dataset
+        :param save_reports:whether or not to compute and save reports
         :return:
         """
-        splits = self.create_splits(df, split, split_type)
+        splits = self.create_splits(df, split, split_type, include_all=save_reports)
         self.save_labels(labels, folder / 'labels.json')
-        self.save_splits(splits, labels, folder, save_reports=False)
+        self.save_splits(splits, labels, folder, save_reports=save_reports)
 
-        if sub_datasets_dict:
+        if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
             sub_datasets_dir = self.create_dir(folder, 'sub_datasets')
             for category, sub_dataset_category in sub_datasets_dict.items():
@@ -271,7 +273,7 @@ class DatasetCreator(DatasetConstructorComponent):
 
             # save special kaggle files
             kaggle_dir = self.create_dir(folder, 'kaggle')
-            self.save_splits(splits, labels, kaggle_dir, save_reports=False)
+            self.save_splits(splits, labels, kaggle_dir, save_reports=save_reports)
 
         self.logger.info(f"Saved dataset files to {folder}")
 
@@ -305,7 +307,7 @@ class DatasetCreator(DatasetConstructorComponent):
                 self.logger.info("Saving csv file")
                 df.to_csv(folder / f'{split}.csv', index_label='id')
 
-    def create_splits(self, df, split, split_type):
+    def create_splits(self, df, split, split_type, include_all=False):
         self.logger.info("Splitting data into train, val and test set")
         if split_type == "random":
             train, val, test = self.split_random(df, split)
@@ -313,8 +315,11 @@ class DatasetCreator(DatasetConstructorComponent):
             train, val, test = self.split_date_stratified(df, split)
         else:
             raise ValueError("Please supply a valid split_type")
-        all = pd.concat([train, val, test])  # we need to update it since some entries have been removed
-        return {'train': train, 'val': val, 'test': test, 'all': all}
+        splits = {'train': train, 'val': val, 'test': test}
+        if include_all:
+            splits['all'] = pd.concat([train, val, test])  # we need to update it since some entries have been removed
+
+        return splits
 
     def create_sub_datasets(self, splits, split_type):
         """
