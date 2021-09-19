@@ -132,6 +132,7 @@ class DatasetCreator(DatasetConstructorComponent):
 
         self.seed = 42
         self.debug_chunksize = 2e2
+        self.real_chunksize = 2e5
 
         self.debug = False
         self.split_type = None  # to be overridden
@@ -141,6 +142,12 @@ class DatasetCreator(DatasetConstructorComponent):
     @abc.abstractmethod
     def get_dataset(self, input, lang):
         pass
+
+    def get_chunksize(self):
+        if self.debug:
+            return int(self.debug_chunksize)  # run on smaller dataset for testing
+        else:
+            return int(self.real_chunksize)
 
     def create_dataset(self):
         """
@@ -171,17 +178,16 @@ class DatasetCreator(DatasetConstructorComponent):
         origin_canton = "lower_court::json#>>'{canton}' AS origin_canton"
         origin_court = "lower_court::json#>>'{court}' AS origin_court"
         origin_chamber = "lower_court::json#>>'{chamber}' AS origin_chamber"
+        origin_date = "lower_court::json#>>'{date}' AS origin_date"
+        origin_file_number = "lower_court::json#>>'{file_number}' AS origin_file_number"
         columns = f"{feature_col}, {label_col}, extract(year from date) as year, chamber, " \
-                  f"{origin_canton}, {origin_court}, {origin_chamber}"
+                  f"{origin_canton}, {origin_court}, {origin_chamber}, {origin_date}, {origin_file_number}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
-        if self.debug:
-            chunksize = self.debug_chunksize  # run on smaller dataset for testing
-        else:
-            chunksize = 2e5
-        df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by, chunksize=int(chunksize)))
-        df.year = df.year.astype(int)
-        df = self.clean_from_empty_strings(df, feature_col)
+        df = next(
+            self.select(engine, lang, columns=columns, where=where, order_by=order_by, chunksize=self.get_chunksize()))
+
+        df = self.clean_df(df, feature_col)
         # calculate both the num_tokens for regular words and subwords
         spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
         df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
@@ -190,7 +196,7 @@ class DatasetCreator(DatasetConstructorComponent):
         df['origin_region'] = df.origin_canton.apply(get_region)
         self.logger.info("Finished loading the data from the database")
 
-        # TODO we could filter out entriew where the feature_col (text/facts/considerations) is less than 10/20/50 characters because then it is most likely faulty
+        # TODO we could filter out entries where the feature_col (text/facts/considerations) is less than 10/20/50 characters because then it is most likely faulty
 
         return df
 
@@ -209,15 +215,19 @@ class DatasetCreator(DatasetConstructorComponent):
             raise ValueError(f"Please choose one of the following languages: {self.languages}")
         return spacy.tokenizer, AutoTokenizer.from_pretrained(bert)
 
-    def clean_from_empty_strings(self, df, column):
+    def clean_df(self, df, column):
         # replace empty and whitespace strings with nan so that they can be removed
         df[column] = df[column].replace(r'^\s*$', np.nan, regex=True)
         df = df.dropna(subset=[column])  # drop null values not recognized by sql where clause
         df = df.reset_index(drop=True)  # reindex to get nice indices
+        if self.split_type == "date-stratified":
+            df = df.dropna(subset=['year'])  # make sure that each entry has an associated year
+        df.year = df.year.astype(int)  # convert from float to nicer int
         return df
 
     def save_dataset(self, df: pd.DataFrame, labels: list, folder: Path,
-                     split_type="date-stratified", split=(0.7, 0.1, 0.2), kaggle=False):
+                     split_type="date-stratified", split=(0.7, 0.1, 0.2),
+                     sub_datasets_dict=False, kaggle=False):
         """
         creates all the files necessary for a kaggle dataset from a given df
         :param df:          needs to contain the columns text and label
@@ -225,21 +235,23 @@ class DatasetCreator(DatasetConstructorComponent):
         :param folder:      where to save the files
         :param split_type:  "date-stratified" or "random"
         :param split:       how to split the data into train, val and test set: needs to sum up to 1
+        :param sub_datasets_dict:whether or not to create the special sub dataset for testing of biases
         :param kaggle:      whether or not to create the special kaggle dataset
         :return:
         """
         splits = self.create_splits(df, split, split_type)
         self.save_labels(labels, folder / 'labels.json')
-        self.save_splits(splits, labels, folder)
+        self.save_splits(splits, labels, folder, save_reports=False)
 
-        sub_datasets = self.create_sub_datasets(splits, split_type)
-        sub_datasets_dir = self.create_dir(folder, 'sub_datasets')
-        for category, sub_dataset_category in sub_datasets.items():
-            self.logger.info(f"Processing sub dataset category {category}")
-            category_dir = self.create_dir(sub_datasets_dir, category)
-            for sub_dataset, sub_dataset_splits in sub_dataset_category.items():
-                sub_dataset_dir = self.create_dir(category_dir, sub_dataset)
-                self.save_splits(sub_dataset_splits, labels, sub_dataset_dir, save_csvs=['test'])
+        if sub_datasets_dict:
+            sub_datasets_dict = self.create_sub_datasets(splits, split_type)
+            sub_datasets_dir = self.create_dir(folder, 'sub_datasets')
+            for category, sub_dataset_category in sub_datasets_dict.items():
+                self.logger.info(f"Processing sub dataset category {category}")
+                category_dir = self.create_dir(sub_datasets_dir, category)
+                for sub_dataset, sub_dataset_splits in sub_dataset_category.items():
+                    sub_dataset_dir = self.create_dir(category_dir, sub_dataset)
+                    self.save_splits(sub_dataset_splits, labels, sub_dataset_dir, save_csvs=['test'])
 
         if kaggle:
             self.logger.info("Saving the data in kaggle format")
@@ -313,7 +325,7 @@ class DatasetCreator(DatasetConstructorComponent):
         self.logger.info("Creating sub datasets")
 
         # set up data structure
-        sub_datasets = {
+        sub_datasets_dict = {
             'input_length': dict(), 'year': dict(), 'legal_area': dict(),
             'origin_region': dict(), 'origin_canton': dict(), 'origin_court': dict(), 'origin_chamber': dict(),
         }
@@ -322,52 +334,52 @@ class DatasetCreator(DatasetConstructorComponent):
         boundaries = [0, 512, 1024, 2048, 4096, 8192]
         for i in range(len(boundaries) - 1):
             lower, higher = boundaries[i] + 1, boundaries[i + 1]
-            sub_dataset = sub_datasets['input_length'][f'between({lower:04d},{higher:04d})'] = dict()
+            sub_dataset = sub_datasets_dict['input_length'][f'between({lower:04d},{higher:04d})'] = dict()
             for split_name, split_df in splits.items():
                 sub_dataset[split_name] = split_df[split_df.num_tokens_bert.between(lower, higher)]
 
         self.logger.info(f"Processing sub dataset year")
         if split_type == "date-stratified":
             for year in range(2017, 2020 + 1):
-                sub_dataset = sub_datasets['year'][str(year)] = dict()
+                sub_dataset = sub_datasets_dict['year'][str(year)] = dict()
                 for split_name, split_df in splits.items():
                     sub_dataset[split_name] = split_df[split_df.year == year]
 
         self.logger.info(f"Processing sub dataset legal_area")
         for legal_area in legal_areas.keys():
-            sub_dataset = sub_datasets['legal_area'][legal_area] = dict()
+            sub_dataset = sub_datasets_dict['legal_area'][legal_area] = dict()
             for split_name, split_df in splits.items():
                 sub_dataset[split_name] = split_df[split_df.legal_area.str.contains(legal_area)]
 
         self.logger.info(f"Processing sub dataset origin_region")
         for region in splits['all'].origin_region.dropna().unique().tolist():
-            sub_dataset = sub_datasets['origin_region'][region] = dict()
+            sub_dataset = sub_datasets_dict['origin_region'][region] = dict()
             for split_name, split_df in splits.items():
                 region_df = split_df.dropna(subset=['origin_region'])
                 sub_dataset[split_name] = region_df[region_df.origin_region.str.contains(region)]
 
         self.logger.info(f"Processing sub dataset origin_canton")
         for canton in splits['all'].origin_canton.dropna().unique().tolist():
-            sub_dataset = sub_datasets['origin_canton'][canton] = dict()
+            sub_dataset = sub_datasets_dict['origin_canton'][canton] = dict()
             for split_name, split_df in splits.items():
                 canton_df = split_df.dropna(subset=['origin_canton'])
                 sub_dataset[split_name] = canton_df[canton_df.origin_canton.str.contains(canton)]
 
         self.logger.info(f"Processing sub dataset origin_court")
         for court in splits['all'].origin_court.dropna().unique().tolist():
-            sub_dataset = sub_datasets['origin_court'][court] = dict()
+            sub_dataset = sub_datasets_dict['origin_court'][court] = dict()
             for split_name, split_df in splits.items():
                 court_df = split_df.dropna(subset=['origin_court'])
                 sub_dataset[split_name] = court_df[court_df.origin_court.str.contains(court)]
 
         self.logger.info(f"Processing sub dataset origin_chamber")
         for chamber in splits['all'].origin_chamber.dropna().unique().tolist():
-            sub_dataset = sub_datasets['origin_chamber'][chamber] = dict()
+            sub_dataset = sub_datasets_dict['origin_chamber'][chamber] = dict()
             for split_name, split_df in splits.items():
                 chamber_df = split_df.dropna(subset=['origin_chamber'])
                 sub_dataset[split_name] = chamber_df[chamber_df.origin_chamber.str.contains(chamber)]
 
-        return sub_datasets
+        return sub_datasets_dict
 
     def save_report(self, folder, split, df):
         """
