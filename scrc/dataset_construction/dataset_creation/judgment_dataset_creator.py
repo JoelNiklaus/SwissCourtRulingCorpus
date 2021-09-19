@@ -18,7 +18,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.debug = False
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
-        self.inputs = ['facts']  # , 'considerations']
+        self.feature_cols = ['facts']  # , 'considerations']
 
         self.with_write_off = False
         self.with_unification = False
@@ -26,13 +26,13 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.with_partials = False
         self.make_single_label = True
 
-    def get_dataset(self, input, lang):
-        df = self.get_df(self.get_engine(self.db_scrc), input, 'judgements', lang)
+    def get_dataset(self, feature_col, lang):
+        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'judgements', lang)
 
         # Delete cases with "Nach Einsicht" from the dataset because they are mostly inadmissible or otherwise dismissal
         # => too easily learnable for the model (because of spurious correlation)
         if self.with_inadmissible:
-            df = df[~df[input].str.startswith('Nach Einsicht')]
+            df = df[~df[feature_col].str.startswith('Nach Einsicht')]
 
         def clean(judgements):
             out = set()
@@ -82,7 +82,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         df.judgements = df.judgements.apply(clean)
         df = df.dropna(subset=['judgements'])  # drop empty labels introduced by cleaning before
 
-        df = df.rename(columns={input: "text", "judgements": "label"})  # normalize column names
+        df = df.rename(columns={feature_col: "text", "judgements": "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
 

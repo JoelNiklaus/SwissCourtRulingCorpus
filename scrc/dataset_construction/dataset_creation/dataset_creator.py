@@ -137,10 +137,10 @@ class DatasetCreator(DatasetConstructorComponent):
         self.debug = False
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
-        self.inputs = ["text"]  # to be overridden
+        self.feature_cols = ["text"]  # to be overridden
 
     @abc.abstractmethod
-    def get_dataset(self, input, lang):
+    def get_dataset(self, feature_col, lang):
         pass
 
     def get_chunksize(self):
@@ -159,7 +159,7 @@ class DatasetCreator(DatasetConstructorComponent):
         dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
         processed_file_path = self.data_dir / f"{self.dataset_name}_created.txt"
-        datasets, message = self.compute_remaining_parts(processed_file_path, self.inputs)
+        datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
 
         for input in datasets:
@@ -217,7 +217,8 @@ class DatasetCreator(DatasetConstructorComponent):
 
     def clean_df(self, df, column):
         # replace empty and whitespace strings with nan so that they can be removed
-        df[column] = df[column].replace(r'^\s*$', np.nan, regex=True)
+        df[column] = df[column].replace(r'^\s+$', np.nan, regex=True)
+        df[column] = df[column].replace('', np.nan)
         df = df.dropna(subset=[column])  # drop null values not recognized by sql where clause
         df = df.reset_index(drop=True)  # reindex to get nice indices
         if self.split_type == "date-stratified":

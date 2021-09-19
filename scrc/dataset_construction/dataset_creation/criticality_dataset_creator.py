@@ -18,32 +18,32 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.debug = False
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
-        self.inputs = ['facts', 'considerations', 'text']
+        # TODO wait for section splitting in other courts for facts and considerations to be enabled
+        self.feature_cols = ['text']  # ['facts', 'considerations', 'text']
 
-    def get_dataset(self, input, lang):
+    def get_dataset(self, feature_col, lang):
         engine = self.get_engine(self.db_scrc)
-        origin_chambers, supreme_court_df = self.query_supreme_court(engine, lang)
 
-        columns = ['id', 'chamber', 'date', 'extract(year from date) as year', input]
+        origin_chambers, supreme_court_df = self.query_supreme_court(engine, lang)
 
         df = pd.DataFrame()
         for origin_chamber in origin_chambers:
-            origin_chamber_df = self.query_origin_chamber(columns, engine, lang, origin_chamber, supreme_court_df)
+            origin_chamber_df = self.query_origin_chamber(feature_col, engine, lang, origin_chamber, supreme_court_df)
             df = df.append(origin_chamber_df)
         labels = ['non-critical', 'critical']
 
-        df = self.clean_df(df, input)
-
         return df, labels
 
-    def query_origin_chamber(self, columns, engine, lang, origin_chamber, supreme_court_df):
+    def query_origin_chamber(self, feature_col, engine, lang, origin_chamber, supreme_court_df):
         self.logger.info(f"Processing origin chamber {origin_chamber}")
+        columns = ['id', 'chamber', 'date', 'extract(year from date) as year', feature_col]
         try:
             lower_court_df = next(self.select(engine, lang,
                                               columns=",".join(columns),
                                               where=f"chamber = '{origin_chamber}'",
                                               order_by="date",
                                               chunksize=self.get_chunksize()))
+            lower_court_df = self.clean_df(lower_court_df, feature_col)
         except StopIteration:
             self.logger.error(f"No lower court rulings found for chamber {origin_chamber}. Returning empty dataframe.")
             return pd.DataFrame()
