@@ -4,6 +4,7 @@ from typing import Any, TYPE_CHECKING
 
 from scrc.utils.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
+from scrc.utils.log_utils import get_logger
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
@@ -15,6 +16,7 @@ class JudgementExtractor(AbstractExtractor):
 
     def __init__(self, config: dict):
         super().__init__(config, function_name='judgement_extracting_functions', col_name='judgements')
+        self.logger = get_logger(__name__)
         self.processed_file_path = self.data_dir / "spiders_judgement_extracted.txt"
         self.logger_info = {
             'start': 'Started extracting judgements',

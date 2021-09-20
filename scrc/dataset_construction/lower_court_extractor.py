@@ -4,6 +4,7 @@ import configparser
 
 from root import ROOT_DIR
 from scrc.utils.abstract_extractor import AbstractExtractor
+from scrc.utils.log_utils import get_logger
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
@@ -16,6 +17,7 @@ class LowerCourtExtractor(AbstractExtractor):
     def __init__(self, config: dict):
         super().__init__(config, function_name='lower_court_extracting_functions',
                          col_name='lower_court')
+        self.logger = get_logger(__name__)
         self.processed_file_path = self.data_dir / "spiders_lower_court_extracted.txt"
         self.logger_info = {
             'start': 'Started extracting lower court informations',

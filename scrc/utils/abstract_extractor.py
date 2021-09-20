@@ -23,7 +23,7 @@ class AbstractExtractor(ABC, DatasetConstructorComponent):
         "processing_one": "Extracting court decision",
         "no_functions": "Not processing",
     }
-    processed_file_path = ""
+    processed_file_path = None
 
     @abstractmethod
     def get_required_data(self, series: pd.DataFrame) -> Any:
