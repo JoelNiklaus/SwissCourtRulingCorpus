@@ -5,14 +5,14 @@ from root import ROOT_DIR
 from scrc.dataset_construction.citation_extractor import CitationExtractor
 from scrc.dataset_construction.cleaner import Cleaner
 from scrc.dataset_construction.dataset_creation.citation_dataset_creator import CitationDatasetCreator
+from scrc.dataset_construction.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
 from scrc.dataset_construction.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
 from scrc.dataset_construction.extractor import Extractor
 from scrc.dataset_construction.judgement_extractor import JudgementExtractor
 from scrc.dataset_construction.lower_court_extractor import LowerCourtExtractor
-from scrc.dataset_construction.dataset_creator import DatasetCreator
 from scrc.dataset_construction.scraper import Scraper, base_url
 from scrc.dataset_construction.section_splitter import SectionSplitter
-from scrc.dataset_construction.spacy_pipeline_runner import SpacyPipelineRunner
+from scrc.dataset_construction.nlp_pipeline_runner import NlpPipelineRunner
 from scrc.dataset_construction.count_computer import CountComputer
 
 from filprofiler.api import profile
@@ -60,6 +60,23 @@ def process_scrc(config):
     :param config:
     :return:
     """
+    construct_base_dataset(config)
+
+    create_specialized_datasets(config)
+
+
+def create_specialized_datasets(config):
+    judgment_dataset_creator = JudgmentDatasetCreator(config)
+    judgment_dataset_creator.create_dataset()
+
+    citation_dataset_creator = CitationDatasetCreator(config)
+    citation_dataset_creator.create_dataset()
+
+    criticality_dataset_creator = CriticalityDatasetCreator(config)
+    criticality_dataset_creator.create_dataset()
+
+
+def construct_base_dataset(config):
     scraper = Scraper(config)
     scraper.download_subfolders(base_url + "docs/")
 
@@ -77,20 +94,15 @@ def process_scrc(config):
 
     judgement_extractor = JudgementExtractor(config)
     judgement_extractor.start()
+
     lower_court_extractor = LowerCourtExtractor(config)
     lower_court_extractor.start()
 
-    spacy_pipeline_runner = SpacyPipelineRunner(config)
-    spacy_pipeline_runner.run_pipeline()
+    nlp_pipeline_runner = NlpPipelineRunner(config)
+    nlp_pipeline_runner.run_pipeline()
 
     count_computer = CountComputer(config)
     count_computer.run_pipeline()
-
-    judgment_dataset_creator = JudgmentDatasetCreator(config)
-    judgment_dataset_creator.create_dataset()
-
-    citation_dataset_creator = CitationDatasetCreator(config)
-    citation_dataset_creator.create_dataset()
 
 
 def process_external_corpora(config):

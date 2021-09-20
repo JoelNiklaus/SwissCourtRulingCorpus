@@ -1,5 +1,4 @@
 import abc
-import os
 from collections import Counter
 from pathlib import Path
 from typing import Union
@@ -11,18 +10,12 @@ import matplotlib.pyplot as plt
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
-from transformers import AutoTokenizer
 
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 import json
 
-from spacy.lang.de import German
-from spacy.lang.fr import French
-from spacy.lang.it import Italian
-
-from scrc.utils.main_utils import string_contains_one_of_list, get_legal_area, legal_areas, get_region
-from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
+from scrc.utils.main_utils import get_legal_area, legal_areas, get_region
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -187,36 +180,14 @@ class DatasetCreator(DatasetConstructorComponent):
                   f"{origin_canton}, {origin_court}, {origin_chamber}, {origin_date}, {origin_file_number}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
-        df = next(
-            self.select(engine, lang, columns=columns, where=where, order_by=order_by, chunksize=self.get_chunksize()))
-
+        df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
+                              chunksize=self.get_chunksize()))
         df = self.clean_df(df, feature_col)
-        # calculate both the num_tokens for regular words and subwords
-        spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
-        self.logger.debug("Started tokenizing with spacy")
-        df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
-        self.logger.debug("Started tokenizing with bert")
-        df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
         df['legal_area'] = df.chamber.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
         self.logger.info("Finished loading the data from the database")
 
         return df
-
-    def get_tokenizers(self, lang):
-        os.environ['TOKENIZERS_PARALLELISM'] = "True"
-        if lang == 'de':
-            spacy = German()
-            bert = "deepset/gbert-base"
-        elif lang == 'fr':
-            spacy = French()
-            bert = "camembert/camembert-base-ccnet"
-        elif lang == 'it':
-            spacy = Italian()
-            bert = "dbmdz/bert-base-italian-cased"
-        else:
-            raise ValueError(f"Please choose one of the following languages: {self.languages}")
-        return spacy.tokenizer, AutoTokenizer.from_pretrained(bert)
 
     def clean_df(self, df, column):
         # replace empty and whitespace strings with nan so that they can be removed
