@@ -131,6 +131,7 @@ class DatasetCreator(DatasetConstructorComponent):
         self.logger = get_logger(__name__)
 
         self.seed = 42
+        self.minFeatureColLength = 100  # characters
         self.debug_chunksize = 2e2
         self.real_chunksize = 2e5
 
@@ -162,17 +163,18 @@ class DatasetCreator(DatasetConstructorComponent):
         datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
 
-        for input in datasets:
-            self.logger.info(f"Processing dataset input {input}")
-            input_folder = self.create_dir(dataset_folder, input)
+        for feature_col in datasets:
+            self.logger.info(f"Processing dataset feature col {feature_col}")
+            input_folder = self.create_dir(dataset_folder, feature_col)
             for lang in self.languages:
                 self.logger.info(f"Processing language {lang}")
                 lang_folder = self.create_dir(input_folder, lang)
-                df, labels = self.get_dataset(input, lang)
+                df, labels = self.get_dataset(feature_col, lang)
+                df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset to make sampling easier
                 self.save_dataset(df, labels, lang_folder, self.split_type,
                                   sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
 
-            self.mark_as_processed(processed_file_path, input)
+            self.mark_as_processed(processed_file_path, feature_col)
 
     def get_df(self, engine, feature_col, label_col, lang):
         self.logger.info("Started loading the data from the database")
@@ -191,13 +193,13 @@ class DatasetCreator(DatasetConstructorComponent):
         df = self.clean_df(df, feature_col)
         # calculate both the num_tokens for regular words and subwords
         spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
+        self.logger.debug("Started tokenizing with spacy")
         df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
+        self.logger.debug("Started tokenizing with bert")
         df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
         df['legal_area'] = df.chamber.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
         self.logger.info("Finished loading the data from the database")
-
-        # TODO we could filter out entries where the feature_col (text/facts/considerations) is less than 10/20/50 characters because then it is most likely faulty
 
         return df
 
@@ -225,6 +227,10 @@ class DatasetCreator(DatasetConstructorComponent):
         if self.split_type == "date-stratified":
             df = df.dropna(subset=['year'])  # make sure that each entry has an associated year
         df.year = df.year.astype(int)  # convert from float to nicer int
+
+        # filter out entries where the feature_col (text/facts/considerations) is less than 100 characters
+        # because then it is most likely faulty
+        df = df[df[column].str.len() > self.minFeatureColLength]
         return df
 
     def save_dataset(self, df: pd.DataFrame, labels: list, folder: Path,
@@ -469,8 +475,8 @@ class DatasetCreator(DatasetConstructorComponent):
         # bin outliers together at the cutoff point
         cutoff = 4000
         cut_df = df[['num_tokens_spacy', 'num_tokens_bert']]
-        cut_df.num_tokens_bert = cut_df.num_tokens_bert.clip(upper=cutoff)
         cut_df.num_tokens_spacy = cut_df.num_tokens_spacy.clip(upper=cutoff)
+        cut_df.num_tokens_bert = cut_df.num_tokens_bert.clip(upper=cutoff)
 
         hist_df = pd.concat([cut_df.num_tokens_spacy, cut_df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
         hist_df = hist_df.reset_index(level=0)
@@ -480,13 +486,13 @@ class DatasetCreator(DatasetConstructorComponent):
                            bins=100, kde=True, fill=True, height=5, aspect=2.5, legend=False)
         plot.set(xticks=list(range(0, 4500, 500)))
         plt.ylabel('Number of court cases')
-        plt.legend(["SpaCy", "BERT"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
+        plt.legend(["BERT", "SpaCy"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
         plot.savefig(split_folder / 'input_length_distribution-histogram.png', bbox_inches="tight")
         plt.clf()
 
         plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer", kind="ecdf", legend=False)
         plt.ylabel('Number of court cases')
-        plt.legend(["SpaCy", "BERT"], loc='lower right', title='Tokenizer')
+        plt.legend(["BERT", "SPaCy"], loc='lower right', title='Tokenizer')
         plot.savefig(split_folder / 'input_length_distribution-cumulative.png', bbox_inches="tight")
         plt.clf()
 

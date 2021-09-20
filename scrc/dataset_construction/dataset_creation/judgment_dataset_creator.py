@@ -92,4 +92,4 @@ if __name__ == '__main__':
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
 
     judgment_dataset_creator = JudgmentDatasetCreator(config)
-    judgment_dataset_creator.create_dataset()
+    judgment_dataset_creator.create_dataset(save_reports=True)
