@@ -15,7 +15,7 @@
             "fr": "Ire Cour de droit public",
             "it": "I Corte di diritto pubblico",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.3","2.6","2.10","2.11","2.12"
             ]
           },
           "CH_BGer_002": {
@@ -24,7 +24,7 @@
             "fr": "IIe Cour de droit public",
             "it": "II Corte di diritto pubblico",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.4","2.5","2.7","2.8","2.9","2.10","2.12"
             ]
           },
           "CH_BGer_004": {
@@ -33,7 +33,7 @@
             "fr": "Ire Cour de droit civil",
             "it": "I Corte di diritto civile",
             "Rechtsgebiete": [
-              ""
+              "1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14"
             ]
           },
           "CH_BGer_005": {
@@ -42,7 +42,7 @@
             "fr": "IIe Cour de droit civil",
             "it": "II Corte di diritto civile",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.14","1.15"
             ]
           },
           "CH_BGer_006": {
@@ -51,7 +51,7 @@
             "fr": "Cour de droit p\u00e9nal",
             "it": "Corte di diritto penale",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "CH_BGer_008": {
@@ -60,7 +60,7 @@
             "fr": "Ire Cour de droit social",
             "it": "I Corte di diritto sociale",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "CH_BGer_009": {
@@ -69,7 +69,7 @@
             "fr": "IIe Cour de droit social",
             "it": "II Corte di diritto sociale",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "CH_BGer_010": {
@@ -78,7 +78,7 @@
             "fr": "Chambre des poursuites et des faillites (jusqu'en 2006)",
             "it": "Camera delle esecuzioni e dei fallimenti (fino a 2006)",
             "Rechtsgebiete": [
-              ""
+              "1.14","1.15"
             ]
           },
           "CH_BGer_011": {
@@ -96,7 +96,7 @@
             "fr": "Chambre d'accusation (jusqu'en 2004)",
             "it": "Camera d'accusa (fino a 2004)",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           },
           "CH_BGer_013": {
@@ -105,7 +105,7 @@
             "fr": "Cour p\u00e9nale f\u00e9d\u00e9rale (jusqu'en 2004)",
             "it": "Corte penale federale (fino a 2004)",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "CH_BGer_014": {
@@ -114,7 +114,7 @@
             "fr": "Cour de cassation extraordinaire (jusqu'en 2004)",
             "it": "Corte di cassazione estraordinaria (fino a 2004)",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           },
           "CH_BGer_015": {
@@ -132,7 +132,7 @@
             "fr": "Tribunal f\u00e9d\u00e9ral des assurances",
             "it": "Tribunale federale delle assicurazioni",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "CH_BGer_999": {
@@ -157,7 +157,7 @@
             "fr": "Volume I",
             "it": "Volume Ia",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.6","2.8","2.11","2.12"
             ]
           },
           "CH_BGE_002": {
@@ -166,7 +166,7 @@
             "fr": "Volume Ia",
             "it": "Volume Ia",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.5","2.6","2.8","2.11","2.12"
             ]
           },
           "CH_BGE_003": {
@@ -175,7 +175,7 @@
             "fr": "Volume Ib",
             "it": "Volume Ib",
             "Rechtsgebiete": [
-              ""
+              "2.1","2,2","2.3","2.4","2.7","2.8","2.9","2.10","2.12"
             ]
           },
           "CH_BGE_004": {
@@ -184,7 +184,7 @@
             "fr": "Volume II",
             "it": "Volume II",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.7","2.8","2.9","2.10","2.12"
             ]
           },
           "CH_BGE_005": {
@@ -269,7 +269,7 @@
           "CH_BVGE_001": {
             "spider": "CH_BVGer",
             "Rechtsgebiete": [
-              ""
+              "1.10","1.11","1.12","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","4.1","4.2"
             ]
           }
         }
@@ -282,7 +282,7 @@
           "CH_PATG_001": {
             "spider": "CH_BPatG",
             "Rechtsgebiete": [
-              ""
+              "1.11"
             ]
           }
         }
@@ -295,7 +295,7 @@
           "CH_BSTG_001": {
             "spider": "CH_BSTG",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           }
         }
@@ -308,7 +308,7 @@
           "CH_WBK_001": {
             "spider": "CH_WEKO",
             "Rechtsgebiete": [
-              ""
+              "1.12"
             ]
           }
         }
@@ -321,7 +321,7 @@
           "CH_ED\u00d6B_001": {
             "spider": "CH_EDOEB",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.11","2.12"
             ]
           }
         }
@@ -357,7 +357,7 @@
             "fr": "Zivilgericht",
             "it": "Zivilgericht",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.10","1.13","1.14","1.15"
             ]
           },
           "AG_OG_003": {
@@ -366,7 +366,7 @@
             "fr": "Strafgericht",
             "it": "Strafgericht",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "AG_OG_004": {
@@ -375,7 +375,7 @@
             "fr": "Versicherungsgericht",
             "it": "Versicherungsgericht",
             "Rechtsgebiete": [
-              ""
+              "1.6","4.1","4.2"
             ]
           },
           "AG_OG_005": {
@@ -384,7 +384,7 @@
             "fr": "Verwaltungsgericht",
             "it": "Verwaltungsgericht",
             "Rechtsgebiete": [
-              ""
+              "1.5","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "AG_OG_999": {
@@ -406,7 +406,7 @@
           "AG_AK_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           }
         }
@@ -419,7 +419,7 @@
           "AG_LWRK_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.3","2.6"
             ]
           }
         }
@@ -432,7 +432,7 @@
           "AG_HG_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.4","1.6","1.7","1.8","1.9","1.10","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           }
         }
@@ -445,7 +445,7 @@
           "AG_PRG_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.2"
             ]
           }
         }
@@ -458,7 +458,7 @@
           "AG_RGAR_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.8"
             ]
           }
         }
@@ -471,7 +471,7 @@
           "AG_SKBG_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.3","2.4","2.5","2.6"
             ]
           }
         }
@@ -484,7 +484,7 @@
           "AG_SRG_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.5"
             ]
           }
         }
@@ -497,7 +497,7 @@
           "AG_VSG_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.6","4.1","4.2"
             ]
           }
         }
@@ -510,7 +510,7 @@
           "AG_VG_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.5","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12""
             ]
           }
         }
@@ -523,7 +523,7 @@
           "AG_SVWG_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.4","2.5","2.6"
             ]
           }
         }
@@ -536,7 +536,7 @@
           "AG_VB_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.3","1.5","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","3.1","3.2","4.1","4.2"
             ]
           }
         }
@@ -549,7 +549,7 @@
           "AG_OSB_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.6"
             ]
           }
         }
@@ -631,7 +631,7 @@
             "fr": "1. Abteilung",
             "it": "1. Abteilung",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15","3.1","3.2"
             ]
           },
           "AR_OG_002": {
@@ -640,7 +640,7 @@
             "fr": "2. Abteilung",
             "it": "2. Abteilung",
             "Rechtsgebiete": [
-              ""
+              "1.3","1.15","2.5","2.12","3.2","4.1","4.2"
             ]
           },
           "AR_OG_003": {
@@ -649,7 +649,7 @@
             "fr": "3. Abteilung",
             "it": "3. Abteilung",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "AR_OG_004": {
@@ -658,7 +658,7 @@
             "fr": "4. Abteilung",
             "it": "4. Abteilung",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "AR_OG_005": {
@@ -676,7 +676,7 @@
             "fr": "Aufsichtsbeh\u00f6rde f\u00fcr Schuldbetreibung und Konkurs",
             "it": "Aufsichtsbeh\u00f6rde f\u00fcr Schuldbetreibung und Konkurs",
             "Rechtsgebiete": [
-              ""
+              "2.14","2.15"
             ]
           },
           "AR_OG_007": {
@@ -685,7 +685,7 @@
             "fr": "Anwaltsaufsichtskommission",
             "it": "Anwaltsaufsichtskommission",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "AR_OG_008": {
@@ -777,7 +777,7 @@
           "AR_VB_001": {
             "spider": "AR_Gerichte",
             "Rechtsgebiete": [
-              ""
+             "1.3","1.5","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","3.1","3.2","4.1","4.2"
             ]
           }
         }
@@ -793,7 +793,7 @@
             "fr": "Steuerrekurskommission",
             "it": "Steuerrekurskommission",
             "Rechtsgebiete": [
-              ""
+              "2.5"
             ]
           }
         }
@@ -809,7 +809,7 @@
             "fr": "Regierungsrat",
             "it": "Regierungsrat",
             "Rechtsgebiete": [
-              ""
+              "2.11"
             ]
           }
         }
@@ -845,7 +845,7 @@
             "fr": "Chambres civile",
             "it": "Zivilkammern",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.13","1.14","1.15"
             ]
           },
           "BE_OG_002": {
@@ -854,7 +854,7 @@
             "fr": "Tribunal de commerce",
             "it": "Handelsgericht",
             "Rechtsgebiete": [
-              ""
+             "1.1","1.4","1.6","1.7","1.8","1.9","1.10","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "BE_OG_003": {
@@ -863,7 +863,7 @@
             "fr": "Tribunal de la protection de l'enfant et de l'adulte",
             "it": "Kindes- und Erwachsenenschutzgericht",
             "Rechtsgebiete": [
-              ""
+              "1.2","1.14"
             ]
           },
           "BE_OG_005": {
@@ -872,7 +872,7 @@
             "fr": "Chambres p\u00e9nale",
             "it": "Strafkammern",
             "Rechtsgebiete": [
-              ""
+              "2.1","3.1","3.2"
             ]
           },
           "BE_OG_007": {
@@ -881,7 +881,7 @@
             "fr": "Autorit\u00e9 de surveillance en mati\u00e8re de poursuite pour dettes et faillite",
             "it": "Aufsichtsbeh\u00f6rde in Betreibungs- und Konkurssachen",
             "Rechtsgebiete": [
-              ""
+              "1.15"
             ]
           },
           "BE_OG_008": {
@@ -890,7 +890,7 @@
             "fr": "Chambre de recours p\u00e9nale",
             "it": "Beschwerdekammer in Strafsachen",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           },
           "BE_OG_999": {
@@ -912,7 +912,7 @@
           "BE_AK_001": {
             "spider": "BE_Anwaltsaufsicht",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           }
         }
@@ -928,7 +928,7 @@
             "fr": "Cour de droit administratif",
             "it": "Verwaltungsrechtliche Abteilung",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","4.1","4.2"
             ]
           }
         }
@@ -941,7 +941,7 @@
           "BE_SRK_001": {
             "spider": "BE_Steuerrekurs",
             "Rechtsgebiete": [
-              ""
+              "2.5"
             ]
           }
         }
@@ -974,7 +974,7 @@
           "BL_KG_001": {
             "spider": "BL_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1,4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","3.1","3.2","4.1","4.2"
             ]
           }
         }
@@ -987,7 +987,7 @@
           "BL_SG_001": {
             "spider": "BL_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.5"
             ]
           }
         }
@@ -1000,7 +1000,7 @@
           "BL_EG_001": {
             "spider": "BL_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.4","2.6","2.12"
             ]
           }
         }
@@ -1013,7 +1013,7 @@
           "BL_ZMG_001": {
             "spider": "BL_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           }
         }
@@ -1046,7 +1046,7 @@
           "BS_APG_001": {
             "spider": "BS_Omni",
             "Rechtsgebiete": [
-              ""
+               "1.1","1.2","1.3","1,4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","3.1","3.2","4.1","4.2"
             ]
           }
         }
@@ -1059,7 +1059,7 @@
           "BS_SVG_001": {
             "spider": "BS_Omni",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           }
         }
@@ -1095,7 +1095,7 @@
             "fr": "Cours d'appel civil",
             "it": "Zivilappellationsh\u00f6fe",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "FR_TC_003": {
@@ -1104,7 +1104,7 @@
             "fr": "Chambre des poursuites et faillites",
             "it": "Schuldbetreibungs- und Konkurskammer",
             "Rechtsgebiete": [
-              ""
+              "2.14","2.15"
             ]
           },
           "FR_TC_004": {
@@ -1113,7 +1113,7 @@
             "fr": "Cour de protection de l'enfant et de l'adulte",
             "it": "Kindes- und Erwachsenenschutzhof",
             "Rechtsgebiete": [
-              ""
+              "1.3"
             ]
           },
           "FR_TC_005": {
@@ -1122,7 +1122,7 @@
             "fr": "Chambre p\u00e9nale",
             "it": "Strafkammer",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           },
           "FR_TC_006": {
@@ -1131,7 +1131,7 @@
             "fr": "Cour d'appel p\u00e9nal",
             "it": "Strafappellationshof",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "FR_TC_007": {
@@ -1140,7 +1140,7 @@
             "fr": "Cours administrative",
             "it": "Verwaltungsgerichtsh\u00f6fe",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "FR_TC_010": {
@@ -1149,7 +1149,7 @@
             "fr": "Cour fiscale",
             "it": "Steuergerichtshof",
             "Rechtsgebiete": [
-              ""
+              "2.4","2.5"
             ]
           },
           "FR_TC_011": {
@@ -1158,7 +1158,7 @@
             "fr": "Cour des assurances sociales",
             "it": "Sozialversicherungsgerichtsh\u00f6fe",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "FR_TC_012": {
@@ -1209,7 +1209,7 @@
           "GE_CAPJ_001": {
             "spider": "GE_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           }
         }
@@ -1225,7 +1225,7 @@
             "fr": "Chambre civile",
             "it": "Chambre civile",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "GE_CJ_002": {
@@ -1234,7 +1234,7 @@
             "fr": "Chambre civile (Sommaires)",
             "it": "Chambre civile (Sommaires)",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "GE_CJ_003": {
@@ -1243,7 +1243,7 @@
             "fr": "Chambre des prud'hommes",
             "it": "Chambre des prud'hommes",
             "Rechtsgebiete": [
-              ""
+              "1.8"
             ]
           },
           "GE_CJ_004": {
@@ -1252,7 +1252,7 @@
             "fr": "Chambre des baux et loyers",
             "it": "Chambre des baux et loyers",
             "Rechtsgebiete": [
-              ""
+              "1.7"
             ]
           },
           "GE_CJ_005": {
@@ -1270,7 +1270,7 @@
             "fr": "Chambre de surveillance",
             "it": "Chambre de surveillance",
             "Rechtsgebiete": [
-              ""
+              "1.3","1.4","1.15","2.1"
             ]
           },
           "GE_CJ_007": {
@@ -1279,7 +1279,7 @@
             "fr": "Chambre de surveillance en mati\u00e8re de poursuite et faillites",
             "it": "Chambre de surveillance en mati\u00e8re de poursuite et faillites",
             "Rechtsgebiete": [
-              ""
+              "1.15","2.1"
             ]
           },
           "GE_CJ_008": {
@@ -1288,7 +1288,7 @@
             "fr": "Commission de taxation des honoraires d'avocats",
             "it": "Commission de taxation des honoraires d'avocats",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "GE_CJ_009": {
@@ -1297,7 +1297,7 @@
             "fr": "Chambre p\u00e9nale d'appel et de r\u00e9vision",
             "it": "Chambre p\u00e9nale d'appel et de r\u00e9vision",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "GE_CJ_010": {
@@ -1306,7 +1306,7 @@
             "fr": "Chambre p\u00e9nale",
             "it": "Chambre p\u00e9nale",
             "Rechtsgebiete": [
-              ""
+              "3.1"
             ]
           },
           "GE_CJ_011": {
@@ -1315,7 +1315,7 @@
             "fr": "Chambre p\u00e9nale de recours",
             "it": "Chambre p\u00e9nale de recours",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "GE_CJ_012": {
@@ -1324,7 +1324,7 @@
             "fr": "Chambre d'accusation",
             "it": "Chambre d'accusation",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "GE_CJ_013": {
@@ -1333,7 +1333,7 @@
             "fr": "Chambre administrative",
             "it": "Chambre administrative",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "GE_CJ_014": {
@@ -1342,7 +1342,7 @@
             "fr": "Chambre des assurances sociales",
             "it": "Chambre des assurances sociales",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "GE_CJ_015": {
@@ -1351,7 +1351,7 @@
             "fr": "Chambre constitutionnelle",
             "it": "Chambre constitutionnelle",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.10","2.11"
             ]
           },
           "GE_CJ_999": {
@@ -1373,7 +1373,7 @@
           "GE_TP_001": {
             "spider": "GE_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "3.1"
             ]
           }
         }
@@ -1386,7 +1386,7 @@
           "GE_TAPI_001": {
             "spider": "GE_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.5"
             ]
           }
         }
@@ -1419,7 +1419,7 @@
           "GL_OG_001": {
             "spider": "GL_Omni",
             "Rechtsgebiete": [
-              ""
+               "1.1","1.2","1.3","1,4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","3.1","3.2","4.1","4.2"
             ]
           }
         }
@@ -1432,7 +1432,7 @@
           "GL_VG_001": {
             "spider": "GL_Omni",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","4.1","4.2"
             ]
           }
         }
@@ -1448,7 +1448,7 @@
             "fr": "Strafkammern",
             "it": "Strafkammern",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "GL_KG_002": {
@@ -1457,7 +1457,7 @@
             "fr": "Zivilkammern",
             "it": "Zivilkammern",
             "Rechtsgebiete": [
-              ""
+               "1.1","1.2","1.3","1,4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "GL_KG_999": {
@@ -1523,7 +1523,7 @@
             "fr": "Schuldbetreibungs- und Konkurskammer",
             "it": "Camera delle esecuzioni e dei fallimenti",
             "Rechtsgebiete": [
-              ""
+              "1.15"
             ]
           },
           "GR_KG_004": {
@@ -1532,7 +1532,7 @@
             "fr": "I. Strafkammer",
             "it": "Camera penale I",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "GR_KG_005": {
@@ -1541,7 +1541,7 @@
             "fr": "II. Strafkammer",
             "it": "Camera penale II",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           },
           "GR_KG_006": {
@@ -1550,7 +1550,7 @@
             "fr": "I. Zivilkammer",
             "it": "Camera civile I",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4"
             ]
           },
           "GR_KG_007": {
@@ -1559,7 +1559,7 @@
             "fr": "II. Zivilkammer",
             "it": "Camera civile II",
             "Rechtsgebiete": [
-              ""
+              "1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12"
             ]
           },
           "GR_KG_999": {
@@ -1584,7 +1584,7 @@
             "fr": "1. Kammer",
             "it": "1a Camera",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.7","2.8","2.9","2.10","2.11"
             ]
           },
           "GR_VG_002": {
@@ -1593,7 +1593,7 @@
             "fr": "2. Kammer",
             "it": "2a Camera",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "GR_VG_003": {
@@ -1602,7 +1602,7 @@
             "fr": "3. Kammer",
             "it": "3a Camera",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "GR_VG_004": {
@@ -1611,7 +1611,7 @@
             "fr": "4. Kammer",
             "it": "4a Camera",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.4","2.5","2.6","2.12"
             ]
           },
           "GR_VG_005": {
@@ -1620,7 +1620,7 @@
             "fr": "5. Kammer",
             "it": "5a Camera",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.3","2.12"
             ]
           },
           "GR_VG_006": {
@@ -1674,7 +1674,7 @@
             "fr": "Cour constitutionelle",
             "it": "Cour constitutionelle",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.10","2.11"
             ]
           },
           "JU_TC_002": {
@@ -1683,7 +1683,7 @@
             "fr": "Cour civile",
             "it": "Cour civile",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "JU_TC_003": {
@@ -1692,7 +1692,7 @@
             "fr": "Cour p\u00e9nale",
             "it": "Cour p\u00e9nale",
             "Rechtsgebiete": [
-              ""
+              "3.1"
             ]
           },
           "JU_TC_004": {
@@ -1701,7 +1701,7 @@
             "fr": "Chambre p\u00e9nale des recours",
             "it": "Chambre p\u00e9nale des recours",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "JU_TC_005": {
@@ -1719,7 +1719,7 @@
             "fr": "Chambre des assurances",
             "it": "Chambre des assurances",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "JU_TC_007": {
@@ -1728,7 +1728,7 @@
             "fr": "Cour des poursuites et faillites",
             "it": "Cour des poursuites et faillites",
             "Rechtsgebiete": [
-              ""
+              "1.15","2.1"
             ]
           },
           "JU_TC_008": {
@@ -1755,7 +1755,7 @@
             "fr": "Cour constitutionnelle",
             "it": "Cour constitutionnelle",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.10","2.11"
             ]
           },
           "JU_TC_999": {
@@ -1780,7 +1780,7 @@
             "fr": "Juge civil",
             "it": "Juge civil",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "JU_TPI_006": {
@@ -1789,7 +1789,7 @@
             "fr": "Tribunal p\u00e9nal",
             "it": "Tribunal p\u00e9nal",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "JU_TPI_007": {
@@ -1798,7 +1798,7 @@
             "fr": "Juge administratif",
             "it": "Juge administratif",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "JU_TPI_999": {
@@ -1856,7 +1856,7 @@
             "fr": "1. Abteilung",
             "it": "1. Abteilung",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15","2.1","3.2"
             ]
           },
           "LU_KG_002": {
@@ -1865,7 +1865,7 @@
             "fr": "2. Abteilung",
             "it": "2. Abteilung",
             "Rechtsgebiete": [
-              ""
+              "1.3","2.1","3.1"
             ]
           },
           "LU_KG_003": {
@@ -1874,7 +1874,7 @@
             "fr": "3. Abteilung",
             "it": "3. Abteilung",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "LU_KG_004": {
@@ -1883,7 +1883,7 @@
             "fr": "4. Abteilung",
             "it": "4. Abteilung",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "LU_KG_005": {
@@ -1914,7 +1914,7 @@
           "LU_RR_001": {
             "spider": "LU_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           }
         }
@@ -1927,7 +1927,7 @@
           "LU_JSD_001": {
             "spider": "LU_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.8"
             ]
           }
         }
@@ -1940,7 +1940,7 @@
           "LU_BKD_001": {
             "spider": "LU_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           }
         }
@@ -1953,7 +1953,7 @@
           "LU_GSD_001": {
             "spider": "LU_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.8"
             ]
           }
         }
@@ -1966,7 +1966,7 @@
           "LU_RSH_001": {
             "spider": "LU_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.2","1.3","1.4","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.11","2.12"
             ]
           }
         }
@@ -2015,7 +2015,7 @@
             "fr": "Cour Civile, Cour civile au sens strict",
             "it": "Cour Civile, Cour civile au sens strict",
             "Rechtsgebiete": [
-              ""
+              "1.11","1.12"
             ]
           },
           "NE_TC_002": {
@@ -2024,7 +2024,7 @@
             "fr": "Cour Civile, Cour d'appel",
             "it": "Cour Civile, Cour d'appel",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "NE_TC_003": {
@@ -2033,7 +2033,7 @@
             "fr": "Cour de cassation p\u00e9nale",
             "it": "Cour de cassation p\u00e9nale",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "NE_TC_004": {
@@ -2042,7 +2042,7 @@
             "fr": "Cour Civile, Autorit\u00e9 de recours en mati\u00e8re civile",
             "it": "Cour Civile, Autorit\u00e9 de recours en mati\u00e8re civile",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "NE_TC_005": {
@@ -2069,7 +2069,7 @@
             "fr": "Cour des mesures de protection de l'enfant et de l'adulte",
             "it": "Cour des mesures de protection de l'enfant et de l'adulte",
             "Rechtsgebiete": [
-              ""
+              "1.3","1,4","2.1"
             ]
           },
           "NE_TC_008": {
@@ -2078,7 +2078,7 @@
             "fr": "Autorit\u00e9 de recours en mati\u00e8re p\u00e9nale",
             "it": "Autorit\u00e9 de recours en mati\u00e8re p\u00e9nale",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "NE_TC_009": {
@@ -2087,7 +2087,7 @@
             "fr": "Cour p\u00e9nale",
             "it": "Cour p\u00e9nale",
             "Rechtsgebiete": [
-              ""
+              "3.1"
             ]
           },
           "NE_TC_010": {
@@ -2105,7 +2105,7 @@
             "fr": "Cour d'assises",
             "it": "Cour d'assises",
             "Rechtsgebiete": [
-              ""
+              "3.1"
             ]
           },
           "NE_TC_012": {
@@ -2114,7 +2114,7 @@
             "fr": "Cour de droit public",
             "it": "Cour de droit public",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "NE_TC_013": {
@@ -2123,7 +2123,7 @@
             "fr": "Tribunal administratif",
             "it": "Tribunal administratif",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "NE_TC_014": {
@@ -2163,7 +2163,7 @@
           "NE_TR_001": {
             "spider": "NE_Omni",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "NE_TR_002": {
@@ -2191,7 +2191,7 @@
           "NE_ARA_001": {
             "spider": "NE_Omni",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           }
         }
@@ -2204,7 +2204,7 @@
           "NE_ASL_001": {
             "spider": "NE_Omni",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           }
         }
@@ -2217,7 +2217,7 @@
           "NE_ASS_001": {
             "spider": "NE_Omni",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           }
         }
@@ -2230,7 +2230,7 @@
           "NE_ATS_001": {
             "spider": "NE_Omni",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2"
             ]
           }
         }
@@ -2243,7 +2243,7 @@
           "NE_CA_001": {
             "spider": "NE_Omni",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           }
         }
@@ -2256,7 +2256,7 @@
           "NE_CN_001": {
             "spider": "NE_Omni",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           }
         }
@@ -2322,7 +2322,7 @@
           "OW_VG_001": {
             "spider": "OW_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           }
         }
@@ -2384,7 +2384,7 @@
             "fr": "Strafkammer und Anklagekammer",
             "it": "Strafkammer und Anklagekammer",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "SG_KG_002": {
@@ -2393,7 +2393,7 @@
             "fr": "Zivilkammern (inkl. Einzelrichter)",
             "it": "Zivilkammern (inkl. Einzelrichter)",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "SG_KG_999": {
@@ -2411,7 +2411,7 @@
             "fr": "Anwaltskammer",
             "it": "Anwaltskammer",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           }
         }
@@ -2424,7 +2424,7 @@
           "SG_HG_001": {
             "spider": "SG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.4","1.6","1.7","1.8","1.9","1.10","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           }
         }
@@ -2437,7 +2437,7 @@
           "SG_ABSK_001": {
             "spider": "SG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.15"
             ]
           }
         }
@@ -2450,7 +2450,7 @@
           "SG_VWEK_001": {
             "spider": "SG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.3","1.4","1.7","1.8","2.1","2.2","2.4"
             ]
           }
         }
@@ -2463,7 +2463,7 @@
           "SG_VSG_001": {
             "spider": "SG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.6","4.1","4.2"
             ]
           }
         }
@@ -2476,7 +2476,7 @@
           "SG_VG_001": {
             "spider": "SG_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           }
         }
@@ -2509,7 +2509,7 @@
           "SH_OG_001": {
             "spider": "SH_OG",
             "Rechtsgebiete": [
-              ""
+               "1.1","1.2","1.3","1,4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","3.1","3.2","4.1","4.2"
             ]
           }
         }
@@ -2545,7 +2545,7 @@
             "fr": "Anklagekammer",
             "it": "Anklagekammer",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           },
           "SO_OG_002": {
@@ -2554,7 +2554,7 @@
             "fr": "Jugendgerichtskammer",
             "it": "Jugendgerichtskammer",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "SO_OG_003": {
@@ -2563,7 +2563,7 @@
             "fr": "Schuldbetreibungs- und Konkurskammer",
             "it": "Schuldbetreibungs- und Konkurskammer",
             "Rechtsgebiete": [
-              ""
+              "1.15"
             ]
           },
           "SO_OG_999": {
@@ -2588,7 +2588,7 @@
             "fr": "Beschwerdekammer",
             "it": "Beschwerdekammer",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           },
           "SG_OG_003": {
@@ -2597,7 +2597,7 @@
             "fr": "Zivilkammer",
             "it": "Zivilkammer",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "SG_OG_004": {
@@ -2606,7 +2606,7 @@
             "fr": "Strafkammer",
             "it": "Strafkammer",
             "Rechtsgebiete": [
-              ""
+              "3.1"
             ]
           },
           "SG_OG_999": {
@@ -2628,7 +2628,7 @@
           "SO_VSG_001": {
             "spider": "SO_Omni",
             "Rechtsgebiete": [
-              ""
+              "1.6","4.1","4.2"
             ]
           }
         }
@@ -2641,7 +2641,7 @@
           "SO_VG_001": {
             "spider": "SO_Omni",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           }
         }
@@ -2654,7 +2654,7 @@
           "SO_SK_001": {
             "spider": "SO_Omni",
             "Rechtsgebiete": [
-              ""
+              "2.4","2.6"
             ]
           }
         }
@@ -2667,7 +2667,7 @@
           "SO_STG_001": {
             "spider": "SO_Omni",
             "Rechtsgebiete": [
-              ""
+              "2.5"
             ]
           }
         }
@@ -2703,7 +2703,7 @@
             "fr": "1. Zivilkammer",
             "it": "1. Zivilkammer",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "SZ_KG_002": {
@@ -2712,7 +2712,7 @@
             "fr": "2. Zivilkammer",
             "it": "2. Zivilkammer",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15","2.1"
             ]
           },
           "SZ_KG_003": {
@@ -2721,7 +2721,7 @@
             "fr": "Strafkammer",
             "it": "Strafkammer",
             "Rechtsgebiete": [
-              ""
+              "3.1"
             ]
           },
           "SZ_KG_004": {
@@ -2730,7 +2730,7 @@
             "fr": "Beschwerdekammer",
             "it": "Beschwerdekammer",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "SZ_KG_999": {
@@ -2772,7 +2772,7 @@
           "TI_PP_001": {
             "spider": "TI_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           }
         }
@@ -2785,7 +2785,7 @@
           "TI_TCA_001": {
             "spider": "TI_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           }
         }
@@ -2798,7 +2798,7 @@
           "TI_TCAS_001": {
             "spider": "TI_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           }
         }
@@ -2811,7 +2811,7 @@
           "TI_CATI_001": {
             "spider": "TI_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.5"
             ]
           }
         }
@@ -2824,7 +2824,7 @@
           "TI_TE_001": {
             "spider": "TI_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.6"
             ]
           }
         }
@@ -2840,7 +2840,7 @@
             "fr": "La prima Camera civile",
             "it": "La prima Camera civile",
             "Rechtsgebiete": [
-              ""
+              "1.3","1.5","1.14"
             ]
           },
           "TI_TRAC_002": {
@@ -2849,7 +2849,7 @@
             "fr": "La seconda Camera civile",
             "it": "La seconda Camera civile",
             "Rechtsgebiete": [
-              ""
+              "1.12","1.14","1.15"
             ]
           },
           "TI_TRAC_003": {
@@ -2858,7 +2858,7 @@
             "fr": "La terza Camera civile",
             "it": "La terza Camera civile",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "TI_TRAC_004": {
@@ -2867,7 +2867,7 @@
             "fr": "La Camera civile dei reclami",
             "it": "La Camera civile dei reclami",
             "Rechtsgebiete": [
-              ""
+                "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "TI_TRAC_005": {
@@ -2885,7 +2885,7 @@
             "fr": "La Camera di esecuzione e fallimenti",
             "it": "La Camera di esecuzione e fallimenti",
             "Rechtsgebiete": [
-              ""
+              "1.14""1.15"
             ]
           },
           "TI_TRAC_007": {
@@ -2894,7 +2894,7 @@
             "fr": "Il presidenta della Camera di protezione",
             "it": "Il presidenta della Camera di protezione",
             "Rechtsgebiete": [
-              ""
+              "1.3","1.4","2.1","3.1","1.14"
             ]
           },
           "TI_TRAC_999": {
@@ -2919,7 +2919,7 @@
             "fr": "La Corte di cassazione e di revisione penale",
             "it": "La Corte di cassazione e di revisione penale",
             "Rechtsgebiete": [
-              ""
+              "3.1"
             ]
           },
           "TI_TRAP_002": {
@@ -2928,7 +2928,7 @@
             "fr": "La Corte dei reclami penali",
             "it": "La Corte dei reclami penali",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           },
           "TI_TRAP_999": {
@@ -2950,7 +2950,7 @@
           "TI_TPC_001": {
             "spider": "TI_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "3.1"
             ]
           }
         }
@@ -2963,7 +2963,7 @@
           "TI_CARP_001": {
             "spider": "TI_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "3.1"
             ]
           }
         }
@@ -2976,7 +2976,7 @@
           "TI_GPC_001": {
             "spider": "TI_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           }
         }
@@ -3002,7 +3002,7 @@
           "TI_CRP_001": {
             "spider": "TI_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           }
         }
@@ -3015,7 +3015,7 @@
           "TI_GIAR_001": {
             "spider": "TI_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           }
         }
@@ -3120,7 +3120,7 @@
             "fr": "Cour administrative",
             "it": "Cour administrative",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "VD_TC_002": {
@@ -3129,7 +3129,7 @@
             "fr": "Cour d'appel civile",
             "it": "Cour d'appel civile",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "VD_TC_003": {
@@ -3138,7 +3138,7 @@
             "fr": "Cour d'appel p\u00e9nale",
             "it": "Cour d'appel p\u00e9nale",
             "Rechtsgebiete": [
-              ""
+              "3.1"
             ]
           },
           "VD_TC_004": {
@@ -3147,7 +3147,7 @@
             "fr": "Cour des assurances sociales",
             "it": "Cour des assurances sociales",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "VD_TC_005": {
@@ -3156,7 +3156,7 @@
             "fr": "Chambre des avocats",
             "it": "Chambre des avocats",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "VD_TC_006": {
@@ -3165,7 +3165,7 @@
             "fr": "Cour de cassation p\u00e9nale",
             "it": "Cour de cassation p\u00e9nale",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "VD_TC_007": {
@@ -3174,7 +3174,7 @@
             "fr": "Cour civile",
             "it": "Cour civile",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "VD_TC_008": {
@@ -3183,7 +3183,7 @@
             "fr": "Chambre des curatelles",
             "it": "Chambre des curatelles",
             "Rechtsgebiete": [
-              ""
+              "1.4","2.1"
             ]
           },
           "VD_TC_009": {
@@ -3192,7 +3192,7 @@
             "fr": "Cour des poursuites et faillites",
             "it": "Cour des poursuites et faillites",
             "Rechtsgebiete": [
-              ""
+              "1.14","1.5","2.1"
             ]
           },
           "VD_TC_010": {
@@ -3201,7 +3201,7 @@
             "fr": "Chambre des recours civile",
             "it": "Chambre des recours civile",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15","2.1"
             ]
           },
           "VD_TC_013": {
@@ -3210,7 +3210,7 @@
             "fr": "Chambre des recours p\u00e9nale",
             "it": "Chambre des recours p\u00e9nale",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "VD_TC_014": {
@@ -3219,7 +3219,7 @@
             "fr": "Chambre des r\u00e9visions civiles et p\u00e9nales - R\u00e9vision civile",
             "it": "Chambre des r\u00e9visions civiles et p\u00e9nales - R\u00e9vision civile",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "VD_TC_015": {
@@ -3228,7 +3228,7 @@
             "fr": "Chambre des r\u00e9visions civiles et p\u00e9nales - R\u00e9vision p\u00e9nale",
             "it": "Chambre des r\u00e9visions civiles et p\u00e9nales - R\u00e9vision p\u00e9nale",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "VD_TC_016": {
@@ -3237,7 +3237,7 @@
             "fr": "Commission de revision p\u00e9nale",
             "it": "Commission de revision p\u00e9nale",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "VD_TC_017": {
@@ -3246,7 +3246,7 @@
             "fr": "Chambre des tutelles",
             "it": "Chambre des tutelles",
             "Rechtsgebiete": [
-              ""
+              "1.4","2.1"
             ]
           },
           "VD_TC_018": {
@@ -3282,7 +3282,7 @@
             "fr": "Cour constitutionnelle",
             "it": "Cour constitutionnelle",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.10","2.11"
             ]
           },
           "VD_TC_031": {
@@ -3291,7 +3291,7 @@
             "fr": "Cour de droit administratif et public",
             "it": "Cour de droit administratif et public",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "VD_TC_032": {
@@ -3300,7 +3300,7 @@
             "fr": "Chambre des recours civile",
             "it": "Chambre des recours civile",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2", "1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15","2.1"
             ]
           },
           "VD_TC_999": {
@@ -3322,7 +3322,7 @@
           "VD_TPHA_001": {
             "spider": "VD_FindInfo",
             "Rechtsgebiete": [
-              ""
+              "1.8","2.2"
             ]
           }
         }
@@ -3478,7 +3478,7 @@
           "VS_AG_001": {
             "spider": "VS_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "1.8"
             ]
           }
         }
@@ -3491,7 +3491,7 @@
           "VS_SRK_001": {
             "spider": "VS_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "2.5"
             ]
           }
         }
@@ -3540,7 +3540,7 @@
             "fr": "Sozialversicherungsrechtliche Kammer",
             "it": "Sozialversicherungsrechtliche Kammer",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           },
           "ZG_VG_002": {
@@ -3549,7 +3549,7 @@
             "fr": "Abgaberechtliche Kammer",
             "it": "Abgaberechtliche Kammer",
             "Rechtsgebiete": [
-              ""
+              "2.4","2.5"
             ]
           },
           "ZG_VG_003": {
@@ -3558,7 +3558,7 @@
             "fr": "F\u00fcrsorgerechtliche Kammer",
             "it": "F\u00fcrsorgerechtliche Kammer",
             "Rechtsgebiete": [
-              ""
+              "1.3","1.4","2.1"
             ]
           },
           "ZG_VG_004": {
@@ -3567,7 +3567,7 @@
             "fr": "Vergabekammer",
             "it": "Vergabekammer",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "ZG_VG_999": {
@@ -3576,7 +3576,7 @@
             "fr": "sonstige Kammern",
             "it": "sonstige Kammern",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           }
         }
@@ -3612,7 +3612,7 @@
             "fr": "Mietgericht",
             "it": "Mietgericht",
             "Rechtsgebiete": [
-              ""
+              "1.7"
             ]
           }
         }
@@ -3628,7 +3628,7 @@
             "fr": "Zivilkammern",
             "it": "Zivilkammern",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.13","1.14","1.15"
             ]
           },
           "ZH_OG_002": {
@@ -3637,7 +3637,7 @@
             "fr": "Strafkammern",
             "it": "Strafkammern",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "ZH_OG_003": {
@@ -3646,7 +3646,7 @@
             "fr": "Zwangsmassnahmengericht",
             "it": "Zwangsmassnahmengericht",
             "Rechtsgebiete": [
-              ""
+              "3.2"
             ]
           },
           "ZH_OG_004": {
@@ -3655,7 +3655,7 @@
             "fr": "Verwaltungskommission",
             "it": "Verwaltungskommission",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2"
             ]
           },
           "ZH_OG_005": {
@@ -3664,7 +3664,7 @@
             "fr": "Aufsichtskommission \u00fcber die Anw\u00e4ltinnen und Anw\u00e4lte",
             "it": "Aufsichtskommission \u00fcber die Anw\u00e4ltinnen und Anw\u00e4lte",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "ZH_OG_006": {
@@ -3692,7 +3692,7 @@
           "ZH_HG_001": {
             "spider": "ZH_Obergericht",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           }
         }
@@ -3718,7 +3718,7 @@
           "ZH_VG_001": {
             "spider": "ZH_Verwaltungsgericht",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11"
             ]
           }
         }
@@ -3731,7 +3731,7 @@
           "ZH_SVG_001": {
             "spider": "ZH_Sozialversicherungsgericht",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           }
         }
