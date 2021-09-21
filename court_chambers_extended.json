@@ -81,15 +81,6 @@
               "1.14","1.15"
             ]
           },
-          "CH_BGer_011": {
-            "spider": "CH_BGer",
-            "de": "Strafrechtliche Abteilung",
-            "fr": "Cour de droit p\u00e9nal",
-            "it": "Corte di diritto penale",
-            "Rechtsgebiete": [
-              ""
-            ]
-          },
           "CH_BGer_012": {
             "spider": "CH_BGer",
             "de": "Anklagekammer (bis 2004)      ",
@@ -300,6 +291,337 @@
           }
         }
       },
+      "CH_VB": {
+        "de": "Verwaltungspraxis der Bundesbeh\u00f6rden (1987-2017)",
+        "fr": "Jurisprudence des autorit\u00e9s administratives de la Conf\u00e9d\u00e9ration (1987-2017) ",
+        "it": "Giurisprudenza delle autorit\u00e0 amministrative della Confederazione (1987-2017)",
+        "kammern": {
+          "CH_VB_001": {
+            "spider": "CH_VB",
+            "de": "Staatssekretariat f\u00fcr Bildung und Forschung",
+            "fr": "Secr\u00e9tariat d'\u00c9tat \u00e0 l'\u00e9ducation et \u00e0 la recherche",
+            "it": "La Segreteria di Stato per la formazione e la ricerca",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_002": {
+            "spider": "CH_VB",
+            "de": "Eidgen\u00f6ssisches Justiz- und Polizeidepartement (EJPD)",
+            "fr": "DFJP, D\u00e9partement f\u00e9d\u00e9ral de justice et police",
+            "it": "Dipartimento federale di giustizia e polizia DFGP",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_003": {
+            "spider": "CH_VB",
+            "de": "Bundesamt f\u00fcr Justiz, BJ",
+            "fr": "Office f\u00e9d\u00e9ral de la justice, OFJ",
+            "it": "Ufficio federale di giustizia, UFG",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_004": {
+            "spider": "CH_VB",
+            "de": "BK, Sektion Recht",
+            "fr": "ChF, section du droit",
+            "it": "CaF, Sezione del diritto",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_005": {
+            "spider": "CH_VB",
+            "de": "Eidgen\u00f6ssischen Finanzdepartement (EFD)",
+            "fr": "DFF, D\u00e9partement f\u00e9d\u00e9ral des finances",
+            "it": "Dipartimento federale delle finanze (DFF)",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_006": {
+            "spider": "CH_VB",
+            "de": "EDA, Direktion f\u00fcr V\u00f6lkerrecht (DV)",
+            "fr": "DFAE, Direction du droit international public",
+            "it": "DFAE Direzione del diritto internazionale pubblico (DDIP)",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_007": {
+            "spider": "CH_VB",
+            "de": "ETH-Beschwerdekommission",
+            "fr": "Commission de recours interne des EPF",
+            "it": "Commissione di ricorso dei PF",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_008": {
+            "spider": "CH_VB",
+            "de": "Bundesrat",
+            "fr": "Conseil f\u00e9d\u00e9ral",
+            "it": "Consiglio federale",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_009": {
+            "spider": "CH_VB",
+            "de": "Rekurskommission Eidg. Departement f\u00fcr Verteidigung, Bev\u00f6lkerungsschutz und Sport",
+            "fr": "Commission de recours du D\u00e9partement f\u00e9d\u00e9ral de la d\u00e9fense, de la protection de la population et des sports",
+            "it": "Commissione di ricorso del Dipartimento federale della difesa, della protezione della popolazione e dello sport  ",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_010": {
+            "spider": "CH_VB",
+            "de": "Unabh\u00e4ngige Beschwerdeinstanz f\u00fcr Radio und Fernsehen, UBI",
+            "fr": "Autorit\u00e9 ind\u00e9pendante d\u2019examen des plaintes (radio-t\u00e9l\u00e9), AIEP",
+            "it": "Autorit\u00e0 indipendente di ricorso in materia radiotelevisiva, AIRR",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_011": {
+            "spider": "CH_VB",
+            "de": "Rekurskommission INUM",
+            "fr": "CRINEN, Commission de recours en mati\u00e8re d'infrastructures et d'environnement, jusqu'\u00e0 2006",
+            "it": "CRINAM, Commissione federale di ricorso in materia d'infrastrutture ed ambiente",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_012": {
+            "spider": "CH_VB",
+            "de": "Eidgen\u00f6ssische Personalrekurskommission",
+            "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de personnel f\u00e9d\u00e9ral jusqu'\u00e0 2006",
+            "it": "Commissione di ricorso in materia di persona",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_013": {
+            "spider": "CH_VB",
+            "de": "Europ\u00e4ischer Gerichtshof f\u00fcr Menschenrechte",
+            "fr": "Cour europ\u00e9enne des droits de l'homme",
+            "it": "Corte europea dei diritti dell'uomo",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_014": {
+            "spider": "CH_VB",
+            "de": "Datenschutzkommission",
+            "fr": "Commission f\u00e9d\u00e9rale de la protection des donn\u00e9es et de la transparence, jusqu'\u00e0 2006",
+            "it": "Commissione federale della protezione dei dati",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_015": {
+            "spider": "CH_VB",
+            "de": "Steuerrekurskommission",
+            "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de contributions, jusqu'\u00e0 2006",
+            "it": "Commissione federale di ricorso in materia di contribuzioni",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_016": {
+            "spider": "CH_VB",
+            "de": "Zollrekurskommission",
+            "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de douanes, jusqu'\u00e0 2006",
+            "it": "Commissione federale di ricorso in materia doganale",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_017": {
+            "spider": "CH_VB",
+            "de": "Rekurskommission f\u00fcr das \u00f6ffentliche Beschaffungswesen",
+            "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de march\u00e9s publics, jusqu'\u00e0 2006",
+            "it": "Commissione federale di ricorso in materia di acquisti pubblici",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_018": {
+            "spider": "CH_VB",
+            "de": "Eidgen\u00f6ssische Rekurskommission f\u00fcr Heilmittel",
+            "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de produits th\u00e9rapeutiques",
+            "it": "Commissione federale di ricorso in materia di agenti terapeutici",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_019": {
+            "spider": "CH_VB",
+            "de": "Schweizerische Asylrekurskommission",
+            "fr": "Commission suisse de recours en mati\u00e8re d'asile",
+            "it": "Commissione svizzera di ricorso in materia d'asilo",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_020": {
+            "spider": "CH_VB",
+            "de": "Rekurskommission f\u00fcr die Staatshaftung",
+            "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de responsabilit\u00e9 de l'Etat",
+            "it": " Commissione federale di ricorso in materia di responsabilit\u00e0 dello Stato",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_021": {
+            "spider": "CH_VB",
+            "de": "Comit\u00e9 des Nations Unies contre la torture",
+            "fr": "Comit\u00e9 des Nations Unies contre la torture",
+            "it": "Comit\u00e9 des Nations Unies contre la torture",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_022": {
+            "spider": "CH_VB",
+            "de": "Rekuskommission des Bundesgerichts",
+            "fr": "Commission de recours du Tribunal f\u00e9d\u00e9ral",
+            "it": "Commissione di ricorso del Tribunale federale",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_023": {
+            "spider": "CH_VB",
+            "de": "Rekurskommission f\u00fcr Zivilschutzangelegenheiten",
+            "fr": "Commission de recours en mati\u00e8re de protection civile",
+            "it": "Commissione di ricorso in materia di protezione civile  ",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_024": {
+            "spider": "CH_VB",
+            "de": "Alkoholrekurskommission",
+            "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re d'alcool",
+            "it": "Commissione federale di ricorso dell'alcool",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_025": {
+            "spider": "CH_VB",
+            "de": "Eidgen\u00f6ssische Rekurskommission f\u00fcr Forschungsf\u00f6rderung",
+            "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re d\u2019encouragement de la recherche",
+            "it": "Commissione federale di ricorso per la promozione della ricerca",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_026": {
+            "spider": "CH_VB",
+            "de": "Eidgen\u00f6ssische Rekurskommission f\u00fcr medizinische Aus- und Weiterbildung",
+            "fr": "Commission f\u00e9d\u00e9rale de recours pour la formation de base et la formation postgrade des professions m\u00e9dicales",
+            "it": "Commissione federale di ricorso per la formazione medica e il perfezionamento",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_027": {
+            "spider": "CH_VB",
+            "de": "Kantonale Justizbeh\u00f6rden",
+            "fr": "Autorit\u00e9s judiciaires cantonales",
+            "it": "Autorit\u00e0 contonali giudiziaria",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_028": {
+            "spider": "CH_VB",
+            "de": "Rekurskommission Eidgen\u00f6ssisches Volkswirtschaftsdepartement",
+            "fr": "Commission de recours du D\u00e9partement f\u00e9d\u00e9ral de l'economie",
+            "it": "Commissione di ricorso del Dipartimento federale dell'economia",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_029": {
+            "spider": "CH_VB",
+            "de": "Eidgen\u00f6ssische Rekurskommission f\u00fcr die Unfallversicherung",
+            "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re d\u2019assurance-accidents",
+            "it": "Commissione federale di ricorso sull\u2019assicurazione contro gli infortuni",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_030": {
+            "spider": "CH_VB",
+            "de": "Rekurskommission UVEK (des Eidgen\u00f6ssischen Departements f\u00fcr Umwelt, Verkehr, Energie und Kommunikation)",
+            "fr": "Service de recours du D\u00e9partement f\u00e9d\u00e9ral de l'environnement, des transports, de l'\u00e9nergie et de la communication",
+            "it": "Servizio dei ricorsi del Dipartimento federale dell'ambiente, dei trasporti, dell'energiae delle comunicazioni",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_031": {
+            "spider": "CH_VB",
+            "de": "Schweizerische Asylrekurskommission (ARK)",
+            "fr": "Commission suisse de recours en mati\u00e8re d'asile",
+            "it": "Commissione svizzera di ricorso in materia d'asilo",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_032": {
+            "spider": "CH_VB",
+            "de": "Eidgen\u00f6ssische Kommunikationskommission ComCom",
+            "fr": "Commission f\u00e9d\u00e9rale de la communication ComCom",
+            "it": "Commissione federale delle comunicazioni ComCom",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_033": {
+            "spider": "CH_VB",
+            "de": "Kontrollstelle f\u00fcr die Bek\u00e4mpfung der Geldw\u00e4scherei",
+            "fr": "Autorit\u00e9 de contr\u00f4le en mati\u00e8re de lutte contre le blanchiment d'argent",
+            "it": "Autorit\u00e0 di controllo per la lotta contro il riciclaggio di denaro",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_034": {
+            "spider": "CH_VB",
+            "de": "Schweizerische Bundesanwaltschaft (BA)",
+            "fr": "Minist\u00e8re public de la Conf\u00e9d\u00e9ration (MPC)",
+            "it": "Ministero pubblico della Confederazione (MPC)",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_035": {
+            "spider": "CH_VB",
+            "de": "Nationalrat",
+            "fr": "Conseil national",
+            "it": "Consiglio nazionale",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "CH_VB_999": {
+            "spider": "CH_VB",
+            "de": "sonstige Beh\u00f6rden",
+            "fr": "autres autorit\u00e9s",
+            "it": "altre autorit\u00e0",
+            "Rechtsgebiete": [
+              "3.1","3.2"
+            ]
+          }
+        }
+      },
       "CH_WBK": {
         "de": "Wettbewerbskommission",
         "fr": "Wettbewerbskommission",
@@ -353,23 +675,23 @@
         "kammern": {
           "AG_OG_001": {
             "spider": "AG_Gerichte",
-            "de": "Zivilgericht",
-            "fr": "Zivilgericht",
-            "it": "Zivilgericht",
+            "de": "Zivilkammern",
+            "fr": "Zivilkammern",
+            "it": "Zivilkammern",
             "Rechtsgebiete": [
               "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.10","1.13","1.14","1.15"
             ]
           },
-          "AG_OG_003": {
+          "AG_OG_002": {
             "spider": "AG_Gerichte",
-            "de": "Strafgericht",
-            "fr": "Strafgericht",
-            "it": "Strafgericht",
+            "de": "Strafkammern",
+            "fr": "Strafkammern",
+            "it": "Strafkammern",
             "Rechtsgebiete": [
               "3.1","3.2"
             ]
           },
-          "AG_OG_004": {
+          "AG_OG_009": {
             "spider": "AG_Gerichte",
             "de": "Versicherungsgericht",
             "fr": "Versicherungsgericht",
@@ -378,7 +700,16 @@
               "1.6","4.1","4.2"
             ]
           },
-          "AG_OG_005": {
+          "AG_OG_010": {
+            "spider": "AG_Gerichte",
+            "de": "Handelsgericht",
+            "fr": "Handelsgericht",
+            "it": "Handelsgericht",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "AG_OG_011": {
             "spider": "AG_Gerichte",
             "de": "Verwaltungsgericht",
             "fr": "Verwaltungsgericht",
@@ -424,15 +755,43 @@
           }
         }
       },
-      "AG_HG": {
-        "de": "Obergericht/Handelsgericht",
-        "fr": "Obergericht/Handelsgericht",
-        "it": "Obergericht/Handelsgericht",
+      "AG_SVWG": {
+        "de": "Spezialverwaltungsgericht",
+        "fr": "Spezialverwaltungsgericht",
+        "it": "Spezialverwaltungsgericht",
         "kammern": {
-          "AG_HG_001": {
+          "AG_SVWG_001": {
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
-              "1.1","1.4","1.6","1.7","1.8","1.9","1.10","1.10","1.11","1.12","1.13","1.14","1.15"
+              "2.4","2.5","2.6"
+            ]
+          }
+        }
+      },
+      "AG_VB": {
+        "de": "Verwaltungsbeh\u00f6rden",
+        "fr": "Verwaltungsbeh\u00f6rden",
+        "it": "Verwaltungsbeh\u00f6rden",
+        "kammern": {
+          "AG_VB_001": {
+            "spider": "AG_Gerichte",
+            "Rechtsgebiete": [
+              "1.3","1.5","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","3.1","3.2","4.1","4.2"
+            ]
+          },
+          "AG_VB_002": {
+            "spider": "AG_Weitere",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "AG_VB_999": {
+            "de": "andere",
+            "fr": "autres",
+            "it": "altro",
+            "spider": "AG_Gerichte",
+            "Rechtsgebiete": [
+              ""
             ]
           }
         }
@@ -489,58 +848,6 @@
           }
         }
       },
-      "AG_VSG": {
-        "de": "Versicherungsgericht",
-        "fr": "Versicherungsgericht",
-        "it": "Versicherungsgericht",
-        "kammern": {
-          "AG_VSG_001": {
-            "spider": "AG_Gerichte",
-            "Rechtsgebiete": [
-              "1.6","4.1","4.2"
-            ]
-          }
-        }
-      },
-      "AG_VG": {
-        "de": "Verwaltungsgericht",
-        "fr": "Verwaltungsgericht",
-        "it": "Verwaltungsgericht",
-        "kammern": {
-          "AG_VG_001": {
-            "spider": "AG_Gerichte",
-            "Rechtsgebiete": [
-              "1.5","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12""
-            ]
-          }
-        }
-      },
-      "AG_SVWG": {
-        "de": "Spezialverwaltungsgericht",
-        "fr": "Spezialverwaltungsgericht",
-        "it": "Spezialverwaltungsgericht",
-        "kammern": {
-          "AG_SVWG_001": {
-            "spider": "AG_Gerichte",
-            "Rechtsgebiete": [
-              "2.4","2.5","2.6"
-            ]
-          }
-        }
-      },
-      "AG_VB": {
-        "de": "Verwaltungsbeh\u00f6rden",
-        "fr": "Verwaltungsbeh\u00f6rden",
-        "it": "Verwaltungsbeh\u00f6rden",
-        "kammern": {
-          "AG_VB_001": {
-            "spider": "AG_Gerichte",
-            "Rechtsgebiete": [
-              "1.3","1.5","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","3.1","3.2","4.1","4.2"
-            ]
-          }
-        }
-      },
       "AG_OSB": {
         "de": "Obersch\u00e4tzungsbeh\u00f6rde nach Versicherungsgesetz",
         "fr": "Obersch\u00e4tzungsbeh\u00f6rde nach Versicherungsgesetz",
@@ -550,6 +857,76 @@
             "spider": "AG_Gerichte",
             "Rechtsgebiete": [
               "1.6"
+            ]
+          }
+        }
+      },
+      "AG_OGA": {
+        "de": "Obergericht (AGVE)",
+        "fr": "Obergericht (AGVE)",
+        "it": "Obergericht (AGVE)",
+        "kammern": {
+          "AG_OGA_001": {
+            "spider": "AG_Weitere",
+            "de": "Verwaltungsgericht",
+            "fr": "Verwaltungsgericht",
+            "it": "Verwaltungsgericht",
+            "Rechtsgebiete": [
+              "1.5","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12""
+            ]
+          },
+          "AG_OGA_002": {
+            "spider": "AG_Weitere",
+            "de": "Handelsgericht",
+            "fr": "Handelsgericht",
+            "it": "Handelsgericht",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "AG_OGA_003": {
+            "spider": "AG_Weitere",
+            "de": "Versicherungsgericht",
+            "fr": "Versicherungsgericht",
+            "it": "Versicherungsgericht",
+            "Rechtsgebiete": [
+              "1.6","4.1","4.2"
+            ]
+          },
+          "AG_OGA_004": {
+            "spider": "AG_Weitere",
+            "de": "Justizgericht",
+            "fr": "Justizgericht",
+            "it": "Justizgericht",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "AG_OGA_005": {
+            "spider": "AG_Weitere",
+            "de": "Zivilkammern",
+            "fr": "Zivilkammern",
+            "it": "Zivilkammern",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "AG_OGA_006": {
+            "spider": "AG_Weitere",
+            "de": "Kammer f\u00fcr Kindes- und Erwachsenenschutz",
+            "fr": "Kammer f\u00fcr Kindes- und Erwachsenenschutz",
+            "it": "Kammer f\u00fcr Kindes- und Erwachsenenschutz",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "AG_OGA_999": {
+            "spider": "AG_Weitere",
+            "de": "Sonstige Abteilung",
+            "fr": "Sonstige Abteilung",
+            "it": "Sonstige Abteilung",
+            "Rechtsgebiete": [
+              ""
             ]
           }
         }
@@ -946,6 +1323,119 @@
           }
         }
       },
+      "BE_VB": {
+        "de": "Verwaltungsbeh\u00f6rden",
+        "fr": "Autorit\u00e9s administratives",
+        "it": "Verwaltungsbeh\u00f6rden",
+        "kammern": {
+          "BE_VB_001": {
+            "spider": "BE_BVD",
+            "de": "Bau- und Verkehrsdirektion",
+            "fr": "Direction des travaux publics et des transports",
+            "it": "Bau- und Verkehrsdirektion",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "BE_VB_002": {
+            "spider": "BE_Weitere",
+            "de": "Bildungs- und Kulturdirektion",
+            "fr": "Direction de l'instruction publique et de la culture",
+            "it": "Bildungs- und Kulturdirektion",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "BE_VB_003": {
+            "spider": "BE_Weitere",
+            "de": "Gesundheits-, Sozial und Integrationsdirektion",
+            "fr": "Direction de la sant\u00e9, des affaires sociales et de l'int\u00e9gration",
+            "it": "Gesundheits-, Sozial und Integrationsdirektion",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "BE_VB_004": {
+            "spider": "BE_Weitere",
+            "de": "Direktion f\u00fcr Inneres und Justiz, Grundbuchrecht i.e.S.",
+            "fr": "Direction de l\u2019int\u00e9rieur et de la justice, Droit du registre foncier",
+            "it": "Direktion f\u00fcr Inneres und Justiz, Grundbuchrecht i.e.S.",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "BE_VB_005": {
+            "spider": "BE_Weitere",
+            "de": "Direktion f\u00fcr Inneres und Justiz, Grundbuchgeb\u00fchren",
+            "fr": "Direction de l\u2019int\u00e9rieur et de la justice, Emoluments du registre foncier",
+            "it": "Direktion f\u00fcr Inneres und Justiz, Grundbuchgeb\u00fchren",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "BE_VB_006": {
+            "spider": "BE_Weitere",
+            "de": "Direktion f\u00fcr Inneres und Justiz, Hand\u00e4nderungssteuern",
+            "fr": "Direction de l\u2019int\u00e9rieur et de la justice, Imp\u00f4ts sur les mutations",
+            "it": "Direktion f\u00fcr Inneres und Justiz, Hand\u00e4nderungssteuern",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "BE_VB_999": {
+            "de": "andere",
+            "fr": "autres",
+            "it": "altro",
+            "spider": "BE_BVD",
+            "Rechtsgebiete": [
+              ""
+            ]
+          }
+        }
+      },
+      "BE_NAB": {
+        "de": "Aufsichtsbeh\u00f6rde Notariat",
+        "fr": "Autorit\u00e9 de surveillance du notariat",
+        "it": "Aufsichtsbeh\u00f6rde Notariat",
+        "kammern": {
+          "BE_NAB_001": {
+            "spider": "BE_Weitere",
+            "de": "Administrativentscheide",
+            "fr": "Proc\u00e9dure administrative",
+            "it": "Administrativentscheide",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "BE_NAB_002": {
+            "spider": "BE_Weitere",
+            "de": "Moderationsentscheide",
+            "fr": "Taxation officielle",
+            "it": "Moderationsentscheide",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "BE_NAB_003": {
+            "spider": "BE_Weitere",
+            "de": "Disziplinarentscheide",
+            "fr": "Proc\u00e9dure disciplinaire",
+            "it": "Disziplinarentscheide",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "BE_NAB_999": {
+            "de": "andere",
+            "fr": "autres",
+            "it": "altro",
+            "spider": "BE_Weitere",
+            "Rechtsgebiete": [
+              ""
+            ]
+          }
+        }
+      },
       "BE_XX": {
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
@@ -1175,6 +1665,19 @@
             "de": "Sonstiger Gerichtsh\u00f6fe",
             "fr": "Autres Cours",
             "it": "Sonstiger Gerichtsh\u00f6fe",
+            "Rechtsgebiete": [
+              ""
+            ]
+          }
+        }
+      },
+      "FR_TAMA": {
+        "de": "Schiedsgericht in Sachen Kranken- und Unfallversicherung",
+        "fr": "Tribunal arbitral en mati\u00e8re d'assurance-maladie et accidents",
+        "it": "Schiedsgericht in Sachen Kranken- und Unfallversicherung",
+        "kammern": {
+          "FR_TAMA_001": {
+            "spider": "FR_Gerichte",
             "Rechtsgebiete": [
               ""
             ]
@@ -1562,6 +2065,24 @@
               "1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12"
             ]
           },
+          "GR_KG_010": {
+            "spider": "GR_Gerichte",
+            "de": "Justizaufsichtskammer",
+            "fr": "Justizaufsichtskammer",
+            "it": "Camera di vigilanza sulla giustizia",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "GR_KG_012": {
+            "spider": "GR_Gerichte",
+            "de": "Schuldbetreibungs- und Konkurskammer",
+            "fr": "Schuldbetreibungs- und Konkurskammer",
+            "it": "Camera delle esecuzioni e dei fallimenti",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
           "GR_KG_999": {
             "spider": "GR_Gerichte",
             "de": "Sonstige Kammern",
@@ -1670,11 +2191,11 @@
         "kammern": {
           "JU_TC_001": {
             "spider": "JU_Gerichte",
-            "de": "Cour constitutionelle",
-            "fr": "Cour constitutionelle",
-            "it": "Cour constitutionelle",
+            "de": "Juge unique",
+            "fr": "Juge unique",
+            "it": "Juge unique",
             "Rechtsgebiete": [
-              "2.1","2.10","2.11"
+              ""
             ]
           },
           "JU_TC_002": {
@@ -1758,6 +2279,15 @@
               "2.1","2.10","2.11"
             ]
           },
+          "JU_TC_011": {
+            "spider": "JU_Gerichte",
+            "de": "Affaires civiles",
+            "fr": "Affaires civiles",
+            "it": "Affaires civiles",
+            "Rechtsgebiete": [
+              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
+            ]
+          },
           "JU_TC_999": {
             "spider": "JU_Gerichte",
             "de": "Autres Cours",
@@ -1774,15 +2304,6 @@
         "fr": "Tribunal de premi\u00e8re instance",
         "it": "Tribunal de premi\u00e8re instance",
         "kammern": {
-          "JU_TPI_001": {
-            "spider": "JU_Gerichte",
-            "de": "Juge civil",
-            "fr": "Juge civil",
-            "it": "Juge civil",
-            "Rechtsgebiete": [
-              "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
-            ]
-          },
           "JU_TPI_006": {
             "spider": "JU_Gerichte",
             "de": "Tribunal p\u00e9nal",
@@ -2481,6 +3002,72 @@
           }
         }
       },
+      "SG_KGN": {
+        "de": "Kantonsgericht",
+        "fr": "Kantonsgericht",
+        "it": "Kantonsgericht",
+        "kammern": {
+          "SG_KGN_001": {
+            "spider": "SG_Publikationen",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "SG_KGN_999": {
+            "spider": "SG_Publikationen",
+            "Rechtsgebiete": [
+              ""
+            ]
+          }
+        }
+      },
+      "SG_VGN": {
+        "de": "Verwaltungsgericht",
+        "fr": "Verwaltungsgericht",
+        "it": "Verwaltungsgericht",
+        "kammern": {
+          "SG_VGN_001": {
+            "spider": "SG_Publikationen",
+            "Rechtsgebiete": [
+              ""
+            ]
+          }
+        }
+      },
+      "SG_VB": {
+        "de": "Verwaltungsbeh\u00f6rden",
+        "fr": "Verwaltungsbeh\u00f6rden",
+        "it": "Verwaltungsbeh\u00f6rden",
+        "kammern": {
+          "SG_VB_001": {
+            "spider": "SG_Publikationen",
+            "de": "Baudepartement",
+            "fr": "Baudepartement",
+            "it": "Baudepartement",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "SG_VB_002": {
+            "spider": "SG_Publikationen",
+            "de": "etc",
+            "fr": "etc",
+            "it": "etc",
+            "Rechtsgebiete": [
+              ""
+            ]
+          },
+          "SG_VB_999": {
+            "de": "andere",
+            "fr": "autres",
+            "it": "altro",
+            "spider": "SG_Publikationen",
+            "Rechtsgebiete": [
+              ""
+            ]
+          }
+        }
+      },
       "SG_XX": {
         "de": "unbekanntes Gericht",
         "fr": "tribunal inconnu",
@@ -2550,40 +3137,6 @@
           },
           "SO_OG_002": {
             "spider": "SO_Omni",
-            "de": "Jugendgerichtskammer",
-            "fr": "Jugendgerichtskammer",
-            "it": "Jugendgerichtskammer",
-            "Rechtsgebiete": [
-              "3.1","3.2"
-            ]
-          },
-          "SO_OG_003": {
-            "spider": "SO_Omni",
-            "de": "Schuldbetreibungs- und Konkurskammer",
-            "fr": "Schuldbetreibungs- und Konkurskammer",
-            "it": "Schuldbetreibungs- und Konkurskammer",
-            "Rechtsgebiete": [
-              "1.15"
-            ]
-          },
-          "SO_OG_999": {
-            "spider": "SO_Omni",
-            "de": "Sonstiges",
-            "fr": "Sonstiges",
-            "it": "Sonstiges",
-            "Rechtsgebiete": [
-              ""
-            ]
-          }
-        }
-      },
-      "SG_OG": {
-        "de": "Obergericht",
-        "fr": "Obergericht",
-        "it": "Obergericht",
-        "kammern": {
-          "SG_OG_002": {
-            "spider": "SO_Omni",
             "de": "Beschwerdekammer",
             "fr": "Beschwerdekammer",
             "it": "Beschwerdekammer",
@@ -2591,7 +3144,16 @@
               "3.2"
             ]
           },
-          "SG_OG_003": {
+          "SO_OG_003": {
+            "spider": "SO_Omni",
+            "de": "Jugendgerichtskammer",
+            "fr": "Jugendgerichtskammer",
+            "it": "Jugendgerichtskammer",
+            "Rechtsgebiete": [
+              "3.1","3.2"
+            ]
+          },
+          "SO_OG_004": {
             "spider": "SO_Omni",
             "de": "Zivilkammer",
             "fr": "Zivilkammer",
@@ -2600,7 +3162,16 @@
               "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
-          "SG_OG_004": {
+          "SO_OG_005": {
+            "spider": "SO_Omni",
+            "de": "Schuldbetreibungs- und Konkurskammer",
+            "fr": "Schuldbetreibungs- und Konkurskammer",
+            "it": "Schuldbetreibungs- und Konkurskammer",
+            "Rechtsgebiete": [
+              "1.15"
+            ]
+          },
+          "SO_OG_006": {
             "spider": "SO_Omni",
             "de": "Strafkammer",
             "fr": "Strafkammer",
@@ -2609,11 +3180,11 @@
               "3.1"
             ]
           },
-          "SG_OG_999": {
-            "de": "andere",
-            "fr": "autres",
-            "it": "altro",
+          "SO_OG_999": {
             "spider": "SO_Omni",
+            "de": "Sonstiges",
+            "fr": "Sonstiges",
+            "it": "Sonstiges",
             "Rechtsgebiete": [
               ""
             ]
@@ -3667,17 +4238,24 @@
               "2.1"
             ]
           },
-          "ZH_OG_006": {
-            "spider": "ZH_Obergericht",
-            "Rechtsgebiete": [
-              ""
-            ]
-          },
           "ZH_OG_999": {
             "spider": "ZH_Obergericht",
             "de": "Weitere Kammern",
             "fr": "Weitere Kammern",
             "it": "Weitere Kammern",
+            "Rechtsgebiete": [
+              ""
+            ]
+          }
+        }
+      },
+      "ZH_KSG": {
+        "de": "Kassationsgericht",
+        "fr": "Kassationsgericht",
+        "it": "Kassationsgericht",
+        "kammern": {
+          "ZH_KSG_001": {
+            "spider": "ZH_Obergericht",
             "Rechtsgebiete": [
               ""
             ]
@@ -3719,6 +4297,32 @@
             "spider": "ZH_Verwaltungsgericht",
             "Rechtsgebiete": [
               "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11"
+            ]
+          }
+        }
+      },
+      "ZH_SRK": {
+        "de": "Steuerrekursgericht",
+        "fr": "Steuerrekursgericht",
+        "it": "Steuerrekursgericht",
+        "kammern": {
+          "ZH_SRK_001": {
+            "spider": "ZH_Steuerrekurs",
+            "Rechtsgebiete": [
+              ""
+            ]
+          }
+        }
+      },
+      "ZH_BRK": {
+        "de": "Baurekursgericht",
+        "fr": "Baurekursgericht",
+        "it": "Baurekursgericht",
+        "kammern": {
+          "ZH_BRK_001": {
+            "spider": "ZH_Baurekurs",
+            "Rechtsgebiete": [
+              ""
             ]
           }
         }
