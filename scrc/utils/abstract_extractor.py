@@ -11,7 +11,6 @@ if TYPE_CHECKING:
 
 
 class AbstractExtractor(ABC, DatasetConstructorComponent):
-
     """Abstract Base Class used by Extractors to unify their behaviour"""
 
     logger_info = {
@@ -130,8 +129,8 @@ class AbstractExtractor(ABC, DatasetConstructorComponent):
     def coverage_get_successful(self, engine: Engine, spider: str, lang: str) -> int:
         """Returns the total entries that got processed successfully"""
         query = (
-            f"SELECT count({self.col_name}) FROM {lang} WHERE"
-            " {self.get_database_selection_string(spider, lang)} AND {self.col_name} <> 'null'"
+            f"SELECT count({self.col_name}) FROM {lang} WHERE "
+            f"{self.get_database_selection_string(spider, lang)} AND {self.col_name} <> 'null'"
         )
         return pd.read_sql(query, engine.connect())["count"][0]
 
