@@ -4,11 +4,11 @@ import json
 
 
 """
-This file is used to extract the lower courts from decisions sorted by spiders.
+This file is used to extract the parties from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
 """
 
-# check if court got assigned shortcut: SELECT count(*) from de WHERE lower_court is not null and lower_court <> 'null' and lower_court::json#>>'{court}'~'[A-Z0-9_]{2,}';
+
 def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     """
     Extract lower courts from decisions of the Federal Supreme Court of Switzerland
@@ -65,7 +65,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     end_pos = end_pos[namespace['language']]
     if end_pos:
         header = header[:end_pos.span()[0]]
-    
+
     representation_start = '|'.join(representation_start)
     for key in lawyer_representation:
         lawyer_representation[key] = '|'.join(lawyer_representation[key])
@@ -89,7 +89,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
                     lawyer['name'] = name_match.group() if name_match else None
                 lawyer['type'] = 'natural person'
                 lawyers.append(lawyer)
-       
+
         return lawyers
 
     def add_representation(text: str, current_party: dict) -> Dict:
@@ -170,7 +170,6 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url']}")
     party[0] = add_representation(header_parts[0], party[0])
     party[1] = add_representation(header_parts[1], party[1])
-    
 
     party[0]['party'] = get_party(header_parts[0])
     party[1]['party'] = get_party(header_parts[1])

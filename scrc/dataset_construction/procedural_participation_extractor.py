@@ -34,7 +34,7 @@ class ProceduralParticipationExtractor(AbstractExtractor):
         return series['header']
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
-        """Override if data has to conform to a certain condition before processing. 
+        """Override if data has to conform to a certain condition before processing.
         e.g. data is required to be present for analysis"""
         return bool(data)
 

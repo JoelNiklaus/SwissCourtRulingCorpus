@@ -1,16 +1,15 @@
 from __future__ import annotations
+from pathlib import Path
+from typing import TYPE_CHECKING, Set
+from itertools import islice
 import json
 import configparser
-from os import name
-from pathlib import Path
-from root import ROOT_DIR
+import re
+import datetime
+import requests
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
-from typing import TYPE_CHECKING, Dict, Set, Tuple
-import re
-import requests
-from itertools import islice
-import datetime
+from root import ROOT_DIR
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -126,10 +125,10 @@ class NameToGender(DatasetConstructorComponent):
         for language in self.languages:
             self.logger.info(f"Saving table {language}")
             dataframe_language_filtered = self.data[self.data['lang'] == language]
-            n = 1000
-            list_df = [dataframe_language_filtered[i:i+n] for i in range(0,dataframe_language_filtered.shape[0],n)]
+            chunk_size = 1000
+            list_df = [dataframe_language_filtered[i:i+chunk_size] for i in range(0,dataframe_language_filtered.shape[0],chunk_size)]
             for index in range(len(list_df)):
-                self.logger.info(f"Saving table {language} index {index * n} - {(index+1) * n -1}")
+                self.logger.info(f"Saving table {language} index {index * chunk_size} - {(index+1) * chunk_size -1}")
                 self.update(engine, list_df[index], language, ['parties'])
 
     def filter_names(self, names: set[str]) -> set:
@@ -162,16 +161,16 @@ class NameToGender(DatasetConstructorComponent):
         Path(self.file_name).write_text(json.dumps({"m": sorted(
             all_male), "f": sorted(all_female), "u": sorted(all_unknown)}, indent=4))
 
-    def chunked(self, iterable, n):
+    def chunked(self, iterable, chunk_size):
         """
         Collect data into chunks of up to length n.
         :type iterable: Iterable[T]
         :type n: int
         :rtype: Iterator[list[T]]
             """
-        it = iter(iterable)
+        iterator = iter(iterable)
         while True:
-            chunk = list(islice(it, n))
+            chunk = list(islice(iterator, chunk_size))
             if chunk:
                 yield chunk
             else:
