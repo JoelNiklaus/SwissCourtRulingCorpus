@@ -1,11 +1,7 @@
-import enum
-from typing import Match, Optional, List, Tuple
 from pathlib import Path
 import re
-import unicodedata
 import json
-import pandas as pd
-from scrc.utils.main_utils import clean_text
+from typing import Optional, Tuple
 
 """
 This file is used to extract the lower courts from decisions sorted by spiders.
@@ -38,7 +34,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     }
 
     skip_strings = {
-        'de': ['Einzelrichter', 'Konkurskammer'],
+        'de': ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger'],
         'fr': ['Juge suppléant', 'en qualité de juge unique'],
         'it': ['Giudice supplente', 'supplente']
     }
@@ -47,15 +43,16 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     if start_pos:
         header = header[start_pos.span()[0]:]
     end_pos = {
-        'de': re.search(r'.(?=(Partei)|(Verfahrensbeteiligt))', header) or re.search(r'\w{2,}\.', header) or re.search(r'Gerichtsschreiber(in)?\s\w*.', header),
+        'de': re.search(r'.(?=(1.)?(Partei)|(Verfahrensbeteiligt))', header) or re.search('Urteil vom', header) or re.search(r'Gerichtsschreiber(in)?\s\w*.', header) or re.search(r'[Ii]n Sachen', header) or re.search(r'\w{2,}\.', header),
         'fr': re.search(r'.(?=(Parties|Participant))', header) or re.search(r'Greffi[eè]re? M(\w)*\.\s\w*.', header),
         'it': re.search(r'.(?=(Parti)|(Partecipant))', header) or re.search(r'[Cc]ancellier[ae]:?\s\w*.', header) or re.search(r'\w{2,}\.', header),
     }
-    end_pos = end_pos[namespace['language']]# Exclude one char infront of point for Names
+    end_pos = end_pos[namespace['language']]
     if end_pos:
         header = header[:end_pos.span()[1]-1]
 
     header = header.replace(';', ',')
+    header = header.replace('Th', '')
     header = header.replace(' und ', ', ')
     header = header.replace(' et ', ', ')
     header = header.replace(' e ', ', ')
@@ -133,7 +130,8 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
                     current_role = regex_key
                     if current_role not in besetzung:
                         besetzung[current_role] = []
-                    name = text[role_pos.span()[1]+1:]
+                    name_match = re.search(r'[A-Z][A-Za-z\-éèäöü\s]*(?= Urteil)|[A-Z][A-Za-z\-éèäöü\s]*(?= )', text[role_pos.span()[1]+1:])
+                    name = name_match.group() if name_match else text[role_pos.span()[1]+1:]
                     if len(name.strip()) == 0:
                         if len(besetzung[last_role]) == 0:
                             break
@@ -156,9 +154,13 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
             if namespace['language'] == 'fr':
                     text, found_gender = prepareFrenchNameAndFindGender(text)
                     last_gender = found_gender or last_gender
-            matched_person, _ = match_person_to_database(text, current_role, last_gender)
+            name_match = re.search(r'[A-Z][A-Za-z\-éèäöü\s]*(?= Urteil)|[A-Z][A-Za-z\-éèäöü\s]*(?= )|[A-Z][A-Za-z\-éèäöü\s]*', text)
+            if not name_match:
+                continue
+            name = name_match.group()
+            matched_person, _ = match_person_to_database(name, current_role, last_gender)
             besetzung[current_role].append(matched_person)
-            last_person = text  
+            last_person = name  
     return besetzung
 
 # This needs special care
