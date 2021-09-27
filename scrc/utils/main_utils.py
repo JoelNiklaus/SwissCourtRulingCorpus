@@ -7,12 +7,6 @@ import pandas as pd
 
 from scrc.utils.log_utils import get_logger
 
-logger = get_logger()
-
-pd.set_option('display.max_rows', 500)
-pd.set_option('display.max_columns', 500)
-pd.set_option('display.width', 1000)
-
 
 def save_to_path(content, path, overwrite=False):
     """
@@ -24,7 +18,7 @@ def save_to_path(content, path, overwrite=False):
     :return:
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-
+    logger = get_logger()
     # check if
     if path.exists():
         logger.debug(f"Path {path} exists already")
@@ -136,3 +130,9 @@ def int_to_roman(num: int) -> str:
                 break
 
     return "".join([a for a in roman_num(num)])
+
+if __name__ == '__main__':
+    logger = get_logger()
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.width', 1000)
