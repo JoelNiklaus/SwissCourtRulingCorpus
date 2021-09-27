@@ -152,7 +152,7 @@ class DatasetCreator(DatasetConstructorComponent):
 
         dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
-        processed_file_path = self.data_dir / f"{self.dataset_name}_created.txt"
+        processed_file_path = self.data_dir / f"dataset_{self.dataset_name}_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
 
@@ -183,6 +183,12 @@ class DatasetCreator(DatasetConstructorComponent):
         df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
                               chunksize=self.get_chunksize()))
         df = self.clean_df(df, feature_col)
+        # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
+        spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
+        self.logger.debug("Started tokenizing with spacy")
+        df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
+        self.logger.debug("Started tokenizing with bert")
+        df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
         df['legal_area'] = df.chamber.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
         self.logger.info("Finished loading the data from the database")
