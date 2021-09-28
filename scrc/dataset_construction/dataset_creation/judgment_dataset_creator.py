@@ -18,7 +18,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.debug = False
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
-        self.feature_cols = ['facts']  # , 'considerations']
+        self.feature_cols = ['facts', 'considerations']
 
         self.with_write_off = False
         self.with_unification = False
@@ -26,8 +26,8 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.with_partials = False
         self.make_single_label = True
 
-    def get_dataset(self, feature_col, lang):
-        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'judgements', lang)
+    def get_dataset(self, feature_col, lang, save_reports):
+        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'judgements', lang, save_reports)
 
         # Delete cases with "Nach Einsicht" from the dataset because they are mostly inadmissible or otherwise dismissal
         # => too easily learnable for the model (because of spurious correlation)
@@ -92,4 +92,4 @@ if __name__ == '__main__':
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
 
     judgment_dataset_creator = JudgmentDatasetCreator(config)
-    judgment_dataset_creator.create_dataset(save_reports=True)
+    judgment_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)

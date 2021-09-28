@@ -28,8 +28,8 @@ class CitationDatasetCreator(DatasetCreator):
         self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
 
 
-    def get_dataset(self, feature_col, lang):
-        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', lang)
+    def get_dataset(self, feature_col, lang, save_reports):
+        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', lang, save_reports)
 
         this_function_name = inspect.currentframe().f_code.co_name
         folder = self.create_dir(self.datasets_subdir, this_function_name)

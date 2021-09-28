@@ -1,4 +1,6 @@
 import abc
+import copy
+import math
 from collections import Counter
 from pathlib import Path
 from typing import Union
@@ -134,7 +136,7 @@ class DatasetCreator(DatasetConstructorComponent):
         self.feature_cols = ["text"]  # to be overridden
 
     @abc.abstractmethod
-    def get_dataset(self, feature_col, lang):
+    def get_dataset(self, feature_col, lang, save_reports):
         pass
 
     def get_chunksize(self):
@@ -143,7 +145,7 @@ class DatasetCreator(DatasetConstructorComponent):
         else:
             return int(self.real_chunksize)
 
-    def create_dataset(self, sub_datasets=False, kaggle=False, save_reports=False):
+    def create_dataset(self, sub_datasets=False, kaggle=False, huggingface=False, save_reports=False):
         """
         Retrieves the respective function named by the dataset and executes it to get the df for that dataset.
         :return:
@@ -156,20 +158,63 @@ class DatasetCreator(DatasetConstructorComponent):
         datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
 
-        for feature_col in datasets:
-            self.logger.info(f"Processing dataset feature col {feature_col}")
-            input_folder = self.create_dir(dataset_folder, feature_col)
+        if datasets:
+            lang_splits = {lang: dict() for lang in self.languages}
+            for feature_col in datasets:
+                self.logger.info(f"Processing dataset feature col {feature_col}")
+                feature_col_folder = self.create_dir(dataset_folder, feature_col)
+                for lang in self.languages:
+                    self.logger.info(f"Processing language {lang}")
+                    lang_folder = self.create_dir(feature_col_folder, lang)
+                    df, labels = self.get_dataset(feature_col, lang, save_reports)
+                    df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset to make sampling easier
+                    splits = self.save_dataset(df, labels, lang_folder, self.split_type,
+                                               sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+                    lang_splits[lang] = splits
+
+                if huggingface:
+                    self.logger.info("Generating huggingface dataset")
+                    self.save_huggingface_dataset(lang_splits, feature_col_folder)
+
+                self.mark_as_processed(processed_file_path, feature_col)
+        else:
+            self.logger.info("All parts have been computed already.")
+
+    def save_huggingface_dataset(self, lang_splits, feature_col_folder):
+        huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
+
+        for split in ['train', 'val', 'test']:
+            records = []
             for lang in self.languages:
-                self.logger.info(f"Processing language {lang}")
-                lang_folder = self.create_dir(input_folder, lang)
-                df, labels = self.get_dataset(feature_col, lang)
-                df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset to make sampling easier
-                self.save_dataset(df, labels, lang_folder, self.split_type,
-                                  sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+                # df = pd.read_csv(f'{feature_col_folder}/{lang}/{split}.csv', index_col='id')
+                df = lang_splits[lang][split]
 
-            self.mark_as_processed(processed_file_path, feature_col)
+                tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'],
+                                     df['origin_canton'], df['label'], df['text'])
+                for case_id, year, legal_area, region, canton, label, text in tuple_iterator:
+                    if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
+                        canton = 'n/a'
+                    if not isinstance(region, str) and (region is None or math.isnan(region)):
+                        region = 'n/a'
+                    if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
+                        legal_area = 'n/a'
+                    record = {
+                        'id': case_id,
+                        'year': year,
+                        'language': lang,
+                        'region': ' '.join(region.split('_')),
+                        'canton': canton,
+                        'legal area': ' '.join(legal_area.split('_')),
+                        'label': label,
+                        'text': text,
+                    }
 
-    def get_df(self, engine, feature_col, label_col, lang):
+                    records.append(record)
+            with open(f'{huggingface_dir}/{split}.jsonl', 'w') as out_file:
+                for record in records:
+                    out_file.write(json.dumps(record) + '\n')
+
+    def get_df(self, engine, feature_col, label_col, lang, save_reports):
         self.logger.info("Started loading the data from the database")
         origin_canton = "lower_court::json#>>'{canton}' AS origin_canton"
         origin_court = "lower_court::json#>>'{court}' AS origin_court"
@@ -183,14 +228,18 @@ class DatasetCreator(DatasetConstructorComponent):
         df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
                               chunksize=self.get_chunksize()))
         df = self.clean_df(df, feature_col)
-        # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
-        spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
-        self.logger.debug("Started tokenizing with spacy")
-        df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
-        self.logger.debug("Started tokenizing with bert")
-        df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
         df['legal_area'] = df.chamber.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
+
+        if save_reports:  # only calculate this if we save the reports because it takes a long time
+            # TODO precompute this in previous step after section splitting for each section
+            # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
+            spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
+            self.logger.debug("Started tokenizing with spacy")
+            df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
+            self.logger.debug("Started tokenizing with bert")
+            df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
+
         self.logger.info("Finished loading the data from the database")
 
         return df
@@ -207,7 +256,8 @@ class DatasetCreator(DatasetConstructorComponent):
 
         # filter out entries where the feature_col (text/facts/considerations) is less than 100 characters
         # because then it is most likely faulty
-        df = df[df[column].str.len() > self.minFeatureColLength]
+        # TODO think about including this line
+        # df = df[df[column].str.len() > self.minFeatureColLength]
         return df
 
     def save_dataset(self, df: pd.DataFrame, labels: list, folder: Path,
