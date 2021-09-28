@@ -240,25 +240,32 @@ class DatasetCreator(DatasetConstructorComponent):
                     self.save_splits(sub_dataset_splits, labels, sub_dataset_dir, save_csvs=['test'])
 
         if kaggle:
-            self.logger.info("Saving the data in kaggle format")
-            # create solution file
-            splits['solution'] = splits['test'].drop('text', axis='columns')  # drop text
-            # rename according to kaggle conventions
-            splits['solution'] = splits['solution'].rename(columns={"label": "Expected"})
-            # create test file
-            splits['test'] = splits['test'].drop('label', axis='columns')  # drop label
-            # create sampleSubmission file
-            # rename according to kaggle conventions
-            sample_submission = splits['solution'].rename(columns={"Expected": "Predicted"})
-            # set to random value
-            sample_submission['Predicted'] = np.random.choice(splits['solution'].Expected, size=len(splits['solution']))
-            splits['sample_submission'] = sample_submission
-
             # save special kaggle files
+            kaggle_splits = self.prepare_kaggle_splits(splits)
             kaggle_dir = self.create_dir(folder, 'kaggle')
-            self.save_splits(splits, labels, kaggle_dir, save_reports=save_reports)
+            self.save_splits(kaggle_splits, labels, kaggle_dir, save_reports=save_reports)
 
         self.logger.info(f"Saved dataset files to {folder}")
+        return splits
+
+    def prepare_kaggle_splits(self, splits):
+        self.logger.info("Saving the data in kaggle format")
+        # deepcopy splits so we don't mess with the original dict
+        kaggle_splits = copy.deepcopy(splits)
+        # create solution file
+        kaggle_splits['solution'] = kaggle_splits['test'].drop('text', axis='columns')  # drop text
+        # rename according to kaggle conventions
+        kaggle_splits['solution'] = kaggle_splits['solution'].rename(columns={"label": "Expected"})
+        # create test file
+        kaggle_splits['test'] = kaggle_splits['test'].drop('label', axis='columns')  # drop label
+        # create sampleSubmission file
+        # rename according to kaggle conventions
+        sample_submission = kaggle_splits['solution'].rename(columns={"Expected": "Predicted"})
+        # set to random value
+        sample_submission['Predicted'] = np.random.choice(kaggle_splits['solution']['Expected'],
+                                                          size=len(kaggle_splits['solution']))
+        kaggle_splits['sample_submission'] = sample_submission
+        return kaggle_splits
 
     def save_splits(self, splits: dict, labels: list, folder: Path,
                     save_reports=True, save_csvs: Union[list, bool] = True):
