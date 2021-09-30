@@ -54,10 +54,10 @@ It is a good idea to sync your copy of the code with the original repository reg
 ### Pushing your code
 
 Push the changes to your account using:
-
-    ```bash
-    git push -u origin a-descriptive-name-for-my-changes
-    ```
+    
+```bash
+git push -u origin a-descriptive-name-for-my-changes
+```
 
 Then you can go to to your GitHub Repository and click on Pull Request, where your codes gets reviewed.
 
