@@ -3,7 +3,7 @@ import configparser
 import bs4
 import pandas as pd
 
-from scrc.utils.abstract_extractor import AbstractExtractor
+from scrc.preprocessing.extractors.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 

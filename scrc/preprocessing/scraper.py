@@ -7,7 +7,7 @@ import requests
 from tqdm.contrib.concurrent import process_map
 
 from root import ROOT_DIR
-from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import save_to_path
 
@@ -17,7 +17,7 @@ supported_suffixes = ['.htm', '.html', '.pdf', '.txt', '.json']
 supported_languages = ['de', 'fr', 'it']
 excluded_link_names = ['Name', 'Last modified', 'Size', 'Description', 'Parent Directory', 'Index', 'Jobs', 'Sitemaps']
 
-class Scraper(DatasetConstructorComponent):
+class Scraper(AbstractPreprocessor):
     """Scrapes the court rulings with the associated metadata files from entscheidsuche.ch/docs"""
 
     def __init__(self, config: dict):

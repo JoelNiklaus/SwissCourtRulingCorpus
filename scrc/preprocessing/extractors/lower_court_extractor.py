@@ -3,7 +3,7 @@ from typing import Any, TYPE_CHECKING
 import configparser
 
 from root import ROOT_DIR
-from scrc.utils.abstract_extractor import AbstractExtractor
+from scrc.preprocessing.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
 
 if TYPE_CHECKING:

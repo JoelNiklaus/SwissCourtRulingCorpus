@@ -33,7 +33,7 @@ pd.set_option('display.width', 1000)
 pd.set_option('display.max_colwidth', 500)  # set to None to impose no limit
 
 
-class DatasetConstructorComponent:
+class AbstractPreprocessor:
     """
     Extracts the textual and meta information from the court rulings files and saves it in csv files for each court
     and in one for all courts combined

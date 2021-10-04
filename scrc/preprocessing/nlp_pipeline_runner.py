@@ -4,7 +4,7 @@ import os, psutil
 
 import spacy
 import configparser
-from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 
@@ -21,7 +21,7 @@ from scrc.utils.slack_util import post_message_to_slack
 #  B: restart program when deadlock is detected
 #  C: for diagnosis print threaddump
 
-class NlpPipelineRunner(DatasetConstructorComponent):
+class NlpPipelineRunner(AbstractPreprocessor):
     """
     Runs the entire spacy pipeline for each text and saves it into the MongoDB.
     This brings the advantage, that we have the heavy computation done in advance,

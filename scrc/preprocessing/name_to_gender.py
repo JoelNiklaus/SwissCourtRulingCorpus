@@ -7,7 +7,7 @@ import configparser
 import re
 import datetime
 import requests
-from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 from root import ROOT_DIR
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
 
 
-class NameToGender(DatasetConstructorComponent):
+class NameToGender(AbstractPreprocessor):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)

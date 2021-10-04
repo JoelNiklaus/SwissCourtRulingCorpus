@@ -11,7 +11,7 @@ import requests
 from tqdm.contrib.concurrent import process_map
 
 from root import ROOT_DIR
-from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.language_identification_singleton import LanguageIdentificationSingleton
 from scrc.utils.log_utils import get_logger
 
@@ -44,7 +44,7 @@ court_keys = [
 lang_id = LanguageIdentificationSingleton()
 
 
-class Extractor(DatasetConstructorComponent):
+class TextToDatabase(AbstractPreprocessor):
     """
     Extracts the textual and meta information from the court rulings files and saves it in csv files for each spider
     and in one for all courts combined
@@ -256,5 +256,5 @@ if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
 
-    extractor = Extractor(config)
+    extractor = TextToDatabase(config)
     extractor.build_dataset()

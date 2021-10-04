@@ -13,7 +13,7 @@ import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 
-from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
 
@@ -114,7 +114,7 @@ Features:
 """
 
 
-class DatasetCreator(DatasetConstructorComponent):
+class DatasetCreator(AbstractPreprocessor):
     """
     Retrieves the data and preprocesses it for subdatasets of SCRC.
     Also creates the necessary files for a kaggle dataset.

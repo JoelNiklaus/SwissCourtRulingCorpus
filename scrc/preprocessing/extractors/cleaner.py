@@ -10,12 +10,12 @@ import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
 
 from root import ROOT_DIR
-from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import clean_text
 
-
-class Cleaner(DatasetConstructorComponent):
+# TODO Adrian passt so an, dass der AbstractExtractor gebraucht werden kann als Superklasse
+class Cleaner(AbstractPreprocessor):
     """
     Cleans the different courts from unnecessary strings to improve further processing.
 

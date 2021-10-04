@@ -1,6 +1,6 @@
 import configparser
 
-from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 
@@ -8,7 +8,7 @@ from scrc.utils.log_utils import get_logger
 # import scrc.utils.monkey_patch  # prevent memory leak with pandas
 
 
-class CountComputer(DatasetConstructorComponent):
+class CountComputer(AbstractPreprocessor):
     """
     Computes the lemma counts for each decision and saves it in a special column 'counter'.
     In a second step, it computes the aggregate counts for the chamber, court and canton level

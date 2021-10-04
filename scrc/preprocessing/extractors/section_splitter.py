@@ -1,11 +1,11 @@
 from __future__ import annotations
 import configparser
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 import bs4
 import pandas as pd
 
-from scrc.utils.abstract_extractor import AbstractExtractor
+from scrc.preprocessing.extractors.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 

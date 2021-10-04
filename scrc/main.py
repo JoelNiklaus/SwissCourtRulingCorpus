@@ -1,19 +1,19 @@
 import configparser
 from scrc.preprocessing.name_to_gender import NameToGender
-from scrc.preprocessing.procedural_participation_extractor import ProceduralParticipationExtractor
-from scrc.preprocessing.court_composition_extractor import CourtCompositionExtractor
+from scrc.preprocessing.extractors.procedural_participation_extractor import ProceduralParticipationExtractor
+from scrc.preprocessing.extractors.court_composition_extractor import CourtCompositionExtractor
 
 from root import ROOT_DIR
-from scrc.preprocessing.citation_extractor import CitationExtractor
-from scrc.preprocessing.cleaner import Cleaner
+from scrc.preprocessing.extractors.citation_extractor import CitationExtractor
+from scrc.preprocessing.extractors.cleaner import Cleaner
 from scrc.dataset_creation.citation_dataset_creator import CitationDatasetCreator
 from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
 from scrc.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
-from scrc.preprocessing.extractor import Extractor
-from scrc.preprocessing.judgement_extractor import JudgementExtractor
-from scrc.preprocessing.lower_court_extractor import LowerCourtExtractor
+from scrc.preprocessing.text_to_database import TextToDatabase
+from scrc.preprocessing.extractors.judgement_extractor import JudgementExtractor
+from scrc.preprocessing.extractors.lower_court_extractor import LowerCourtExtractor
 from scrc.preprocessing.scraper import Scraper, base_url
-from scrc.preprocessing.section_splitter import SectionSplitter
+from scrc.preprocessing.extractors.section_splitter import SectionSplitter
 from scrc.preprocessing.nlp_pipeline_runner import NlpPipelineRunner
 from scrc.preprocessing.count_computer import CountComputer
 
@@ -83,7 +83,7 @@ def construct_base_dataset(config):
     scraper = Scraper(config)
     scraper.download_subfolders(base_url + "docs/")
 
-    extractor = Extractor(config)
+    extractor = TextToDatabase(config)
     extractor.build_dataset()
 
     cleaner = Cleaner(config)
@@ -100,10 +100,13 @@ def construct_base_dataset(config):
 
     lower_court_extractor = LowerCourtExtractor(config)
     lower_court_extractor.start()
+
     court_composition_extractor = CourtCompositionExtractor(config)
     court_composition_extractor.start()
+
     procedural_participation_extractor = ProceduralParticipationExtractor(config)
     procedural_participation_extractor.start()
+
     name_to_gender = NameToGender(config)
     name_to_gender.start()
 

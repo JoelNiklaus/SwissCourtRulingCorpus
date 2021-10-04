@@ -6,11 +6,11 @@ from tqdm import tqdm
 
 import pandas as pd
 
-from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 
 
-class ExternalCorpusProcessor(DatasetConstructorComponent):
+class ExternalCorpusProcessor(AbstractPreprocessor):
     """
     Swiss Legislation Corpus: https://pub.cl.uzh.ch/wiki/public/pacoco/swiss_legislation_corpus
     Obtained by email enquiry

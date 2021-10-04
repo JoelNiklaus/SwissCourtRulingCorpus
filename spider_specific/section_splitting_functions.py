@@ -4,7 +4,7 @@ from typing import Any, Optional, Tuple, List, Dict
 import bs4
 import re
 
-from scrc.preprocessing.section_splitter import sections
+from scrc.preprocessing.extractors.section_splitter import sections
 from scrc.utils.main_utils import clean_text
 
 """

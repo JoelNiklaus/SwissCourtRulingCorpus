@@ -3,7 +3,7 @@ import configparser
 from typing import Any, TYPE_CHECKING
 
 from root import ROOT_DIR
-from scrc.utils.abstract_extractor import AbstractExtractor
+from scrc.preprocessing.extractors.abstract_extractor import AbstractExtractor
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
