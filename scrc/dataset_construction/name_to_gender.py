@@ -19,11 +19,11 @@ class NameToGender(DatasetConstructorComponent):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-        self.file_name = self.data_dir / "name_to_gender.json"
+        self.gender_db_file = self.data_dir / "name_to_gender.json"
         self.session = requests.Session()
 
     def read_file(self):
-        self.names_database = json.loads(Path(self.file_name).read_text())
+        self.names_database = json.loads(Path(self.gender_db_file).read_text())
 
     def read_data_to_match(self, engine: Engine):
         query_str_lang = [
@@ -31,38 +31,34 @@ class NameToGender(DatasetConstructorComponent):
         query_str = ' UNION '.join(query_str_lang)
         return self.query(engine, query_str)
 
+    def check_party_and_representation_for_names(self, current_party, names: Set) -> Set:
+        if 'party' in current_party:
+            for party in current_party['party']:
+                if 'gender' not in party and party['type'] == 'natural person' and 'name' in party and not re.fullmatch(r'[A-Z]\.\_', party['name']):
+                    names.add(party['name'])
+
+        if 'representation' in current_party:
+            for party in current_party['representation']:
+                if 'gender' not in party and party['type'] == 'natural person' and 'name' in party:
+                    names.add(party['name'])
+        return names
+
     def start(self):
         self.read_file()
 
         engine = self.get_engine(self.db_scrc)
         self.data = self.read_data_to_match(engine)
 
-        names = set(())
+        names = set()
 
         for idx in range(len(self.data)):
             parties = json.loads(self.data['parties'][idx])
             first_party = parties['0']
             second_party = parties['1']
 
-            if 'party' in first_party:
-                for party in first_party['party']:
-                    if 'gender' not in party and party['type'] == 'natural person' and 'name' in party and not re.fullmatch(r'[A-Z]\.\_', party['name']):
-                        names.add(party['name'])
+            names = self.check_party_and_representation_for_names(first_party, names)
+            names = self.check_party_and_representation_for_names(second_party, names)
 
-            if 'representation' in first_party:
-                for party in first_party['representation']:
-                    if 'gender' not in party and party['type'] == 'natural person' and 'name' in party:
-                        names.add(party['name'])
-
-            if 'party' in second_party:
-                for party in second_party['party']:
-                    if 'gender' not in party and party['type'] == 'natural person' and 'name' in party and not re.fullmatch(r'[A-Z]\.\_', party['name']):
-                        names.add(party['name'])
-
-            if 'representation' in second_party:
-                for party in second_party['representation']:
-                    if 'gender' not in party and party['type'] == 'natural person' and 'name' in party:
-                        names.add(party['name'])
 
         names = self.filter_names(names)
         names = set(filter(
@@ -158,7 +154,7 @@ class NameToGender(DatasetConstructorComponent):
         female.extend(self.names_database['f'])
         all_female = set(female)
         all_unknown = set(unknown)
-        Path(self.file_name).write_text(json.dumps({"m": sorted(
+        Path(self.gender_db_file).write_text(json.dumps({"m": sorted(
             all_male), "f": sorted(all_female), "u": sorted(all_unknown)}, indent=4))
 
     def chunked(self, iterable, chunk_size):

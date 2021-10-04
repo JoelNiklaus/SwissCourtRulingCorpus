@@ -74,7 +74,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         if len(split_name) > 1:
             initial = next((x for x in split_name if len(x) == 1), None)
             split_name = list(filter(lambda x: len(x) > 1, split_name))
-        if role in personal_information_database: 
+        if role in personal_information_database:
             for subcategory in personal_information_database[role]:
                 for cat_id in personal_information_database[role][subcategory]:
                     for person in personal_information_database[role][subcategory][cat_id]:
@@ -122,7 +122,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         has_role_in_string = False
         matched_gender_regex = False
         for gender in role_regexes: # check for male and female all roles
-            if matched_gender_regex: 
+            if matched_gender_regex:
                 break
             role_regex = role_regexes[gender]
             for regex_key in role_regex: # check each role
@@ -155,15 +155,15 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
             if current_role not in besetzung:
                 besetzung[current_role] = []
             if namespace['language'] == 'fr':
-                    text, found_gender = prepare_french_name_and_find_gender(text)
-                    last_gender = found_gender or last_gender
+                text, found_gender = prepare_french_name_and_find_gender(text)
+                last_gender = found_gender or last_gender
             name_match = re.search(r'[A-Z][A-Za-z\-éèäöü\s]*(?= Urteil)|[A-Z][A-Za-z\-éèäöü\s]*(?= )|[A-Z][A-Za-z\-éèäöü\s]*', text)
             if not name_match:
                 continue
             name = name_match.group()
             matched_person, _ = match_person_to_database(name, current_role, last_gender)
             besetzung[current_role].append(matched_person)
-            last_person = name  
+            last_person = name
     return besetzung
 
 # This needs special care
