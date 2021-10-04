@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 import pandas as pd
 
-from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 
 

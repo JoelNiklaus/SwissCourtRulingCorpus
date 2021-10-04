@@ -11,7 +11,7 @@ import requests
 from tqdm.contrib.concurrent import process_map
 
 from root import ROOT_DIR
-from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.language_identification_singleton import LanguageIdentificationSingleton
 from scrc.utils.log_utils import get_logger
 

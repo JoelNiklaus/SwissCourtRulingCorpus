@@ -1,6 +1,6 @@
 import configparser
 
-from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 

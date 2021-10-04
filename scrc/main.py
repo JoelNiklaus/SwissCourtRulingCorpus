@@ -1,24 +1,21 @@
 import configparser
-import faulthandler
-from scrc.dataset_construction.name_to_gender import NameToGender
-from scrc.dataset_construction.procedural_participation_extractor import ProceduralParticipationExtractor
-from scrc.dataset_construction.court_composition_extractor import CourtCompositionExtractor
+from scrc.preprocessing.name_to_gender import NameToGender
+from scrc.preprocessing.procedural_participation_extractor import ProceduralParticipationExtractor
+from scrc.preprocessing.court_composition_extractor import CourtCompositionExtractor
 
 from root import ROOT_DIR
-from scrc.dataset_construction.citation_extractor import CitationExtractor
-from scrc.dataset_construction.cleaner import Cleaner
-from scrc.dataset_construction.dataset_creation.citation_dataset_creator import CitationDatasetCreator
-from scrc.dataset_construction.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
-from scrc.dataset_construction.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
-from scrc.dataset_construction.extractor import Extractor
-from scrc.dataset_construction.judgement_extractor import JudgementExtractor
-from scrc.dataset_construction.lower_court_extractor import LowerCourtExtractor
-from scrc.dataset_construction.scraper import Scraper, base_url
-from scrc.dataset_construction.section_splitter import SectionSplitter
-from scrc.dataset_construction.nlp_pipeline_runner import NlpPipelineRunner
-from scrc.dataset_construction.count_computer import CountComputer
-
-from filprofiler.api import profile
+from scrc.preprocessing.citation_extractor import CitationExtractor
+from scrc.preprocessing.cleaner import Cleaner
+from scrc.dataset_creation.citation_dataset_creator import CitationDatasetCreator
+from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
+from scrc.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
+from scrc.preprocessing.extractor import Extractor
+from scrc.preprocessing.judgement_extractor import JudgementExtractor
+from scrc.preprocessing.lower_court_extractor import LowerCourtExtractor
+from scrc.preprocessing.scraper import Scraper, base_url
+from scrc.preprocessing.section_splitter import SectionSplitter
+from scrc.preprocessing.nlp_pipeline_runner import NlpPipelineRunner
+from scrc.preprocessing.count_computer import CountComputer
 
 from scrc.external_corpora.jureko_processor import JurekoProcessor
 from scrc.external_corpora.slc_processor import SlcProcessor

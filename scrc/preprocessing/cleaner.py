@@ -10,7 +10,7 @@ import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
 
 from root import ROOT_DIR
-from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import clean_text
 

@@ -1,7 +1,7 @@
 import configparser
 
 from root import ROOT_DIR
-from scrc.dataset_construction.dataset_creation.dataset_creator import DatasetCreator
+from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import pandas as pd
 

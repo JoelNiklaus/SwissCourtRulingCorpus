@@ -3,7 +3,7 @@ import inspect
 from collections import Counter
 
 from root import ROOT_DIR
-from scrc.dataset_construction.dataset_creation.dataset_creator import DatasetCreator
+from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import numpy as np
 import pandas as pd

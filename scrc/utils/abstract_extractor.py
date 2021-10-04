@@ -4,7 +4,7 @@ from typing import Any, Optional, Set, TYPE_CHECKING, Tuple
 import pandas as pd
 
 from scrc.utils.log_utils import get_logger
-from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
+from scrc.preprocessing.dataset_constructor_component import DatasetConstructorComponent
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
