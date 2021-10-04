@@ -7,6 +7,7 @@ import pandas as pd
 
 from scrc.utils.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
+from scrc.utils.log_utils import get_logger
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -32,6 +33,7 @@ class SectionSplitter(AbstractExtractor):
 
     def __init__(self, config: dict):
         super().__init__(config, function_name='section_splitting_functions', col_name='')
+        self.logger = get_logger(__name__)
         self.logger_info = {
             'start': 'Started section splitting',
             'finished': 'Finished section splitting',

@@ -28,8 +28,8 @@ class CitationDatasetCreator(DatasetCreator):
         self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
 
 
-    def get_dataset(self, input, lang):
-        df = self.get_df(self.get_engine(self.db_scrc), input, 'citations', lang)
+    def get_dataset(self, feature_col, lang, save_reports):
+        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', lang, save_reports)
 
         this_function_name = inspect.currentframe().f_code.co_name
         folder = self.create_dir(self.datasets_subdir, this_function_name)
@@ -48,7 +48,7 @@ class CitationDatasetCreator(DatasetCreator):
             labels = set()
             for law in series.citations['laws']:
                 citation = law['text']
-                found_string_in_list = string_contains_one_of_list(citation, list(law_abbr_by_lang['de'].keys()))
+                found_string_in_list = string_contains_one_of_list(citation, list(law_abbr_by_lang[lang].keys()))
                 if found_string_in_list:
                     series.text = series.text.replace(citation, ref_mask_token)
                     labels.add(law_abbr_by_lang['de'][found_string_in_list])

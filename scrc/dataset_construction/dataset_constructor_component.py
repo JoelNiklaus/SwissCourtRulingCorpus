@@ -2,6 +2,7 @@ import gc
 import importlib
 import json
 import multiprocessing
+import os
 from collections import Counter, Sized
 from pathlib import Path
 
@@ -9,9 +10,13 @@ import glob
 from time import sleep
 
 import spacy
+from spacy.lang.de import German
+from spacy.lang.fr import French
+from spacy.lang.it import Italian
 from spacy.tokens import Doc
 from spacy.vocab import Vocab
 from tqdm import tqdm
+from transformers import AutoTokenizer
 
 from root import ROOT_DIR
 import pandas as pd
@@ -187,7 +192,7 @@ class DatasetConstructorComponent:
     def save_vocab(vocab, spacy_dir) -> None:
         vocab.to_disk(spacy_dir / f"_vocab.spacy", exclude=['vectors'])
 
-    def run_spacy_pipe(self, engine, table, spacy_dir, where, nlp, logger):
+    def run_nlp_pipe(self, engine, table, spacy_dir, where, nlp, bert_tokenizer, logger):
         """
         Runs the spacy pipe on the table provided and saves the docs into the given folder
         :param engine:      the engine with the db connection
@@ -195,6 +200,7 @@ class DatasetConstructorComponent:
         :param spacy_dir:   where to save the docs obtained
         :param where:       how to select the dfs
         :param nlp:         used for creating the docs
+        :param bert_tokenizer: used for computing the number of bert tokens if present
         :param logger:      custom logger for info output
         :return:
         """
@@ -210,15 +216,34 @@ class DatasetConstructorComponent:
                 path = spacy_dir / (str(id) + ".spacy")
                 doc.to_disk(path, exclude=['tensor'])  # this makes the space on the disk much smaller!
                 num_tokens.append(len(doc))
-            df['num_tokens'] = num_tokens
-            columns = ['num_tokens']
-            logger.info("Saving num_tokens to db")
+            df['num_tokens_spacy'] = num_tokens
+
+            if bert_tokenizer:
+                df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df['text'].tolist()).input_ids]
+
+            columns = ['num_tokens_spacy', 'num_tokens_bert']
+            logger.info("Saving num_tokens_spacy and num_tokens_bert to db")
             self.update(engine, df, table, columns)
 
             self.save_vocab(nlp.vocab, spacy_dir)
 
             gc.collect()
             sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
+
+    def get_tokenizers(self, lang):
+        os.environ['TOKENIZERS_PARALLELISM'] = "True"
+        if lang == 'de':
+            spacy = German()
+            bert = "deepset/gbert-base"
+        elif lang == 'fr':
+            spacy = French()
+            bert = "camembert/camembert-base-ccnet"
+        elif lang == 'it':
+            spacy = Italian()
+            bert = "dbmdz/bert-base-italian-cased"
+        else:
+            raise ValueError(f"Please choose one of the following languages: {self.languages}")
+        return spacy.tokenizer, AutoTokenizer.from_pretrained(bert)
 
     @staticmethod
     def insert_counter(engine, table, level, level_instance, counter_type, counter):

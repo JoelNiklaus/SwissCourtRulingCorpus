@@ -4,20 +4,21 @@ import json
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Optional
-
 from sqlalchemy import MetaData, Table, Column, Integer, String, Date
-
 import pandas as pd
-
 import bs4
 import requests
-from tika import parser
 from tqdm.contrib.concurrent import process_map
 
 from root import ROOT_DIR
 from scrc.dataset_construction.dataset_constructor_component import DatasetConstructorComponent
 from scrc.utils.language_identification_singleton import LanguageIdentificationSingleton
 from scrc.utils.log_utils import get_logger
+
+import tika
+
+tika.initVM()
+from tika import parser
 
 # TODO look at this if db is slow: https://dba.stackexchange.com/questions/151300/improve-update-performance-on-big-table/151316
 

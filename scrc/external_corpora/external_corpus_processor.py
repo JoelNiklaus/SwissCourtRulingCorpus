@@ -46,7 +46,7 @@ class ExternalCorpusProcessor(DatasetConstructorComponent):
         self.logger.info(message)
         for part in parts:
             part_dir = self.create_dir(self.spacy_subdir, part)
-            self.run_spacy_pipe(engine, part, part_dir, "", nlp, self.logger)
+            self.run_nlp_pipe(engine, part, part_dir, "", nlp, None, self.logger)
             self.mark_as_processed(processed_file_path, part)
 
         self.logger.info("Computing counters")
