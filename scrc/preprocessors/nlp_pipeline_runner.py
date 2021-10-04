@@ -4,7 +4,7 @@ import os, psutil
 
 import spacy
 import configparser
-from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
+from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 

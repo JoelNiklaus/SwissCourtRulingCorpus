@@ -2,7 +2,7 @@ from __future__ import annotations
 import configparser
 from typing import Any, TYPE_CHECKING
 
-from scrc.preprocessing.extractors.abstract_extractor import AbstractExtractor
+from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 

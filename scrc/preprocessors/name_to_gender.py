@@ -7,7 +7,7 @@ import configparser
 import re
 import datetime
 import requests
-from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
+from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 from root import ROOT_DIR
 

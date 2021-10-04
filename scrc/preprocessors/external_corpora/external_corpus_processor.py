@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 import pandas as pd
 
-from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
+from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 
 

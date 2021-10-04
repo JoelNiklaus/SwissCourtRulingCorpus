@@ -1,25 +1,25 @@
 import configparser
-from scrc.preprocessing.name_to_gender import NameToGender
-from scrc.preprocessing.extractors.procedural_participation_extractor import ProceduralParticipationExtractor
-from scrc.preprocessing.extractors.court_composition_extractor import CourtCompositionExtractor
+from scrc.preprocessors.name_to_gender import NameToGender
+from scrc.preprocessors.extractors.procedural_participation_extractor import ProceduralParticipationExtractor
+from scrc.preprocessors.extractors.court_composition_extractor import CourtCompositionExtractor
 
 from root import ROOT_DIR
-from scrc.preprocessing.extractors.citation_extractor import CitationExtractor
-from scrc.preprocessing.extractors.cleaner import Cleaner
+from scrc.preprocessors.extractors.citation_extractor import CitationExtractor
+from scrc.preprocessors.extractors.cleaner import Cleaner
 from scrc.dataset_creation.citation_dataset_creator import CitationDatasetCreator
 from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
 from scrc.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
-from scrc.preprocessing.text_to_database import TextToDatabase
-from scrc.preprocessing.extractors.judgement_extractor import JudgementExtractor
-from scrc.preprocessing.extractors.lower_court_extractor import LowerCourtExtractor
-from scrc.preprocessing.scraper import Scraper, base_url
-from scrc.preprocessing.extractors.section_splitter import SectionSplitter
-from scrc.preprocessing.nlp_pipeline_runner import NlpPipelineRunner
-from scrc.preprocessing.count_computer import CountComputer
+from scrc.preprocessors.text_to_database import TextToDatabase
+from scrc.preprocessors.extractors.judgement_extractor import JudgementExtractor
+from scrc.preprocessors.extractors.lower_court_extractor import LowerCourtExtractor
+from scrc.preprocessors.scraper import Scraper, base_url
+from scrc.preprocessors.extractors.section_splitter import SectionSplitter
+from scrc.preprocessors.nlp_pipeline_runner import NlpPipelineRunner
+from scrc.preprocessors.count_computer import CountComputer
 
-from scrc.preprocessing.external_corpora.jureko_processor import JurekoProcessor
-from scrc.preprocessing.external_corpora.slc_processor import SlcProcessor
-from scrc.preprocessing.external_corpora.wikipedia_processor import WikipediaProcessor
+from scrc.preprocessors.external_corpora.jureko_processor import JurekoProcessor
+from scrc.preprocessors.external_corpora.slc_processor import SlcProcessor
+from scrc.preprocessors.external_corpora.wikipedia_processor import WikipediaProcessor
 from scrc.utils.decorators import slack_alert
 
 """

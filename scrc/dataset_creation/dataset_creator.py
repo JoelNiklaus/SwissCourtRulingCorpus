@@ -13,7 +13,7 @@ import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 
-from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
+from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
 

@@ -5,7 +5,7 @@ import pandas as pd
 
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
-from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
+from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine

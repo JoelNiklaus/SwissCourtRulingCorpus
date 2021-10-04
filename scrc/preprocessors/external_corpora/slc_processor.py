@@ -6,7 +6,7 @@ import bs4
 from sqlalchemy import MetaData, Table, Column, Integer, String, JSON
 
 from root import ROOT_DIR
-from scrc.preprocessing.external_corpora.external_corpus_processor import ExternalCorpusProcessor
+from scrc.preprocessors.external_corpora.external_corpus_processor import ExternalCorpusProcessor
 from scrc.utils.log_utils import get_logger
 
 
