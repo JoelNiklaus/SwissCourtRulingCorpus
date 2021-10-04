@@ -76,7 +76,7 @@ class SectionSplitter(AbstractExtractor):
         for section in sections:
             section_amount = self.read_column(engine, spider, section, lang)
             self.logger.info(
-                f"{section.capitalize()}:\t{section_amount} / {self.total_to_process} ()"
+                f"{section.capitalize()}:\t{section_amount} / {self.total_to_process} "
                 f"({section_amount / self.total_to_process:.2%}) "
             )
 

@@ -1,5 +1,8 @@
 import configparser
 import faulthandler
+from scrc.dataset_construction.name_to_gender import NameToGender
+from scrc.dataset_construction.procedural_participation_extractor import ProceduralParticipationExtractor
+from scrc.dataset_construction.court_composition_extractor import CourtCompositionExtractor
 
 from root import ROOT_DIR
 from scrc.dataset_construction.citation_extractor import CitationExtractor
@@ -100,6 +103,12 @@ def construct_base_dataset(config):
 
     lower_court_extractor = LowerCourtExtractor(config)
     lower_court_extractor.start()
+    court_composition_extractor = CourtCompositionExtractor(config)
+    court_composition_extractor.start()
+    procedural_participation_extractor = ProceduralParticipationExtractor(config)
+    procedural_participation_extractor.start()
+    name_to_gender = NameToGender(config)
+    name_to_gender.start()
 
     nlp_pipeline_runner = NlpPipelineRunner(config)
     nlp_pipeline_runner.run_pipeline()
