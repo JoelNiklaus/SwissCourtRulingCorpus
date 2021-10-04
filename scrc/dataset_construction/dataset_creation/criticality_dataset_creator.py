@@ -6,6 +6,12 @@ from scrc.utils.log_utils import get_logger
 import pandas as pd
 
 
+# TODO filter out cases where lower court is BVGer or a Handelsgericht because there BGer is only 2nd instance!
+#  People go to 2nd instance much more often than to 3rd instance.
+#  In many cases more than 50% of cases go to 2nd instance.
+#  Probably less than 30% of cases go to 3rd instance. ==> Ask Daniel Kettiger
+# TODO calculate this: Geschäftsberichte von grossen Gerichten holen und vergleichen mit Anzahl Bundesgerichten
+
 class CriticalityDatasetCreator(DatasetCreator):
     """
     Creates a dataset with the text as input and whether it reaches the supreme court or not as labels
