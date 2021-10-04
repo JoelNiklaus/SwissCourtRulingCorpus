@@ -17,9 +17,9 @@ from scrc.preprocessing.extractors.section_splitter import SectionSplitter
 from scrc.preprocessing.nlp_pipeline_runner import NlpPipelineRunner
 from scrc.preprocessing.count_computer import CountComputer
 
-from scrc.external_corpora.jureko_processor import JurekoProcessor
-from scrc.external_corpora.slc_processor import SlcProcessor
-from scrc.external_corpora.wikipedia_processor import WikipediaProcessor
+from scrc.preprocessing.external_corpora.jureko_processor import JurekoProcessor
+from scrc.preprocessing.external_corpora.slc_processor import SlcProcessor
+from scrc.preprocessing.external_corpora.wikipedia_processor import WikipediaProcessor
 from scrc.utils.decorators import slack_alert
 
 """
