@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from scrc.utils.main_utils import string_contains_one_of_list
-from scrc.utils.term_definitions_extractor import TermDefinitionsExtractor
+from scrc.utils.term_definitions_converter import TermDefinitionsConverter
 
 
 class CitationDatasetCreator(DatasetCreator):
@@ -94,7 +94,7 @@ class CitationDatasetCreator(DatasetCreator):
         return list(dict(most_common_with_frequency).keys())
 
     def get_law_abbr_by_lang(self):
-        term_definitions = TermDefinitionsExtractor().extract_term_definitions()
+        term_definitions = TermDefinitionsConverter().extract_term_definitions()
         law_abbr_by_lang = {lang: dict() for lang in self.languages}
 
         for definition in term_definitions:

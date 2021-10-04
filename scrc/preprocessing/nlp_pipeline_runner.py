@@ -21,6 +21,8 @@ from scrc.utils.slack_util import post_message_to_slack
 #  B: restart program when deadlock is detected
 #  C: for diagnosis print threaddump
 
+
+# TODO Joel passt so an, dass dieser Komponent nur noch die anzahl tokens berechnet sobald die neue DB hier ist
 class NlpPipelineRunner(AbstractPreprocessor):
     """
     Runs the entire spacy pipeline for each text and saves it into the MongoDB.

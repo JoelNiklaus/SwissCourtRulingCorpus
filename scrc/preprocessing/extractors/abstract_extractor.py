@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional, Set, TYPE_CHECKING, Tuple
 import pandas as pd
 
+from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 from scrc.preprocessing.abstract_preprocessor import AbstractPreprocessor
 
@@ -45,6 +46,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         self.col_name = col_name
         self.processed_amount = 0
         self.total_to_process = -1
+        self.spider_specific_dir = self.create_dir(ROOT_DIR, config['dir']['spider_specific_dir'])
 
     def start(self):
         self.logger.info(self.logger_info["start"])

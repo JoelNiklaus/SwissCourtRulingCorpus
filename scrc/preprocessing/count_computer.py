@@ -7,7 +7,7 @@ from scrc.utils.log_utils import get_logger
 
 # import scrc.utils.monkey_patch  # prevent memory leak with pandas
 
-
+# TODO wird gelöscht sobald neue DB da ist
 class CountComputer(AbstractPreprocessor):
     """
     Computes the lemma counts for each decision and saves it in a special column 'counter'.

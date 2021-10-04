@@ -8,7 +8,7 @@ from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 
 
-class TermDefinitionsExtractor:
+class TermDefinitionsConverter:
     base_dir = ROOT_DIR / 'term_definitions'
     languages = ['de', 'fr', 'it', 'rm', 'en', 'es']
 
@@ -61,6 +61,6 @@ class TermDefinitionsExtractor:
 
 
 if __name__ == '__main__':
-    term_definitions_extractor = TermDefinitionsExtractor()
+    term_definitions_extractor = TermDefinitionsConverter()
     output = term_definitions_extractor.extract_term_definitions()
     # pprint(output)

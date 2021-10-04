@@ -57,8 +57,6 @@ class AbstractPreprocessor:
         self.wikipedia_subdir = self.create_dir(self.corpora_subdir, config['dir']['wikipedia_subdir'])
         self.wikipedia_spacy_subdir = self.create_dir(self.wikipedia_subdir, config['dir']['spacy_subdir'])
 
-        self.spider_specific_dir = self.create_dir(ROOT_DIR, config['dir']['spider_specific_dir'])
-
         self.ip = config['postgres']['ip']
         self.port = config['postgres']['port']
         self.user = config['postgres']['user']
