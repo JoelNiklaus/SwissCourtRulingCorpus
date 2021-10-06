@@ -2,10 +2,10 @@ from typing import Dict, List, Optional
 import re
 import json
 
-
 """
 This file is used to extract the parties from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
+Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
 
@@ -44,8 +44,8 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     }
 
     lawyer_representation = {
-        'm' : [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)', r'avocats?(?!e)', r'dall\'avv\.', r'l\'avv\.'],
-        'f' : [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin', r'avocates?']
+        'm': [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)', r'avocats?(?!e)', r'dall\'avv\.', r'l\'avv\.'],
+        'f': [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin', r'avocates?']
     }
 
     lawyer_name = {
@@ -54,11 +54,15 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         'it': r'(lic\.?\s?|iur\.?\s?|dott\.\s?)*[A-Z].*?(?=,)'
     }
 
-    start_pos = re.search(information_start_regex, header) or re.search(r'Gerichtsschreiber.*?\.', header) or re.search(r'[Gg]reffi[eè]re?.*?\S{2,}?\.', header)
+    start_pos = re.search(information_start_regex, header) or re.search(r'Gerichtsschreiber.*?\.', header) or re.search(
+        r'[Gg]reffi[eè]re?.*?\S{2,}?\.', header)
     if start_pos:
         header = header[start_pos.span()[1]:]
     end_pos = {
-        'de': re.search(r'(?<=Beschwerdegegnerin).+?', header) or re.search(r'(?<=Beschwerdegegner).+?', header) or re.search(r'Gegenstand', header) or re.search(r'A\.\- ', header) or re.search(r'gegen das Urteil', header),
+        'de': re.search(r'(?<=Beschwerdegegnerin).+?', header) or re.search(r'(?<=Beschwerdegegner).+?',
+                                                                            header) or re.search(r'Gegenstand',
+                                                                                                 header) or re.search(
+            r'A\.\- ', header) or re.search(r'gegen das Urteil', header),
         'fr': re.search(r'Objet', header) or re.search(r'Vu', header),
         'it': re.search(r'Oggetto', header)
     }
@@ -71,7 +75,6 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         lawyer_representation[key] = '|'.join(lawyer_representation[key])
     for key in party_gender:
         party_gender[key] = '|'.join(party_gender[key])
-
 
     def search_lawyers(text: str) -> List[Dict]:
         lawyers = []
@@ -110,7 +113,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
                 representations.extend(lawyers)
                 continue
 
-            name_match = re.search(r'[A-Z][\w\s\.\-\']*(?=,)',current_text)
+            name_match = re.search(r'[A-Z][\w\s\.\-\']*(?=,)', current_text)
             if name_match:
                 name = name_match.group()
                 if name.startswith('Me'):
@@ -118,12 +121,12 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
                     continue
                 representations.append({'name': name, 'type': 'legal entity'})
                 continue
-            name_match = re.search(r'[A-Z][\w\s\.\-\']*',current_text)
+            name_match = re.search(r'[A-Z][\w\s\.\-\']*', current_text)
             if name_match:
                 name = name_match.group()
                 representations.append({'name': name, 'type': 'legal entity'})
                 continue
-        representations = [dict(t) for t in {tuple(d.items()) for d in representations}] #remove duplicates
+        representations = [dict(t) for t in {tuple(d.items()) for d in representations}]  # remove duplicates
         if len(representations) > 0:
             current_party['representation'] = representations
         return current_party

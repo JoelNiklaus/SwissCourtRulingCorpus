@@ -4,7 +4,12 @@ import re
 from scrc.utils.main_utils import string_contains_one_of_list, clean_text, int_to_roman
 
 """
+This file is used to extract the judgement outcomes from decisions sorted by spiders.
+The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
+Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
+"""
 
+"""
 Urteil besteht aus Hauptbegehren (normalerweise erste Ziffer), Nebenbegehren (in folgenden Ziffern) (Gerichtskosten, Rechtskosten, superprovisorische Mittel) und der formellen Mitteilung (letzte Ziffer) an die Vorinstanz und die Parteien (und evtl. andere).
 Der Einfachheit halber wird nur das Hauptbegehren berücksichtigt.
 Das Hauptbegehren ist aussagekräftiger
@@ -105,11 +110,6 @@ judgement_markers = {
         'unification': ['sono congiunte'],
     }
 }
-
-"""
-This file is used to extract the judgement outcomes from decisions sorted by spiders.
-The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
-"""
 
 
 def get_judgements(rulings: str, namespace: dict) -> set:

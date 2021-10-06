@@ -4,15 +4,17 @@ import json
 from typing import Optional, Tuple
 
 """
-This file is used to extract the lower courts from decisions sorted by spiders.
+This file is used to extract the judicial persons from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
+Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
+
 
 # check if court got assigned shortcut: SELECT count(*) from de WHERE lower_court is not null and lower_court <> 'null' and lower_court::json#>>'{court}'~'[A-Z0-9_]{2,}';
 def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     """
-    Extract lower courts from decisions of the Federal Supreme Court of Switzerland
-    :param header:     the string containing the header
+    Extract judicial persons from decisions of the Federal Supreme Court of Switzerland
+    :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
@@ -23,12 +25,14 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
 
     information_start_regex = r'Besetzung|Bundesrichter|Composition( de la Cour:)?|Composizione|Giudic[ie] federal|composta'
     role_regexes = {
-        'm' : {
-            'judges': [r'Bundesrichter(?!in)', r'MM?\.(( et|,) Mmes?)? les? Juges?( fédéra(l|ux))?', r'[Gg]iudici federali'],
+        'm': {
+            'judges': [r'Bundesrichter(?!in)', r'MM?\.(( et|,) Mmes?)? les? Juges?( fédéra(l|ux))?',
+                       r'[Gg]iudici federali'],
             'clerks': [r'Gerichtsschreiber(?!in)', r'Greffier[^\w\s]*', r'[Cc]ancelliere']
         },
-        'f' : {
-            'judges': [r'Bundesrichterin(nen)?', r'Mmes? l(a|es) Juges? (fédérales?)?', r'MMe et MM?\. les? Juges?( fédéra(l|ux))?', r'[Gg]iudice federal'],
+        'f': {
+            'judges': [r'Bundesrichterin(nen)?', r'Mmes? l(a|es) Juges? (fédérales?)?',
+                       r'MMe et MM?\. les? Juges?( fédéra(l|ux))?', r'[Gg]iudice federal'],
             'clerks': [r'Gerichtsschreiberin(nen)?', r'Greffière.*Mme', r'[Cc]ancelliera']
         }
     }
@@ -43,13 +47,17 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     if start_pos:
         header = header[start_pos.span()[0]:]
     end_pos = {
-        'de': re.search(r'.(?=(1.)?(Partei)|(Verfahrensbeteiligt))', header) or re.search('Urteil vom', header) or re.search(r'Gerichtsschreiber(in)?\s\w*.', header) or re.search(r'[Ii]n Sachen', header) or re.search(r'\w{2,}\.', header),
+        'de': re.search(r'.(?=(1.)?(Partei)|(Verfahrensbeteiligt))', header) or re.search('Urteil vom',
+                                                                                          header) or re.search(
+            r'Gerichtsschreiber(in)?\s\w*.', header) or re.search(r'[Ii]n Sachen', header) or re.search(r'\w{2,}\.',
+                                                                                                        header),
         'fr': re.search(r'.(?=(Parties|Participant))', header) or re.search(r'Greffi[eè]re? M(\w)*\.\s\w*.', header),
-        'it': re.search(r'.(?=(Parti)|(Partecipant))', header) or re.search(r'[Cc]ancellier[ae]:?\s\w*.', header) or re.search(r'\w{2,}\.', header),
+        'it': re.search(r'.(?=(Parti)|(Partecipant))', header) or re.search(r'[Cc]ancellier[ae]:?\s\w*.',
+                                                                            header) or re.search(r'\w{2,}\.', header),
     }
     end_pos = end_pos[namespace['language']]
     if end_pos:
-        header = header[:end_pos.span()[1]-1]
+        header = header[:end_pos.span()[1] - 1]
 
     header = header.replace(';', ',')
     header = header.replace('Th', '')
@@ -112,7 +120,8 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         text = text.strip()
         if len(text) == 0 or text in skip_strings[namespace['language']]:
             continue
-        if re.search(r'(?<![Vv]ice-)[Pp]r[äée]sid', text): #Set president either to the current person or the last Person (case 1: Präsident Niklaus, case 2: Niklaus, Präsident)
+        if re.search(r'(?<![Vv]ice-)[Pp]r[äée]sid',
+                     text):  # Set president either to the current person or the last Person (case 1: Präsident Niklaus, case 2: Niklaus, Präsident)
             if last_person:
                 besetzung['president'] = last_person
                 continue
@@ -121,11 +130,11 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
                 besetzung['president'] = text
         has_role_in_string = False
         matched_gender_regex = False
-        for gender in role_regexes: # check for male and female all roles
+        for gender in role_regexes:  # check for male and female all roles
             if matched_gender_regex:
                 break
             role_regex = role_regexes[gender]
-            for regex_key in role_regex: # check each role
+            for regex_key in role_regex:  # check each role
                 regex = '|'.join(role_regex[regex_key])
                 role_pos = re.search(regex, text)
                 if role_pos:
@@ -133,12 +142,13 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
                     current_role = regex_key
                     if current_role not in besetzung:
                         besetzung[current_role] = []
-                    name_match = re.search(r'[A-Z][A-Za-z\-éèäöü\s]*(?= Urteil)|[A-Z][A-Za-z\-éèäöü\s]*(?= )', text[role_pos.span()[1]+1:])
-                    name = name_match.group() if name_match else text[role_pos.span()[1]+1:]
+                    name_match = re.search(r'[A-Z][A-Za-z\-éèäöü\s]*(?= Urteil)|[A-Z][A-Za-z\-éèäöü\s]*(?= )',
+                                           text[role_pos.span()[1] + 1:])
+                    name = name_match.group() if name_match else text[role_pos.span()[1] + 1:]
                     if len(name.strip()) == 0:
                         if len(besetzung[last_role]) == 0:
                             break
-                        last_person = besetzung[last_role].pop()['name'] #rematch in database with new role
+                        last_person = besetzung[last_role].pop()['name']  # rematch in database with new role
                         last_person_new_match, _ = match_person_to_database(last_person, current_role, gender)
                         besetzung[current_role].append(last_person_new_match)
                     if namespace['language'] == 'fr':
@@ -151,13 +161,14 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
                     has_role_in_string = True
                     matched_gender_regex = True
                     break
-        if not has_role_in_string: # Current string has no role regex match
+        if not has_role_in_string:  # Current string has no role regex match
             if current_role not in besetzung:
                 besetzung[current_role] = []
             if namespace['language'] == 'fr':
                 text, found_gender = prepare_french_name_and_find_gender(text)
                 last_gender = found_gender or last_gender
-            name_match = re.search(r'[A-Z][A-Za-z\-éèäöü\s]*(?= Urteil)|[A-Z][A-Za-z\-éèäöü\s]*(?= )|[A-Z][A-Za-z\-éèäöü\s]*', text)
+            name_match = re.search(
+                r'[A-Z][A-Za-z\-éèäöü\s]*(?= Urteil)|[A-Z][A-Za-z\-éèäöü\s]*(?= )|[A-Z][A-Za-z\-éèäöü\s]*', text)
             if not name_match:
                 continue
             name = name_match.group()

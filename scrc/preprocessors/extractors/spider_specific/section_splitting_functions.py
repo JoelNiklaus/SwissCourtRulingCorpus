@@ -10,6 +10,7 @@ from scrc.utils.main_utils import clean_text
 """
 This file is used to extract sections from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
+Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
 

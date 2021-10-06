@@ -3,6 +3,7 @@ from typing import Any, Optional
 """
 This file is used to extract citations from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
+Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
 
