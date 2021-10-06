@@ -1,3 +1,4 @@
+import os
 import configparser
 import glob
 import json
@@ -17,7 +18,9 @@ from scrc.utils.log_utils import get_logger
 
 import tika
 
+os.environ['TIKA_LOG_PATH'] = str(AbstractPreprocessor.create_dir(Path(os.getcwd()), 'logs'))
 tika.initVM()
+
 from tika import parser
 
 # TODO look at this if db is slow: https://dba.stackexchange.com/questions/151300/improve-update-performance-on-big-table/151316

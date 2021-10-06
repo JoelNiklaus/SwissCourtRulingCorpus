@@ -1,3 +1,4 @@
+from datetime import datetime
 import gc
 import importlib
 import json
@@ -5,7 +6,6 @@ import multiprocessing
 import os
 from collections import Counter, Sized
 from pathlib import Path
-
 import glob
 from time import sleep
 
@@ -56,6 +56,8 @@ class AbstractPreprocessor:
         self.jureko_spacy_subdir = self.create_dir(self.jureko_subdir, config['dir']['spacy_subdir'])
         self.wikipedia_subdir = self.create_dir(self.corpora_subdir, config['dir']['wikipedia_subdir'])
         self.wikipedia_spacy_subdir = self.create_dir(self.wikipedia_subdir, config['dir']['spacy_subdir'])
+        self.spider_specific_dir = self.create_dir(ROOT_DIR, config['dir']['spider_specific_dir'])
+        self.output_dir = self.create_dir(self.data_dir, config['dir']['output_subdir'])
 
         self.ip = config['postgres']['ip']
         self.port = config['postgres']['port']
@@ -127,6 +129,11 @@ class AbstractPreprocessor:
             return pd.read_sql(query_str, conn)
 
     @staticmethod
+    def _check_write_privilege(engine) -> bool:
+        return AbstractPreprocessor.query(engine, 'SELECT current_user')['current_user'][0] != 'readonly'
+
+
+    @staticmethod
     def add_column(engine, table, col_name, data_type) -> None:
         """
         Adds a column to an existing table
@@ -136,6 +143,8 @@ class AbstractPreprocessor:
         :param data_type:
         :return:
         """
+        if not AbstractPreprocessor._check_write_privilege(engine):
+            return
         with engine.connect() as conn:
             query = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_name} {data_type}"
             conn.execute(query)
@@ -163,7 +172,7 @@ class AbstractPreprocessor:
                 yield chunk_df
 
     @staticmethod
-    def update(engine, df: pd.DataFrame, table: str, columns: list):
+    def update(engine, df: pd.DataFrame, table: str, columns: list, output_dir: Path):
         """
         Updates the given columns in a table with the data provided by the df
         :param engine:              the db engine to work upon
@@ -172,6 +181,14 @@ class AbstractPreprocessor:
         :param columns:             the columns to be updated
         :return:
         """
+
+        if not AbstractPreprocessor._check_write_privilege(engine):
+            AbstractPreprocessor.create_dir(output_dir, os.getlogin())
+            path = Path.joinpath(output_dir, os.getusername(), datetime.now().isoformat() + '.json')
+            with path.open("a") as f:
+                df.to_json(f)
+            return
+                
         with engine.connect() as conn:
             t = Table(table, MetaData(), autoload_with=engine)  # get the table
             df = df[columns + ['id']]  # only update these cols, id needs to be there for the where clause
@@ -221,7 +238,7 @@ class AbstractPreprocessor:
 
             columns = ['num_tokens_spacy', 'num_tokens_bert']
             logger.info("Saving num_tokens_spacy and num_tokens_bert to db")
-            self.update(engine, df, table, columns)
+            self.update(engine, df, table, columns, self.output_dir)
 
             self.save_vocab(nlp.vocab, spacy_dir)
 
@@ -302,7 +319,7 @@ class AbstractPreprocessor:
                 logger.info(f"Computing the counters for type {counter_type}")  # map
                 counter_type_list = [counter_type] * len(docs)
                 df[counter_type] = tqdm(map(self.create_counter_for_doc, docs, counter_type_list), total=len(ids))
-            self.update(engine, df, table, self.counter_types)  # save
+            self.update(engine, df, table, self.counter_types, self.output_dir)  # save
         gc.collect()
         sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
 

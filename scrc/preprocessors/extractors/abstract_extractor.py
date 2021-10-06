@@ -91,7 +91,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
                               chunksize=self.chunksize)
             for df in dfs:
                 df = df.apply(self.process_one_df_row, axis="columns")
-                self.update(engine, df, lang, [self.col_name])
+                self.update(engine, df, lang, [self.col_name], self.output_dir)
                 self.log_progress(self.chunksize)
 
             self.log_coverage(engine, spider, lang)

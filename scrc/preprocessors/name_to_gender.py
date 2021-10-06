@@ -125,7 +125,7 @@ class NameToGender(AbstractPreprocessor):
             list_df = [dataframe_language_filtered[i:i+chunk_size] for i in range(0,dataframe_language_filtered.shape[0],chunk_size)]
             for index in range(len(list_df)):
                 self.logger.info(f"Saving table {language} index {index * chunk_size} - {(index+1) * chunk_size -1}")
-                self.update(engine, list_df[index], language, ['parties'])
+                self.update(engine, list_df[index], language, ['parties'], self.output_dir)
 
     def filter_names(self, names: set[str]) -> set:
         names = [name.strip().split()[0] for name in names if name]

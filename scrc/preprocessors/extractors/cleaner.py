@@ -83,7 +83,7 @@ class Cleaner(AbstractExtractor):
                 ddf = ddf.apply(self.process_one_df_row, axis='columns', meta=ddf)  # apply cleaning function to each row
                 with ProgressBar():
                     df = ddf.compute(scheduler='processes')
-                self.update(engine, df, lang, [self.col_name])
+                self.update(engine, df, lang, [self.col_name], self.output_dir)
                 self.log_progress(self.chunksize)
             self.log_coverage(engine, spider, lang)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")

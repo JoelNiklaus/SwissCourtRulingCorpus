@@ -51,8 +51,6 @@ def main():
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
     if exists(ROOT_DIR / 'rootconfig.ini'):
         config.read(ROOT_DIR / 'rootconfig.ini')  # this stops working when the script is called from the src directory!
-    print(config.get("postgres", "user"))
-    print()
     process_scrc(config)
 
     process_external_corpora(config)
