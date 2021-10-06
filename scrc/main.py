@@ -3,6 +3,7 @@ from scrc.preprocessors.name_to_gender import NameToGender
 from scrc.preprocessors.extractors.procedural_participation_extractor import ProceduralParticipationExtractor
 from scrc.preprocessors.extractors.court_composition_extractor import CourtCompositionExtractor
 
+from os.path import exists
 from root import ROOT_DIR
 from scrc.preprocessors.extractors.citation_extractor import CitationExtractor
 from scrc.preprocessors.extractors.cleaner import Cleaner
@@ -48,7 +49,10 @@ def main():
 
     config = configparser.ConfigParser()
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
-
+    if exists(ROOT_DIR / 'rootconfig.ini'):
+        config.read(ROOT_DIR / 'rootconfig.ini')  # this stops working when the script is called from the src directory!
+    print(config.get("postgres", "user"))
+    print()
     process_scrc(config)
 
     process_external_corpora(config)
