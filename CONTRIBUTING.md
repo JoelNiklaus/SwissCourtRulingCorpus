@@ -4,7 +4,7 @@
 
 1. Fork the repository by clicking on the 'Fork' button on the repository's page. This creates a copy of the code under your GitHub user account.
 1. Connect to the university vpn to be able to access the FDN-Server. [Tutorial](https://www.unibe.ch/university/campus_and_infrastructure/rund_um_computer/internetzugang/access_to_internal_resources_via_vpn/index_eng.html)
-1. Connect to the FDN Server via ssh with the command `ssh <USERNAME>@fnd-sandbox3.inf.unibe.ch`.
+1. Connect to the FDN Server via ssh with the command `ssh <USERNAME>@fdn-sandbox3.inf.unibe.ch`.
 1. In your homedirectory (default location after first login) you can clone your repository and then add the base repository as a remote
     ```bash
     git clone git@github.com:<YOURGITHUBHANDLE>/SwissCourtRulingCorpus.git
