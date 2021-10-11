@@ -39,7 +39,7 @@ If you have edited the code, you can run it via the following command
     ```bash
     python -m PATH.TO.MODULE
     ```
-where the path to the module for example is `scrc.main` or `scrc.dataset_construction.section_splitter`
+where the path to the module for example is `scrc.dataset_construction.section_splitter`
 
 If you're happy with your changes add your files and make a commit to record them locally:
     ```
