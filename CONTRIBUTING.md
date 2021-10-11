@@ -4,7 +4,7 @@
 
 1. Fork the repository by clicking on the 'Fork' button on the repository's page. This creates a copy of the code under your GitHub user account.
 1. Connect to the university vpn to be able to access the FDN-Server. [Tutorial](https://www.unibe.ch/university/campus_and_infrastructure/rund_um_computer/internetzugang/access_to_internal_resources_via_vpn/index_eng.html)
-1. Connect to the FDN Server via ssh with the command `ssh <USERNAME>@fnd-sandbox3.inf.unibe.ch`.
+1. Connect to the FDN Server via ssh with the command `ssh <USERNAME>@fdn-sandbox3.inf.unibe.ch`.
 1. In your homedirectory (default location after first login) you can clone your repository and then add the base repository as a remote
     ```bash
     git clone git@github.com:<YOURGITHUBHANDLE>/SwissCourtRulingCorpus.git
@@ -14,6 +14,10 @@
 1. Create a new branch with a descriptive change of your work, where you will make your changes:
     ```
     git checkout -b a-descriptive-name-for-my-changes
+    ```
+1. Add a symbolic link of the main 'data' folder by executing the following command in your SwissCourtRulingCorpus folder
+    ```bash
+    ln -s /home/fdn-admin/SwissCourtRulingCorpus/data/ ./data
     ```
 
 
@@ -35,7 +39,7 @@ If you have edited the code, you can run it via the following command
     ```bash
     python -m PATH.TO.MODULE
     ```
-where the path to the module for example is `scrc.main` or `scrc.dataset_construction.section_splitter`
+where the path to the module for example is `scrc.preprocessors.extractors.section_splitter`
 
 If you're happy with your changes add your files and make a commit to record them locally:
     ```
