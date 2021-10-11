@@ -15,6 +15,10 @@
     ```
     git checkout -b a-descriptive-name-for-my-changes
     ```
+1. Add a symbolic link of the main 'data' folder by executing the following command in your SwissCourtRulingCorpus folder
+    ```bash
+    ln -s /home/fdn-admin/SwissCourtRulingCorpus/data/ ./data
+    ```
 
 
 ## Developing
