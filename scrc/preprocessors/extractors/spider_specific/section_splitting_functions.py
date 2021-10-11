@@ -1,5 +1,5 @@
 import unicodedata
-from typing import Any, Optional, Tuple, List, Dict
+from typing import Any, Optional, Tuple, List, Dict, Union
 
 import bs4
 import re
@@ -13,10 +13,9 @@ The name of the functions should be equal to the spider! Otherwise, they won't b
 Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
-
-def CH_BGer(soup: Any, namespace: dict) -> Optional[Tuple[dict, List[Dict[str, str]]]]:
+def CH_BGer(soup: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Tuple[dict, List[Dict[str, str]]]]:
     """
-    :param soup:        the soup parsed by bs4
+    :param soup:        the soup parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """

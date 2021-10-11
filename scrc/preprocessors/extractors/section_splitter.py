@@ -1,6 +1,6 @@
 from __future__ import annotations
 import configparser
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Union
 
 import bs4
 import pandas as pd
@@ -45,11 +45,14 @@ class SectionSplitter(AbstractExtractor):
         }
         self.processed_file_path = self.data_dir / "spiders_section_split.txt"
 
-    def get_required_data(self, series: pd.DataFrame) -> Optional[bs4.BeautifulSoup]:
+    def get_required_data(self, series: pd.DataFrame) -> Union[bs4.BeautifulSoup, str, None]:
         html_raw = series['html_raw']
         if pd.notna(html_raw) and html_raw not in [None, '']:
             # Parses the html string with bs4 and returns the body content
             return bs4.BeautifulSoup(html_raw, "html.parser").find('body')
+        pdf_raw = series['pdf_raw']
+        if pd.notna(pdf_raw) and pdf_raw not in [None, '']:
+            return pdf_raw
         return None
 
     def get_database_selection_string(self, spider: str, lang: str) -> str:
