@@ -6,23 +6,33 @@
    your GitHub user account.
 2. Connect to the university vpn to be able to access the
    FDN-Server. [Tutorial](https://www.unibe.ch/university/campus_and_infrastructure/rund_um_computer/internetzugang/access_to_internal_resources_via_vpn/index_eng.html)
-3. Connect to the FDN Server via ssh with the command `ssh <USERNAME>@fdn-sandbox3.inf.unibe.ch`.
-4. In your homedirectory (default location after first login) you can clone your repository and then add the base
+3. Connect to the FDN Server via ssh with the command
+
+```bash
+ssh <USERNAME>@fdn-sandbox3.inf.unibe.ch
+```
+
+4. In your home directory (default location after first login) you can clone your repository and then add the base
    repository as a remote
-    ```bash
-    git clone git@github.com:<YOURGITHUBHANDLE>/SwissCourtRulingCorpus.git
-    cd SwissCourtRulingCorpus
-    git remote add upstream https://github.com/JoelNiklaus/SwissCourtRulingCorpus.git
-    ``` 
+
+```bash
+git clone git@github.com:<YOURGITHUBHANDLE>/SwissCourtRulingCorpus.git
+cd SwissCourtRulingCorpus
+git remote add upstream https://github.com/JoelNiklaus/SwissCourtRulingCorpus.git
+```
+
 5. Create a new branch with a descriptive change of your work, where you will make your changes:
-    ```
-    git checkout -b a-descriptive-name-for-my-changes
-    ```
+
+```bash
+git checkout -b a-descriptive-name-for-my-changes
+```
+
 6. Add a symbolic link of the main 'data' folder by executing the following command in your SwissCourtRulingCorpus
    folder
-    ```bash
-    ln -s /home/fdn-admin/SwissCourtRulingCorpus/data/ ./data
-    ```
+
+```bash
+ln -s /home/fdn-admin/SwissCourtRulingCorpus/data/ ./data
+```
 
 ## Developing
 
@@ -43,14 +53,15 @@ something, don't hesitate to explore the code.
 
 If you have edited the code, you can run it via the following command
 
-```bash python -m PATH.TO.MODULE
+```bash
+python -m PATH.TO.MODULE
 ```
 
 where the path to the module for example is `scrc.preprocessors.extractors.section_splitter`
 
 If you're happy with your changes add your files and make a commit to record them locally:
 
-```
+```bash
 git add <FILE YOU MODIFIED>
 git commit
 ```
