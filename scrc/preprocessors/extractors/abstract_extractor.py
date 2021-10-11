@@ -110,6 +110,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         return series
 
     def call_processing_function(self, spider: str, data: Any, namespace: dict) -> Optional[Any]:
+        """Calls the processing function (named by the spider) and passes the data and the namespace as arguments."""
         if not self.check_condition_before_process(spider, data, namespace):
             return None
         extracting_functions = getattr(self.processing_functions, spider)

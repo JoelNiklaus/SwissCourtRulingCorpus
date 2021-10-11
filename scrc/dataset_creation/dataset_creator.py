@@ -119,7 +119,7 @@ class DatasetCreator(AbstractPreprocessor):
     TODO look at this project for easy data reports: https://pandas-profiling.github.io/pandas-profiling/docs/master/rtd/pages/introduction.html
     TODO alternative for project above: https://dataprep.ai/
     Retrieves the data and preprocesses it for subdatasets of SCRC.
-    Also creates the necessary files for a kaggle dataset.
+    Also creates the necessary files for a kaggle dataset and a huggingface dataset.
     """
 
     def __init__(self, config: dict):

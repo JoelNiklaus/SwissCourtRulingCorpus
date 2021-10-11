@@ -10,7 +10,7 @@ from scrc.utils.log_utils import get_logger
 
 class CitationExtractor(AbstractExtractor):
     """
-    Extract citations from the html documents
+    Extract citations from the html documents. This represents the citation extraction task.
     """
 
     def __init__(self, config: dict):
@@ -28,6 +28,7 @@ class CitationExtractor(AbstractExtractor):
         }
 
     def get_required_data(self, series: pd.DataFrame) -> Optional[bs4.BeautifulSoup]:
+        """Returns the data required by the processing functions"""
         html_raw = series['html_raw']
         if pd.notna(html_raw) and html_raw not in [None, '']:
             # Parses the html string with bs4 and returns the body content

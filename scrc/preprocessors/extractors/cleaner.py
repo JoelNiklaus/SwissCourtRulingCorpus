@@ -124,12 +124,12 @@ class Cleaner(AbstractPreprocessor):
         cleaned_text = self.clean_with_regexes(spider, text, namespace)
         return clean_text(cleaned_text)
 
-    def clean_html(self, spider: str, soup: Any, namespace: dict) -> str:
+    def clean_html(self, spider: str, soup: bs4.BeautifulSoup, namespace: dict) -> str:
         """Cleans first the text first with court specific regexes and then with general ones"""
         cleaned_text = self.clean_with_functions(spider, soup, namespace)
         return clean_text(cleaned_text)
 
-    def clean_with_functions(self, spider: str, soup: Any, namespace: dict) -> str:
+    def clean_with_functions(self, spider: str, soup: bs4.BeautifulSoup, namespace: dict) -> str:
         """Cleans html documents with cleaning functions"""
         if not hasattr(self.cleaning_functions, spider):
             self.logger.debug(f"There are no special functions for spider {spider}. Just performing default cleaning.")

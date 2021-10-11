@@ -34,6 +34,7 @@ class LowerCourtExtractor(AbstractExtractor):
         return f"spider='{spider}' AND header IS NOT NULL AND header <> ''"
 
     def get_required_data(self, series: DataFrame) -> Any:
+        """Returns the data required by the processing functions"""
         return series['header']
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:

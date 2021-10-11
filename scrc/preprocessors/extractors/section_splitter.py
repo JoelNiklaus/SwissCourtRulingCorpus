@@ -28,7 +28,7 @@ sections = [
 
 class SectionSplitter(AbstractExtractor):
     """
-    Splits the raw html into sections which can later separately be used
+    Splits the raw html into sections which can later separately be used. This represents the section splitting task.
     """
 
     def __init__(self, config: dict):
@@ -46,6 +46,7 @@ class SectionSplitter(AbstractExtractor):
         self.processed_file_path = self.data_dir / "spiders_section_split.txt"
 
     def get_required_data(self, series: pd.DataFrame) -> Union[bs4.BeautifulSoup, str, None]:
+        """Returns the data required by the processing functions"""
         html_raw = series['html_raw']
         if pd.notna(html_raw) and html_raw not in [None, '']:
             # Parses the html string with bs4 and returns the body content

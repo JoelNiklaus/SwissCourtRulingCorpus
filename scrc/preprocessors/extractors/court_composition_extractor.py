@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 class CourtCompositionExtractor(AbstractExtractor):
     """
-    Extracts the court composition from the header section
+    Extracts the court composition from the header section. This is part of the judicial person extraction task.
     """
 
     def __init__(self, config: dict):
@@ -31,6 +31,7 @@ class CourtCompositionExtractor(AbstractExtractor):
         return f"spider='{spider}' AND header IS NOT NULL AND header <> ''"
 
     def get_required_data(self, series: DataFrame) -> Any:
+        """Returns the data required by the processing functions"""
         return series['header']
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:

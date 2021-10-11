@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 class JudgementExtractor(AbstractExtractor):
     """
-    Extracts the judgements from the rulings section
+    Extracts the judgements from the rulings section. This represents the judgment extraction task.
     """
 
     def __init__(self, config: dict):
@@ -33,6 +33,7 @@ class JudgementExtractor(AbstractExtractor):
         return f"spider='{spider}' AND rulings IS NOT NULL AND rulings <> ''"
 
     def get_required_data(self, series: DataFrame) -> Any:
+        """Returns the data required by the processing functions"""
         return series['rulings']
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:

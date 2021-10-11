@@ -35,8 +35,9 @@ pd.set_option('display.max_colwidth', 500)  # set to None to impose no limit
 
 class AbstractPreprocessor:
     """
-    Extracts the textual and meta information from the court rulings files and saves it in csv files for each court
-    and in one for all courts combined
+    Serves as an abstract base class for preprocessors.
+    Contains fields with directories and database access information
+    and methods for interacting with the database and saving progress.
     """
 
     def __init__(self, config: dict):
