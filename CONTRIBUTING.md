@@ -49,11 +49,10 @@ If you're happy with your changes add your files and make a commit to record the
 For good commit messages use for example the following guide: https://chris.beams.io/posts/git-commit/
 
 It is a good idea to sync your copy of the code with the original repository regularly. This way you can quickly account for changes:
-    ```bash
-    git fetch upstream
-    git rebase upstream/master
-    ```
-
+```bash
+git fetch upstream
+git rebase upstream/main
+```
 
 ### Pushing your code
 
