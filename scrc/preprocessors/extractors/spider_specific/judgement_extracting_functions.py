@@ -55,6 +55,8 @@ Formelle Mitteilung:
 
 """
 
+# TODO make enum for judgments
+
 judgement_markers = {
     'de': {
         'approval': ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung'],
@@ -166,6 +168,10 @@ def search_rulings(rulings: str, start: str, end: str):
     pattern = rf"{start}\.(.+?)(?:{end}\.|$)"
     return re.search(pattern, rulings)
 
+
+def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[str]]:
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    pass
 
 def CH_BGer(rulings: str, namespace: dict) -> Optional[List[str]]:
     """

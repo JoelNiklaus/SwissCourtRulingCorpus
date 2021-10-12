@@ -10,6 +10,11 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 """
 
 
+def XX_SPIDER(header: str, namespace: dict) -> Optional[str]:
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    pass
+
+
 # check if court got assigned shortcut: SELECT count(*) from de WHERE lower_court is not null and lower_court <> 'null' and lower_court::json#>>'{court}'~'[A-Z0-9_]{2,}';
 def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     """

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 import configparser
 import bs4
 import pandas as pd
@@ -27,12 +27,15 @@ class CitationExtractor(AbstractExtractor):
             'no_functions': 'Not extracting citations.'
         }
 
-    def get_required_data(self, series: pd.DataFrame) -> Optional[bs4.BeautifulSoup]:
+    def get_required_data(self, series: pd.DataFrame) -> Union[bs4.BeautifulSoup, str, None]:
         """Returns the data required by the processing functions"""
         html_raw = series['html_raw']
         if pd.notna(html_raw) and html_raw not in [None, '']:
             # Parses the html string with bs4 and returns the body content
             return bs4.BeautifulSoup(html_raw, "html.parser").find('body')
+        pdf_raw = series['pdf_raw']
+        if pd.notna(pdf_raw) and pdf_raw not in [None, '']:
+            return pdf_raw
         return None
 
     def get_database_selection_string(self, spider: str, lang: str) -> str:

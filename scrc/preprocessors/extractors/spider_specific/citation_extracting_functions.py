@@ -7,6 +7,11 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 """
 
 
+def XX_SPIDER(soup: Any, namespace: dict) -> Optional[dict]:
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    pass
+
+
 def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
     """
     :param soup:        the soup parsed by bs4

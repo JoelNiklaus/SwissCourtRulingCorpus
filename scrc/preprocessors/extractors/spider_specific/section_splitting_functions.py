@@ -13,6 +13,14 @@ The name of the functions should be equal to the spider! Otherwise, they won't b
 Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
+
+# TODO make enum for sections
+
+def XX_SPIDER(soup: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Tuple[dict, List[Dict[str, str]]]]:
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    pass
+
+
 def CH_BGer(soup: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Tuple[dict, List[Dict[str, str]]]]:
     """
     :param soup:        the soup parsed by bs4 or the string extracted of the pdf
@@ -32,7 +40,8 @@ def CH_BGer(soup: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Tu
             # "topic": ['Gegenstand', 'betreffend'],
             "facts": [r'Sachverhalt:', r'hat sich ergeben', r'Nach Einsicht', r'A\.-'],
             "considerations": [r'Erwägung:', r'[Ii]n Erwägung', r'Erwägungen:'],
-            "rulings": [r'erkennt d[\w]{2} Präsident', r'Demnach (erkennt|beschliesst)', r'beschliesst.*:\s*$', r'verfügt(\s[\wäöü]*){0,3}:\s*$', r'erk[ae]nnt(\s[\wäöü]*){0,3}:\s*$', r'Demnach verfügt[^e]'],
+            "rulings": [r'erkennt d[\w]{2} Präsident', r'Demnach (erkennt|beschliesst)', r'beschliesst.*:\s*$',
+                        r'verfügt(\s[\wäöü]*){0,3}:\s*$', r'erk[ae]nnt(\s[\wäöü]*){0,3}:\s*$', r'Demnach verfügt[^e]'],
             "footer": [
                 r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))',
                 r'Im Namen des']
