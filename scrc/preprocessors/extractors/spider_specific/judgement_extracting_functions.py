@@ -178,7 +178,7 @@ def CH_BGer(rulings: str, namespace: dict) -> Optional[List[str]]:
     Extract judgement outcomes from the Federal Supreme Court of Switzerland
     :param rulings:     the string containing the rulings
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict, None if not in German
+    :return:            the list of judgments
     """
 
     if namespace['language'] not in judgement_markers:

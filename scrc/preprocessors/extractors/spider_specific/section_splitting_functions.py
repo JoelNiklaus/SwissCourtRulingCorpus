@@ -21,11 +21,13 @@ def XX_SPIDER(soup: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
     pass
 
 
+# TODO input und output mehr standardisieren!
 def CH_BGer(soup: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Tuple[dict, List[Dict[str, str]]]]:
     """
     :param soup:        the soup parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the sections dict (keys: section name, values: section text),
+                        the paragraphs list (entries are dicts with "text": paragraph text and "section": section name)
     """
 
     # As soon as one of the strings in the list (value) is encountered we switch to the corresponding section (key)
