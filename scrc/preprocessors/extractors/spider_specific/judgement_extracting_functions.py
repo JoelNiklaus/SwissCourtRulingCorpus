@@ -1,6 +1,10 @@
+import unicodedata
 from typing import Optional, List
 
 import re
+
+from scrc.enums.judgment import Judgment
+from scrc.enums.language import Language
 from scrc.utils.main_utils import string_contains_one_of_list, clean_text, int_to_roman
 
 """
@@ -55,61 +59,103 @@ Formelle Mitteilung:
 
 """
 
-# TODO make enum for judgments
 
-judgement_markers = {
-    'de': {
-        'approval': ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung'],
-        'partial_approval': ['teilweise gutgeheissen', 'teilweise gutzuheissen',
-                             'In teilweiser Gutheissung'],
-        'dismissal': ['abgewiesen', 'abzuweisen'],
-        'partial_dismissal': ['abgewiesen, soweit darauf einzutreten ist',
-                              'abzuweisen, soweit darauf einzutreten ist',
-                              'abgewiesen, soweit auf sie einzutreten ist',
-                              'abzuweisen, soweit auf sie einzutreten ist'],
-        'inadmissible': ['Nichteintreten', 'nicht eingetreten', 'nicht einzutreten',
-                         'wird keine Folge geleistet', 'wird nicht eingegangen',
-                         'soweit darauf einzutreten ist', 'soweit auf sie einzutreten ist'],
-        'write_off': ['abgeschrieben', 'abzuschreiben', 'erweist sich als gegenstandslos'],
-        'unification': ["werden vereinigt", "werden gemeinsam beurteilt", "werden nicht vereinigt"]
+def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    pass
+
+
+def CH_BGer(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+
+    if namespace['language'] not in all_judgment_markers:
+        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
+        raise ValueError(message)
+
+    # make sure we don't have any nasty unicode problems
+    rulings = clean_text(rulings)
+
+    judgments = get_judgements(rulings, namespace)
+
+    if not judgments:
+        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
+        raise ValueError(message)
+    elif len(judgments) > 1:
+        if Judgment.PARTIAL_APPROVAL in judgments:
+            # if partial_approval is found, it will find approval as well
+            judgments.discard(Judgment.APPROVAL)
+        if Judgment.PARTIAL_DISMISSAL in judgments:
+            # if partial_dismissal is found, it will find dismissal as well
+            judgments.discard(Judgment.DISMISSAL)
+
+    return [judgment.value for judgment in judgments]
+
+
+all_judgment_markers = {
+    Language.DE: {
+        Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung'],
+        Judgment.PARTIAL_APPROVAL: ['teilweise gutgeheissen', 'teilweise gutzuheissen',
+                                    'In teilweiser Gutheissung'],
+        Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen'],
+        Judgment.PARTIAL_DISMISSAL: ['abgewiesen, soweit darauf einzutreten ist',
+                                     'abzuweisen, soweit darauf einzutreten ist',
+                                     'abgewiesen, soweit auf sie einzutreten ist',
+                                     'abzuweisen, soweit auf sie einzutreten ist'],
+        Judgment.INADMISSIBLE: ['Nichteintreten', 'nicht eingetreten', 'nicht einzutreten',
+                                'wird keine Folge geleistet', 'wird nicht eingegangen',
+                                'soweit darauf einzutreten ist', 'soweit auf sie einzutreten ist'],
+        Judgment.WRITE_OFF: ['abgeschrieben', 'abzuschreiben', 'erweist sich als gegenstandslos'],
+        Judgment.UNIFICATION: ["werden vereinigt", "werden gemeinsam beurteilt", "werden nicht vereinigt"]
     },
-    'fr': {
-        'approval': ['admis', 'est annulé', 'Admet'],
-        'partial_approval': ['Admet partiellement',
-                             'partiellement admis',
-                             'admis dans la mesure où il est recevable',
-                             'admis dans la mesure où ils sont recevables'
+    Language.FR: {
+        Judgment.APPROVAL: ['admis', 'est annulé', 'Admet'],
+        Judgment.PARTIAL_APPROVAL: ['Admet partiellement',
+                                    'partiellement admis',
+                                    'admis dans la mesure où il est recevable',
+                                    'admis dans la mesure où ils sont recevables'
+                                    ],
+        Judgment.DISMISSAL: ['rejeté', 'Rejette', 'écarté'],
+        Judgment.PARTIAL_DISMISSAL: ['rejetés dans la mesure où ils sont recevables',
+                                     'rejeté, dans la mesure où il est recevable',
+                                     'rejeté dans la mesure où il est recevable',
+                                     'rejeté dans la mesure de sa recevabilité'
+                                     ],
+        Judgment.INADMISSIBLE: ['N\'entre pas en matière', 'irrecevable', 'n\'est pas entré',
+                                'pas pris en considération'],
+        Judgment.WRITE_OFF: ['retrait', 'est radiée', 'sans objet', 'rayé', 'Raye'],
+        Judgment.UNIFICATION: [],
+    },
+    Language.IT: {
+        Judgment.APPROVAL: ['accolt',  # accolt o/i/a/e
+                            'annullat'],  # annullat o/i/a/e
+        Judgment.PARTIAL_APPROVAL: ['Nella misura in cui è ammissibile, il ricorso è parzialmente accolto',
+                                    'In parziale accoglimento del ricorso'],
+        Judgment.DISMISSAL: ['respint',  # respint o/i/a/e
                              ],
-        'dismissal': ['rejeté', 'Rejette', 'écarté'],
-        'partial_dismissal': ['rejetés dans la mesure où ils sont recevables',
-                              'rejeté, dans la mesure où il est recevable',
-                              'rejeté dans la mesure où il est recevable',
-                              'rejeté dans la mesure de sa recevabilité'
-                              ],
-        'inadmissible': ['N\'entre pas en matière', 'irrecevable', 'n\'est pas entré', 'pas pris en considération'],
-        'write_off': ['retrait', 'est radiée', 'sans objet', 'rayé', 'Raye'],
-        'unification': [],
-    },
-    'it': {
-        'approval': ['accolt',  # accolt o/i/a/e
-                     'annullat'],  # annullat o/i/a/e
-        'partial_approval': ['Nella misura in cui è ammissibile, il ricorso è parzialmente accolto',
-                             'In parziale accoglimento del ricorso'],
-        'dismissal': ['respint',  # respint o/i/a/e
-                      ],
-        'partial_dismissal': ['Nella misura in cui è ammissibile, il ricorso è respinto',
-                              'Nella misura in cui è ammissibile, il ricorso di diritto pubblico è respinto',
-                              'Nella misura in cui è ammissibile, la domanda di revisione è respinta'],
-        'inadmissible': ['inammissibil',  # inamissibil o/i/a/e
-                         'irricevibil',  # irricevibil o/i/a/e
-                         ],
-        'write_off': ['privo d\'oggetto', 'priva d\'oggetto', 'privo di oggetto', 'priva di oggetto',
-                      'è stralciata dai ruoli a seguito del ritiro del ricorso',
-                      'è stralciata dai ruoli in seguito al ritiro del ricorso',
-                      'stralciata dai ruoli',  # maybe too many mistakes
-                      'radiata dai ruoli',  # maybe too many mistakes
-                      ],
-        'unification': ['sono congiunte'],
+        Judgment.PARTIAL_DISMISSAL: ['Nella misura in cui è ammissibile, il ricorso è respinto',
+                                     'Nella misura in cui è ammissibile, il ricorso di diritto pubblico è respinto',
+                                     'Nella misura in cui è ammissibile, la domanda di revisione è respinta'],
+        Judgment.INADMISSIBLE: ['inammissibil',  # inamissibil o/i/a/e
+                                'irricevibil',  # irricevibil o/i/a/e
+                                ],
+        Judgment.WRITE_OFF: ['privo d\'oggetto', 'priva d\'oggetto', 'privo di oggetto', 'priva di oggetto',
+                             'è stralciata dai ruoli a seguito del ritiro del ricorso',
+                             'è stralciata dai ruoli in seguito al ritiro del ricorso',
+                             'stralciata dai ruoli',  # maybe too many mistakes
+                             'radiata dai ruoli',  # maybe too many mistakes
+                             ],
+        Judgment.UNIFICATION: ['sono congiunte'],
     }
 }
 
@@ -123,17 +169,21 @@ def get_judgements(rulings: str, namespace: dict) -> set:
     """
     judgements = set()
 
+    judgment_markers = all_judgment_markers[namespace['language']]
+
+    # combine multiple regex into one for each section due to performance reasons
+    judgment_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), judgment_markers.items()))
+
     n = 1
     while len(judgements) == 0:
         try:
-            # Only look at main ruling (the first one) because it is by far the most important one for the case
-            main_ruling = get_nth_ruling(rulings, namespace, n)
-
-            for judgement, markers in judgement_markers[namespace['language']].items():
-                # TODO maybe we should change to regex search here to make it easier with declinations in fr and it
-                if string_contains_one_of_list(main_ruling, markers):
-                    judgements.add(judgement)
-            n = n + 1
+            ruling = get_nth_ruling(rulings, namespace, n)
+            for judgment in Judgment:
+                markers = judgment_markers[judgment]
+                ruling = unicodedata.normalize('NFC', ruling)  # if we don't do this, we get weird matching behaviour
+                if re.search(markers, ruling):
+                    judgements.add(judgment)
+            n += 1
         except ValueError:
             break
     return judgements
@@ -167,41 +217,6 @@ def search_rulings(rulings: str, start: str, end: str):
     """
     pattern = rf"{start}\.(.+?)(?:{end}\.|$)"
     return re.search(pattern, rulings)
-
-
-def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[str]]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-    pass
-
-def CH_BGer(rulings: str, namespace: dict) -> Optional[List[str]]:
-    """
-    Extract judgement outcomes from the Federal Supreme Court of Switzerland
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in judgement_markers:
-        message = f"This function is only implemented for the languages {list(judgement_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgements = get_judgements(rulings, namespace)
-
-    if not judgements:
-        message = f"Found no judgement for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
-        raise ValueError(message)
-    elif len(judgements) > 1:
-        if "partial_approval" in judgements:
-            # if partial_approval is found, it will find approval as well
-            judgements.discard("approval")
-        if "partial_dismissal" in judgements:
-            # if partial_dismissal is found, it will find dismissal as well
-            judgements.discard("dismissal")
-
-    return list(judgements)
 
 # This needs special care
 # def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:

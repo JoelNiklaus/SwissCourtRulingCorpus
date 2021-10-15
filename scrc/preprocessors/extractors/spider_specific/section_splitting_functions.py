@@ -1,5 +1,5 @@
 import unicodedata
-from typing import Any, Optional, Tuple, List, Dict, Union
+from typing import Optional, List, Dict, Union
 
 import bs4
 import re
@@ -14,8 +14,6 @@ The name of the functions should be equal to the spider! Otherwise, they won't b
 Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
-
-# TODO make enum for sections
 
 def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
