@@ -3,6 +3,10 @@ import re
 import json
 from typing import Optional, Tuple
 
+from scrc.enums.court_role import CourtRole
+from scrc.enums.gender import Gender
+from scrc.enums.language import Language
+
 """
 This file is used to extract the judicial persons from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
@@ -23,41 +27,37 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
-    supported_languages = ['de', 'fr', 'it']
-    if namespace['language'] not in supported_languages:
-        message = f"This function is only implemented for the languages {supported_languages} so far."
-        raise ValueError(message)
 
     information_start_regex = r'Besetzung|Bundesrichter|Composition( de la Cour:)?|Composizione|Giudic[ie] federal|composta'
     role_regexes = {
-        'm': {
-            'judges': [r'Bundesrichter(?!in)', r'MM?\.(( et|,) Mmes?)? les? Juges?( fédéra(l|ux))?',
+        Gender.MALE: {
+            CourtRole.JUDGE: [r'Bundesrichter(?!in)', r'MM?\.(( et|,) Mmes?)? les? Juges?( fédéra(l|ux))?',
                        r'[Gg]iudici federali'],
-            'clerks': [r'Gerichtsschreiber(?!in)', r'Greffier[^\w\s]*', r'[Cc]ancelliere']
+            CourtRole.CLERK: [r'Gerichtsschreiber(?!in)', r'Greffier[^\w\s]*', r'[Cc]ancelliere']
         },
-        'f': {
-            'judges': [r'Bundesrichterin(nen)?', r'Mmes? l(a|es) Juges? (fédérales?)?',
+        Gender.FEMALE: {
+            CourtRole.JUDGE: [r'Bundesrichterin(nen)?', r'Mmes? l(a|es) Juges? (fédérales?)?',
                        r'MMe et MM?\. les? Juges?( fédéra(l|ux))?', r'[Gg]iudice federal'],
-            'clerks': [r'Gerichtsschreiberin(nen)?', r'Greffière.*Mme', r'[Cc]ancelliera']
+            CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?', r'Greffière.*Mme', r'[Cc]ancelliera']
         }
     }
 
     skip_strings = {
-        'de': ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger'],
-        'fr': ['Juge suppléant', 'en qualité de juge unique'],
-        'it': ['Giudice supplente', 'supplente']
+        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger'],
+        Language.FR: ['Juge suppléant', 'en qualité de juge unique'],
+        Language.IT: ['Giudice supplente', 'supplente']
     }
 
     start_pos = re.search(information_start_regex, header)
     if start_pos:
         header = header[start_pos.span()[0]:]
     end_pos = {
-        'de': re.search(r'.(?=(1.)?(Partei)|(Verfahrensbeteiligt))', header) or re.search('Urteil vom',
+        Language.DE: re.search(r'.(?=(1.)?(Partei)|(Verfahrensbeteiligt))', header) or re.search('Urteil vom',
                                                                                           header) or re.search(
             r'Gerichtsschreiber(in)?\s\w*.', header) or re.search(r'[Ii]n Sachen', header) or re.search(r'\w{2,}\.',
                                                                                                         header),
-        'fr': re.search(r'.(?=(Parties|Participant))', header) or re.search(r'Greffi[eè]re? M(\w)*\.\s\w*.', header),
-        'it': re.search(r'.(?=(Parti)|(Partecipant))', header) or re.search(r'[Cc]ancellier[ae]:?\s\w*.',
+        Language.FR: re.search(r'.(?=(Parties|Participant))', header) or re.search(r'Greffi[eè]re? M(\w)*\.\s\w*.', header),
+        Language.IT: re.search(r'.(?=(Parti)|(Partecipant))', header) or re.search(r'[Cc]ancellier[ae]:?\s\w*.',
                                                                             header) or re.search(r'\w{2,}\.', header),
     }
     end_pos = end_pos[namespace['language']]
@@ -78,7 +78,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
 
     personal_information_database = json.loads(Path("personal_information.json").read_text())
 
-    def match_person_to_database(name: str, role: str, current_gender: str):
+    def match_person_to_database(name: str, role: CourtRole, current_gender: Gender):
         """"Matches a name of a given role to a person from personal_information.json"""
         results = []
         name = name.replace('.', '').strip()
@@ -110,16 +110,16 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         gender = None
         if name.find('M. ') > -1:
             name = name.replace('M. ', '')
-            gender = 'm'
+            gender = Gender.MALE
         elif name.find('Mme') > -1:
             name = name.replace('Mme ', '')
-            gender = 'f'
+            gender = Gender.FEMALE
         return name, gender
 
     besetzung = {}
-    current_role = 'judges'
+    current_role = CourtRole.JUDGE
     last_person = ''
-    last_gender = 'm'
+    last_gender = Gender.MALE
 
     for text in besetzungs_strings:
         text = text.strip()
@@ -182,6 +182,3 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
             last_person = name
     return besetzung
 
-# This needs special care
-# def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
-#    return CH_BGer(rulings, namespace)
