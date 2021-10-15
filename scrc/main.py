@@ -10,7 +10,7 @@ from scrc.dataset_creation.citation_dataset_creator import CitationDatasetCreato
 from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
 from scrc.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
 from scrc.preprocessors.text_to_database import TextToDatabase
-from scrc.preprocessors.extractors.judgement_extractor import JudgementExtractor
+from scrc.preprocessors.extractors.judgment_extractor import JudgmentExtractor
 from scrc.preprocessors.extractors.lower_court_extractor import LowerCourtExtractor
 from scrc.preprocessors.scraper import Scraper, base_url
 from scrc.preprocessors.extractors.section_splitter import SectionSplitter
@@ -31,7 +31,7 @@ Approach:
 - Clean text  (keep raw content in db)
 - Split BGer into sections (from html_raw)
 - Extract BGer citations (from html_raw) using "artref" tags
-- Extract judgements
+- Extract judgments
 - Process each text with spacy, save doc to disk and store path in db, store num token count in separate db col
 - Compute lemma counts and save aggregates in separate tables
 - Create the smaller datasets derived from SCRC with the available metadata
@@ -95,8 +95,8 @@ def construct_base_dataset(config):
     citation_extractor = CitationExtractor(config)
     citation_extractor.start()
 
-    judgement_extractor = JudgementExtractor(config)
-    judgement_extractor.start()
+    judgment_extractor = JudgmentExtractor(config)
+    judgment_extractor.start()
 
     lower_court_extractor = LowerCourtExtractor(config)
     lower_court_extractor.start()

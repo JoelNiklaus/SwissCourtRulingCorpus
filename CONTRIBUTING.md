@@ -131,7 +131,7 @@ the [section_splitting_functions.py](scrc/preprocessors/extractors/spider_specif
 
 The [judgment_extractor.py](scrc/preprocessors/extractors/judgment_extractor.py) is the main file coordinating the
 judgment extraction for all spiders. When you implement a new spider, you should add your code to
-the [judgement_extracting_functions.py](scrc/preprocessors/extractors/spider_specific/judgement_extracting_functions.py)
+the [judgement_extracting_functions.py](scrc/preprocessors/extractors/spider_specific/judgment_extracting_functions.py)
 
 ### Judicial Person Extraction
 

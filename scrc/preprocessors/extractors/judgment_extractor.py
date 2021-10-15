@@ -9,23 +9,23 @@ from scrc.utils.log_utils import get_logger
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
 
-class JudgementExtractor(AbstractExtractor):
+class JudgmentExtractor(AbstractExtractor):
     """
-    Extracts the judgements from the rulings section. This represents the judgment extraction task.
+    Extracts the judgments from the rulings section. This represents the judgment extraction task.
     """
 
     def __init__(self, config: dict):
-        super().__init__(config, function_name='judgement_extracting_functions', col_name='judgements')
+        super().__init__(config, function_name='judgment_extracting_functions', col_name='judgments')
         self.logger = get_logger(__name__)
-        self.processed_file_path = self.progress_dir / "spiders_judgement_extracted.txt"
+        self.processed_file_path = self.progress_dir / "spiders_judgment_extracted.txt"
         self.logger_info = {
-            'start': 'Started extracting judgements',
-            'finished': 'Finished extracting judgements',
-            'start_spider': 'Started extracting the judgements for spider',
-            'finish_spider': 'Finished extracting the judgements for spider',
-            'saving': 'Saving chunk of judgements',
-            'processing_one': 'Extracting the judgement from',
-            'no_functions': 'Not extracting the judgements.'
+            'start': 'Started extracting judgments',
+            'finished': 'Finished extracting judgments',
+            'start_spider': 'Started extracting the judgments for spider',
+            'finish_spider': 'Finished extracting the judgments for spider',
+            'saving': 'Saving chunk of judgments',
+            'processing_one': 'Extracting the judgment from',
+            'no_functions': 'Not extracting the judgments.'
         }
 
     def get_database_selection_string(self, spider: str, lang: str) -> str:
@@ -47,5 +47,5 @@ if __name__ == '__main__':
     # this stops working when the script is called from the src directory!
     config.read(ROOT_DIR / 'config.ini')
 
-    judgement_extractor = JudgementExtractor(config)
-    judgement_extractor.start()
+    judgment_extractor = JudgmentExtractor(config)
+    judgment_extractor.start()

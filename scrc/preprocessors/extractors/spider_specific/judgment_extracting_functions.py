@@ -5,10 +5,10 @@ import re
 
 from scrc.enums.judgment import Judgment
 from scrc.enums.language import Language
-from scrc.utils.main_utils import string_contains_one_of_list, clean_text, int_to_roman
+from scrc.utils.main_utils import clean_text, int_to_roman
 
 """
-This file is used to extract the judgement outcomes from decisions sorted by spiders.
+This file is used to extract the judgment outcomes from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
 Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
@@ -86,7 +86,7 @@ def CH_BGer(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     # make sure we don't have any nasty unicode problems
     rulings = clean_text(rulings)
 
-    judgments = get_judgements(rulings, namespace)
+    judgments = get_judgments(rulings, namespace)
 
     if not judgments:
         message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
@@ -160,14 +160,14 @@ all_judgment_markers = {
 }
 
 
-def get_judgements(rulings: str, namespace: dict) -> set:
+def get_judgments(rulings: str, namespace: dict) -> set:
     """
     Get the judgment outcomes based on a rulings string and the given namespace context.
     :param rulings:     the rulings string
     :param namespace:   the context (metadata) from the court decision
     :return:            the set of judgment outcomes
     """
-    judgements = set()
+    judgments = set()
 
     judgment_markers = all_judgment_markers[namespace['language']]
 
@@ -175,18 +175,18 @@ def get_judgements(rulings: str, namespace: dict) -> set:
     judgment_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), judgment_markers.items()))
 
     n = 1
-    while len(judgements) == 0:
+    while len(judgments) == 0:
         try:
             ruling = get_nth_ruling(rulings, namespace, n)
             for judgment in Judgment:
                 markers = judgment_markers[judgment]
                 ruling = unicodedata.normalize('NFC', ruling)  # if we don't do this, we get weird matching behaviour
                 if re.search(markers, ruling):
-                    judgements.add(judgment)
+                    judgments.add(judgment)
             n += 1
         except ValueError:
             break
-    return judgements
+    return judgments
 
 
 def get_nth_ruling(rulings: str, namespace: dict, n: int) -> str:

@@ -25,10 +25,10 @@ sns.set_style("whitegrid")
 """
 Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 days per court)
 Datasets to be created:
-- Judgements
-    - Judgement prediction BGer:
+- Judgments
+    - Judgment prediction BGer:
         - text classification
-        - input (considerations/facts) to label (judgement)
+        - input (considerations/facts) to label (judgment)
         - Why? 
 - Citations
     - Citation prediction
