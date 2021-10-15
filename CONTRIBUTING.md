@@ -27,11 +27,11 @@ git remote add upstream https://github.com/JoelNiklaus/SwissCourtRulingCorpus.gi
 git checkout -b a-descriptive-name-for-my-changes
 ```
 
-6. Add a symbolic link of the main 'data' folder by executing the following command in your SwissCourtRulingCorpus
-   folder
+6. Copy the progress files into your own directory. If you want to run a spider in a specific pipeline component, just
+   delete that spider from the corresponding progress file.
 
 ```bash
-ln -s /home/fdn-admin/SwissCourtRulingCorpus/data/ ./data
+cp -R /home/fdn-admin/SwissCourtRulingCorpus/data/progress ~/SwissCourtRulingCorpus/data/progress
 ```
 
 ## Developing
@@ -106,13 +106,13 @@ Non-functional goals are the following:
 The Section Splitting task is a prerequisite for the following task and should be performed first if it is not already
 done for the spider you are handling. The [section_splitter.py](scrc/preprocessors/extractors/section_splitter.py)
 orchestrates the section splitting for all the spiders. If you want to rerun your spider, remove the spider from the
-progress file [spiders_section_split.txt](data/spiders_section_split.txt). All spider names present in this file will be
+progress file [spiders_section_split.txt](data/progress/spiders_section_split.txt). All spider names present in this file will be
 skipped. This works analogously for the other tasks
 (files:
-[spiders_citation_extracted.txt](data/spiders_citation_extracted.txt),
-[spiders_judgement_extracted.txt](data/spiders_judgement_extracted.txt),
-[spiders_procedural_participation_extracted.txt](data/spiders_procedural_participation_extracted.txt),
-[spiders_court_composition_extracted.txt](data/spiders_court_composition_extracted.txt)).
+[spiders_citation_extracted.txt](data/progress/spiders_citation_extracted.txt),
+[spiders_judgement_extracted.txt](data/progress/spiders_judgement_extracted.txt),
+[spiders_procedural_participation_extracted.txt](data/progress/spiders_procedural_participation_extracted.txt),
+[spiders_court_composition_extracted.txt](data/progress/spiders_court_composition_extracted.txt)).
 
 If your spider has no entry in
 the [section_splitting_functions.py](scrc/preprocessors/extractors/spider_specific/section_splitting_functions.py), you

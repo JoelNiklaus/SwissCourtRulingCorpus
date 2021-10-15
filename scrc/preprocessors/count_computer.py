@@ -32,7 +32,7 @@ class CountComputer(AbstractPreprocessor):
             self.compute_level_aggregates(engine, lang)
             self.logger.info(f"Finished processing language {lang}")
         tables = [f"{lang}_cantons" for lang in self.languages]
-        self.compute_total_aggregate(engine, tables, "lang", self.data_dir, self.logger)
+        self.compute_total_aggregate(engine, tables, "lang", self.progress_dir, self.logger)
 
         self.logger.info("Finished computing counts")
 
@@ -41,7 +41,7 @@ class CountComputer(AbstractPreprocessor):
             self.add_column(engine, lang, col_name=counter_type, data_type='jsonb')  # add new column for the rank_order
 
         chambers = self.get_level_instances(engine, lang, 'chamber')
-        processed_file_path = self.data_dir / f"{lang}_chambers_counted.txt"
+        processed_file_path = self.progress_dir / f"{lang}_chambers_counted.txt"
         chambers, message = self.compute_remaining_parts(processed_file_path, chambers)
         self.logger.info(message)
 
@@ -70,7 +70,7 @@ class CountComputer(AbstractPreprocessor):
 
         self.logger.info(f"Computing the aggregate counters for the {level}s")
         level_instances = self.get_level_instances(engine, lang, level)
-        processed_file_path = self.data_dir / f"{lang}_{level}s_aggregated.txt"
+        processed_file_path = self.progress_dir / f"{lang}_{level}s_aggregated.txt"
         level_instances, message = self.compute_remaining_parts(processed_file_path, level_instances)
         self.logger.info(message)
 

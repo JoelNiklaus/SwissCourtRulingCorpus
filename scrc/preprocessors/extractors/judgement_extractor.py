@@ -17,7 +17,7 @@ class JudgementExtractor(AbstractExtractor):
     def __init__(self, config: dict):
         super().__init__(config, function_name='judgement_extracting_functions', col_name='judgements')
         self.logger = get_logger(__name__)
-        self.processed_file_path = self.data_dir / "spiders_judgement_extracted.txt"
+        self.processed_file_path = self.progress_dir / "spiders_judgement_extracted.txt"
         self.logger_info = {
             'start': 'Started extracting judgements',
             'finished': 'Finished extracting judgements',

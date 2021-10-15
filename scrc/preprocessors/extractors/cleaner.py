@@ -54,7 +54,7 @@ class Cleaner(AbstractPreprocessor):
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
         self.logger.info("Started cleaning raw court rulings")
 
-        processed_file_path = self.data_dir / "spiders_cleaned.txt"
+        processed_file_path = self.progress_dir / "spiders_cleaned.txt"
         spider_list, message = self.compute_remaining_spiders(processed_file_path)
         self.logger.info(message)
 

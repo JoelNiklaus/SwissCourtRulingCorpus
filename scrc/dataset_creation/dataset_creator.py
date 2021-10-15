@@ -156,7 +156,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
-        processed_file_path = self.data_dir / f"dataset_{self.dataset_name}_created.txt"
+        processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
 

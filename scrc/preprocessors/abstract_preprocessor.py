@@ -45,6 +45,7 @@ class AbstractPreprocessor:
         self.chunksize = int(config['general']['chunksize'])
 
         self.data_dir = self.create_dir(ROOT_DIR, config['dir']['data_dir'])
+        self.progress_dir = self.create_dir(self.data_dir, config['dir']['progress_dir'])
         self.spider_specific_dir = self.create_dir(ROOT_DIR, config['dir']['spider_specific_dir'])
 
         self.spiders_dir = self.create_dir(self.data_dir, config['dir']['spiders_subdir'])

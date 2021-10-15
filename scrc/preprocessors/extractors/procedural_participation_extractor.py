@@ -15,7 +15,7 @@ class ProceduralParticipationExtractor(AbstractExtractor):
 
     def __init__(self, config: dict):
         super().__init__(config, function_name='procedural_participation_extracting_functions', col_name='parties')
-        self.processed_file_path = self.data_dir / "spiders_procedural_participation_extracted.txt"
+        self.processed_file_path = self.progress_dir / "spiders_procedural_participation_extracted.txt"
         self.logger_info = {
         'start': 'Started extracting the involved parties',
         'finished': 'Finished extracting the involved parties',

@@ -15,7 +15,7 @@ class CourtCompositionExtractor(AbstractExtractor):
 
     def __init__(self, config: dict):
         super().__init__(config, function_name='court_composition_extracting_functions', col_name='court_composition')
-        self.processed_file_path = self.data_dir / "spiders_court_composition_extracted.txt"
+        self.processed_file_path = self.progress_dir / "spiders_court_composition_extracted.txt"
         self.logger_info = {
         'start': 'Started extracting the court compositions', 
         'finished': 'Finished extracting the court compositions', 
