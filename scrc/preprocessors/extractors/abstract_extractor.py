@@ -4,6 +4,7 @@ from typing import Any, Optional, Set, TYPE_CHECKING, Tuple
 import pandas as pd
 
 from root import ROOT_DIR
+from scrc.enums.language import Language
 from scrc.utils.log_utils import get_logger
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 
@@ -99,9 +100,9 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
         """Processes one row of a raw df"""
-        self.logger.debug(
-            f"{self.logger_info['processing_one']} {series['file_name']}")
-        namespace = series[["date", "language", "html_url", "id"]].to_dict()
+        self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
+        namespace = series[["date", "html_url", "id"]].to_dict()
+        namespace['language'] = Language(series['language'])
         data = self.get_required_data(series)
         assert data
         series[self.col_name] = self.call_processing_function(
