@@ -18,7 +18,7 @@ class LowerCourtExtractor(AbstractExtractor):
         super().__init__(config, function_name='lower_court_extracting_functions',
                          col_name='lower_court')
         self.logger = get_logger(__name__)
-        self.processed_file_path = self.data_dir / "spiders_lower_court_extracted.txt"
+        self.processed_file_path = self.progress_dir / "spiders_lower_court_extracted.txt"
         self.logger_info = {
             'start': 'Started extracting lower court informations',
             'finished': 'Finished extracting lower court informations',
@@ -34,6 +34,7 @@ class LowerCourtExtractor(AbstractExtractor):
         return f"spider='{spider}' AND header IS NOT NULL AND header <> ''"
 
     def get_required_data(self, series: DataFrame) -> Any:
+        """Returns the data required by the processing functions"""
         return series['header']
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:

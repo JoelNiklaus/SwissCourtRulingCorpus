@@ -35,8 +35,9 @@ pd.set_option('display.max_colwidth', 500)  # set to None to impose no limit
 
 class AbstractPreprocessor:
     """
-    Extracts the textual and meta information from the court rulings files and saves it in csv files for each court
-    and in one for all courts combined
+    Serves as an abstract base class for preprocessors.
+    Contains fields with directories and database access information
+    and methods for interacting with the database and saving progress.
     """
 
     def __init__(self, config: dict):
@@ -44,6 +45,8 @@ class AbstractPreprocessor:
         self.chunksize = int(config['general']['chunksize'])
 
         self.data_dir = self.create_dir(ROOT_DIR, config['dir']['data_dir'])
+        self.progress_dir = self.create_dir(self.data_dir, config['dir']['progress_dir'])
+        self.spider_specific_dir = self.create_dir(ROOT_DIR, config['dir']['spider_specific_dir'])
 
         self.spiders_dir = self.create_dir(self.data_dir, config['dir']['spiders_subdir'])
         self.spacy_subdir = self.create_dir(self.data_dir, config['dir']['spacy_subdir'])

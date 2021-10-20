@@ -25,10 +25,10 @@ sns.set_style("whitegrid")
 """
 Extend datasets with big cantonal courts? => only if it does not take too much time (1-2 days per court)
 Datasets to be created:
-- Judgements
-    - Judgement prediction BGer:
+- Judgments
+    - Judgment prediction BGer:
         - text classification
-        - input (considerations/facts) to label (judgement)
+        - input (considerations/facts) to label (judgment)
         - Why? 
 - Citations
     - Citation prediction
@@ -116,8 +116,10 @@ Features:
 
 class DatasetCreator(AbstractPreprocessor):
     """
+    TODO look at this project for easy data reports: https://pandas-profiling.github.io/pandas-profiling/docs/master/rtd/pages/introduction.html
+    TODO alternative for project above: https://dataprep.ai/
     Retrieves the data and preprocesses it for subdatasets of SCRC.
-    Also creates the necessary files for a kaggle dataset.
+    Also creates the necessary files for a kaggle dataset and a huggingface dataset.
     """
 
     def __init__(self, config: dict):
@@ -154,7 +156,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
-        processed_file_path = self.data_dir / f"dataset_{self.dataset_name}_created.txt"
+        processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
 

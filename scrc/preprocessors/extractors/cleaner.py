@@ -55,6 +55,13 @@ class Cleaner(AbstractExtractor):
             cleaning_regexes = json.load(f)
         return cleaning_regexes
 
+    def clean(self):
+        """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
+        self.logger.info("Started cleaning raw court rulings")
+
+        processed_file_path = self.progress_dir / "spiders_cleaned.txt"
+        spider_list, message = self.compute_remaining_spiders(processed_file_path)
+        self.logger.info(message)
 
     def get_database_selection_string(self, spider: str, lang: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
@@ -124,12 +131,12 @@ class Cleaner(AbstractExtractor):
         cleaned_text = self.clean_with_regexes(spider, text, namespace)
         return clean_text(cleaned_text)
 
-    def clean_html(self, spider: str, soup: Any, namespace: dict) -> str:
+    def clean_html(self, spider: str, soup: bs4.BeautifulSoup, namespace: dict) -> str:
         """Cleans first the text first with court specific regexes and then with general ones"""
         cleaned_text = self.clean_with_functions(spider, soup, namespace)
         return clean_text(cleaned_text)
 
-    def clean_with_functions(self, spider: str, soup: Any, namespace: dict) -> str:
+    def clean_with_functions(self, spider: str, soup: bs4.BeautifulSoup, namespace: dict) -> str:
         """Cleans html documents with cleaning functions"""
         if not hasattr(self.processing_functions, spider):
             self.logger.debug(f"There are no special functions for spider {spider}. Just performing default cleaning.")

@@ -57,7 +57,7 @@ class NlpPipelineRunner(AbstractPreprocessor):
             self.logger.info(f"Started processing language {lang}")
             lang_dir = self.create_dir(self.spacy_subdir, lang)  # output dir
 
-            processed_file_path = self.data_dir / f"{lang}_spiders_spacied.txt"
+            processed_file_path = self.progress_dir / f"{lang}_spiders_spacied.txt"
             spider_list, message = self.compute_remaining_spiders(processed_file_path)
             self.logger.info(message)
 

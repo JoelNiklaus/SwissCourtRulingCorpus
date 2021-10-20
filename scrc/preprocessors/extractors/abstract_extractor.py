@@ -4,13 +4,14 @@ from typing import Any, Optional, Set, TYPE_CHECKING, Tuple
 import pandas as pd
 
 from root import ROOT_DIR
+from scrc.enums.language import Language
 from scrc.utils.log_utils import get_logger
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
 
-
+# TODO move progress files to separate directory
 class AbstractExtractor(ABC, AbstractPreprocessor):
     """Abstract Base Class used by Extractors to unify their behaviour"""
 
@@ -100,9 +101,9 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
         """Processes one row of a raw df"""
-        self.logger.debug(
-            f"{self.logger_info['processing_one']} {series['file_name']}")
-        namespace = series[["date", "language", "html_url", "id"]].to_dict()
+        self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
+        namespace = series[["date", "html_url", "id"]].to_dict()
+        namespace['language'] = Language(series['language'])
         data = self.get_required_data(series)
         assert data
         series[self.col_name] = self.call_processing_function(
@@ -111,6 +112,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         return series
 
     def call_processing_function(self, spider: str, data: Any, namespace: dict) -> Optional[Any]:
+        """Calls the processing function (named by the spider) and passes the data and the namespace as arguments."""
         if not self.check_condition_before_process(spider, data, namespace):
             return None
         extracting_functions = getattr(self.processing_functions, spider)

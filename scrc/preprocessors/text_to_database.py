@@ -62,7 +62,7 @@ class TextToDatabase(AbstractPreprocessor):
         """ Builds the dataset for all the spiders """
         self.logger.info("Started extracting text and metadata from court rulings files")
 
-        processed_file_path = self.data_dir / "spiders_extracted.txt"
+        processed_file_path = self.progress_dir / "spiders_extracted.txt"
         spider_list, message = self.compute_remaining_spiders(processed_file_path)
         self.logger.info(message)
 

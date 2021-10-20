@@ -10,12 +10,12 @@ if TYPE_CHECKING:
 
 class CourtCompositionExtractor(AbstractExtractor):
     """
-    Extracts the court composition from the header section
+    Extracts the court composition from the header section. This is part of the judicial person extraction task.
     """
 
     def __init__(self, config: dict):
         super().__init__(config, function_name='court_composition_extracting_functions', col_name='court_composition')
-        self.processed_file_path = self.data_dir / "spiders_court_composition_extracted.txt"
+        self.processed_file_path = self.progress_dir / "spiders_court_composition_extracted.txt"
         self.logger_info = {
         'start': 'Started extracting the court compositions', 
         'finished': 'Finished extracting the court compositions', 
@@ -31,6 +31,7 @@ class CourtCompositionExtractor(AbstractExtractor):
         return f"spider='{spider}' AND header IS NOT NULL AND header <> ''"
 
     def get_required_data(self, series: DataFrame) -> Any:
+        """Returns the data required by the processing functions"""
         return series['header']
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:

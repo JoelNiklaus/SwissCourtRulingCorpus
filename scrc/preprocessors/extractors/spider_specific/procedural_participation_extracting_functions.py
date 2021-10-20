@@ -8,11 +8,14 @@ The name of the functions should be equal to the spider! Otherwise, they won't b
 Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
+def XX_SPIDER(header: str, namespace: dict) -> Optional[str]:
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    pass
 
 def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     """
     Extract lower courts from decisions of the Federal Supreme Court of Switzerland
-    :param header:     the string containing the header
+    :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 import configparser
 import bs4
 import pandas as pd
@@ -10,13 +10,13 @@ from scrc.utils.log_utils import get_logger
 
 class CitationExtractor(AbstractExtractor):
     """
-    Extract citations from the html documents
+    Extract citations from the html documents. This represents the citation extraction task.
     """
 
     def __init__(self, config: dict):
         super().__init__(config, function_name='citation_extracting_functions', col_name='citations')
         self.logger = get_logger(__name__)
-        self.processed_file_path = self.data_dir / "spiders_citation_extracted.txt"
+        self.processed_file_path = self.progress_dir / "spiders_citation_extracted.txt"
         self.logger_info = {
             'start': 'Started extracting citations',
             'finished': 'Finished extracting citations',
@@ -27,11 +27,15 @@ class CitationExtractor(AbstractExtractor):
             'no_functions': 'Not extracting citations.'
         }
 
-    def get_required_data(self, series: pd.DataFrame) -> Optional[bs4.BeautifulSoup]:
+    def get_required_data(self, series: pd.DataFrame) -> Union[bs4.BeautifulSoup, str, None]:
+        """Returns the data required by the processing functions"""
         html_raw = series['html_raw']
         if pd.notna(html_raw) and html_raw not in [None, '']:
             # Parses the html string with bs4 and returns the body content
             return bs4.BeautifulSoup(html_raw, "html.parser").find('body')
+        pdf_raw = series['pdf_raw']
+        if pd.notna(pdf_raw) and pdf_raw not in [None, '']:
+            return pdf_raw
         return None
 
     def get_database_selection_string(self, spider: str, lang: str) -> str:
