@@ -18,6 +18,8 @@ from scrc.utils.log_utils import get_logger
 
 import tika
 
+from scrc.utils.main_utils import get_config
+
 os.environ['TIKA_LOG_PATH'] = str(AbstractPreprocessor.create_dir(Path(os.getcwd()), 'logs'))
 tika.initVM()
 
@@ -257,8 +259,7 @@ class TextToDatabase(AbstractPreprocessor):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
 
     extractor = TextToDatabase(config)
     extractor.build_dataset()

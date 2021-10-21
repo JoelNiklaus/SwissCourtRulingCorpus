@@ -1,10 +1,8 @@
-import configparser
+
 from scrc.preprocessors.name_to_gender import NameToGender
 from scrc.preprocessors.extractors.procedural_participation_extractor import ProceduralParticipationExtractor
 from scrc.preprocessors.extractors.court_composition_extractor import CourtCompositionExtractor
 
-from os.path import exists
-from root import ROOT_DIR
 from scrc.preprocessors.extractors.citation_extractor import CitationExtractor
 from scrc.preprocessors.extractors.cleaner import Cleaner
 from scrc.dataset_creation.citation_dataset_creator import CitationDatasetCreator
@@ -22,6 +20,7 @@ from scrc.preprocessors.external_corpora.jureko_processor import JurekoProcessor
 from scrc.preprocessors.external_corpora.slc_processor import SlcProcessor
 from scrc.preprocessors.external_corpora.wikipedia_processor import WikipediaProcessor
 from scrc.utils.decorators import slack_alert
+from scrc.utils.main_utils import get_config
 
 """
 This file aggregates all the pipeline components and can be a starting point for running the entire pipeline.
@@ -47,10 +46,7 @@ def main():
     """
     # faulthandler.enable()  # can print a minimal threaddump in case of external termination
 
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
-    if exists(ROOT_DIR / 'rootconfig.ini'):
-        config.read(ROOT_DIR / 'rootconfig.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
     process_scrc(config)
 
     process_external_corpora(config)

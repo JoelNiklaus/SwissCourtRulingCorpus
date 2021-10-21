@@ -12,7 +12,7 @@ from dask.diagnostics import ProgressBar
 from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
-from scrc.utils.main_utils import clean_text
+from scrc.utils.main_utils import clean_text, get_config
 
 # TODO Adrian passt so an, dass der AbstractExtractor gebraucht werden kann als Superklasse
 class Cleaner(AbstractExtractor):
@@ -171,8 +171,7 @@ class Cleaner(AbstractExtractor):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
 
     cleaner = Cleaner(config)
     cleaner.start()

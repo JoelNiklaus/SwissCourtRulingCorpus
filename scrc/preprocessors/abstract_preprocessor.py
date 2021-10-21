@@ -136,8 +136,7 @@ class AbstractPreprocessor:
         return AbstractPreprocessor.query(engine, 'SELECT current_user')['current_user'][0] != 'readonly'
 
 
-    @staticmethod
-    def add_column(engine, table, col_name, data_type) -> None:
+    def add_column(self, engine, table, col_name, data_type) -> None:
         """
         Adds a column to an existing table
         :param engine:
@@ -146,7 +145,7 @@ class AbstractPreprocessor:
         :param data_type:
         :return:
         """
-        if not AbstractPreprocessor._check_write_privilege(engine):
+        if not self._check_write_privilege(engine):
             return
         with engine.connect() as conn:
             query = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_name} {data_type}"

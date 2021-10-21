@@ -10,6 +10,7 @@ import requests
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 from root import ROOT_DIR
+from scrc.utils.main_utils import get_config
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -207,9 +208,7 @@ class NameToGender(AbstractPreprocessor):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    # this stops working when the script is called from the src directory!
-    config.read(ROOT_DIR / 'config.ini')
+    config = get_config()
 
     name_to_gender = NameToGender(config)
     name_to_gender.start()

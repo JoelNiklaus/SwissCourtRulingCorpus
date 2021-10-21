@@ -2,11 +2,17 @@ import json
 import re
 import unicodedata
 from collections import OrderedDict
-
+import configparser
+from os.path import exists
+from root import ROOT_DIR
 import pandas as pd
 
 from scrc.utils.log_utils import get_logger
 
+logger = get_logger()
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 1000)
 
 def save_to_path(content, path, overwrite=False):
     """
@@ -18,7 +24,7 @@ def save_to_path(content, path, overwrite=False):
     :return:
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    logger = get_logger()
+    
     # check if
     if path.exists():
         logger.debug(f"Path {path} exists already")
@@ -174,8 +180,11 @@ def get_legal_area(chamber: str):
         if chamber in chambers:
             return legal_area
     raise ValueError(f"Please provide a valid chamber name. Could not find {chamber} in {legal_areas}")
-if __name__ == '__main__':
-    logger = get_logger()
-    pd.set_option('display.max_rows', 500)
-    pd.set_option('display.max_columns', 500)
-    pd.set_option('display.width', 1000)
+
+def get_config() -> configparser.ConfigParser:
+    """Returns the parsed `config.ini` / `rootconfig.ini` files"""
+    config = configparser.ConfigParser()
+    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    if exists(ROOT_DIR / 'rootconfig.ini'):
+        config.read(ROOT_DIR / 'rootconfig.ini')  # this stops working when the script is called from the src directory!
+    return config

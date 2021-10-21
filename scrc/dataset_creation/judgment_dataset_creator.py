@@ -5,6 +5,8 @@ from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import numpy as np
 
+from scrc.utils.main_utils import get_config
+
 
 class JudgmentDatasetCreator(DatasetCreator):
     """
@@ -88,8 +90,7 @@ class JudgmentDatasetCreator(DatasetCreator):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
 
     judgment_dataset_creator = JudgmentDatasetCreator(config)
     judgment_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)

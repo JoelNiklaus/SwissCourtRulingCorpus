@@ -10,6 +10,7 @@ from scrc.enums.section import Section
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
+from scrc.utils.main_utils import get_config
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -106,8 +107,6 @@ class SectionSplitter(AbstractExtractor):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    # this stops working when the script is called from the src directory!
-    config.read(ROOT_DIR / 'config.ini')
+    config = get_config()
     section_splitter = SectionSplitter(config)
     section_splitter.start()
