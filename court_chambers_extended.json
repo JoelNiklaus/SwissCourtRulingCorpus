@@ -114,7 +114,7 @@
             "fr": "Commission administrative",
             "it": "Commissione amministrativa",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_BGer_016": {
@@ -302,7 +302,7 @@
             "fr": "Secr\u00e9tariat d'\u00c9tat \u00e0 l'\u00e9ducation et \u00e0 la recherche",
             "it": "La Segreteria di Stato per la formazione e la ricerca",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_VB_002": {
@@ -311,7 +311,7 @@
             "fr": "DFJP, D\u00e9partement f\u00e9d\u00e9ral de justice et police",
             "it": "Dipartimento federale di giustizia e polizia DFGP",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.8","2.10"    
             ]
           },
           "CH_VB_003": {
@@ -320,7 +320,7 @@
             "fr": "Office f\u00e9d\u00e9ral de la justice, OFJ",
             "it": "Ufficio federale di giustizia, UFG",
             "Rechtsgebiete": [
-              ""
+              "1.14","2.1","2.5","2.8","2.11","2.12","3.2","4.1"
             ]
           },
           "CH_VB_004": {
@@ -329,7 +329,7 @@
             "fr": "ChF, section du droit",
             "it": "CaF, Sezione del diritto",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.10","3.2"
             ]
           },
           "CH_VB_005": {
@@ -338,7 +338,7 @@
             "fr": "DFF, D\u00e9partement f\u00e9d\u00e9ral des finances",
             "it": "Dipartimento federale delle finanze (DFF)",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_VB_006": {
@@ -347,7 +347,7 @@
             "fr": "DFAE, Direction du droit international public",
             "it": "DFAE Direzione del diritto internazionale pubblico (DDIP)",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.10","2.12"
             ]
           },
           "CH_VB_007": {
@@ -356,7 +356,7 @@
             "fr": "Commission de recours interne des EPF",
             "it": "Commissione di ricorso dei PF",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2"
             ]
           },
           "CH_VB_008": {
@@ -365,7 +365,7 @@
             "fr": "Conseil f\u00e9d\u00e9ral",
             "it": "Consiglio federale",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.7","2.8","2.11","2.10","2.12"
             ]
           },
           "CH_VB_009": {
@@ -374,7 +374,7 @@
             "fr": "Commission de recours du D\u00e9partement f\u00e9d\u00e9ral de la d\u00e9fense, de la protection de la population et des sports",
             "it": "Commissione di ricorso del Dipartimento federale della difesa, della protezione della popolazione e dello sport  ",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2"
             ]
           },
           "CH_VB_010": {
@@ -383,7 +383,7 @@
             "fr": "Autorit\u00e9 ind\u00e9pendante d\u2019examen des plaintes (radio-t\u00e9l\u00e9), AIEP",
             "it": "Autorit\u00e0 indipendente di ricorso in materia radiotelevisiva, AIRR",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_VB_011": {
@@ -392,7 +392,7 @@
             "fr": "CRINEN, Commission de recours en mati\u00e8re d'infrastructures et d'environnement, jusqu'\u00e0 2006",
             "it": "CRINAM, Commissione federale di ricorso in materia d'infrastrutture ed ambiente",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2"
             ]
           },
           "CH_VB_012": {
@@ -401,7 +401,7 @@
             "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de personnel f\u00e9d\u00e9ral jusqu'\u00e0 2006",
             "it": "Commissione di ricorso in materia di persona",
             "Rechtsgebiete": [
-              ""
+              "2.2"
             ]
           },
           "CH_VB_013": {
@@ -410,7 +410,7 @@
             "fr": "Cour europ\u00e9enne des droits de l'homme",
             "it": "Corte europea dei diritti dell'uomo",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.8","2.10","3.2","4.1"
             ]
           },
           "CH_VB_014": {
@@ -419,7 +419,7 @@
             "fr": "Commission f\u00e9d\u00e9rale de la protection des donn\u00e9es et de la transparence, jusqu'\u00e0 2006",
             "it": "Commissione federale della protezione dei dati",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_VB_015": {
@@ -428,7 +428,7 @@
             "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de contributions, jusqu'\u00e0 2006",
             "it": "Commissione federale di ricorso in materia di contribuzioni",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.5"
             ]
           },
           "CH_VB_016": {
@@ -437,7 +437,7 @@
             "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de douanes, jusqu'\u00e0 2006",
             "it": "Commissione federale di ricorso in materia doganale",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_VB_017": {
@@ -446,7 +446,7 @@
             "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de march\u00e9s publics, jusqu'\u00e0 2006",
             "it": "Commissione federale di ricorso in materia di acquisti pubblici",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_VB_018": {
@@ -455,7 +455,7 @@
             "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de produits th\u00e9rapeutiques",
             "it": "Commissione federale di ricorso in materia di agenti terapeutici",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_VB_019": {
@@ -464,7 +464,7 @@
             "fr": "Commission suisse de recours en mati\u00e8re d'asile",
             "it": "Commissione svizzera di ricorso in materia d'asilo",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.8","2.10"
             ]
           },
           "CH_VB_020": {
@@ -473,7 +473,7 @@
             "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re de responsabilit\u00e9 de l'Etat",
             "it": " Commissione federale di ricorso in materia di responsabilit\u00e0 dello Stato",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.7"
             ]
           },
           "CH_VB_021": {
@@ -482,12 +482,12 @@
             "fr": "Comit\u00e9 des Nations Unies contre la torture",
             "it": "Comit\u00e9 des Nations Unies contre la torture",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.10"
             ]
           },
           "CH_VB_022": {
             "spider": "CH_VB",
-            "de": "Rekuskommission des Bundesgerichts",
+            "de": "Rekurskommission des Bundesgerichts",
             "fr": "Commission de recours du Tribunal f\u00e9d\u00e9ral",
             "it": "Commissione di ricorso del Tribunale federale",
             "Rechtsgebiete": [
@@ -518,7 +518,7 @@
             "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re d\u2019encouragement de la recherche",
             "it": "Commissione federale di ricorso per la promozione della ricerca",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_VB_026": {
@@ -527,7 +527,7 @@
             "fr": "Commission f\u00e9d\u00e9rale de recours pour la formation de base et la formation postgrade des professions m\u00e9dicales",
             "it": "Commissione federale di ricorso per la formazione medica e il perfezionamento",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_VB_027": {
@@ -545,7 +545,7 @@
             "fr": "Commission de recours du D\u00e9partement f\u00e9d\u00e9ral de l'economie",
             "it": "Commissione di ricorso del Dipartimento federale dell'economia",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_VB_029": {
@@ -554,7 +554,7 @@
             "fr": "Commission f\u00e9d\u00e9rale de recours en mati\u00e8re d\u2019assurance-accidents",
             "it": "Commissione federale di ricorso sull\u2019assicurazione contro gli infortuni",
             "Rechtsgebiete": [
-              ""
+              "2.1","4.1","4.2"
             ]
           },
           "CH_VB_030": {
@@ -563,7 +563,7 @@
             "fr": "Service de recours du D\u00e9partement f\u00e9d\u00e9ral de l'environnement, des transports, de l'\u00e9nergie et de la communication",
             "it": "Servizio dei ricorsi del Dipartimento federale dell'ambiente, dei trasporti, dell'energiae delle comunicazioni",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.3"
             ]
           },
           "CH_VB_031": {
@@ -572,7 +572,7 @@
             "fr": "Commission suisse de recours en mati\u00e8re d'asile",
             "it": "Commissione svizzera di ricorso in materia d'asilo",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.8","2.10"
             ]
           },
           "CH_VB_032": {
@@ -581,7 +581,7 @@
             "fr": "Commission f\u00e9d\u00e9rale de la communication ComCom",
             "it": "Commissione federale delle comunicazioni ComCom",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "CH_VB_033": {
@@ -590,7 +590,7 @@
             "fr": "Autorit\u00e9 de contr\u00f4le en mati\u00e8re de lutte contre le blanchiment d'argent",
             "it": "Autorit\u00e0 di controllo per la lotta contro il riciclaggio di denaro",
             "Rechtsgebiete": [
-              ""
+              "2.1","3.1","3.2"
             ]
           },
           "CH_VB_034": {
@@ -599,7 +599,7 @@
             "fr": "Minist\u00e8re public de la Conf\u00e9d\u00e9ration (MPC)",
             "it": "Ministero pubblico della Confederazione (MPC)",
             "Rechtsgebiete": [
-              ""
+              "3.1","3.2"
             ]
           },
           "CH_VB_035": {
@@ -608,7 +608,7 @@
             "fr": "Conseil national",
             "it": "Consiglio nazionale",
             "Rechtsgebiete": [
-              ""
+              "2.11"
             ]
           },
           "CH_VB_999": {
@@ -706,7 +706,7 @@
             "fr": "Handelsgericht",
             "it": "Handelsgericht",
             "Rechtsgebiete": [
-              ""
+              "1.1","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "AG_OG_011": {
@@ -881,7 +881,7 @@
             "fr": "Handelsgericht",
             "it": "Handelsgericht",
             "Rechtsgebiete": [
-              ""
+               "1.1","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "AG_OGA_003": {
@@ -899,7 +899,7 @@
             "fr": "Justizgericht",
             "it": "Justizgericht",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2"
             ]
           },
           "AG_OGA_005": {
@@ -917,7 +917,7 @@
             "fr": "Kammer f\u00fcr Kindes- und Erwachsenenschutz",
             "it": "Kammer f\u00fcr Kindes- und Erwachsenenschutz",
             "Rechtsgebiete": [
-              ""
+              "1.3","1.4","1.13","2.10"
             ]
           },
           "AG_OGA_999": {
@@ -1231,7 +1231,7 @@
             "fr": "Tribunal de commerce",
             "it": "Handelsgericht",
             "Rechtsgebiete": [
-             "1.1","1.4","1.6","1.7","1.8","1.9","1.10","1.10","1.11","1.12","1.13","1.14","1.15"
+             "1.1","1.5","1.6","1.7","1.8","1.9","1.10","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           },
           "BE_OG_003": {
@@ -1334,7 +1334,7 @@
             "fr": "Direction des travaux publics et des transports",
             "it": "Bau- und Verkehrsdirektion",
             "Rechtsgebiete": [
-              ""
+              "2.3"
             ]
           },
           "BE_VB_002": {
@@ -1343,7 +1343,7 @@
             "fr": "Direction de l'instruction publique et de la culture",
             "it": "Bildungs- und Kulturdirektion",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "BE_VB_003": {
@@ -1352,7 +1352,7 @@
             "fr": "Direction de la sant\u00e9, des affaires sociales et de l'int\u00e9gration",
             "it": "Gesundheits-, Sozial und Integrationsdirektion",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "BE_VB_004": {
@@ -1361,7 +1361,7 @@
             "fr": "Direction de l\u2019int\u00e9rieur et de la justice, Droit du registre foncier",
             "it": "Direktion f\u00fcr Inneres und Justiz, Grundbuchrecht i.e.S.",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "BE_VB_005": {
@@ -1370,7 +1370,7 @@
             "fr": "Direction de l\u2019int\u00e9rieur et de la justice, Emoluments du registre foncier",
             "it": "Direktion f\u00fcr Inneres und Justiz, Grundbuchgeb\u00fchren",
             "Rechtsgebiete": [
-              ""
+              "2.4"
             ]
           },
           "BE_VB_006": {
@@ -1379,7 +1379,7 @@
             "fr": "Direction de l\u2019int\u00e9rieur et de la justice, Imp\u00f4ts sur les mutations",
             "it": "Direktion f\u00fcr Inneres und Justiz, Hand\u00e4nderungssteuern",
             "Rechtsgebiete": [
-              ""
+              "2.5"
             ]
           },
           "BE_VB_999": {
@@ -1404,7 +1404,7 @@
             "fr": "Proc\u00e9dure administrative",
             "it": "Administrativentscheide",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2"
             ]
           },
           "BE_NAB_002": {
@@ -1413,7 +1413,7 @@
             "fr": "Taxation officielle",
             "it": "Moderationsentscheide",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2"
             ]
           },
           "BE_NAB_003": {
@@ -1422,7 +1422,7 @@
             "fr": "Proc\u00e9dure disciplinaire",
             "it": "Disziplinarentscheide",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2"
             ]
           },
           "BE_NAB_999": {
@@ -1679,7 +1679,7 @@
           "FR_TAMA_001": {
             "spider": "FR_Gerichte",
             "Rechtsgebiete": [
-              ""
+              "4.1","4.2"
             ]
           }
         }
@@ -2071,7 +2071,7 @@
             "fr": "Justizaufsichtskammer",
             "it": "Camera di vigilanza sulla giustizia",
             "Rechtsgebiete": [
-              ""
+              "2.1"
             ]
           },
           "GR_KG_012": {
@@ -2080,7 +2080,7 @@
             "fr": "Schuldbetreibungs- und Konkurskammer",
             "it": "Camera delle esecuzioni e dei fallimenti",
             "Rechtsgebiete": [
-              ""
+              "1.15"
             ]
           },
           "GR_KG_999": {
@@ -2231,7 +2231,7 @@
             "fr": "Cour administrative",
             "it": "Cour administrative",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "JU_TC_006": {
@@ -2653,7 +2653,7 @@
             "fr": "Tribunal arbitral (selon les articles 89 LAMal, 27bis LAI, 57 LAA et 27 LAM)",
             "it": "Tribunal arbitral (selon les articles 89 LAMal, 27bis LAI, 57 LAA et 27 LAM)",
             "Rechtsgebiete": [
-              ""
+              "4.2"
             ]
           },
           "NE_TC_015": {
@@ -2945,7 +2945,7 @@
           "SG_HG_001": {
             "spider": "SG_Gerichte",
             "Rechtsgebiete": [
-              "1.1","1.4","1.6","1.7","1.8","1.9","1.10","1.10","1.11","1.12","1.13","1.14","1.15"
+              "1.1","1.5","1.6","1.7","1.8","1.9","1.10","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           }
         }
@@ -3029,7 +3029,7 @@
           "SG_VGN_001": {
             "spider": "SG_Publikationen",
             "Rechtsgebiete": [
-              ""
+              "2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           }
         }
@@ -3045,7 +3045,7 @@
             "fr": "Baudepartement",
             "it": "Baudepartement",
             "Rechtsgebiete": [
-              ""
+              "2.3"
             ]
           },
           "SG_VB_002": {
@@ -4270,7 +4270,7 @@
           "ZH_HG_001": {
             "spider": "ZH_Obergericht",
             "Rechtsgebiete": [
-              "1.1","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
+              "1.1","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15"
             ]
           }
         }
@@ -4309,7 +4309,7 @@
           "ZH_SRK_001": {
             "spider": "ZH_Steuerrekurs",
             "Rechtsgebiete": [
-              ""
+              "2.5"
             ]
           }
         }
@@ -4322,7 +4322,7 @@
           "ZH_BRK_001": {
             "spider": "ZH_Baurekurs",
             "Rechtsgebiete": [
-              ""
+              "2.3","2.10"
             ]
           }
         }
