@@ -12,6 +12,7 @@ from scrc.utils.log_utils import get_logger
 
 # IMPORTANT: make sure you download these models first with: python -m spacy download de_dep_news_trf
 import de_core_news_lg, fr_core_news_lg, it_core_news_lg
+from scrc.utils.main_utils import get_config
 
 from scrc.utils.slack_util import post_message_to_slack
 
@@ -109,8 +110,7 @@ class NlpPipelineRunner(AbstractPreprocessor):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
 
     nlp_pipeline_runner = NlpPipelineRunner(config)
     nlp_pipeline_runner.run_pipeline()

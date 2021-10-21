@@ -8,6 +8,7 @@ from sqlalchemy import MetaData, Table, Column, Integer, String, JSON
 from root import ROOT_DIR
 from scrc.preprocessors.external_corpora.external_corpus_processor import ExternalCorpusProcessor
 from scrc.utils.log_utils import get_logger
+from scrc.utils.main_utils import get_config
 
 
 class SlcProcessor(ExternalCorpusProcessor):
@@ -70,8 +71,7 @@ class SlcProcessor(ExternalCorpusProcessor):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
 
     slc_processor = SlcProcessor(config)
     slc_processor.process()

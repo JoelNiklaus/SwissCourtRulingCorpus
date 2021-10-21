@@ -5,6 +5,8 @@ from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import pandas as pd
 
+from scrc.utils.main_utils import get_config
+
 
 # TODO filter out cases where lower court is BVGer or a Handelsgericht because there BGer is only 2nd instance!
 #  People go to 2nd instance much more often than to 3rd instance.
@@ -88,8 +90,7 @@ class CriticalityDatasetCreator(DatasetCreator):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
 
     criticality_dataset_creator = CriticalityDatasetCreator(config)
     criticality_dataset_creator.create_dataset()
