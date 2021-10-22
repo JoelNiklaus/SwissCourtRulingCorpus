@@ -183,7 +183,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         plaintiff.legal_counsel = plaintiff_representation
     for defendant in party.defendants:
         defendant.legal_counsel = defendant_representation
-    return json.dumps(party)
+    return party.toJSON()
 
 # This needs special care
 # def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
