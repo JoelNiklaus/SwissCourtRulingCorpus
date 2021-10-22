@@ -7,5 +7,5 @@ from scrc.enums.political_party import PoliticalParty
 
 @dataclass
 class CourtPerson(Person):
-    court_role: CourtRole
-    party: PoliticalParty
+    court_role: CourtRole = None
+    party: PoliticalParty = None

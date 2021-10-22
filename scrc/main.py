@@ -107,8 +107,8 @@ def construct_base_dataset(config):
     procedural_participation_extractor = ProceduralParticipationExtractor(config)
     procedural_participation_extractor.start()
 
-    name_to_gender = NameToGender(config)
-    name_to_gender.start()
+    #name_to_gender = NameToGender(config)
+    #name_to_gender.start()
 
     nlp_pipeline_runner = NlpPipelineRunner(config)
     nlp_pipeline_runner.run_pipeline()
