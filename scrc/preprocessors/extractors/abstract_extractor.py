@@ -39,12 +39,13 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         e.g. data is required to be present for analysis"""
         return True
 
-    def __init__(self, config: dict, function_name: str, col_name: str):
+    def __init__(self, config: dict, function_name: str, col_name: str, col_type: str = 'jsonb'):
         super().__init__(config)
         self.logger = get_logger(__name__)
         self.processing_functions = self.load_functions(config, function_name)
         self.logger.debug(self.processing_functions)
         self.col_name = col_name
+        self.col_type = col_type
         self.processed_amount = 0
         self.total_to_process = -1
         self.spider_specific_dir = self.create_dir(ROOT_DIR, config['dir']['spider_specific_dir'])
@@ -67,7 +68,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
 
     def add_columns(self, engine: Engine):
         for lang in self.languages:
-            self.add_column(engine, lang, col_name=self.col_name, data_type="jsonb")
+            self.add_column(engine, lang, col_name=self.col_name, data_type=self.col_type)
 
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
@@ -91,7 +92,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
                               chunksize=self.chunksize)
             for df in dfs:
                 df = df.apply(self.process_one_df_row, axis="columns")
-                self.update(engine, df, lang, [self.col_name])
+                self.update(engine, df, lang, [self.col_name], self.output_dir)
                 self.log_progress(self.chunksize)
 
             self.log_coverage(engine, spider, lang)

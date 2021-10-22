@@ -9,6 +9,7 @@ import pandas as pd
 from root import ROOT_DIR
 from scrc.preprocessors.external_corpora.external_corpus_processor import ExternalCorpusProcessor
 from scrc.utils.log_utils import get_logger
+from scrc.utils.main_utils import get_config
 
 
 class JurekoProcessor(ExternalCorpusProcessor):
@@ -76,8 +77,7 @@ class JurekoProcessor(ExternalCorpusProcessor):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
 
     jureko_processor = JurekoProcessor(config)
     jureko_processor.process()

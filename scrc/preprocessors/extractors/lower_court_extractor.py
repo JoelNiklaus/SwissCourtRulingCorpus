@@ -5,6 +5,7 @@ import configparser
 from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
+from scrc.utils.main_utils import get_config
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
@@ -44,9 +45,7 @@ class LowerCourtExtractor(AbstractExtractor):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    # this stops working when the script is called from the src directory!
-    config.read(ROOT_DIR / 'config.ini')
+    config = get_config()
 
     lower_court_extractor = LowerCourtExtractor(config)
     lower_court_extractor.start()

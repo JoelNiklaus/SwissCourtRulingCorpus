@@ -9,7 +9,7 @@ from tqdm.contrib.concurrent import process_map
 from root import ROOT_DIR
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
-from scrc.utils.main_utils import save_to_path
+from scrc.utils.main_utils import get_config, save_to_path
 
 base_url = "https://entscheidsuche.ch/"
 
@@ -99,8 +99,7 @@ class Scraper(AbstractPreprocessor):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
 
     scraper = Scraper(config)
     scraper.download_subfolders(base_url + "docs/")

@@ -4,6 +4,7 @@ from typing import Any, TYPE_CHECKING
 
 from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
+from scrc.utils.main_utils import get_config
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
@@ -40,7 +41,6 @@ class ProceduralParticipationExtractor(AbstractExtractor):
         return bool(data)
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
     procedural_participation_extractor = ProceduralParticipationExtractor(config)
     procedural_participation_extractor.start()

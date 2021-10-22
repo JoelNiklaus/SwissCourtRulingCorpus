@@ -1,3 +1,4 @@
+import os
 import configparser
 import glob
 import json
@@ -17,7 +18,11 @@ from scrc.utils.log_utils import get_logger
 
 import tika
 
+from scrc.utils.main_utils import get_config
+
+os.environ['TIKA_LOG_PATH'] = str(AbstractPreprocessor.create_dir(Path(os.getcwd()), 'logs'))
 tika.initVM()
+
 from tika import parser
 
 # TODO look at this if db is slow: https://dba.stackexchange.com/questions/151300/improve-update-performance-on-big-table/151316
@@ -26,22 +31,7 @@ from tika import parser
 # TODO if we need to extract data from html with difficult structure such as tables consider using: https://pypi.org/project/inscriptis/
 
 # the keys used in the court dataframes
-court_keys = [
-    "spider",
-    "language",
-    "canton",
-    "court",
-    "chamber",
-    "date",
-    "file_name",
-    "file_number",
-    "file_number_additional",
-    "html_url",
-    "html_raw",
-    "pdf_url",
-    "pdf_raw",
-]
-lang_id = LanguageIdentificationSingleton()
+
 
 
 class TextToDatabase(AbstractPreprocessor):
@@ -49,9 +39,25 @@ class TextToDatabase(AbstractPreprocessor):
     Extracts the textual and meta information from the court rulings files and saves it in csv files for each spider
     and in one for all courts combined
     """
-
+    
     def __init__(self, config: dict):
         super().__init__(config)
+        self.court_keys = [
+            "spider",
+            "language",
+            "canton",
+            "court",
+            "chamber",
+            "date",
+            "file_name",
+            "file_number",
+            "file_number_additional",
+            "html_url",
+            "html_raw",
+            "pdf_url",
+            "pdf_raw",
+        ]
+        self.lang_id = LanguageIdentificationSingleton()
         self.logger = get_logger(__name__)
 
     def build_dataset(self) -> None:
@@ -137,7 +143,7 @@ class TextToDatabase(AbstractPreprocessor):
 
     def compose_court_dict(self, corresponding_html_path, corresponding_pdf_path, json_file):
         """Composes a court dict from all the available files when we know at least one content file exists"""
-        court_dict_template = {key: '' for key in court_keys}  # create dict template from court keys
+        court_dict_template = {key: '' for key in self.court_keys}  # create dict template from court keys
 
         try:
             general_info = self.extract_general_info(json_file)
@@ -223,7 +229,7 @@ class TextToDatabase(AbstractPreprocessor):
             else:
                 soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
                 assert soup.find()  # make sure it is valid html
-                language = lang_id.get_lang(soup.get_text())
+                language = self.lang_id.get_lang(soup.get_text())
                 return {"html_raw": html_raw, "language": language}
 
     def extract_corresponding_pdf_content(self, corresponding_pdf_path) -> Optional[dict]:
@@ -244,7 +250,7 @@ class TextToDatabase(AbstractPreprocessor):
             else:
                 pdf_raw = self.remove_nul(pdf_raw)
                 pdf_raw = pdf_raw.strip()  # strip leading and trailing whitespace
-                language = lang_id.get_lang(pdf_raw)
+                language = self.lang_id.get_lang(pdf_raw)
                 return {"pdf_raw": pdf_raw, "language": language}
 
     def remove_nul(self, string):
@@ -253,8 +259,7 @@ class TextToDatabase(AbstractPreprocessor):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
 
     extractor = TextToDatabase(config)
     extractor.build_dataset()

@@ -8,7 +8,7 @@ from scrc.utils.log_utils import get_logger
 import numpy as np
 import pandas as pd
 
-from scrc.utils.main_utils import string_contains_one_of_list
+from scrc.utils.main_utils import get_config, string_contains_one_of_list
 from scrc.utils.term_definitions_converter import TermDefinitionsConverter
 
 
@@ -108,8 +108,7 @@ class CitationDatasetCreator(DatasetCreator):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
 
     citation_dataset_creator = CitationDatasetCreator(config)
     citation_dataset_creator.create_dataset()

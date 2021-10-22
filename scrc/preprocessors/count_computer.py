@@ -3,6 +3,7 @@ import configparser
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
+from scrc.utils.main_utils import get_config
 
 
 # import scrc.utils.monkey_patch  # prevent memory leak with pandas
@@ -87,8 +88,7 @@ class CountComputer(AbstractPreprocessor):
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    config = get_config()
 
     count_computer = CountComputer(config)
     count_computer.run_pipeline()

@@ -1,16 +1,15 @@
-import configparser
+
 from scrc.preprocessors.name_to_gender import NameToGender
 from scrc.preprocessors.extractors.procedural_participation_extractor import ProceduralParticipationExtractor
 from scrc.preprocessors.extractors.court_composition_extractor import CourtCompositionExtractor
 
-from root import ROOT_DIR
 from scrc.preprocessors.extractors.citation_extractor import CitationExtractor
 from scrc.preprocessors.extractors.cleaner import Cleaner
 from scrc.dataset_creation.citation_dataset_creator import CitationDatasetCreator
 from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
 from scrc.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
 from scrc.preprocessors.text_to_database import TextToDatabase
-from scrc.preprocessors.extractors.judgement_extractor import JudgementExtractor
+from scrc.preprocessors.extractors.judgment_extractor import JudgmentExtractor
 from scrc.preprocessors.extractors.lower_court_extractor import LowerCourtExtractor
 from scrc.preprocessors.scraper import Scraper, base_url
 from scrc.preprocessors.extractors.section_splitter import SectionSplitter
@@ -21,6 +20,7 @@ from scrc.preprocessors.external_corpora.jureko_processor import JurekoProcessor
 from scrc.preprocessors.external_corpora.slc_processor import SlcProcessor
 from scrc.preprocessors.external_corpora.wikipedia_processor import WikipediaProcessor
 from scrc.utils.decorators import slack_alert
+from scrc.utils.main_utils import get_config
 
 """
 This file aggregates all the pipeline components and can be a starting point for running the entire pipeline.
@@ -31,7 +31,7 @@ Approach:
 - Clean text  (keep raw content in db)
 - Split BGer into sections (from html_raw)
 - Extract BGer citations (from html_raw) using "artref" tags
-- Extract judgements
+- Extract judgments
 - Process each text with spacy, save doc to disk and store path in db, store num token count in separate db col
 - Compute lemma counts and save aggregates in separate tables
 - Create the smaller datasets derived from SCRC with the available metadata
@@ -46,9 +46,7 @@ def main():
     """
     # faulthandler.enable()  # can print a minimal threaddump in case of external termination
 
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
-
+    config = get_config()
     process_scrc(config)
 
     process_external_corpora(config)
@@ -95,8 +93,8 @@ def construct_base_dataset(config):
     citation_extractor = CitationExtractor(config)
     citation_extractor.start()
 
-    judgement_extractor = JudgementExtractor(config)
-    judgement_extractor.start()
+    judgment_extractor = JudgmentExtractor(config)
+    judgment_extractor.start()
 
     lower_court_extractor = LowerCourtExtractor(config)
     lower_court_extractor.start()
