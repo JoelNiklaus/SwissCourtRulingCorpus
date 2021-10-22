@@ -6,7 +6,8 @@ from scrc.data_classes.proceedings_party import ProceedingsParty
 
 
 @dataclass
-class ProceduralParticipation(dict):
+class ProceduralParticipation:
+
     plaintiffs: List[ProceedingsParty] = field(default_factory=list)# BeschwerdeführerIn / Kläger
     defendants: List[ProceedingsParty] = field(default_factory=list) # Beklagter
 
