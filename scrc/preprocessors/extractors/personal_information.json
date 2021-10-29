@@ -1,1141 +1,1141 @@
 {
-  "judges": {
+  "judge": {
     "federal_judge": {
       "Bundesrichter": [
         {
           "name": "Abrecht Bernard",
-          "gender": "m",
-          "party": "SP"
+          "gender": "male",
+          "party": "sp"
         },
         {
           "name": "Aubry Girardin Florence",
-          "gender": "f",
-          "party": "Gr\u00fcne"
+          "gender": "female",
+          "party": "green"
         },
         {
           "name": "Beusch Michael",
-          "gender": "m",
-          "party": "SP"
+          "gender": "male",
+          "party": "sp"
         },
         {
           "name": "Bovey Gr\u00e9gory",
-          "gender": "m",
-          "party": "FDP"
+          "gender": "male",
+          "party": "fdp"
         },
         {
           "name": "Chaix Fran\u00e7ois",
-          "gender": "m",
-          "party": "FDP"
+          "gender": "male",
+          "party": "fdp"
         },
         {
           "name": "Denys Christian",
-          "gender": "m",
-          "party": "Gr\u00fcne"
+          "gender": "male",
+          "party": "green"
         },
         {
           "name": "Donzallaz Yves",
-          "gender": "m",
-          "party": "SVP"
+          "gender": "male",
+          "party": "svp"
         },
         {
           "name": "Escher Elisabeth",
-          "gender": "f",
-          "party": "CVP"
+          "gender": "female",
+          "party": "cvp"
         },
         {
           "name": "Glanzmann Lucrezia",
-          "gender": "f",
-          "party": "FDP"
+          "gender": "female",
+          "party": "fdp"
         },
         {
           "name": "Haag Stephan",
-          "gender": "m",
-          "party": "GLP"
+          "gender": "male",
+          "party": "glp"
         },
         {
           "name": "Heine Alexia",
-          "gender": "f",
-          "party": "SVP"
+          "gender": "female",
+          "party": "svp"
         },
         {
           "name": "Herrmann Christian",
-          "gender": "m",
-          "party": "SVP"
+          "gender": "male",
+          "party": "svp"
         },
         {
           "name": "Hohl Fabienne",
-          "gender": "f",
-          "party": "FDP"
+          "gender": "female",
+          "party": "fdp"
         },
         {
           "name": "Hurni Christoph",
-          "gender": "m",
-          "party": "GLP"
+          "gender": "male",
+          "party": "glp"
         },
         {
           "name": "H\u00e4nni Julia",
-          "gender": "f",
-          "party": "CVP"
+          "gender": "female",
+          "party": "cvp"
         },
         {
           "name": "Jacquemoud-Rossari Laura",
-          "gender": "f",
-          "party": "CVP"
+          "gender": "female",
+          "party": "cvp"
         },
         {
           "name": "Jametti Monique",
-          "gender": "f",
-          "party": "SVP"
+          "gender": "female",
+          "party": "svp"
         },
         {
           "name": "Kiss Christina",
-          "gender": "f",
-          "party": "FDP"
+          "gender": "female",
+          "party": "fdp"
         },
         {
           "name": "Kneub\u00fchler Lorenz",
-          "gender": "m",
-          "party": "SP"
+          "gender": "male",
+          "party": "sp"
         },
         {
           "name": "Koch Sonja",
-          "gender": "f",
-          "party": "SVP"
+          "gender": "female",
+          "party": "svp"
         },
         {
           "name": "Maillard Marcel",
-          "gender": "m",
-          "party": "CVP"
+          "gender": "male",
+          "party": "cvp"
         },
         {
           "name": "Marazzi Luca",
-          "gender": "m",
-          "party": "FDP"
+          "gender": "male",
+          "party": "fdp"
         },
         {
           "name": "May Canellas Marie-Chantal",
-          "gender": "f",
-          "party": "CVP"
+          "gender": "female",
+          "party": "cvp"
         },
         {
           "name": "Merz Laurent",
-          "gender": "m",
-          "party": "Gr\u00fcne"
+          "gender": "male",
+          "party": "green"
         },
         {
           "name": "Moser-Szeless Margit",
-          "gender": "f",
-          "party": "SVP"
+          "gender": "female",
+          "party": "svp"
         },
         {
           "name": "Muschietti Giuseppe",
-          "gender": "m",
-          "party": "FDP"
+          "gender": "male",
+          "party": "fdp"
         },
         {
           "name": "M\u00fcller Thomas",
-          "gender": "m",
-          "party": "SVP"
+          "gender": "male",
+          "party": "svp"
         },
         {
           "name": "Niquille Martha",
-          "gender": "f",
-          "party": "CVP"
+          "gender": "female",
+          "party": "cvp"
         },
         {
           "name": "Parrino Francesco",
-          "gender": "m",
-          "party": "SP"
+          "gender": "male",
+          "party": "sp"
         },
         {
           "name": "R\u00fcedi Yves",
-          "gender": "m",
-          "party": "SVP"
+          "gender": "male",
+          "party": "svp"
         },
         {
           "name": "Sch\u00f6bi Felix",
-          "gender": "m",
-          "party": "BDP"
+          "gender": "male",
+          "party": "bdp"
         },
         {
           "name": "Seiler Hans Georg",
-          "gender": "m",
-          "party": "SVP"
+          "gender": "male",
+          "party": "svp"
         },
         {
           "name": "Stadelmann Thomas",
-          "gender": "m",
-          "party": "CVP"
+          "gender": "male",
+          "party": "cvp"
         },
         {
           "name": "Viscione Daniela",
-          "gender": "f",
-          "party": "SVP"
+          "gender": "female",
+          "party": "svp"
         },
         {
           "name": "Wirthlin Martin",
-          "gender": "m",
-          "party": "SP"
+          "gender": "male",
+          "party": "sp"
         },
         {
           "name": "van de Graaf Beatrice",
-          "gender": "f",
-          "party": "SVP"
+          "gender": "female",
+          "party": "svp"
         },
         {
           "name": "von Werdt Nicolas",
-          "gender": "m",
-          "party": "SVP"
+          "gender": "male",
+          "party": "svp"
         }
       ],
       "ehemalige Bundesrichter": [
         {
           "name": "Abrecht Theodor",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Aemisegger Heinz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Aepli Arnold Otto",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Aeschlimann Arthur",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Affolter Albert",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Affolter Hans",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Allemann-Reichle Albert",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Allet Alexis",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Andermatt Josef",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Anderwert Fridolin",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Antognini Fulvio",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Arnold Eduard",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Attenhofer Karl",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Bachmann Jakob Huldreich",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Bachtler Fritz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Berenstein Alexandre",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Betschart Gerold",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Bezzola Andrea",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Bianchi Sergio",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Bigler-Eggenberg Margrith",
-          "gender": "f"
+          "gender": "female"
         },
         {
           "name": "Blocher Eugen",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Blumer Johann Jakob",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Bl\u00e4si Josef",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Bl\u00f6sch Eduard Eugen",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Bolla Plinio",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Borel Eug\u00e8ne",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Borella Aldo",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Bourgknecht Louis",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Brenner Karl Johann",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Brodtbeck Karl Adolf",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Brosi Johann Rudolf",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Broye Jean",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Brunschwiler Carl Hans",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "B\u00fchler Josef",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Camperio Philippe",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Carlin Edouard",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Castella Jean",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Castoldi Jean-Jaques",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Catenazzi Emilio",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Cavin Pierre",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Ceresole Paul",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Ch\u00e2telain Jean-Pierre",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Clausen Felix",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Comment Albert",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Corboz Bernard",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Cornaz Auguste (Georges Adrien)",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Corrodi Paul",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Couchepin Arthur (Joseph-Marie)",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Couchepin Louis",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Dannegger Karl",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Deggeler Otto",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Deschenaux Eug\u00e8ne",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Dubach Werner",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Dubs Hans",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Dubs Jakob",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Ducrey Henri (Joseph)",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "D\u00fcby Kurt Rudolf",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Egli Jean-Fran\u00e7ois",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Engeler Johann",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Ernst August",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Eusebio Ivo",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Favey Georges",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Favre Antoine",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Favre Dominique",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Favre Louis-Eug\u00e8ne",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Fazy Robert",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Ferrari Pierre",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Folly Jean",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Fonjallaz Jean",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Forni Rolando",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Fragni\u00e8re Henri",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Fr\u00e9sard Jean-Maurice",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "F\u00e4ssler Franz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "F\u00e9raud Michel",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Gallati Rudolf",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Garbani-Nerini Evaristo",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Giovanoli Silvio",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Glasson Nicolas",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Gottofrey Vincent",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Grisel Andr\u00e9",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Guex Robert",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Guggenheim Camille",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Gysin Adam Hans",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Habl\u00fctzel Jakob",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Haefliger Arthur",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Hafner Heinrich",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Hartmann Karl",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Hasler Eugen",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Hauser Victor",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Hausheer Heinz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Hermann Nicolaus",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Heusser Jakob",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Honegger Heinrich",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Honegger Heinrich (sr)",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Huber Hans",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Huber Harald",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Hungerb\u00fchler Adrian",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "H\u00e4berlin Fritz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "H\u00e4berlin K. Eduard",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Imer Andr\u00e9 Florian",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Jacot-Guillarmod Oliver",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Jauch Franz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Junod Philippe Daniel",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "J\u00e4ger Carl",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "J\u00e4ger Gottlieb",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "J\u00f6hr Eduard",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Kappeler Johann Karl",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Karlen Peter",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Kasser Paul",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Kaufmann Otto Konstantin",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Kern Johann Conrad",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Kernen Yves",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Kirchhofer Emil",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Klett Kathrin",
-          "gender": "f"
+          "gender": "female"
         },
         {
           "name": "Kolly Gilbert",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Kopp Alois",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Kuttler Alfred",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "K\u00e4mpfer Walter",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Lemp Paul",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Leu Jean-Jaques",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Leuch Georg",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Leuenberger Walter",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Leuzinger Susanne",
-          "gender": "f"
+          "gender": "female"
         },
         {
           "name": "Levi Robert",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Lienhard Hermann",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Logoz Paul",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Lustenberger Alois",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "L\u00fcchinger Adolf",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Mathys Hans",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Matter Rudolf",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Merkli Thomas",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Merz Viktor",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Messmer Georg",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Messmer Johann",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Meyer Lorenz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Meyer Ulrich",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Migy Paul",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Monnier Fr\u00e9d\u00e9ric Auguste",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Morel Josef Karl Pankraz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Moritz Paul",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Muheim Gustav",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "M\u00fcller Peter Alexander",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "M\u00fcller Robert",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "M\u00fcri Hans",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Nay Giusep",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Niggeler Rudolf",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Nordmann-Zimmermann Ursula",
-          "gender": "f"
+          "gender": "female"
         },
         {
           "name": "Nyffeler Franz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "N\u00e4geli Walter",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Oberholzer Niklaus",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Olgiati Gaudenzio (Andrea)",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Oser Hugo",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Ostertag Fritz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Panchaud Andr\u00e9",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Patry Robert",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Pedrini Fernando",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Perrier Emile",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Perrin Ren\u00e9",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Petitmermet Robert",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Pfiffner Brigitte",
-          "gender": "f"
+          "gender": "female"
         },
         {
           "name": "Pfister Alois",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Pfisterer Thomas",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Pfyffer Kasimir",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Picot Ernest",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Pictet Gustave",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Piller Joseph",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Plattner Joseph",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Pometta Carlo",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Python Louis",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Rais Albert Constant Fran\u00e7ois",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Rambert Paul",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Raschein Rolf",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Raselli Niccol\u00f2",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Reeb Bertrand",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Reichel Alexander",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Reichlin Paul",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Robert L\u00e9on",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Roguin Jules",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Rossel Jean",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Rossel Virgile",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Rott Emil",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Rottenberg Liatowitsch Vera",
-          "gender": "f"
+          "gender": "female"
         },
         {
           "name": "Rouiller Claude Bernard",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Ruffy Victor",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "R\u00fcedi Jean-Pierre",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "R\u00fcttimann Johann Jakob",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Sailer Carl Georg Jakob",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Schmid Emil",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Schmid Franz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Schmidt Herman Innozenz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Schneider Roland Max",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Schoch Kurt",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Schubarth Martin",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Schurter Emil",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Schwander Vital",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Schwartz Paul",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Schweri Erhard",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Sch\u00f6n Franz",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Sch\u00f6nenberger Wilhelm",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Scyboz Georges",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Soldan Charles-Henri",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Soldati Agostino",
-          "gender": "m"
+          "gender": "male"
         },
         {
-          "name": "Sp\u00fchler Karl",
-          "gender": "m"
+          "name": "sp\u00fchler Karl",
+          "gender": "male"
         },
         {
           "name": "Stamm Heinrich",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Stauffer Wilhelm",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Steiner Hans",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Stocker Werner",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Stoffel Max",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Stooss Alfred",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Strebel Josef Jakob",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Studer Hartmann Friedrich",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "St\u00e4mpfli Jakob",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Thelin Henri",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Trog Johann Jakob",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Tschopp Hans",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Ursprung Albert",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Ursprung Rudolf",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Vigier Joseph Wilhelm Viktor",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Walter Hans Peter",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Weber Johann Conrad",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Weber Jost",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Weber Leo",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Weibel Heinrich",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Weiss Theodor",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Weyermann Edwin",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Widmer Wehrli Ursula",
-          "gender": "f"
+          "gender": "female"
         },
         {
           "name": "Winkler Johannes",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Wipr\u00e4chtiger Hans",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Wurzburger Alain",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Yersin Danielle",
-          "gender": "f"
+          "gender": "female"
         },
         {
           "name": "Zenruffinen Franz Kaspar",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Zgraggen Karl",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Ziegler Adolf",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Zwahlen Henri",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "Z\u00fcnd Andreas",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "von Arx Adrian",
-          "gender": "m"
+          "gender": "male"
         },
         {
           "name": "von Werra Raphael",
-          "gender": "m"
+          "gender": "male"
         }
       ]
     },
@@ -1146,15 +1146,15 @@
         },
         {
           "name": "Bechaalany Sarah",
-          "party": "Gr\u00fcne"
+          "party": "green"
         },
         {
           "name": "Benz Rolf",
-          "party": "GLP"
+          "party": "glp"
         },
         {
           "name": "Berger Markus",
-          "party": "SP"
+          "party": "sp"
         },
         {
           "name": "Courbat C\u00e9line"
@@ -1167,33 +1167,33 @@
         },
         {
           "name": "Griesser Yvona",
-          "party": "SVP"
+          "party": "svp"
         },
         {
           "name": "Hofmann Yann-Eric",
-          "party": "CVP"
+          "party": "cvp"
         },
         {
           "name": "Kradolfer Matthias"
         },
         {
           "name": "K\u00f6lz Christian",
-          "party": "Gr\u00fcne"
+          "party": "green"
         },
         {
           "name": "K\u00f6lz Christian",
-          "party": "Gr\u00fcne"
+          "party": "green"
         },
         {
           "name": "L\u00f6tscher Cordula",
-          "party": "CVP"
+          "party": "cvp"
         },
         {
           "name": "Martenet Vincent"
         },
         {
           "name": "Pont Veuthey Marie-Claire",
-          "party": "CVP"
+          "party": "cvp"
         },
         {
           "name": "Pontarolo Mattia"
@@ -1203,21 +1203,21 @@
         },
         {
           "name": "Truttmann Aileen",
-          "party": "FDP"
+          "party": "fdp"
         },
         {
           "name": "Wasser-Keller Beata",
-          "party": "SVP"
+          "party": "svp"
         },
         {
           "name": "Weber Richard",
-          "party": "SVP"
+          "party": "svp"
         }
       ]
     },
     "federal_judges": {}
   },
-  "clerks": {
+  "clerk": {
     "federal_clerk": {
       "Gerichtsschreiber": [
         {
@@ -1398,7 +1398,7 @@
           "name": "Grunder Christoph"
         },
         {
-          "name": "Gr\u00fcnenfelder Lukas"
+          "name": "greennfelder Lukas"
         },
         {
           "name": "Gr\u00fcnvogel Roger"
