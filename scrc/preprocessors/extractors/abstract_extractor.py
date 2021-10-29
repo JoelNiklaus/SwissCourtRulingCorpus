@@ -11,7 +11,7 @@ from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
 
-# TODO move progress files to separate directory
+
 class AbstractExtractor(ABC, AbstractPreprocessor):
     """Abstract Base Class used by Extractors to unify their behaviour"""
 

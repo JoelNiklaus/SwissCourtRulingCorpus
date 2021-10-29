@@ -14,6 +14,7 @@ pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
+
 def save_to_path(content, path, overwrite=False):
     """
     Create the parent directories of they do not exist.
@@ -24,7 +25,7 @@ def save_to_path(content, path, overwrite=False):
     :return:
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # check if
     if path.exists():
         logger.debug(f"Path {path} exists already")
@@ -180,6 +181,7 @@ def get_legal_area(chamber: str):
         if chamber in chambers:
             return legal_area
     raise ValueError(f"Please provide a valid chamber name. Could not find {chamber} in {legal_areas}")
+
 
 def get_config() -> configparser.ConfigParser:
     """Returns the parsed `config.ini` / `rootconfig.ini` files"""

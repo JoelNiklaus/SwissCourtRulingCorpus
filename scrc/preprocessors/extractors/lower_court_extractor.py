@@ -1,14 +1,12 @@
 from __future__ import annotations
 from typing import Any, TYPE_CHECKING
-import configparser
-
-from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
+
 
 class LowerCourtExtractor(AbstractExtractor):
     """
