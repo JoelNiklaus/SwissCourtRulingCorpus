@@ -34,6 +34,11 @@ git checkout -b a-descriptive-name-for-my-changes
 cp -R /home/fdn-admin/SwissCourtRulingCorpus/data/progress ~/SwissCourtRulingCorpus/data/progress
 ```
 
+7. Make a symlink to the spiders directory so that the AbstractPreprocessor can get the list of spiders.
+```bash
+ln -s /home/fdn-admin/SwissCourtRulingCorpus/data/ ~/SwissCourtRulingCorpus/data/spiders
+```
+
 ## Developing
 
 ### Before starting
