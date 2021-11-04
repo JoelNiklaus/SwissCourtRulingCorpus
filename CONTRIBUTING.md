@@ -35,6 +35,7 @@ cp -R /home/fdn-admin/SwissCourtRulingCorpus/data/progress ~/SwissCourtRulingCor
 ```
 
 7. Make a symlink to the spiders directory so that the AbstractPreprocessor can get the list of spiders.
+
 ```bash
 ln -s /home/fdn-admin/SwissCourtRulingCorpus/data/ ~/SwissCourtRulingCorpus/data/spiders
 ```
@@ -111,8 +112,8 @@ Non-functional goals are the following:
 The Section Splitting task is a prerequisite for the following task and should be performed first if it is not already
 done for the spider you are handling. The [section_splitter.py](scrc/preprocessors/extractors/section_splitter.py)
 orchestrates the section splitting for all the spiders. If you want to rerun your spider, remove the spider from the
-progress file [spiders_section_split.txt](data/progress/spiders_section_split.txt). All spider names present in this file will be
-skipped. This works analogously for the other tasks
+progress file [spiders_section_split.txt](data/progress/spiders_section_split.txt). All spider names present in this
+file will be skipped. This works analogously for the other tasks
 (files:
 [spiders_citation_extracted.txt](data/progress/spiders_citation_extracted.txt),
 [spiders_judgement_extracted.txt](data/progress/spiders_judgement_extracted.txt),
@@ -146,13 +147,13 @@ the [section_splitting_functions.py](scrc/preprocessors/extractors/spider_specif
 #### Court Composition
 
 The [court_composition_extractor.py](scrc/preprocessors/extractors/court_composition_extractor.py) is the main file
-coordinating the citation extraction for all spiders. When you implement a new spider, you should add your code to
+coordinating the court composition (judges and clerks) extraction for all spiders. When you implement a new spider, you should add your code to
 the [court_composition_extracting_functions.py](scrc/preprocessors/extractors/spider_specific/court_composition_extracting_functions.py)
 
 #### Procedural Participation
 
 The [procedural_participation_extractor.py](scrc/preprocessors/extractors/procedural_participation_extractor.py) is the
-main file coordinating the citation extraction for all spiders. When you implement a new spider, you should add your
+main file coordinating the procedural participation (parties and legal counsels) extraction for all spiders. When you implement a new spider, you should add your
 code to
 the [procedural_participation_extracting_functions.py](scrc/preprocessors/extractors/spider_specific/procedural_participation_extracting_functions.py)
 
