@@ -186,7 +186,7 @@ class AbstractPreprocessor:
 
         if not AbstractPreprocessor._check_write_privilege(engine):
             AbstractPreprocessor.create_dir(output_dir, os.getlogin())
-            path = Path.joinpath(output_dir, os.getusername(), datetime.now().isoformat() + '.json')
+            path = Path.joinpath(output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
             with path.open("a") as f:
                 df.to_json(f)
             return
