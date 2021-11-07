@@ -33,6 +33,7 @@ class SectionSplitter(AbstractExtractor):
             'processing_one': 'Splitting sections from file',
             'no_functions': 'Not splitting into sections.'
         }
+        
         self.processed_file_path = self.progress_dir / "spiders_section_split.txt"
 
     def get_required_data(self, series: pd.DataFrame) -> Union[bs4.BeautifulSoup, str, None]:
@@ -107,6 +108,7 @@ class SectionSplitter(AbstractExtractor):
 
 
 if __name__ == '__main__':
+    print("Section splitter module is called\n")
     config = get_config()
     section_splitter = SectionSplitter(config)
     section_splitter.start()
