@@ -200,3 +200,424 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
             last_person = person
     return besetzung
 
+
+
+
+def ZG_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
+    """
+    Extract judicial persons from decisions of the Verwaltungsgericht of Zug
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict
+    """
+    
+    print(header)
+    role_regexes = {
+        Gender.MALE: {
+            CourtRole.JUDGE: [r'Richter(?!in)', r'Einzelrichter(?!in)'],
+            CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
+        },
+        Gender.FEMALE: {
+            CourtRole.JUDGE: [r'Richterin(nen)?',r'Einzelrichterin(nen)?'],
+            CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
+        }
+    }
+
+    skip_strings = {
+        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
+    }
+
+    information_start_regex = r'Mitwirkende|Einzelrichter'
+    start_pos = re.search(information_start_regex, header)
+    if start_pos:
+        header = header[start_pos.span()[0]:]
+
+    information_end_regex = r'Urteil|U R T E I L'
+    end_pos = re.search(information_end_regex, header)
+    if end_pos:
+        header = header[:end_pos.span()[1] - 1]
+
+    header = header.replace(';', ',')
+    header = header.replace(' und ', ', ')
+    header = header.replace(' sowie ', ', ')
+    header = header.replace('lic. ', '')
+    header = header.replace('iur. ', '')
+    header = header.replace('Dr. ', '')
+    header = header.replace('MLaw ', '')
+    header = header.replace('PD ', '')
+    header = header.replace(' als Einzelrichterin', '')
+    header = header.replace(' als Einzelrichter', '')
+    besetzungs_strings = header.split(',')
+
+
+    besetzung = CourtComposition()
+    current_role = CourtRole.JUDGE
+    last_person: CourtPerson = None
+    person: CourtPerson = None
+    last_gender = Gender.MALE
+
+    personal_information_database = json.loads(Path("personal_information.json").read_text())
+
+    def match_person_to_database(person: CourtPerson, current_gender: Gender) -> Tuple[CourtPerson, bool]:
+        """"Matches a name of a given role to a person from personal_information.json"""
+        results = []
+        name = person.name.replace('.', '').strip()
+        split_name = name.split()
+        initial = False
+        if len(split_name) > 1:
+            initial = next((x for x in split_name if len(x) == 1), None)
+            split_name = list(filter(lambda x: len(x) > 1, split_name))
+        if person.court_role.value in personal_information_database:
+            for subcategory in personal_information_database[person.court_role]:
+                for cat_id in personal_information_database[person.court_role][subcategory]:
+                    for db_person in personal_information_database[person.court_role][subcategory][cat_id]:
+                        if set(split_name).issubset(set(db_person['name'].split())):
+                            if not initial or re.search(rf'\s{initial.upper()}\w*', db_person['name']):
+                                person.name = db_person['name']
+                                if db_person.get('gender'):
+                                    person.gender = Gender(db_person['gender'])
+                                if db_person.get('party'):
+                                    person.gender = Gender(db_person['party'])
+                                results.append(person)
+        else:
+            for existing_role in personal_information_database:
+                temp_person = CourtPerson(person.name, court_role=CourtRole(existing_role))
+                db_person, match = match_person_to_database(temp_person, current_gender)
+                if match:
+                    results.append(db_person)
+        if len(results) == 1:
+            if not results[0].gender:
+                results[0].gender = current_gender
+            return person, True
+        return person, False
+
+
+    for text in besetzungs_strings:
+        text = text.strip()
+        if len(text) == 0 or text in skip_strings[namespace['language']]:
+            continue
+        if re.search(r'(?<![Vv]ice-)[Pp]r[äée]sid',
+                     text):  # Set president either to the current person or the last Person (case 1: Präsident Niklaus, case 2: Niklaus, Präsident)
+            if last_person:
+                besetzung.president = last_person
+                continue
+            else:
+                text = text.split()[-1]
+                president, _ = match_person_to_database(CourtPerson(text), last_gender)
+                besetzung.president = president
+        has_role_in_string = False
+        matched_gender_regex = False
+        for gender in role_regexes:  # check for male and female all roles
+            if matched_gender_regex:
+                break
+            role_regex = role_regexes[gender]
+            for regex_key in role_regex:  # check each role
+                regex = '|'.join(role_regex[regex_key])
+                role_pos = re.search(regex, text)
+                if role_pos: # Found a role regex
+                    last_role = current_role
+                    current_role = regex_key
+                    name_match = re.search(r'[A-Z][A-Za-z\-éèäöü\s]*(?= Urteil)|[A-Z][A-Za-z\-éèäöü\s]*(?= )',
+                                           text[role_pos.span()[1] + 1:])
+                    name = name_match.group() if name_match else text[role_pos.span()[1] + 1:]
+                    if len(name.strip()) == 0:
+                        if (last_role == CourtRole.CLERK and len(besetzung.clerks) == 0) or (last_role == CourtRole.JUDGE and len(besetzung.judges) == 0):
+                            break
+
+                        last_person_name = besetzung.clerks.pop().name if (last_role == CourtRole.CLERK) else besetzung.clerks.pop().name # rematch in database with new role
+                        last_person_new_match, _ = match_person_to_database(CourtPerson(name=last_person_name, court_role=current_role), gender)
+                        if current_role == CourtRole.JUDGE:
+                            besetzung.judges.append(last_person_new_match)
+                        elif current_role == CourtRole.CLERK:
+                            besetzung.clerks.append(last_person_new_match)
+                    matched_person, _ = match_person_to_database(person, gender)
+                    if current_role == CourtRole.JUDGE:
+                        besetzung.judges.append(matched_person)
+                    elif current_role == CourtRole.CLERK:
+                        besetzung.clerks.append(matched_person)
+                    last_person = matched_person
+                    last_gender = matched_person.gender
+                    has_role_in_string = True
+                    matched_gender_regex = True
+                    break
+        if not has_role_in_string:  # Current string has no role regex match
+            if current_role not in besetzung:
+                besetzung[current_role] = []
+            name_match = re.search(
+                r'[A-Z][A-Za-z\-éèäöü\s]*(?= Urteil)|[A-Z][A-Za-z\-éèäöü\s]*(?= )|[A-Z][A-Za-z\-éèäöü\s]*', person.name)
+            if not name_match:
+                continue
+            name = name_match.group()
+            person.court_role = current_role
+            matched_person, _ = match_person_to_database(person, last_gender)
+            if current_role == CourtRole.JUDGE:
+                besetzung.judges.append(matched_person)
+            elif current_role == CourtRole.CLERK:
+                besetzung.clerks.append(matched_person)
+            last_person = person
+    return besetzung
+
+
+def ZH_Baurekurs(header: str, namespace: dict) -> Optional[str]:
+    """
+    Extract judicial persons from decisions of the Baurekursgericht of Zurich
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict
+    """
+    
+    print(header)
+
+    role_regexes = {
+        Gender.MALE: {
+            CourtRole.JUDGE: [r'Abteilungspräsident(?!in)', r'Baurichter(?!in)', r'Abteilungsvizepräsident(?!in)', r'Ersatzrichter(?!in)'],
+            CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
+        },
+        Gender.FEMALE: {
+            CourtRole.JUDGE: [r'Abteilungspräsidentin(nen)?',r'Baurichterin(nen)?', r'Abteilungsvizepräsidentin(nen)?', r'Ersatzrichterin(nen)?'],
+            CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
+        }
+    }
+
+    skip_strings = {
+        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
+    }
+
+    information_start_regex = r'Mitwirkende'
+    start_pos = re.search(information_start_regex, header)
+    if start_pos:
+        header = header[start_pos.span()[0]:]
+
+    information_end_regex = r'in Sachen '
+    end_pos = re.search(information_end_regex, header)
+    if end_pos:
+        header = header[:end_pos.span()[1] - 1]
+    
+    header = header.replace(';', ',')
+    header = header.replace(' und ', ', ')
+    header = header.replace(' sowie ', ', ')
+    header = header.replace('lic. ', '')
+    header = header.replace('iur. ', '')
+    header = header.replace('Dr. ', '')
+    header = header.replace('MLaw ', '')
+    header = header.replace('PD ', '')
+    header = header.replace(' als Einzelrichterin', '')
+    header = header.replace(' als Einzelrichter', '')
+    besetzungs_strings = header.split(',')
+
+    besetzung = CourtComposition()
+    current_role = CourtRole.JUDGE
+    last_person: CourtPerson = None
+    last_gender = Gender.MALE
+
+    pass
+
+def ZH_Obergericht(header: str, namespace: dict) -> Optional[str]:
+    """
+    Extract judicial persons from decisions of the Obergericht of Zurich
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict
+    """
+
+    role_regexes = {
+        Gender.MALE: {
+            CourtRole.JUDGE: [r'Oberrichter(?!in)', r'Ersatzrichter(?!in)'],
+            CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
+        },
+        Gender.FEMALE: {
+            CourtRole.JUDGE: [r'Oberrichterin(nen)?',r'Ersatzrichterin(nen)?'],
+            CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
+        }
+    }
+
+    skip_strings = {
+        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
+    }
+
+    information_start_regex = r'Mitwirkend:'
+    start_pos = re.search(information_start_regex, header)
+    if start_pos:
+        header = header[start_pos.span()[0]:]
+    
+    information_end_regex = r'Beschluss vom|Urteil vom|Beschluss und Urteil vom'
+    end_pos = re.search(information_end_regex, header)
+    if end_pos:
+        header = header[:end_pos.span()[1] - 1]
+    
+    header = header.replace(';', ',')
+    header = header.replace(' und ', ', ')
+    header = header.replace(' sowie ', ', ')
+    header = header.replace('lic. ', '')
+    header = header.replace('iur. ', '')
+    header = header.replace('Dr. ', '')
+    header = header.replace('MLaw ', '')
+    header = header.replace('PD ', '')
+    header = header.replace(' als Einzelrichterin', '')
+    header = header.replace(' als Einzelrichter', '')
+    besetzungs_strings = header.split(',')
+
+    besetzung = CourtComposition()
+    current_role = CourtRole.JUDGE
+    last_person: CourtPerson = None
+    last_gender = Gender.MALE
+        
+    pass
+
+
+def ZH_Sozialversicherungsgericht(header: str, namespace: dict) -> Optional[str]:
+    """
+    Extract judicial persons from decisions of the Sozialversicherungsgericht of Zurich
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict
+    """
+
+    role_regexes = {
+        Gender.MALE: {
+            CourtRole.JUDGE: [r'Sozialversicherungsrichter(?!in)', r'Ersatzrichter(?!in)'],
+            CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
+        },
+        Gender.FEMALE: {
+            CourtRole.JUDGE: [r'Sozialversicherungsrichterin(nen)?',r'Ersatzrichterin(nen)?'],
+            CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
+        }
+    }
+
+    skip_strings = {
+        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
+    }
+
+    information_start_regex = r'Mitwirkende|Einzelrichter'
+    start_pos = re.search(information_start_regex, header)
+    if start_pos:
+        header = header[start_pos.span()[0]:]
+
+    information_end_regex = r'Urteil vom|in Sachen'
+    end_pos = re.search(information_end_regex, header)
+    if end_pos:
+        header = header[:end_pos.span()[1] - 1]
+    
+    header = header.replace(';', ',')
+    header = header.replace(' und ', ', ')
+    header = header.replace(' sowie ', ', ')
+    header = header.replace('lic. ', '')
+    header = header.replace('iur. ', '')
+    header = header.replace('Dr. ', '')
+    header = header.replace('MLaw ', '')
+    header = header.replace('PD ', '')
+    header = header.replace(' als Einzelrichterin', '')
+    header = header.replace(' als Einzelrichter', '')
+    besetzungs_strings = header.split(',')
+
+    besetzung = CourtComposition()
+    current_role = CourtRole.JUDGE
+    last_person: CourtPerson = None
+    last_gender = Gender.MALE
+        
+    pass
+
+def ZH_Steuerrekurs(header: str, namespace: dict) -> Optional[str]:
+    """
+    Extract judicial persons from decisions of the Steuerrekursgericht of Zurich
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict
+    """
+
+
+    role_regexes = {
+        Gender.MALE: {
+            CourtRole.JUDGE: [r'Abteilungspräsident(?!in)', r'Steuerrichter(?!in)', r'Ersatzrichter(?!in)', r'Einzelrichter(?!in)'],
+            CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
+        },
+        Gender.FEMALE: {
+            CourtRole.JUDGE: [r'Abteilungspräsidentin(nen)?',r'Steuerrichterin(nen)?',r'Ersatzrichterin(nen)?',r'Einzelrichterin(nen)?'],
+            CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
+        }
+    }
+
+    skip_strings = {
+        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
+    }
+
+    information_start_regex = r'Mitwirkend:'
+    start_pos = re.search(information_start_regex, header)
+    if start_pos:
+        header = header[start_pos.span()[0]:]
+    
+    information_end_regex = r'In Sachen|in Sachen'
+    end_pos = re.search(information_end_regex, header)
+    if end_pos:
+        header = header[:end_pos.span()[1] - 1]
+    
+    header = header.replace(';', ',')
+    header = header.replace(' und ', ', ')
+    header = header.replace(' sowie ', ', ')
+    header = header.replace('lic. ', '')
+    header = header.replace('iur. ', '')
+    header = header.replace('Dr. ', '')
+    header = header.replace('MLaw ', '')
+    header = header.replace('PD ', '')
+    header = header.replace(' als Einzelrichterin', '')
+    header = header.replace(' als Einzelrichter', '')
+    besetzungs_strings = header.split(',')
+
+    besetzung = CourtComposition()
+    current_role = CourtRole.JUDGE
+    last_person: CourtPerson = None
+    last_gender = Gender.MALE
+        
+    pass
+
+def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
+    """
+    Extract judicial persons from decisions of the Verwaltungsgericht of Zurich
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict
+    """
+
+    role_regexes = {
+        Gender.MALE: {
+            CourtRole.JUDGE: [r'Abteilungspräsident(?!in)', r'Verwaltungsrichter(?!in)'],
+            CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
+        },
+        Gender.FEMALE: {
+            CourtRole.JUDGE: [r'Abteilungspräsidentin(nen)?',r'Verwaltungsrichterin(nen)?'],
+            CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
+        }
+    }
+
+    skip_strings = {
+        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
+    }
+
+    information_start_regex = r'Mitwirkend:'
+    start_pos = re.search(information_start_regex, header)
+    if start_pos:
+        header = header[start_pos.span()[0]:]
+
+    information_end_regex = r'In Sachen|in Sachen'
+    end_pos = re.search(information_end_regex, header)
+    if end_pos:
+        header = header[:end_pos.span()[1] - 1]
+
+    header = header.replace(';', ',')
+    header = header.replace(' und ', ', ')
+    header = header.replace(' sowie ', ', ')
+    header = header.replace('lic. ', '')
+    header = header.replace('iur. ', '')
+    header = header.replace('Dr. ', '')
+    header = header.replace('MLaw ', '')
+    header = header.replace('PD ', '')
+    header = header.replace(' als Einzelrichterin', '')
+    header = header.replace(' als Einzelrichter', '')
+    besetzungs_strings = header.split(',')
+
+    besetzung = CourtComposition()
+    current_role = CourtRole.JUDGE
+    last_person: CourtPerson = None
+    last_gender = Gender.MALE
+        
+    pass
