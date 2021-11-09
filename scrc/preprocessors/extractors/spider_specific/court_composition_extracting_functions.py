@@ -211,7 +211,6 @@ def ZG_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
     :return:            the sections dict
     """
     
-    print(header)
     role_regexes = {
         Gender.MALE: {
             CourtRole.JUDGE: [r'Richter(?!in)', r'Einzelrichter(?!in)'],
