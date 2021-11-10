@@ -20,7 +20,7 @@ def XX_SPIDER(header: str, namespace: dict) -> Optional[str]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 def VD_Omni(header: str, namespace: dict) -> Optional[str]:
-    print("court composition is called in VD_Omni")
+
 
     def find_the_keywords(candidate):
         """
@@ -30,39 +30,32 @@ def VD_Omni(header: str, namespace: dict) -> Optional[str]:
                 the role is availabe or not 2)the span of occurance of the role's keyword
                 """
         pr_available = False
-        cm_available = False
         as_available = False
         gr_available = False
         ju_available = False
         jusu_available = False
         ti_available = False
-        cm_end_available = False
+
 
         pr_span = None
-        cm_span = None
         as_span = None
         gr_span = None
         ju_span = None
         jusu_span = None
         ti_span_list = None
-        cm_end_span = None
+
 
         pr_ = pr_RegEx.search(candidate)
-        cm_ = cm_RegEx.search(candidate)
         as_ = as_RegEx.search(candidate)
         gr_ = gr_RegEx.search(candidate)
         ju_ = ju_RegEx.search(candidate)
         jusu_ = juSup_RegEx.search(candidate)
         ti_ = ti_RegEx.search(candidate)
-        cm_end_ = cm_end_RegEx.search(candidate)
+
 
         if pr_ is not None:
             pr_available = True
             pr_span = pr_.span()
-
-        if cm_ is not None:
-            cm_available = True
-            cm_span = cm_.span()
 
         if as_ is not None:
             as_available = True
@@ -81,14 +74,15 @@ def VD_Omni(header: str, namespace: dict) -> Optional[str]:
         if ti_ is not None:
             ti_available = True
             ti_span_list = [m.span() for m in re.finditer(ti_RegEx, candidate)]
-        if cm_end_ is not None:
-            cm_end_available = True
-            cm_end_span = cm_end_.span()
 
-        keyword_dict = {'cm': [cm_available, cm_span], 'pr': [pr_available, pr_span],
-                        'as': [as_available, as_span], 'gr': [gr_available, gr_span],
-                        'ju': [ju_available, ju_span], 'jusu': [jusu_available, jusu_span],
-                        'ti': [ti_available, ti_span_list], 'cm_end': [cm_end_available, cm_end_span]}
+        keyword_dict = {
+                        'pr': [pr_available, pr_span],
+                        'as': [as_available, as_span],
+                        'gr': [gr_available, gr_span],
+                        'ju': [ju_available, ju_span],
+                        'jusu': [jusu_available, jusu_span],
+                        'ti': [ti_available, ti_span_list]
+                        }
         return keyword_dict
 
     def eliminate_invalid_roles(keyword_dict):
@@ -107,11 +101,10 @@ def VD_Omni(header: str, namespace: dict) -> Optional[str]:
             keyword_dict.pop(k)
         return keyword_dict
 
-    def extraction_using_titles(ti_, cm_end_, candidate, keywords):
+    def extraction_using_titles(ti_, candidate, keywords):
         """
 
         @param ti_: a list of title's span()
-        @param cm_end_: output of cm_RegEx which is None if we were not able to find the end of the composition.
         @param candidate: a 400-character string which is candidate for containing the composition
         @param keywords: a list of sorted roles and their span()
         @return:
@@ -137,13 +130,7 @@ def VD_Omni(header: str, namespace: dict) -> Optional[str]:
             else:
                 # Is it the last item?
                 if idx_val == len(keywords) - 1:
-                    # if we have found the end of composition simply return what has remained
-                    if (cm_end_ is not None):
-                        roles.append([val[0], candidate[val[1][1][1]:]])
-                    # if did not manage to find the end of the composition, limit the name to 25 characters
-                    else:
-                        roles.append([val[0], candidate[val[1][1][1]:val[1][1][1] + 20]])  # role_end to the role_end+25
-
+                    roles.append([val[0], candidate[val[1][1][1]:]])
                 else:
                     message = f"We still do not support extraction if the name appears after the role keyword"
                     raise ValueError(message)
@@ -155,11 +142,9 @@ def VD_Omni(header: str, namespace: dict) -> Optional[str]:
             idx_title += 1
         return roles
 
-    def extraction_using_composition(cm_, cm_end_, candidate, keywords):
+    def extraction_using_composition(cm_, candidate, keywords):
         """
-
         @param cm_: The output of cm_RegEx. We can call its span() method to find where it occurs in the string
-        @param cm_end_: The output of cm_end_RegEx. We can call its start() method to find where the composition ends
         @param candidate: a 400-character string which potentially contains the composition
         @param keywords: a sorted list of roles and their span
         @return: A list of tuples whith 1)the role keyword 2) their details
@@ -216,16 +201,12 @@ def VD_Omni(header: str, namespace: dict) -> Optional[str]:
 
         # find all the keyword's occurance in the candidate
         keywords = find_the_keywords(candidate)
-        # pop out composition, end of composition, and titles
+        # pop out composition, and titles
         cm_ = keywords.pop('cm')
-        cm_end_ = keywords.pop('cm_end')
         ti_ = keywords.pop('ti')
         # it is vital to see if titles are used or not
         ti_available = ti_[0]
         ti_ = ti_[1]
-        # preprocessing: cut the candidate when the composition end is known
-        if cm_end_[0]:
-            candidate = candidate[:cm_end_[1][0]]
         # preprocessing: eliminate those roles that were not found
         keywords = eliminate_invalid_roles(keywords)
         # preprocessing: sort the roles based on their order (which comes earlier?)
@@ -233,14 +214,13 @@ def VD_Omni(header: str, namespace: dict) -> Optional[str]:
         # if decision is using the people titles
         if ti_available is not False and len(ti_) >= len(keywords.items()):
 
-            role = extraction_using_titles(ti_, cm_end_, candidate, sorted_keywords)
+            role = extraction_using_titles(ti_, candidate, sorted_keywords)
 
         # if titles are not used or not everybody has a title
         else:
             # we may be able to extract people using the composition keyword
             if cm_[0]:
-
-                role = extraction_using_composition(cm_, cm_end_, candidate, sorted_keywords)
+                role = extraction_using_composition(cm_, candidate, sorted_keywords)
 
             else:
                 message = f"We still do not support extraction without tiles and 'composition' keyword"
@@ -401,16 +381,12 @@ def VD_Omni(header: str, namespace: dict) -> Optional[str]:
     juSup_RegEx = re.compile(r'[J,j]uge\bsuppl[é,e]ant')
     # title
     ti_RegEx = re.compile(r'\bMme(\.)?\b|\bM(\.)?\b|\bMM(\.)?\b|Mlle(\.)?|Mme(s)?|Messieur(s)?')
-    # find the end of composition
-    cm_end_RegEx = re.compile(r'([E,e]n|les)? fait(s)?')
+
 
     role = extract_judicial_people(composition_candidates)
     details = extract_details(role)
-    f = open("VD_Omni_judicial_person.txt", "a")
-    f.write('%s' %details)
-    f.write('\n-------------------------------------------------------------\n')
-    f.close()
-    pass
+    return details
+
 
 # check if court got assigned shortcut: SELECT count(*) from de WHERE lower_court is not null and lower_court <> 'null' and lower_court::json#>>'{court}'~'[A-Z0-9_]{2,}';
 def CH_BGer(header: str, namespace: dict) -> Optional[str]:

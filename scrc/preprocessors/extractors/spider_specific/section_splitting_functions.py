@@ -28,7 +28,7 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
 
 
 def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    # print("\nVD_Omni\n")
+
 
     def get_paragraphs(soup):
         """
@@ -44,12 +44,11 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
 
             div = soup.find_all("div", class_=main_div_class)
             if (len(div) != 0):
-                class_found = main_div_class
                 break
         # We expect to have only one main div
         assert len(div) == 1
         # If the divs is empty raise an error
-        if (len(div) == 0):
+        if len(div) == 0:
             message = f"The main div has an unseen class type"
             raise ValueError(message)
         paragraphs = []
@@ -64,27 +63,20 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
                 if paragraph not in ['', ' ', None]:  # discard empty paragraphs
                     paragraphs.append(paragraph)
         return paragraphs
-    def get_composition_candidates(paragraphs, RegEx):
+    def get_composition_candidates(paragraphs, cm_RegEx, cm_end_RegEx):
 
         # did we miss composition of some of the decisions?
         missed_cnt = 0
         composition_candidate = None
         for paragraph in paragraphs:
-            composition = RegEx.search(paragraph)
+            cm = cm_RegEx.search(paragraph)
+            cm_end = cm_end_RegEx.search(paragraph)
             # If we did not find the RegEx in the paragraph
-            if composition is None:
+            if cm is None or cm_end is None:
                 missed_cnt += 1
                 continue
-            # If we found it, we will take a 2*range substring and use it as composition candidate
-            starting_index = composition.start()
-            # Hopefully the composition length will not be more than 400 characters
-            range = 200
-            # starting index
-            s_indx = starting_index - range if (starting_index > range) else 0
-            # ending index
-            e_indx = starting_index + range if (len(paragraph) > starting_index + range) else len(paragraph)
-            # extract the compostion
-            composition_candidate = paragraph[s_indx:e_indx]
+            composition_candidate = paragraph[cm.start():cm_end.start()]
+
             # Store all the compositions in a signle list
 
         return composition_candidate, missed_cnt
@@ -92,17 +84,31 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     paragraphs_by_section = {section: [] for section in Section}
     paragraphs = get_paragraphs(decision)
     # Currently, we search the whole decision for the following keywords: president, presidence, compose, composition
-    composition_RegEx = re.compile(r'[P,p]r[é,e]siden[t,c]|compos[é,e] | [C,c]omposition')
-    composition_candidate, missed_cnt = get_composition_candidates(paragraphs, composition_RegEx)
+    cm_RegEx = re.compile(r'[P,p]r[é,e]siden[t,c]|'
+                                   r'compos[é,e] |'
+                                   r' [C,c]omposition')
+    # Find the end of the composition
+    cm_end_RegEx = re.compile(r'([E,e]n|les)? fait(s)?\b(suivants)? |'
+                              r'[C,c]onsid[é,e]rant(e)? en droit ')
 
-    if missed_cnt != 0 or composition_candidate is None:
-        # We write all the missed descisions to a file to take a closer look and improve the efficiency
-        f = open("VD_Omni_missed_decisions.txt", "a")
-        f.write('%s' % paragraphs)
-        f.write('\n-------------------------------------------------------------\n')
-        f.close()
-        message = f"We have missed the judicial people for some decisions"
-        raise ValueError(message)
+    composition_candidate, missed_cnt = get_composition_candidates(paragraphs, cm_RegEx, cm_end_RegEx)
+
+    # Uncomment to see the extraction results in plain txt file
+
+    # if missed_cnt != 0 or composition_candidate is None:
+    #     # We write all the missed descisions to a file to take a closer look and improve the efficiency
+    #     f = open("VD_Omni_missed_decisions.txt", "a")
+    #     f.write('%s' % paragraphs)
+    #     f.write('\n-------------------------------------------------------------\n')
+    #     f.close()
+    #     message = f"We have missed the judicial people for some decisions"
+    #     raise ValueError(message)
+    # else:
+    #     f = open("VD_Omni_headers.txt", "a")
+    #     f.write('%s' % composition_candidate)
+    #     f.write('\n-------------------------------------------------------------\n')
+    #     f.close()
+
 
     paragraphs_by_section[Section.HEADER] = composition_candidate
     paragraphs_by_section[Section.FACTS] = paragraphs
