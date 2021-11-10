@@ -4,5 +4,5 @@ from enum import Enum
 class CourtRole(Enum):
     PRESIDENT = 'president'
     JUDGE = 'judge'
-    ASSESSEUR = 'assesseur'
+    ASSESSOR = 'assessor'
     CLERK = 'clerk'
