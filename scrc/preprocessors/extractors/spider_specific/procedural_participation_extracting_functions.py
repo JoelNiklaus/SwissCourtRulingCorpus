@@ -190,165 +190,50 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
 # def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
 #    return CH_BGer(rulings, namespace)
 
+
+
+
+
+
 def ZG_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
 
-    information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen'
-    second_party_start_regex = [
-        r'gegen',
-    ]
-    representation_start = {
-        r'vertreten durch',
-    }
-
-    party_gender = {
-        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)'],
-        Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin']
-    }
-
-    lawyer_representation = {
-        Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)'],
-        Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin']
-    }
-
-    lawyer_name = {
-        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|(.$)|. Gegen| und)'
-    }
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
     pass
 
 def ZH_Baurekurs(header: str, namespace: dict) -> Optional[str]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
 
-    information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen'
-    second_party_start_regex = [
-        r'gegen',
-    ]
-    representation_start = {
-        r'vertreten durch',
-    }
-
-    party_gender = {
-        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)'],
-        Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin']
-    }
-
-    lawyer_representation = {
-        Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)'],
-        Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin']
-    }
-
-    lawyer_name = {
-        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|(.$)|. Gegen| und)'
-    }
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
     pass
 
 def ZH_Obergericht(header: str, namespace: dict) -> Optional[str]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
 
-    information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen'
-    second_party_start_regex = [
-        r'gegen',
-    ]
-    representation_start = {
-        r'vertreten durch',
-    }
-
-    party_gender = {
-        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)'],
-        Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin']
-    }
-
-    lawyer_representation = {
-        Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)'],
-        Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin']
-    }
-
-    lawyer_name = {
-        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|(.$)|. Gegen| und)'
-    }
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
     pass
 
 def ZH_Sozialversicherungsgericht(header: str, namespace: dict) -> Optional[str]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
 
-    information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen'
-    second_party_start_regex = [
-        r'gegen',
-    ]
-    representation_start = {
-        r'vertreten durch',
-    }
-
-    party_gender = {
-        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)'],
-        Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin']
-    }
-
-    lawyer_representation = {
-        Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)'],
-        Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin']
-    }
-
-    lawyer_name = {
-        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|(.$)|. Gegen| und)'
-    }
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
     pass
 
 def ZH_Steuerrekurs(header: str, namespace: dict) -> Optional[str]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
 
-    information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen'
-    second_party_start_regex = [
-        r'gegen',
-    ]
-    representation_start = {
-        r'vertreten durch',
-    }
-
-    party_gender = {
-        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)'],
-        Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin']
-    }
-
-    lawyer_representation = {
-        Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)'],
-        Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin']
-    }
-
-    lawyer_name = {
-        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|(.$)|. Gegen| und)'
-    }
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
     pass
 
 def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
 
-    information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen'
-    second_party_start_regex = [
-        r'gegen',
-    ]
-    representation_start = {
-        r'vertreten durch',
-    }
-
-    party_gender = {
-        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)'],
-        Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin']
-    }
-
-    lawyer_representation = {
-        Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)'],
-        Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin']
-    }
-
-    lawyer_name = {
-        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|(.$)|. Gegen| und)'
-    }
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
     pass
 
@@ -357,7 +242,27 @@ def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
 
 
 
+def get_regex():
+    information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen'
+    second_party_start_regex = [
+        r'gegen',
+    ]
+    representation_start = {
+        r'vertreten durch',
+    }
+    party_gender = {
+        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)', r'Antragsteller(?!in)', r'Antragsgegner(?!in)', r'Rekurrent(?!in)', r'Rekursgegner(?!in)'],
+        Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin', r'Antragstellerin', r'Antragsgegnerin', r'Rekurrentin', r'Rekursgegnerin']
+    }
+    lawyer_representation = {
+        Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)'],
+        Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin']
+    }
+    lawyer_name = {
+        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|(.$)|. Gegen| und)'
+    }
 
+    return information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name
 
 
 

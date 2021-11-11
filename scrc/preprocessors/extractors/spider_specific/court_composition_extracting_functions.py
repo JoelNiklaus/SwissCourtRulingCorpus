@@ -8,6 +8,7 @@ from scrc.data_classes.court_person import CourtPerson
 from scrc.enums.court_role import CourtRole
 from scrc.enums.gender import Gender
 from scrc.enums.language import Language
+from scrc.enums.political_party import PoliticalParty
 
 """
 This file is used to extract the judicial persons from decisions sorted by spiders.
@@ -44,11 +45,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         }
     }
 
-    skip_strings = {
-        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger'],
-        Language.FR: ['Juge suppléant', 'en qualité de juge unique'],
-        Language.IT: ['Giudice supplente', 'supplente']
-    }
+    skip_strings = get_skip_strings()
 
     start_pos = re.search(information_start_regex, header)
     if start_pos:
@@ -77,41 +74,6 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     header = re.sub(r'Mmes?, MM?\.', 'MMe et M', header)
     header = header.replace('federali, ', 'federali')
     besetzungs_strings = header.split(',')
-
-    personal_information_database = json.loads(Path("personal_information.json").read_text())
-
-    def match_person_to_database(person: CourtPerson, current_gender: Gender) -> Tuple[CourtPerson, bool]:
-        """"Matches a name of a given role to a person from personal_information.json"""
-        results = []
-        name = person.name.replace('.', '').strip()
-        split_name = name.split()
-        initial = False
-        if len(split_name) > 1:
-            initial = next((x for x in split_name if len(x) == 1), None)
-            split_name = list(filter(lambda x: len(x) > 1, split_name))
-        if person.court_role.value in personal_information_database:
-            for subcategory in personal_information_database[person.court_role]:
-                for cat_id in personal_information_database[person.court_role][subcategory]:
-                    for db_person in personal_information_database[person.court_role][subcategory][cat_id]:
-                        if set(split_name).issubset(set(db_person['name'].split())):
-                            if not initial or re.search(rf'\s{initial.upper()}\w*', db_person['name']):
-                                person.name = db_person['name']
-                                if db_person.get('gender'):
-                                    person.gender = Gender(db_person['gender'])
-                                if db_person.get('party'):
-                                    person.gender = Gender(db_person['party'])
-                                results.append(person)
-        else:
-            for existing_role in personal_information_database:
-                temp_person = CourtPerson(person.name, court_role=CourtRole(existing_role))
-                db_person, match = match_person_to_database(temp_person, current_gender)
-                if match:
-                    results.append(db_person)
-        if len(results) == 1:
-            if not results[0].gender:
-                results[0].gender = current_gender
-            return person, True
-        return person, False
 
     def prepare_french_name_and_find_gender(person: CourtPerson) -> CourtPerson:
         """Removes the prefix from a french name and sets gender"""
@@ -222,74 +184,25 @@ def ZG_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
         }
     }
 
-    skip_strings = {
-        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
-    }
+    skip_strings = get_skip_strings()
 
     information_start_regex = r'Mitwirkende|Einzelrichter'
     start_pos = re.search(information_start_regex, header)
     if start_pos:
         header = header[start_pos.span()[0]:]
 
-    information_end_regex = r'Urteil|U R T E I L'
+    information_end_regex = r'Urteil|U R T E I L|URTEIL'
     end_pos = re.search(information_end_regex, header)
     if end_pos:
         header = header[:end_pos.span()[1] - 1]
 
-    header = header.replace(';', ',')
-    header = header.replace(' und ', ', ')
-    header = header.replace(' sowie ', ', ')
-    header = header.replace('lic. ', '')
-    header = header.replace('iur. ', '')
-    header = header.replace('Dr. ', '')
-    header = header.replace('MLaw ', '')
-    header = header.replace('PD ', '')
-    header = header.replace(' als Einzelrichterin', '')
-    header = header.replace(' als Einzelrichter', '')
-    besetzungs_strings = header.split(',')
-
+    besetzungs_strings = get_besetzungs_strings(header)
 
     besetzung = CourtComposition()
     current_role = CourtRole.JUDGE
     last_person: CourtPerson = None
     person: CourtPerson = None
     last_gender = Gender.MALE
-
-    personal_information_database = json.loads(Path("personal_information.json").read_text())
-
-    def match_person_to_database(person: CourtPerson, current_gender: Gender) -> Tuple[CourtPerson, bool]:
-        """"Matches a name of a given role to a person from personal_information.json"""
-        results = []
-        name = person.name.replace('.', '').strip()
-        split_name = name.split()
-        initial = False
-        if len(split_name) > 1:
-            initial = next((x for x in split_name if len(x) == 1), None)
-            split_name = list(filter(lambda x: len(x) > 1, split_name))
-        if person.court_role.value in personal_information_database:
-            for subcategory in personal_information_database[person.court_role]:
-                for cat_id in personal_information_database[person.court_role][subcategory]:
-                    for db_person in personal_information_database[person.court_role][subcategory][cat_id]:
-                        if set(split_name).issubset(set(db_person['name'].split())):
-                            if not initial or re.search(rf'\s{initial.upper()}\w*', db_person['name']):
-                                person.name = db_person['name']
-                                if db_person.get('gender'):
-                                    person.gender = Gender(db_person['gender'])
-                                if db_person.get('party'):
-                                    person.gender = Gender(db_person['party'])
-                                results.append(person)
-        else:
-            for existing_role in personal_information_database:
-                temp_person = CourtPerson(person.name, court_role=CourtRole(existing_role))
-                db_person, match = match_person_to_database(temp_person, current_gender)
-                if match:
-                    results.append(db_person)
-        if len(results) == 1:
-            if not results[0].gender:
-                results[0].gender = current_gender
-            return person, True
-        return person, False
-
 
     for text in besetzungs_strings:
         text = text.strip()
@@ -378,9 +291,7 @@ def ZH_Baurekurs(header: str, namespace: dict) -> Optional[str]:
         }
     }
 
-    skip_strings = {
-        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
-    }
+    skip_strings = get_skip_strings()
 
     information_start_regex = r'Mitwirkende'
     start_pos = re.search(information_start_regex, header)
@@ -392,17 +303,7 @@ def ZH_Baurekurs(header: str, namespace: dict) -> Optional[str]:
     if end_pos:
         header = header[:end_pos.span()[1] - 1]
     
-    header = header.replace(';', ',')
-    header = header.replace(' und ', ', ')
-    header = header.replace(' sowie ', ', ')
-    header = header.replace('lic. ', '')
-    header = header.replace('iur. ', '')
-    header = header.replace('Dr. ', '')
-    header = header.replace('MLaw ', '')
-    header = header.replace('PD ', '')
-    header = header.replace(' als Einzelrichterin', '')
-    header = header.replace(' als Einzelrichter', '')
-    besetzungs_strings = header.split(',')
+    besetzungs_strings = get_besetzungs_strings(header)
 
     besetzung = CourtComposition()
     current_role = CourtRole.JUDGE
@@ -430,9 +331,7 @@ def ZH_Obergericht(header: str, namespace: dict) -> Optional[str]:
         }
     }
 
-    skip_strings = {
-        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
-    }
+    skip_strings = get_skip_strings()
 
     information_start_regex = r'Mitwirkend:'
     start_pos = re.search(information_start_regex, header)
@@ -444,17 +343,7 @@ def ZH_Obergericht(header: str, namespace: dict) -> Optional[str]:
     if end_pos:
         header = header[:end_pos.span()[1] - 1]
     
-    header = header.replace(';', ',')
-    header = header.replace(' und ', ', ')
-    header = header.replace(' sowie ', ', ')
-    header = header.replace('lic. ', '')
-    header = header.replace('iur. ', '')
-    header = header.replace('Dr. ', '')
-    header = header.replace('MLaw ', '')
-    header = header.replace('PD ', '')
-    header = header.replace(' als Einzelrichterin', '')
-    header = header.replace(' als Einzelrichter', '')
-    besetzungs_strings = header.split(',')
+    besetzungs_strings = get_besetzungs_strings(header)
 
     besetzung = CourtComposition()
     current_role = CourtRole.JUDGE
@@ -483,9 +372,7 @@ def ZH_Sozialversicherungsgericht(header: str, namespace: dict) -> Optional[str]
         }
     }
 
-    skip_strings = {
-        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
-    }
+    skip_strings = get_skip_strings()
 
     information_start_regex = r'Mitwirkende|Einzelrichter'
     start_pos = re.search(information_start_regex, header)
@@ -497,17 +384,7 @@ def ZH_Sozialversicherungsgericht(header: str, namespace: dict) -> Optional[str]
     if end_pos:
         header = header[:end_pos.span()[1] - 1]
     
-    header = header.replace(';', ',')
-    header = header.replace(' und ', ', ')
-    header = header.replace(' sowie ', ', ')
-    header = header.replace('lic. ', '')
-    header = header.replace('iur. ', '')
-    header = header.replace('Dr. ', '')
-    header = header.replace('MLaw ', '')
-    header = header.replace('PD ', '')
-    header = header.replace(' als Einzelrichterin', '')
-    header = header.replace(' als Einzelrichter', '')
-    besetzungs_strings = header.split(',')
+    besetzungs_strings = get_besetzungs_strings(header)
 
     besetzung = CourtComposition()
     current_role = CourtRole.JUDGE
@@ -524,7 +401,6 @@ def ZH_Steuerrekurs(header: str, namespace: dict) -> Optional[str]:
     :return:            the sections dict
     """
 
-
     role_regexes = {
         Gender.MALE: {
             CourtRole.JUDGE: [r'Abteilungspräsident(?!in)', r'Steuerrichter(?!in)', r'Ersatzrichter(?!in)', r'Einzelrichter(?!in)'],
@@ -536,9 +412,7 @@ def ZH_Steuerrekurs(header: str, namespace: dict) -> Optional[str]:
         }
     }
 
-    skip_strings = {
-        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
-    }
+    skip_strings = get_skip_strings()
 
     information_start_regex = r'Mitwirkend:'
     start_pos = re.search(information_start_regex, header)
@@ -550,17 +424,7 @@ def ZH_Steuerrekurs(header: str, namespace: dict) -> Optional[str]:
     if end_pos:
         header = header[:end_pos.span()[1] - 1]
     
-    header = header.replace(';', ',')
-    header = header.replace(' und ', ', ')
-    header = header.replace(' sowie ', ', ')
-    header = header.replace('lic. ', '')
-    header = header.replace('iur. ', '')
-    header = header.replace('Dr. ', '')
-    header = header.replace('MLaw ', '')
-    header = header.replace('PD ', '')
-    header = header.replace(' als Einzelrichterin', '')
-    header = header.replace(' als Einzelrichter', '')
-    besetzungs_strings = header.split(',')
+    besetzungs_strings = get_besetzungs_strings(header)
 
     besetzung = CourtComposition()
     current_role = CourtRole.JUDGE
@@ -588,9 +452,7 @@ def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
         }
     }
 
-    skip_strings = {
-        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger']
-    }
+    skip_strings = get_skip_strings()
 
     information_start_regex = r'Mitwirkend:'
     start_pos = re.search(information_start_regex, header)
@@ -602,6 +464,18 @@ def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
     if end_pos:
         header = header[:end_pos.span()[1] - 1]
 
+    besetzungs_strings = get_besetzungs_strings(header)
+
+    besetzung = CourtComposition()
+    current_role = CourtRole.JUDGE
+    last_person: CourtPerson = None
+    last_gender = Gender.MALE
+        
+    pass
+
+
+
+def get_besetzungs_strings(header: str) -> list:
     header = header.replace(';', ',')
     header = header.replace(' und ', ', ')
     header = header.replace(' sowie ', ', ')
@@ -612,11 +486,49 @@ def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
     header = header.replace('PD ', '')
     header = header.replace(' als Einzelrichterin', '')
     header = header.replace(' als Einzelrichter', '')
-    besetzungs_strings = header.split(',')
+    return header.split(',')
 
-    besetzung = CourtComposition()
-    current_role = CourtRole.JUDGE
-    last_person: CourtPerson = None
-    last_gender = Gender.MALE
-        
-    pass
+
+def get_skip_strings() -> dict:
+    return {
+        Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger'],
+        Language.FR: ['Juge suppléant', 'en qualité de juge unique'],
+        Language.IT: ['Giudice supplente', 'supplente']
+    }
+
+
+def match_person_to_database(person: CourtPerson, current_gender: Gender) -> Tuple[CourtPerson, bool]:
+    """"Matches a name of a given role to a person from personal_information.json"""
+    personal_information_database = json.loads(Path("personal_information.json").read_text())
+
+    results = []
+    name = person.name.replace('.', '').strip()
+    split_name = name.split()
+    initial = False
+    if len(split_name) > 1:
+        initial = next((x for x in split_name if len(x) == 1), None)
+        split_name = list(filter(lambda x: len(x) > 1, split_name))
+    if person.court_role.value in personal_information_database:
+        for subcategory in personal_information_database[person.court_role]:
+            for cat_id in personal_information_database[person.court_role][subcategory]:
+                for db_person in personal_information_database[person.court_role][subcategory][cat_id]:
+                    if set(split_name).issubset(set(db_person['name'].split())):
+                        if not initial or re.search(rf'\s{initial.upper()}\w*', db_person['name']):
+                            person.name = db_person['name']
+                            if db_person.get('gender'):
+                                person.gender = Gender(db_person['gender'])
+                            if db_person.get('party'):
+                                person.party = PoliticalParty(db_person['party'])
+                            results.append(person)
+    else:
+        for existing_role in personal_information_database:
+            temp_person = CourtPerson(person.name, court_role=CourtRole(existing_role))
+            db_person, match = match_person_to_database(temp_person, current_gender)
+            if match:
+                results.append(db_person)
+    if len(results) == 1:
+        if not results[0].gender:
+            results[0].gender = current_gender
+        return person, True
+    return person, False
+
