@@ -41,53 +41,13 @@ def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
                              r'AUFSICHTSKOMMISSION', r'APPELLATIONSGERICHT']
         }
     }
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
+    valid_namespace(namespace, all_section_markers)
 
-    section_markers = all_section_markers[namespace['language']]
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(
-        map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
-
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
-        # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
-
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup:
-        :return:
-        """
-
-        divs = soup.find_all(
-            "div", class_=['WordSection1', 'Section1', 'WordSection2'])
-        paragraphs = []
-        heading, paragraph = None, None
-        for el in divs:
-            for element in el:
-                if isinstance(element, bs4.element.Tag):
-                    text = str(element.string)
-                    # This is a hack to also get tags which contain other tags such as links to BGEs
-                    if text.strip() == 'None':
-                        text = element.get_text()
-                    # get numerated titles such as 1. or A.
-                    if "." in text and len(text) < 5:
-                        heading = text  # set heading for the next paragraph
-                    else:
-                        if heading is not None:  # if we have a heading
-                            paragraph = heading + " " + text  # add heading to text of the next paragraph
-                        else:
-                            paragraph = text
-                        heading = None  # reset heading
-                    paragraph = clean_text(paragraph)
-                    if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                        paragraphs.append(paragraph)
-        return paragraphs
-    paragraphs = get_paragraphs(decision)
+    divs = decision.find_all(
+        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
+    paragraphs = get_paragraphs(divs)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -137,33 +97,27 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
         }
     }
 
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
+    valid_namespace(namespace, all_section_markers)
 
-    section_markers = all_section_markers[namespace['language']]
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+    divs = decision.find_all("div", class_="content")
+    # we expect maximally two divs with class content
+    assert len(divs) <= 2
 
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
-        # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
+    paragraphs = get_paragraphs(decision)
+    return associate_sections(paragraphs, section_markers, namespace)
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup:
-        :return:
-        """
-        divs = soup.find_all("div", class_="content")
-        # we expect maximally two divs with class content
-        assert len(divs) <= 2
-
-        paragraphs = []
-        heading, paragraph = None, None
-        for element in divs[0]:
+def get_paragraphs(divs):
+    # """
+    # Get Paragraphs in the decision
+    # :param divs:
+    # :return:
+    # """  
+    paragraphs = []
+    heading, paragraph = None, None
+    for div in divs:
+        for element in div:
             if isinstance(element, bs4.element.Tag):
                 text = str(element.string)
                 # This is a hack to also get tags which contain other tags such as links to BGEs
@@ -183,9 +137,18 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
                     paragraphs.append(paragraph)
         return paragraphs
 
-    paragraphs = get_paragraphs(decision)
-    return associate_sections(paragraphs, section_markers, namespace)
+def valid_namespace(namespace: dict, all_section_markers):
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)   
 
+def prepare_section_markers(all_section_markers, namespace: dict) -> Dict[Section, str]: 
+    section_markers = all_section_markers[namespace['language']]
+    section_markers = dict(
+        map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+    return section_markers
 
 def associate_sections(paragraphs: List[str], section_markers, namespace: dict):
     paragraphs_by_section = {section: [] for section in Section}
@@ -201,7 +164,6 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict):
                   f"Here you have the url to the decision: {namespace['html_url']}"
         raise ValueError(message)
     return paragraphs_by_section
-
 
 def update_section(current_section: Section, paragraph: str, section_markers) -> Section:
     if current_section == Section.FOOTER:
