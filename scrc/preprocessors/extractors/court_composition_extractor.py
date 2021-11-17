@@ -40,8 +40,10 @@ class CourtCompositionExtractor(AbstractExtractor):
         return bool(data)
 
 if __name__ == '__main__':
+    print("court composition extractor is called\n")
     config = configparser.ConfigParser()
     config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
 
     court_composition_extractor = CourtCompositionExtractor(config)
     court_composition_extractor.start()
+

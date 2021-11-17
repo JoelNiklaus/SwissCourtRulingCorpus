@@ -1,8 +1,10 @@
 import unicodedata
+import collections
 from typing import Optional, List, Dict, Union
 
 import bs4
 import re
+import json
 
 from scrc.enums.language import Language
 from scrc.enums.section import Section
@@ -25,12 +27,103 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     pass
 
 
+def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+
+
+    def get_paragraphs(soup):
+        """
+        Get composition of the decision
+        :param soup:
+        :return:
+        """
+        # by some bruteforce I have found out that the html files in VD_Omni all have a single div with one of the
+        # following classes:
+        possible_main_div_classes = ["WordSection1", "Section1"]
+        # Iterate over this list and find out the current decision is using which class type
+        for main_div_class in possible_main_div_classes:
+
+            div = soup.find_all("div", class_=main_div_class)
+            if (len(div) != 0):
+                break
+        # We expect to have only one main div
+        assert len(div) == 1
+        # If the divs is empty raise an error
+        if len(div) == 0:
+            message = f"The main div has an unseen class type"
+            raise ValueError(message)
+        paragraphs = []
+        # paragraph = None
+        for element in div:
+            if isinstance(element, bs4.element.Tag):
+                text = str(element.string)
+                # This is a hack to also get tags which contain other tags such as links to BGEs
+                if text.strip() == 'None':
+                    text = element.get_text()
+                paragraph = clean_text(text)
+                if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+                    paragraphs.append(paragraph)
+        return paragraphs
+    def get_composition_candidates(paragraphs, cm_RegEx, cm_end_RegEx):
+
+        # did we miss composition of some of the decisions?
+        missed_cnt = 0
+        composition_candidate = None
+        for paragraph in paragraphs:
+            cm = cm_RegEx.search(paragraph)
+            cm_end = cm_end_RegEx.search(paragraph)
+            # If we did not find the RegEx in the paragraph
+            if cm is None or cm_end is None:
+                missed_cnt += 1
+                continue
+            composition_candidate = paragraph[cm.start():cm_end.start()]
+
+            # Store all the compositions in a signle list
+
+        return composition_candidate, missed_cnt
+
+    paragraphs_by_section = {section: [] for section in Section}
+    paragraphs = get_paragraphs(decision)
+    # Currently, we search the whole decision for the following keywords: president, presidence, compose, composition
+    cm_RegEx = re.compile(r'[P,p]r[é,e]siden[t,c]|'
+                                   r'compos[é,e] |'
+                                   r' [C,c]omposition')
+    # Find the end of the composition
+    cm_end_RegEx = re.compile(r'([E,e]n|les)? fait(s)?\b(suivants)? |'
+                              r'[C,c]onsid[é,e]rant(e)? en droit ')
+
+    composition_candidate, missed_cnt = get_composition_candidates(paragraphs, cm_RegEx, cm_end_RegEx)
+
+    # Uncomment to see the extraction results in plain txt file
+
+    # if missed_cnt != 0 or composition_candidate is None:
+    #     # We write all the missed descisions to a file to take a closer look and improve the efficiency
+    #     f = open("VD_Omni_missed_decisions.txt", "a")
+    #     f.write('%s' % paragraphs)
+    #     f.write('\n-------------------------------------------------------------\n')
+    #     f.close()
+    #     message = f"We have missed the judicial people for some decisions"
+    #     raise ValueError(message)
+    # else:
+    #     f = open("VD_Omni_headers.txt", "a")
+    #     f.write('%s' % composition_candidate)
+    #     f.write('\n-------------------------------------------------------------\n')
+    #     f.close()
+
+
+    paragraphs_by_section[Section.HEADER] = composition_candidate
+    paragraphs_by_section[Section.FACTS] = paragraphs
+    return paragraphs_by_section
+
+
+
+
 def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
     """
+
 
     # As soon as one of the strings in the list (regexes) is encountered we switch to the corresponding section (key)
     # (?:C|c) is much faster for case insensitivity than [Cc] or (?i)c
@@ -118,6 +211,7 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
         return paragraphs
 
     paragraphs = get_paragraphs(decision)
+
     return associate_sections(paragraphs, section_markers, namespace)
 
 
