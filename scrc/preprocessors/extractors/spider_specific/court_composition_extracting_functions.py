@@ -524,7 +524,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
                                            text[role_pos.span()[1] + 1:])
                     name = name_match.group() if name_match else text[role_pos.span()[1] + 1:]
                     if len(name.strip()) == 0:
-                        if (last_role == CourtRole.CLERK and len(besetzung.clerks) == 0) or (last_role == CourtRole.JUDGE and len(besetzung.judges) == 0)
+                        if (last_role == CourtRole.CLERK and len(besetzung.clerks) == 0) or (last_role == CourtRole.JUDGE and len(besetzung.judges) == 0):
                             break
 
                         last_person_name = besetzung.clerks.pop().name if (last_role == CourtRole.CLERK) else besetzung.clerks.pop().name # rematch in database with new role

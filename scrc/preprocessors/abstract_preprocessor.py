@@ -135,7 +135,6 @@ class AbstractPreprocessor:
     def _check_write_privilege(engine) -> bool:
         return AbstractPreprocessor.query(engine, 'SELECT current_user')['current_user'][0] != 'readonly'
 
-
     def add_column(self, engine, table, col_name, data_type) -> None:
         """
         Adds a column to an existing table
@@ -186,11 +185,11 @@ class AbstractPreprocessor:
 
         if not AbstractPreprocessor._check_write_privilege(engine):
             AbstractPreprocessor.create_dir(output_dir, os.getlogin())
-            path = Path.joinpath(output_dir, os.getusername(), datetime.now().isoformat() + '.json')
+            path = Path.joinpath(output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
             with path.open("a") as f:
                 df.to_json(f)
             return
-                
+
         with engine.connect() as conn:
             t = Table(table, MetaData(), autoload_with=engine)  # get the table
             df = df[columns + ['id']]  # only update these cols, id needs to be there for the where clause
