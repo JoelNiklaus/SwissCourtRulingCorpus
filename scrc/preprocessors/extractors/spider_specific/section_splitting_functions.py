@@ -569,3 +569,31 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
     paragraphs = get_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
+# returns dictionary with section names as keys and lists of paragraphs as values
+def BE_BVD(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+
+    # split sections by given regex, compile regex to cache them
+    regexes = {
+        Language.DE: re.compile(r'(.*?)(Sachverhalt.*)(Erwägungen.*)(Entscheid.*)(Eröffnung.*)', re.DOTALL),
+        Language.FR: re.compile(r'(.*?)(Faits.*)(Considérants.*)(Décision.*)(Notification.*)', re.DOTALL)
+    }
+
+    try:
+        regex = regexes[namespace['language']]
+    except KeyError:
+        message = f"This function is only implemented for the languages {list(regexes.keys())}."
+        raise ValueError(message)
+    
+    match = re.search(regex, decision)
+
+    if match is None:
+        return None
+    
+    # split paragraphs
+    sections = {}
+    for section, section_name in zip(list(Section), match.groups()):
+        sections[section] = section_name.split('\n\n')
+        # remove empty strings happening when two empty lines follow each other
+        sections[section] = list(filter(lambda x: x != '', sections[section]))
+
+    return sections
