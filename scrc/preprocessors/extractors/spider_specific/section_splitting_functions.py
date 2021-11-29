@@ -25,6 +25,45 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
+def UR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    # As soon as one of the strings in the list (regexes) is encountered we switch to the corresponding section (key)
+    # (?:C|c) is much faster for case insensitivity than [Cc] or (?i)c
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'^[0-9]{2}/[0-9]{2}', r'^Strafprozessordnung', r'^Personalrecht', r'^Öffentliches Beschaffungswesen', r'IV\. Art.\ [0-9]{2}'],
+            Section.CONSIDERATIONS: [ r'Aus den Erwägungen:'],
+            Section.RULINGS: [ r'Bei der Prüfung'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung$',  r'Die Verwaltungsgerichtsbeschwerde ist (abzuweisen|gutzuheissen)']
+        }
+    }
+
+    def get_paragraphs(decision):
+        """
+        Get Paragraphs in the decision
+        :decision: the decision as string
+        :return: a list of paragraphs
+        """
+        paragraphs = []
+        # remove spaces between two line breaks, watch the space before +!!
+        decision = re.sub('\\n +\\n', '\\n\\n', decision,0, re.MULTILINE)
+        # split the lines when there are two line breaks
+        lines = decision.split('\n\n')
+        for element in lines:
+            element = element.replace('  ',' ')
+            paragraph = clean_text(element)
+            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+                paragraphs.append(paragraph)
+        return paragraphs
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    paragraphs = get_paragraphs(decision)
+    return associate_sections(paragraphs, section_markers, namespace)
+
 def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -157,7 +196,6 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict):
     for paragraph in paragraphs:
         # update the current section if it changed
         current_section = update_section(current_section, paragraph, section_markers)
-
         # add paragraph to the list of paragraphs
         paragraphs_by_section[current_section].append(paragraph)
     if current_section != Section.FOOTER:
