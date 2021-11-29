@@ -64,6 +64,48 @@ def UR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     paragraphs = get_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    # As soon as one of the strings in the list (regexes) is encountered we switch to the corresponding section (key)
+    # (?:C|c) is much faster for case insensitivity than [Cc] or (?i)c
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'^Sachverhalt:?\s*$', r'^Tatsachen$'],
+            Section.CONSIDERATIONS: [r'^Begründung:\s*$',r'Erwägung(en)?:?\s*$',r'^Entscheidungsgründe$', r'[iI]n Erwägung[:,]?\s*$'],
+            Section.RULINGS: [r'Strafzumessung', r'Strafkammer erkennt', r'Demgemäss erkennt d[\w]{2}', r'erkennt d[\w]{2} [A-Z]\w+:', r'Appellationsgericht (\w+ )?(\(\w+\) )?erkennt', r'^und erkennt:$', r'erkennt:\s*$'],
+            Section.FOOTER: [r'Rechtsmittelbelehrung',r'^\[\.\.\.\]$']
+        }
+    }
+
+    def get_paragraphs(decision):
+        """
+        Get Paragraphs in the decision
+        :decision: the decision as string
+        :return: a list of paragraphs
+        """
+        paragraphs = []
+        # remove spaces between two line breaks, watch the space before +!!
+        decision = re.sub('\\n +\\n', '\\n\\n', decision,0, re.MULTILINE)
+        # split the lines when there are two line breaks
+        lines = decision.split('\n\n')
+        for element in lines:
+            element = element.replace('  ',' ')
+            paragraph = clean_text(element)
+            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+                paragraphs.append(paragraph)
+        return paragraphs
+
+    valid_namespace(namespace, all_section_markers)
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    paragraphs = get_paragraphs(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
 def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
