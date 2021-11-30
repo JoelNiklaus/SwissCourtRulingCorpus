@@ -574,8 +574,8 @@ def BE_BVD(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional
 
     # split sections by given regex, compile regex to cache them
     regexes = {
-        Language.DE: re.compile(r'(.*?)(Sachverhalt.*)(Erwägungen.*)(Entscheid.*)(Eröffnung.*)', re.DOTALL),
-        Language.FR: re.compile(r'(.*?)(Faits.*)(Considérants.*)(Décision.*)(Notification.*)', re.DOTALL)
+        Language.DE: re.compile(r'(.*?)(Sachverhalt(?:\n  \n|\n\n|\n \n| \n\n).*?)(Erwägungen(?: \n\n|\n\n).*?)(Entscheid(?:\n\n| \n\n1).*?)((Eröffnung(?:\n\n|\n-)|[Zz]u eröffnen:).*)', re.DOTALL),
+        Language.FR: re.compile(r'(.*?)(Faits\n\n.*?)(Considérants\n\n.*?)(Décision\n\n.*?)(Notification\n\n|A notifier:\n.*)', re.DOTALL)
     }
 
     try:
@@ -587,6 +587,10 @@ def BE_BVD(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional
     match = re.search(regex, decision)
 
     if match is None:
+        # TODO if sachverhalt and erwägungen are in the same section, add them to a single section
+        if re.search('Sachverhalt und Erwägungen\n', decision, re.M):
+            print("concated sections, not yet handled")
+        
         return None
     
     # split paragraphs
