@@ -595,9 +595,18 @@ def BE_BVD(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional
     
     # split paragraphs
     sections = {}
-    for section, section_name in zip(list(Section), match.groups()):
-        sections[section] = section_name.split('\n\n')
-        # remove empty strings happening when two empty lines follow each other
-        sections[section] = list(filter(lambda x: x != '', sections[section]))
+    for section, section_text in zip(list(Section), match.groups()):
 
+        split = re.split('(\\n\d\. \w+\\n)', section_text)
+        # paragraphs are now split into title, paragraph header (e.g. '\n1. '), paragraph text
+        title = split[0]
+        # join header and text pairs back together (1+2, 3+4, 5+6, ...) if we found multiple (>2) paragraphs
+        paired = []
+        if len(split) > 2:
+            paired = [split[i] + split[i+1] for i in range(1, len(split) -1, 2)]
+        else:
+            paired = list(''.join(split[1:]))
+
+        sections[section] = [title] + paired
+    
     return sections
