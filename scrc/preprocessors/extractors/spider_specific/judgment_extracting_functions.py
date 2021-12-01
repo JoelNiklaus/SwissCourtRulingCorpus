@@ -89,7 +89,7 @@ def CH_BGer(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     judgments = get_judgments(rulings, namespace)
 
     if not judgments:
-        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
+        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url'] + namespace['pdf_url']}. Please check!"
         raise ValueError(message)
     elif len(judgments) > 1:
         if Judgment.PARTIAL_APPROVAL in judgments:
@@ -202,7 +202,7 @@ def get_nth_ruling(rulings: str, namespace: dict, n: int) -> str:
         # try with roman numerals
         result = search_rulings(rulings, int_to_roman(n), int_to_roman(n + 1))
         if not result:
-            message = f"For the decision {namespace['html_url']} no main ruling was found from the rulings: {rulings}"
+            message = f"For the decision {namespace['html_url'] + namespace['pdf_url']} no main ruling was found from the rulings: {rulings}"
             raise ValueError(message)
     return result.group(1)
 
