@@ -102,7 +102,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
         """Processes one row of a raw df"""
         self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
-        namespace = series[["date", "html_url", "pdf_url", "id"]].to_dict()
+        namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
         namespace['language'] = Language(series['language'])
         data = self.get_required_data(series)
         assert data
