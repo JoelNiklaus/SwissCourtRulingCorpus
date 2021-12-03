@@ -92,7 +92,7 @@ class SectionSplitter(AbstractExtractor):
         """Override method to handle section data and paragraph data individually"""
         # TODO consider removing the overriding function altogether with new db
         self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
-        namespace = series[['date', 'html_url', 'id']].to_dict()
+        namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
         namespace['language'] = Language(series['language'])
         data = self.get_required_data(series)
         assert data
