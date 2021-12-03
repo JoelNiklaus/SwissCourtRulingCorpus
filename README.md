@@ -48,7 +48,7 @@ jupyter notebook --no-browser --port=8888 --notebook-dir=scrc/notebooks
 ### Forward port to local machine (run on local machine)
 
 ```bash
-ssh -N -f -L localhost:8888:localhost:8888 fdn-admin@fdn-sandbox3.inf.unibe.ch
+ssh -N -f -L localhost:8888:localhost:8888 <your-username>@fdn-sandbox3.inf.unibe.ch
 ```
 
 ## Postgres
