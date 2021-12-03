@@ -541,7 +541,7 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
             divs = soup.find_all("div", class_="Section1")
         # we expect maximally two divs with class WordSection1
         assert (len(divs) <= 2),"Found more than two divs with class WordSection1"
-        assert (len(divs) > 0),"Found no div, " + str(namespace['html_url'] + str(namespace['pdf_url']))
+        assert (len(divs) > 0),"Found no div, " + str(namespace['html_url'])
 
         paragraphs = []
         heading, paragraph = None, None

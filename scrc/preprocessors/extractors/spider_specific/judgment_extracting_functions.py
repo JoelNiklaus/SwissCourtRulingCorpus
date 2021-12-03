@@ -89,7 +89,7 @@ def CH_BGer(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     judgments = get_judgments(rulings, namespace)
 
     if not judgments:
-        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url'] + namespace['pdf_url']}. Please check!"
+        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
         raise ValueError(message)
     elif len(judgments) > 1:
         if Judgment.PARTIAL_APPROVAL in judgments:

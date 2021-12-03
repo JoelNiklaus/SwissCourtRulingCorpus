@@ -171,7 +171,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
 
     header_parts = re.split('|'.join(second_party_start_regex), header)
     if len(header_parts) < 2:
-        raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url'] + namespace['pdf_url']}")
+        raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url']}")
     party = ProceduralParticipation()
     plaintiff_representation = add_representation(header_parts[0])
     defendant_representation = add_representation(header_parts[1])
