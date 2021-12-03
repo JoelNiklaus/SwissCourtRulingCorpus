@@ -201,21 +201,15 @@ def get_judgments(rulings: str, namespace: dict) -> set:
     
     judgment_markers = prepare_judgment_markers(all_judgment_markers, namespace)
     
-    one = 1
-    two = 2
+    pattern = rf"{1}\.(.+?)(?:{2}\.|$)"
+    romanPattern = rf"{int_to_roman(1)}\.(.+?)(?:{int_to_roman(2)}\.|$)"
     
-    pattern = rf"{one}\.(.+?)(?:{two}\.|$)"
-    romanPattern = rf"{int_to_roman(one)}\.(.+?)(?:{int_to_roman(two)}\.|$)"
-    
-    if re.search(pattern, rulings):
+    if (re.search(pattern, rulings) or re.search(romanPattern, rulings)):
         judgments = numbered_rulings(judgments, rulings, namespace, judgment_markers)
-    elif re.search(romanPattern, rulings):
-        judgments = numbered_rulings(judgments, rulings, namespace, judgment_markers)
+        if not judgments:
+            judgments = unnumbered_rulings(judgments, rulings, judgment_markers)  
     else:
-        judgments = unnumbered_rulings(judgments, rulings, judgment_markers)
-    # 11.Mai, 1141.50.- 
-    if not judgments:
-        judgments = unnumbered_rulings(judgments, rulings, judgment_markers)   
+        judgments = unnumbered_rulings(judgments, rulings, judgment_markers) 
     return judgments
 
 def unnumbered_rulings(judgments, rulings, judgment_markers):
