@@ -121,7 +121,6 @@ class SectionSplitter(AbstractExtractor):
             batchinfo = {'uuid': uuid.uuid4().hex[:8], 'chunknumber': 0}
             log_dir = Path.joinpath(self.output_dir, os.getlogin(), spider, lang, batchinfo['uuid'])
             for df in dfs:
-                import pdb; pdb.set_trace()
                 df = df.apply(self.process_one_df_row, axis='columns')
                 filename = f"{batchinfo['chunknumber']}.json"
                 self.update(engine, df, lang, [section.value for section in Section] + ['paragraphs'], log_dir, filename)
