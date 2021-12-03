@@ -102,7 +102,7 @@ class SectionSplitter(AbstractExtractor):
                 for section, value in paragraphs_by_section.items():
                     series[section.value] = "\t".join(value)  # TODO save as list in new db
         except TypeError as e:
-            self.logger.error(f"While processing decision {namespace['html_url'] + namespace['pdf_url']} caught exception {e}")
+            self.logger.error(f"While processing decision {series['html_url']} caught exception {e}")
         return series
 
 

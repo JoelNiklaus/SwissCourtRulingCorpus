@@ -202,7 +202,7 @@ def get_nth_ruling(rulings: str, namespace: dict, n: int) -> str:
         # try with roman numerals
         result = search_rulings(rulings, int_to_roman(n), int_to_roman(n + 1))
         if not result:
-            message = f"For the decision {namespace['html_url'] + namespace['pdf_url']} no main ruling was found from the rulings: {rulings}"
+            message = f"For the decision {namespace['html_url']} no main ruling was found from the rulings: {rulings}"
             raise ValueError(message)
     return result.group(1)
 
