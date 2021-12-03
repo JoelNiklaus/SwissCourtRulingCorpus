@@ -8,6 +8,7 @@ from collections import Counter, Sized
 from pathlib import Path
 import glob
 from time import sleep
+from typing import Optional
 
 import spacy
 from spacy.lang.de import German
@@ -173,19 +174,22 @@ class AbstractPreprocessor:
                 yield chunk_df
 
     @staticmethod
-    def update(engine, df: pd.DataFrame, table: str, columns: list, output_dir: Path):
+    def update(engine, df: pd.DataFrame, table: str, columns: list, output_dir: Path, filename: Optional[str] = None):
         """
         Updates the given columns in a table with the data provided by the df
         :param engine:              the db engine to work upon
         :param df:                  the df providing the data for the update
         :param table:               the table to be updated
         :param columns:             the columns to be updated
+        :param output_dir:          the output directory if output stored as files instead of the database (readonly users)
+        :param filename:            the filename to be used for the output (if stored as files)
         :return:
         """
 
         if not AbstractPreprocessor._check_write_privilege(engine):
-            AbstractPreprocessor.create_dir(output_dir, os.getlogin())
-            path = Path.joinpath(output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
+            assert filename is not None, 'filename must be provided if the user does not have write privileges'
+            output_dir.mkdir(parents=True, exist_ok=True) 
+            path = Path.joinpath(output_dir, filename)
             with path.open("a") as f:
                 df.to_json(f)
             return
