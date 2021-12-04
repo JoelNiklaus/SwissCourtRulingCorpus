@@ -187,9 +187,13 @@ class AbstractPreprocessor:
         """
 
         if not AbstractPreprocessor._check_write_privilege(engine):
-            assert filename is not None, 'filename must be provided if the user does not have write privileges'
-            output_dir.mkdir(parents=True, exist_ok=True) 
-            path = Path.joinpath(output_dir, filename)
+            path = ''
+            if filename is None:
+                AbstractPreprocessor.create_dir(output_dir, os.getlogin())
+                path = Path.joinpath(output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
+            else:
+                output_dir.mkdir(parents=True, exist_ok=True)
+                path = Path.joinpath(output_dir, filename)
             with path.open("a") as f:
                 df.to_json(f)
             return
