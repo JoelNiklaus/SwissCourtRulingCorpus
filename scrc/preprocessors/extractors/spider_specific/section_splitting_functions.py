@@ -569,3 +569,55 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
     paragraphs = get_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
+# returns dictionary with section names as keys and lists of paragraphs as values
+def BE_BVD(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+
+    # split sections by given regex, compile regex to cache them
+    regexes = {
+        Language.DE: re.compile(r'(.*?)(Sachverhalt(?:\n  \n|\n\n|\n \n| \n\n).*?)(Erwägungen(?: \n\n|\n\n).*?)(Entscheid(?:\n\n| \n\n1).*?)((?:Eröffnung(?:\n\n|\n-)|[Zz]u eröffnen:).*)', re.DOTALL),
+        Language.FR: re.compile(r'(.*?)(Faits\n\n.*?)(Considérants\n\n.*?)(Décision\n\n.*?)(Notification\n\n|A notifier:\n.*)', re.DOTALL)
+    }
+
+    try:
+        regex = regexes[namespace['language']]
+    except KeyError:
+        message = f"This function is only implemented for the languages {list(regexes.keys())}."
+        raise ValueError(message)
+    
+    match = re.search(regex, decision)
+    matches = []
+
+    if match is None:
+        # if sachverhalt and erwägungen are in the same section, add them to both sections
+        if re.search('Sachverhalt und Erwägungen\n', decision, re.M):
+            edge_case_regex = re.compile(r'(.*?)(Sachverhalt und Erwägungen(?: \n\n|\n\n).*?)(Entscheid(?:\n\n| \n\n1).*?)((?:Eröffnung(?:\n\n|\n-)|[Zz]u eröffnen:).*)', re.DOTALL)
+            match = re.search(edge_case_regex, decision)
+            if match is None:
+                # TODO: change to pdf_url once supported
+                raise ValueError(f"Could not find sections for decision {namespace['id']}")
+            
+            matches = list(match.groups())
+            # add sachverhalt and erwägungen to both sections
+            matches = [matches[0], matches[1]] + matches[1:]
+        else:
+            raise ValueError(f"Could not find sections for decision{namespace['id']}")
+    else:
+        matches = list(match.groups())
+    
+    # split paragraphs
+    sections = {}
+    for section, section_text in zip(list(Section), matches):
+
+        split = re.split('(\\n\d\. \w+\\n)', section_text)
+        # paragraphs are now split into title, paragraph header (e.g. '\n1. '), paragraph text
+        title = split[0]
+        # join header and text pairs back together (1+2, 3+4, 5+6, ...) if we found multiple (>2) paragraphs
+        paired = []
+        if len(split) > 2:
+            paired = [split[i] + split[i+1] for i in range(1, len(split) -1, 2)]
+        else:
+            paired = list(''.join(split[1:]))
+
+        sections[section] = [title] + paired
+    
+    return sections
