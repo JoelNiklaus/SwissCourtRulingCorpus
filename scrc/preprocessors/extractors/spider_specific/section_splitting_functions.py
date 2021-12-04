@@ -138,6 +138,27 @@ def get_paragraphs(divs):
                     paragraphs.append(paragraph)
         return paragraphs
 
+
+def get_pdf_paragraphs(soup):
+        """
+        Get Paragraphs in the decision
+        :param soup: the string extracted of the pdf
+        :return: a list of paragraphs
+        """
+
+        paragraphs = []
+        # remove spaces between two line breaks
+        soup = re.sub('\\n +\\n', '\\n\\n', soup)
+        # split the lines when there are two line breaks
+        lines = soup.split('\n\n')
+        for element in lines:
+            element = element.replace('  ',' ')
+            paragraph = clean_text(element)
+            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+                paragraphs.append(paragraph)
+        return paragraphs
+
+
 def valid_namespace(namespace: dict, all_section_markers):
     if namespace['language'] not in all_section_markers:
         message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
@@ -232,25 +253,7 @@ def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -286,26 +289,7 @@ def ZH_Baurekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Op
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup:
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -342,25 +326,7 @@ def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> 
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -470,26 +436,7 @@ def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
