@@ -1,7 +1,7 @@
 from pathlib import Path
 import re
 import json
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 from scrc.data_classes.court_composition import CourtComposition
 from scrc.data_classes.court_person import CourtPerson
 
@@ -9,6 +9,7 @@ from scrc.enums.court_role import CourtRole
 from scrc.enums.gender import Gender
 from scrc.enums.language import Language
 from scrc.enums.political_party import PoliticalParty
+from scrc.enums.section import Section
 
 """
 This file is used to extract the judicial persons from decisions sorted by spiders.
@@ -17,19 +18,23 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 """
 
 
-def XX_SPIDER(header: str, namespace: dict) -> Optional[str]:
+def XX_SPIDER(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+
+    # header = sections[Section.HEADER] to get a specific section
     pass
 
 
 # check if court got assigned shortcut: SELECT count(*) from de WHERE lower_court is not null and lower_court <> 'null' and lower_court::json#>>'{court}'~'[A-Z0-9_]{2,}';
-def CH_BGer(header: str, namespace: dict) -> Optional[str]:
+def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract judicial persons from decisions of the Federal Supreme Court of Switzerland
-    :param header:      the string containing the header
+    :param sections:    the dict containing the sections per section key
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
+
+    header = sections[Section.HEADER]
 
     information_start_regex = r'Besetzung|Bundesrichter|Composition( de la Cour:)?|Composizione|Giudic[ie] federal|composta'
     role_regexes = {
@@ -163,9 +168,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     return besetzung
 
 
-
-
-def ZG_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
+def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract judicial persons from decisions of the Verwaltungsgericht of Zug
     :param header:      the string containing the header
@@ -173,6 +176,8 @@ def ZG_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
     :return:            the sections dict
     """
     
+    header = sections[Section.HEADER]
+
     role_regexes = {
         Gender.MALE: {
             CourtRole.JUDGE: [r'Richter(?!in)', r'Einzelrichter(?!in)'],
@@ -270,14 +275,14 @@ def ZG_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
     return besetzung
 
 
-def ZH_Baurekurs(header: str, namespace: dict) -> Optional[str]:
+def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract judicial persons from decisions of the Baurekursgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
-    
+    header = sections[Section.HEADER]
     print(header)
 
     role_regexes = {
@@ -312,13 +317,15 @@ def ZH_Baurekurs(header: str, namespace: dict) -> Optional[str]:
 
     pass
 
-def ZH_Obergericht(header: str, namespace: dict) -> Optional[str]:
+def ZH_Obergericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract judicial persons from decisions of the Obergericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
+
+    header = sections[Section.HEADER]
 
     role_regexes = {
         Gender.MALE: {
@@ -353,13 +360,15 @@ def ZH_Obergericht(header: str, namespace: dict) -> Optional[str]:
     pass
 
 
-def ZH_Sozialversicherungsgericht(header: str, namespace: dict) -> Optional[str]:
+def ZH_Sozialversicherungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract judicial persons from decisions of the Sozialversicherungsgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
+
+    header = sections[Section.HEADER]
 
     role_regexes = {
         Gender.MALE: {
@@ -393,13 +402,15 @@ def ZH_Sozialversicherungsgericht(header: str, namespace: dict) -> Optional[str]
         
     pass
 
-def ZH_Steuerrekurs(header: str, namespace: dict) -> Optional[str]:
+def ZH_Steuerrekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract judicial persons from decisions of the Steuerrekursgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
+
+    header = sections[Section.HEADER]
 
     role_regexes = {
         Gender.MALE: {
@@ -433,13 +444,15 @@ def ZH_Steuerrekurs(header: str, namespace: dict) -> Optional[str]:
         
     pass
 
-def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
+def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract judicial persons from decisions of the Verwaltungsgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
+
+    header = sections[Section.HEADER]
 
     role_regexes = {
         Gender.MALE: {

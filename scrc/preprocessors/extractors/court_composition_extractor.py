@@ -4,6 +4,7 @@ from typing import Any, TYPE_CHECKING
 
 from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
+from scrc.enums.section import Section
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
@@ -32,6 +33,7 @@ class CourtCompositionExtractor(AbstractExtractor):
 
     def get_required_data(self, series: DataFrame) -> Any:
         """Returns the data required by the processing functions"""
+        data = {Section.HEADER: series['header'], Section.FACTS: series['facts'], Section.CONSIDERATIONS: series['considerations'], Section.RULINGS: series['rulings'], Section.FOOTER: series['footer']}
         return series['header']
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
