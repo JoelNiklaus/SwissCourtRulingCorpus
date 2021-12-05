@@ -140,23 +140,23 @@ def get_paragraphs(divs):
 
 
 def get_pdf_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
+    """
+    Get Paragraphs in the decision
+    :param soup:    the string extracted of the pdf
+    :return:        a list of paragraphs
+    """
 
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
+    paragraphs = []
+    # remove spaces between two line breaks
+    soup = re.sub('\\n +\\n', '\\n\\n', soup)
+    # split the lines when there are two line breaks
+    lines = soup.split('\n\n')
+    for element in lines:
+        element = element.replace('  ',' ')
+        paragraph = clean_text(element)
+        if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+            paragraphs.append(paragraph)
+    return paragraphs
 
 
 def valid_namespace(namespace: dict, all_section_markers):
