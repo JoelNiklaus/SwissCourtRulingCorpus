@@ -167,10 +167,10 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
 
 def ZG_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Verwaltungsgericht of Zug
+    Extract the court composition from decisions of the Verwaltungsgericht of Zug
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition of a decision
     """
     
     role_regexes = {
@@ -214,10 +214,10 @@ def ZG_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
 
 def ZH_Baurekurs(header: str, namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Baurekursgericht of Zurich
+    Extract the court composition from decisions of the Baurekursgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
 
     role_regexes = {
@@ -252,10 +252,10 @@ def ZH_Baurekurs(header: str, namespace: dict) -> Optional[str]:
 
 def ZH_Obergericht(header: str, namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Obergericht of Zurich
+    Extract the court composition from decisions of the Obergericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
 
     role_regexes = {
@@ -290,10 +290,10 @@ def ZH_Obergericht(header: str, namespace: dict) -> Optional[str]:
 
 def ZH_Sozialversicherungsgericht(header: str, namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Sozialversicherungsgericht of Zurich
+    Extract the court composition from decisions of the Sozialversicherungsgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
 
     role_regexes = {
@@ -334,10 +334,10 @@ def ZH_Sozialversicherungsgericht(header: str, namespace: dict) -> Optional[str]
 
 def ZH_Steuerrekurs(header: str, namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Steuerrekursgericht of Zurich
+    Extract the court composition from decisions of the Steuerrekursgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
 
     role_regexes = {
@@ -371,10 +371,10 @@ def ZH_Steuerrekurs(header: str, namespace: dict) -> Optional[str]:
 
 def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Verwaltungsgericht of Zurich
+    Extract the court composition from decisions of the Verwaltungsgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
 
     role_regexes = {
@@ -410,8 +410,8 @@ def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
 def get_besetzungs_strings(header: str) -> list:
     """
     Modifies the header of a decision and turns it into a list
-    :header:    the header of a decision
-    :return:    a list of besetzungs_strings
+    :param header:  the header of a decision
+    :return:        a list of besetzungs_strings
     """
     # regularize different forms to denote the Vorsitz
     header = header.replace('(Vorsitz)', 'Vorsitz')
