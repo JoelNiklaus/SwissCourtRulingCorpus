@@ -224,8 +224,8 @@ def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the court composition
     """
+
     header = sections[Section.HEADER]
-    print(header)
 
     role_regexes = {
         Gender.MALE: {
