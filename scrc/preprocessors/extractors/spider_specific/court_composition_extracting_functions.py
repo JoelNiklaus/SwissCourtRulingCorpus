@@ -170,10 +170,10 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
 
 def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Verwaltungsgericht of Zug
+    Extract the court composition from decisions of the Verwaltungsgericht of Zug
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition of a decision
     """
     
     header = sections[Section.HEADER]
@@ -219,10 +219,10 @@ def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
 
 def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Baurekursgericht of Zurich
+    Extract the court composition from decisions of the Baurekursgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
     header = sections[Section.HEADER]
     print(header)
@@ -259,10 +259,10 @@ def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]
 
 def ZH_Obergericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Obergericht of Zurich
+    Extract the court composition from decisions of the Obergericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
 
     header = sections[Section.HEADER]
@@ -299,10 +299,10 @@ def ZH_Obergericht(sections: Dict[Section, str], namespace: dict) -> Optional[st
 
 def ZH_Sozialversicherungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Sozialversicherungsgericht of Zurich
+    Extract the court composition from decisions of the Sozialversicherungsgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
 
     header = sections[Section.HEADER]
@@ -345,10 +345,10 @@ def ZH_Sozialversicherungsgericht(sections: Dict[Section, str], namespace: dict)
 
 def ZH_Steuerrekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Steuerrekursgericht of Zurich
+    Extract the court composition from decisions of the Steuerrekursgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
 
     header = sections[Section.HEADER]
@@ -384,10 +384,10 @@ def ZH_Steuerrekurs(sections: Dict[Section, str], namespace: dict) -> Optional[s
 
 def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Verwaltungsgericht of Zurich
+    Extract the court composition from decisions of the Verwaltungsgericht of Zurich
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
 
     header = sections[Section.HEADER]
@@ -425,8 +425,8 @@ def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
 def get_besetzungs_strings(header: str) -> list:
     """
     Modifies the header of a decision and turns it into a list
-    :header:    the header of a decision
-    :return:    a list of besetzungs_strings
+    :param header:  the header of a decision
+    :return:        a list of besetzungs_strings
     """
     # regularize different forms to denote the Vorsitz
     header = header.replace('(Vorsitz)', 'Vorsitz')
