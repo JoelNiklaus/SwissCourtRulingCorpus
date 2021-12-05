@@ -171,7 +171,7 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
 def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract the court composition from decisions of the Verwaltungsgericht of Zug
-    :param header:      the string containing the header
+    :param header:      the dict containing the sections per section key
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the court composition of a decision
     """
@@ -220,7 +220,7 @@ def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
 def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract the court composition from decisions of the Baurekursgericht of Zurich
-    :param header:      the string containing the header
+    :param header:      the dict containing the sections per section key
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the court composition
     """
@@ -260,7 +260,7 @@ def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]
 def ZH_Obergericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract the court composition from decisions of the Obergericht of Zurich
-    :param header:      the string containing the header
+    :param header:      the dict containing the sections per section key
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the court composition
     """
@@ -300,7 +300,7 @@ def ZH_Obergericht(sections: Dict[Section, str], namespace: dict) -> Optional[st
 def ZH_Sozialversicherungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract the court composition from decisions of the Sozialversicherungsgericht of Zurich
-    :param header:      the string containing the header
+    :param header:      the dict containing the sections per section key
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the court composition
     """
@@ -346,7 +346,7 @@ def ZH_Sozialversicherungsgericht(sections: Dict[Section, str], namespace: dict)
 def ZH_Steuerrekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract the court composition from decisions of the Steuerrekursgericht of Zurich
-    :param header:      the string containing the header
+    :param header:      the dict containing the sections per section key
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the court composition
     """
@@ -385,7 +385,7 @@ def ZH_Steuerrekurs(sections: Dict[Section, str], namespace: dict) -> Optional[s
 def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract the court composition from decisions of the Verwaltungsgericht of Zurich
-    :param header:      the string containing the header
+    :param header:      the dict containing the sections per section key
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the court composition
     """
@@ -630,14 +630,19 @@ def testing():
 
     namespace = {'language' : Language.DE}
 
-    zg_vg = ZG_Verwaltungsgericht(ZG_Verwaltungsgericht_test_string, namespace)
+    sections = {}
+    sections[Section.HEADER] = ZG_Verwaltungsgericht_test_string
+
+    zg_vg = ZG_Verwaltungsgericht(sections, namespace)
     # No tests for the gender because this court uses a generic masculine noun for multiple judges
     assert zg_vg.president.name == 'Adrian Willimann'
     assert zg_vg.judges[0].name == 'Adrian Willimann'
     assert zg_vg.judges[1].name == 'Jacqueline Iten-Staub'
     assert zg_vg.judges[2].name == 'Matthias Suter'
     assert zg_vg.clerks[0].name == 'Patrick Trütsch'
-    zh_sr = ZH_Steuerrekurs(ZH_Steuerrekurs_test_string, namespace)
+
+    sections[Section.HEADER] = ZH_Steuerrekurs_test_string
+    zh_sr = ZH_Steuerrekurs(sections, namespace)
     assert zh_sr.president.name == 'Christian Mäder'
     assert zh_sr.president.gender.value == 'male'
     assert zh_sr.judges[0].name == 'Christian Mäder'
@@ -648,7 +653,9 @@ def testing():
     assert zh_sr.judges[2].gender.value == 'female'
     assert zh_sr.clerks[0].name == 'Hans Heinrich Knüsli'
     assert zh_sr.clerks[0].gender.value == 'male'
-    zh_br = ZH_Baurekurs(ZH_Baurekurs_test_string, namespace) 
+
+    sections[Section.HEADER] = ZH_Baurekurs_test_string
+    zh_br = ZH_Baurekurs(sections, namespace) 
     assert zh_br.president == None
     assert zh_br.judges[0].name == 'Adrian Bergmann'
     assert zh_br.judges[0].gender.value == 'male'
@@ -658,7 +665,9 @@ def testing():
     assert zh_br.judges[2].gender.value == 'male'
     assert zh_br.clerks[0].name == 'Daniel Schweikert'
     assert zh_br.clerks[0].gender.value == 'male'
-    zh_og = ZH_Obergericht(ZH_Obergericht_test_string, namespace)
+
+    sections[Section.HEADER] = ZH_Obergericht_test_string
+    zh_og = ZH_Obergericht(sections, namespace)
     assert zh_og.president == None
     assert zh_og.judges[0].name == 'Th. Kläusli'
     assert zh_og.judges[0].gender.value == 'male'
@@ -668,7 +677,9 @@ def testing():
     assert zh_og.judges[2].gender.value == 'male'
     assert zh_og.clerks[0].name == 'Ch. Reitze'
     assert zh_og.clerks[0].gender.value == 'male'
-    zh_vg= ZH_Verwaltungsgericht(ZH_Verwaltungsgericht_test_string, namespace)
+
+    sections[Section.HEADER] = ZH_Verwaltungsgericht_test_string
+    zh_vg= ZH_Verwaltungsgericht(sections, namespace)
     assert zh_vg.president.name == 'Tamara Nüssle'
     assert zh_vg.president.gender.value == 'female'
     assert zh_vg.judges[0].name == 'Tamara Nüssle'
@@ -679,7 +690,9 @@ def testing():
     assert zh_vg.judges[2].gender.value == 'male'
     assert zh_vg.clerks[0].name == 'David Henseler'
     assert zh_vg.clerks[0].gender.value == 'male'
-    zh_svg = ZH_Sozialversicherungsgericht(ZH_Sozialversicherungsgericht_test_string, namespace)
+
+    sections[Section.HEADER] = ZH_Sozialversicherungsgericht_test_string
+    zh_svg = ZH_Sozialversicherungsgericht(sections, namespace)
     assert zh_svg.president.name == 'Mosimann'
     assert zh_svg.president.gender.value == 'male'
     assert zh_svg.judges[0].name == 'Mosimann'
