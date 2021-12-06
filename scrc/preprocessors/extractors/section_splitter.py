@@ -92,7 +92,7 @@ class SectionSplitter(AbstractExtractor):
             return
 
         total_processed = self.total_to_process
-        # ceil divivsion to get the number of files (chunks) that should be present if pipeline finished
+        # ceil division to get the number of files (chunks) that should be present if pipeline finished
         total_chunks = -(self.total_to_process // - self.chunksize)
         # if the pipeline was interrupted, notify the user, this allows to print coverage half way through
         # with the coverage for the parsed chunks still being valid
