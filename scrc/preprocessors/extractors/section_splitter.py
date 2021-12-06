@@ -68,32 +68,44 @@ class SectionSplitter(AbstractExtractor):
     """log_coverage for users without database write privileges, parses results from json logs
        allows to print coverage half way through with the coverage for the parsed chunks still being valid"""
     def log_coverage_from_json(self, engine: Engine, spider: str, lang: str, batch_info: dict) -> None:
-        df = pd.DataFrame()
-        path = Path.joinpath(self.output_dir, os.getlogin(), spider, lang, batch_info['uuid'])
-        # retrieve all chunks
-        for chunk in range(batch_info['chunknumber']):
-            df_chunk = pd.read_json(str(path / f"{chunk}.json"))
-            df = df.append(df_chunk)
         
-        # return if no data was found
-        if df.shape[0] == 0:
-            self.logger.info('No stored files found for language `%s`', lang)
+        if self.total_to_process == 0:
+            # no entries to process
             return
         
+        path = Path.joinpath(self.output_dir, os.getlogin(), spider, lang, batch_info['uuid'])
+        
+        # summary: all collected elements and the count of found sections, initialized to zero
+        summary = { 'total_collected': 0 }
+        for section in Section:
+            summary[section.value] = 0
+        
+        # retrieve all chunks iteratively to limit memory usage
+        for chunk in range(batch_info['chunknumber']):
+            df_chunk = pd.read_json(str(path / f"{chunk}.json"))
+            summary['total_collected'] += df_chunk.shape[0]
+            for section in Section:
+                summary[section.value] += df_chunk[section.value].count()
+
+        if summary['total_collected'] == 0:
+            self.logger.info(f"Could not find any stored log files for batch {batch_info['uuid']} in {lang}")
+            return
+
         total_processed = self.total_to_process
         # ceil divivsion to get the number of files (chunks) that should be present if pipeline finished
         total_chunks = -(self.total_to_process // - self.chunksize)
         # if the pipeline was interrupted, notify the user, this allows to print coverage half way through
         # with the coverage for the parsed chunks still being valid
         if total_chunks > batch_info['chunknumber']:
-            self.logger.info(f"The pipeline was interrupted, the last chunk was {batch_info['uuid']} with number {str(batch_info['chunknumber'])}")
+            self.logger.info("The pipeline was interrupted or logged intermittently, " \
+                             f"the last chunk was {batch_info['uuid']} with number {str(batch_info['chunknumber'])}")
             self.logger.info(f"Coverage for the processed chunks:")
             # update total to give a correct coverage
-            total_processed = df.shape[0]
+            total_processed = summary['total_collected']
         else:
             self.logger.info(f"{self.logger_info['finish_spider']} in {lang} with the following amount recognized:")
         for section in Section:
-            section_amount = df[section.value].count()
+            section_amount = summary[section.value]
             self.logger.info(
                 f"{section.value.capitalize()}:\t{section_amount} / {total_processed} "
                 f"({section_amount / total_processed:.2%}) "
