@@ -31,38 +31,52 @@ def UR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
     """
-    # As soon as one of the strings in the list (regexes) is encountered we switch to the corresponding section (key)
-    # (?:C|c) is much faster for case insensitivity than [Cc] or (?i)c
     all_section_markers = {
         Language.DE: {
-            Section.FACTS: [r'^[0-9]{2}/[0-9]{2}', r'^Strafprozessordnung', r'^Personalrecht', r'^Öffentliches Beschaffungswesen', r'IV\. Art.\ [0-9]{2}'],
-            Section.CONSIDERATIONS: [ r'Aus den Erwägungen:'],
-            Section.RULINGS: [ r'Bei der Prüfung'],
-            Section.FOOTER: [r'^Rechtsmittelbelehrung$',  r'Die Verwaltungsgerichtsbeschwerde ist (abzuweisen|gutzuheissen)']
+            Section.FACTS: [r'Sachverhalt:'],
+            Section.CONSIDERATIONS: [r'Aus den Erwägungen:', r'Aus den Erwägungen des Bundesgerichts:', r'Erwägungen:']
         }
     }
 
-    def get_paragraphs(decision):
-        """
-        Get Paragraphs in the decision
-        :decision: the decision as string
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks, watch the space before +!!
-        decision = re.sub('\\n +\\n', '\\n\\n', decision,0, re.MULTILINE)
-        # split the lines when there are two line breaks
-        lines = decision.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
+    sections_found = {}
+    for lang in all_section_markers:
+        for sect in all_section_markers[lang]:
+            for reg in (all_section_markers[lang])[sect]:
+                matches = re.finditer(reg, decision, re.MULTILINE)
+                for num, match in enumerate(matches, start=1):
+                    sections_found.update({match.start(): sect})
 
-    section_markers = prepare_section_markers(all_section_markers, namespace)
-    paragraphs = get_paragraphs(decision)
-    return associate_sections(paragraphs, section_markers, namespace)
+    paragraphs_by_section = {section: [] for section in Section}
+    sorted_section_pos = sorted(sections_found.keys())
+
+    # If no regex for the header is defined, consider all text before the first section, if any, as header
+    if Section.HEADER not in all_section_markers[Language.DE] and len(sorted_section_pos) > 0:
+        paragraphs_by_section[Section.HEADER].append(decision[:sorted_section_pos[0]])   
+
+    # Assign the corresponding part of the decision to its section 
+    for i,match_start in enumerate(sorted_section_pos):
+        actual_section = sections_found[match_start]
+        from_ = match_start
+        if i >= len(sorted_section_pos)-1: 
+            # This is the last section, till end of decision
+            to_ = len(decision)
+        else:
+            to_ = sorted_section_pos[i+1]
+        paragraphs_by_section[actual_section].append(decision[from_:to_])
+
+    # Validate the results
+    error = True
+    date = namespace['date']
+    id = namespace['id']
+    for defined_sections in all_section_markers[Language.DE]:
+        if len(paragraphs_by_section[defined_sections]) != 0:
+            error = False
+            break
+    if error == True:
+        message = f'None of the section_markers gave any result. Date of the decision is {date} and id {id}'
+        raise ValueError(message)
+
+    return paragraphs_by_section
 
 def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
