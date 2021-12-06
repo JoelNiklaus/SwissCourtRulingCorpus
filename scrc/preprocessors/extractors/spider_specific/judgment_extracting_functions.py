@@ -158,6 +158,57 @@ def BS_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     return [judgment.value for judgment in judgments]
 
 
+def UR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+    
+    # Rather than extend and update the global markers, for this spider, specific markers are defined.
+    all_judgment_markers = {
+        Language.DE: {
+            Judgment.APPROVAL: [r'Gutheissung der Beschwerde', r'Bejahung der Beschwerdelegimitation'],
+            Judgment.PARTIAL_APPROVAL: [r'Teilweise Gutheissung der Beschwerde'],
+            Judgment.DISMISSAL: [r'Abweisung der Beschwerde', 
+                                r'Der Anzeige wird keine Folge gegeben', 
+                                r'Verneinung der Beschwerdelegimitation', 
+                                r'Abweisung der Verwaltungsgerichtsbeschwerde', 
+                                r'Abweisung der [Vv]erwaltungsrechtlichen Klage',
+                                r'Abweisung des Gesuches um Wiederherstellung der Frist',
+                                r'In concreto Abweisung der Berufung der Dienstbarkeitsbelasteten'],
+            Judgment.WRITE_OFF: [r'Abschreibung der Beschwerde vom Geschäftsprotokoll ']
+        }
+    }
+
+    # In canton UR, de only
+    if namespace['language'] != Language.DE:
+        raise ValueError(f'This function is only implemented for {Language.DE} so far.')
+    
+    # find all judgments in the rulings
+    judgments = []
+    for lang in all_judgment_markers:
+        for judg in all_judgment_markers[lang]:
+            for reg in (all_judgment_markers[lang])[judg]:
+                matches = re.finditer(reg, rulings, re.MULTILINE)
+                for num, match in enumerate(matches, start=1):
+                    from_, to_, match_text  = match.start(), match.end(), match.group()
+                    judgments.append(judg)
+    
+    # validate
+    if len(judgments) > 1:
+        # TODO: using from_ and to_ position of judgment, check the following cases
+        #   1) a match is included in another --> discard the one included
+        #   2) two matches overlap --> problem, check 
+        #   3) no judgment found --> update the all_judgment_markers 
+        raise ValueError(f"Found several judgments for the rulings {namespace['date']} . Please check!")
+    if len(judgments) == 0:
+        raise ValueError(f"Found no judgment for the rulings {namespace['date']}. Please check!")
+
+    return judgments
+    
+
 def CH_BGer(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     """
     Extract judgment outcomes from the rulings
