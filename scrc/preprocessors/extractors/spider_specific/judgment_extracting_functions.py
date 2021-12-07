@@ -1,5 +1,5 @@
 import unicodedata
-from typing import Dict, Optional, List
+from typing import Any, Dict, Optional, List
 
 import re
 
@@ -61,10 +61,10 @@ Formelle Mitteilung:
 
 all_judgment_markers = {
     Language.DE: {
-        Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung'],
+        Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung','schuldig erklärt', 'rechtmässig'],
         Judgment.PARTIAL_APPROVAL: ['teilweise gutgeheissen', 'teilweise gutzuheissen',
                                     'In teilweiser Gutheissung'],
-        Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen'],
+        Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen', 'erstinstanzliche Urteil wird bestätigt'],
         Judgment.PARTIAL_DISMISSAL: ['abgewiesen, soweit darauf einzutreten ist',
                                      'abzuweisen, soweit darauf einzutreten ist',
                                      'abgewiesen, soweit auf sie einzutreten ist',
@@ -188,8 +188,6 @@ def CH_BGer(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
 
     return [judgment.value for judgment in judgments]
 
-
-
 def get_judgments(rulings: str, namespace: dict) -> set:
     """
     Get the judgment outcomes based on a rulings string and the given namespace context.
@@ -207,31 +205,52 @@ def get_judgments(rulings: str, namespace: dict) -> set:
     if (re.search(pattern, rulings) or re.search(romanPattern, rulings)):
         judgments = numbered_rulings(judgments, rulings, namespace, judgment_markers)
         if not judgments:
-            judgments = unnumbered_rulings(judgments, rulings, judgment_markers)  
+            judgments = unnumbered_rulings(judgments, rulings, judgment_markers, namespace)  
     else:
-        judgments = unnumbered_rulings(judgments, rulings, judgment_markers) 
+        judgments = unnumbered_rulings(judgments, rulings, judgment_markers,namespace) 
     return judgments
 
-def unnumbered_rulings(judgments, rulings, judgment_markers):
-    return iterate_Judgments(rulings, judgments, judgment_markers)
+def unnumbered_rulings(judgments: set, rulings: str, judgment_markers: Dict[Any, str], namespace: dict):
+    return iterate_Judgments(rulings, judgments, judgment_markers, False, namespace)
 
-def numbered_rulings(judgments: set, rulings, namespace, judgment_markers):
+def numbered_rulings(judgments: set, rulings: str, namespace: dict, judgment_markers: dict):
     n = 1
     while len(judgments) == 0:
         try:
             ruling = get_nth_ruling(rulings, namespace, n)
-            judgments = iterate_Judgments(ruling, judgments, judgment_markers)
+            judgments = iterate_Judgments(ruling, judgments, judgment_markers, True, namespace)
             n += 1
         except ValueError:
             break
     return judgments
 
-def iterate_Judgments(ruling, judgments: set, judgment_markers):
+def iterate_Judgments(ruling: str, judgments: set, judgment_markers: dict, numberedRuling: bool, namespace) -> set:
+    positions = [];
     for judgment in Judgment:
                 markers = judgment_markers[judgment]
                 ruling = unicodedata.normalize('NFC', ruling)  # if we don't do this, we get weird matching behaviour
-                if re.search(markers, ruling):
-                    judgments.add(judgment)
+                matching = re.search(markers, ruling)
+                if matching:
+                    if numberedRuling:
+                        judgments.add(judgment)
+                    else: 
+                        positions.append({"match": matching, "judgment": judgment})
+    if not numberedRuling and positions:
+        judgments = getFirstInstance(positions, judgments) 
+    return judgments
+
+def getFirstInstance(positions: dict, judgments: set) -> set:
+    firstInstance = positions[0]
+    judgments = {firstInstance["judgment"]}
+    for judgment in positions[1:]:
+        position = firstInstance["match"].span()
+        comparison = judgment["match"].span()
+        if(comparison[0] < position[0]):
+            firstInstance = judgment
+            judgments = {firstInstance["judgment"]}
+        elif(position[0] == comparison[0]):
+            firstInstance = judgment
+            judgments.add(firstInstance["judgment"])
     return judgments
             
 def get_nth_ruling(rulings: str, namespace: dict, n: int) -> str:
@@ -267,7 +286,7 @@ def search_rulings(rulings: str, start: str, end: str):
 # def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
 #    return CH_BGer(rulings, namespace)
 
-def prepare_judgment_markers(all_judgment_markers: Dict[Language, any], namespace: dict) -> Dict[any, str]: 
+def prepare_judgment_markers(all_judgment_markers: dict(Language, Any), namespace: dict) -> dict(Any, str): 
     judgment_markers = all_judgment_markers[namespace['language']]
         # combine multiple regex into one for each section due to performance reasons
     judgment_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), judgment_markers.items()))
