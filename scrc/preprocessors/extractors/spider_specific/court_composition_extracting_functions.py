@@ -524,6 +524,18 @@ def find_besetzung(header: str, role_regexes: dict, namespace: dict) -> CourtCom
     person: CourtPerson = None
     last_gender = Gender.UNKNOWN
 
+    # check if any of the role regexes can be found in the header. 
+    # if there are none, we can exit this function.
+    def any_matches():
+        for gender in role_regexes:
+            role_regex = role_regexes[gender]
+            for regex_key in role_regex:
+                regex = '|'.join(role_regex[regex_key])
+                if re.search(regex, header):
+                    return True
+    if not any_matches():
+        return
+
     for text in besetzungs_strings:
         text = text.strip()
         # delete the last character if it's a dot following a lower-case character
