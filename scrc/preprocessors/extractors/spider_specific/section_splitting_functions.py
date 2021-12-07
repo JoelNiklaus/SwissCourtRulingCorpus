@@ -14,7 +14,6 @@ The name of the functions should be equal to the spider! Otherwise, they won't b
 Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
-x = 0
 
 def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
@@ -200,10 +199,6 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict):
         # add paragraph to the list of paragraphs
         paragraphs_by_section[current_section].append(paragraph)
     if current_section != Section.FOOTER:
-        # count how many times the footer wasn't reached
-        global x
-        x += 1
-        print(x)
         # change the message depending on whether there's a url
         if namespace['html_url']:
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
