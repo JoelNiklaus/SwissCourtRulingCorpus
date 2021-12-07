@@ -210,21 +210,21 @@ def get_judgments(rulings: str, namespace: dict) -> set:
         judgments = unnumbered_rulings(judgments, rulings, judgment_markers,namespace) 
     return judgments
 
-def unnumbered_rulings(judgments: set, rulings: str, judgment_markers: Dict[Any, str], namespace: dict):
-    return iterate_Judgments(rulings, judgments, judgment_markers, False, namespace)
+def unnumbered_rulings(judgments: set, rulings: str, judgment_markers: dict, namespace: dict):
+    return iterate_Judgments(rulings, judgments, judgment_markers, False)
 
 def numbered_rulings(judgments: set, rulings: str, namespace: dict, judgment_markers: dict):
     n = 1
     while len(judgments) == 0:
         try:
             ruling = get_nth_ruling(rulings, namespace, n)
-            judgments = iterate_Judgments(ruling, judgments, judgment_markers, True, namespace)
+            judgments = iterate_Judgments(ruling, judgments, judgment_markers, True)
             n += 1
         except ValueError:
             break
     return judgments
 
-def iterate_Judgments(ruling: str, judgments: set, judgment_markers: dict, numberedRuling: bool, namespace) -> set:
+def iterate_Judgments(ruling: str, judgments: set, judgment_markers: dict, numberedRuling: bool) -> set:
     positions = [];
     for judgment in Judgment:
                 markers = judgment_markers[judgment]
@@ -286,7 +286,7 @@ def search_rulings(rulings: str, start: str, end: str):
 # def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
 #    return CH_BGer(rulings, namespace)
 
-def prepare_judgment_markers(all_judgment_markers: dict(Language, Any), namespace: dict) -> dict(Any, str): 
+def prepare_judgment_markers(all_judgment_markers: dict, namespace: dict) -> dict: 
     judgment_markers = all_judgment_markers[namespace['language']]
         # combine multiple regex into one for each section due to performance reasons
     judgment_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), judgment_markers.items()))
