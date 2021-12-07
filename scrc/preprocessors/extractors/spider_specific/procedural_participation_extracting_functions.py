@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 import re
 import json
+from scrc.data_classes.person import Person
 from scrc.data_classes.legal_counsel import LegalCounsel
 from scrc.data_classes.procedural_participation import ProceduralParticipation
 from scrc.data_classes.proceedings_party import ProceedingsParty
@@ -196,46 +197,94 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
 
 
 def ZG_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    """
+    Extract procedural participation from the Verwaltungsgericht of Zug
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the procedural participation
+    """
 
     information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
-    pass
+    header = get_participation_from_header(header, information_start_regex, namespace)
+    party = get_procedural_participation(header, namespace, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name)
+
+    return party.toJSON()
 
 def ZH_Baurekurs(header: str, namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    """
+    Extract procedural participation from the Baurekursgericht of Zurich
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the procedural participation
+    """
 
     information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
-    pass
+    header = get_participation_from_header(header, information_start_regex, namespace)
+    party = get_procedural_participation(header, namespace, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name)
+
+    return party.toJSON()
 
 def ZH_Obergericht(header: str, namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    """
+    Extract procedural participation from the Obergericht of Zurich
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the procedural participation
+    """
 
     information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
-    pass
+    header = get_participation_from_header(header, information_start_regex, namespace)
+    party = get_procedural_participation(header, namespace, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name)
+
+    return party.toJSON()
 
 def ZH_Sozialversicherungsgericht(header: str, namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    """
+    Extract procedural participation from the Baurekursgericht of Zurich
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the procedural participation
+    """
 
     information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
-    pass
+    header = get_participation_from_header(header, information_start_regex, namespace)
+    party = get_procedural_participation(header, namespace, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name)
+
+    return party.toJSON()
 
 def ZH_Steuerrekurs(header: str, namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    """
+    Extract procedural participation from the Baurekursgericht of Zurich
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the procedural participation
+    """
 
     information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
-    pass
+    header = get_participation_from_header(header, information_start_regex, namespace)
+    party = get_procedural_participation(header, namespace, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name)
+
+    return party.toJSON()
 
 def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    """
+    Extract procedural participation from the Baurekursgericht of Zurich
+    :param header:      the string containing the header
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the procedural participation
+    """
 
     information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
 
-    pass
+    header = get_participation_from_header(header, information_start_regex, namespace)
+    party = get_procedural_participation(header, namespace, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name)
+
+    return party.toJSON()
 
 
 
@@ -262,10 +311,190 @@ def get_regex():
         Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|(.$)|. Gegen| und)'
     }
 
+    representation_start = '|'.join(representation_start)
+    for key in lawyer_representation:
+        lawyer_representation[key] = '|'.join(lawyer_representation[key])
+    for key in party_gender:
+        party_gender[key] = '|'.join(party_gender[key])
+
     return information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name
 
+    
+def get_participation_from_header(header: str, information_start_regex: dict, namespace: dict) -> str:
+    start_pos = re.search(information_start_regex, header) or re.search(r'Gerichtsschreiber.*?\.', header)
+    if start_pos:
+        header = header[start_pos.span()[1]:]
+    end_pos = {
+        Language.DE: re.search(r'(?<=Beschwerdegegnerin).+?', header) or re.search(r'(?<=Beschwerdegegner).+?',
+                                                                            header) or re.search(r'Gegenstand',
+                                                                                                header) or re.search(
+            r'A\.\- ', header) or re.search(r'gegen das Urteil', header) or re.search(r'betreffend', header) or re.search(r'Sachverhalt', header)
+    }
+    end_pos = end_pos[namespace['language']]
+    if end_pos:
+        header = header[:end_pos.span()[0]]
+    return header
+
+
+def search_lawyers(text: str, lawyer_representation: dict, lawyer_name: dict, namespace: dict) -> List[LegalCounsel]:
+    lawyers: List[LegalCounsel] = []
+    for (gender, current_regex) in lawyer_representation.items():
+        pos = re.search(current_regex, text)
+        if pos:
+            lawyer = LegalCounsel('')
+            lawyer.gender = Gender.UNKNOWN
+            if not namespace['language'] == Language.IT:
+                lawyer.gender = gender
+            name_match = re.search(lawyer_name[namespace['language']], text[pos.span()[1]:])
+            if name_match and not text[pos.span()[1]] == ',':
+                lawyer.name = name_match.group()
+            else:
+                name_match = re.search(lawyer_name[namespace['language']], text[:pos.span()[0]])
+                lawyer.name = name_match.group() if name_match else None
+            lawyer.legal_type = LegalType.NATURAL_PERSON
+            lawyers.append(lawyer)
+
+    return lawyers
+
+
+def add_representation(text: str, representation_start: dict, lawyer_representation: dict, lawyer_name: dict, namespace: dict) -> List[LegalCounsel]:
+    representations = []
+    start_positions = tuple(re.finditer(representation_start, text))
+    if not start_positions:
+        return []
+
+    for match_index in range(len(start_positions)):
+        start_pos = start_positions[match_index].span()[1]
+        if match_index + 1 < len(start_positions):
+            end_pos = start_positions[match_index + 1].span()[0]
+        else:
+            end_pos = len(text)
+        current_text = text[start_pos:end_pos]
+        lawyers = search_lawyers(current_text, lawyer_representation, lawyer_name, namespace)
+        if lawyers:
+            representations.extend(lawyers)
+            continue
+
+        name_match = re.search(r'[A-Z][\w\s\.\-\']*(?=,)', current_text)
+        if name_match:
+            name = name_match.group()
+            if name.startswith('Me'):
+                lawyer = LegalCounsel(name[2:], legal_type=LegalType.NATURAL_PERSON)
+                representations.append(lawyer)
+                continue
+            lawyer = LegalCounsel(name.strip(), legal_type=LegalType.LEGAL_ENTITY)
+            if lawyer.gender == None:
+                lawyer.gender = Gender.UNKNOWN
+            representations.append(lawyer)
+            continue
+        name_match = re.search(r'[A-Z][\w\s\.\-\']*', current_text)
+        if name_match:
+            name = name_match.group()
+            lawyer = LegalCounsel(name.strip(), legal_type=LegalType.LEGAL_ENTITY)
+            if lawyer.gender == None:
+                lawyer.gender = Gender.UNKNOWN
+            representations.append(lawyer)
+            continue
+    representations = list(set(representations))  # remove duplicates
+    return representations
+
+
+
+def get_party(text: str, namespace: dict, party_gender: dict) -> List[ProceedingsParty]:
+    current_person = ProceedingsParty('')
+    current_person.gender = Gender.UNKNOWN
+    result: List[ProceedingsParty] = []
+    try:
+        current_person.name = re.search(r'[A-Z1-9].*?(?=(,)|(.$)| Beschwerde)', text).group().strip()
+    except AttributeError:
+        return result
+
+    if re.match(r'[1-9IVX]+\.(?!_)', current_person.name):
+        people_string = re.split(r'[1-9IVX]+\. ', text)
+        for string in people_string[1:]:
+            result.extend(get_party(string, namespace, party_gender))
+
+        for idx in range(len(result)):
+            result[idx].gender = Gender.UNKNOWN
+        return result
+    if re.match(r'([A-Z]\.)?[A-Z]\._$', current_person.name):
+        for gender, current_regex in party_gender.items():
+            if re.search(current_regex, text):
+                current_person.gender = Gender.UNKNOWN
+                if not namespace['language'] == Language.IT and not gender == None:
+                    current_person.gender = gender
+                current_person.legal_type = LegalType.NATURAL_PERSON
+                result.append(current_person)
+                return result
+        current_person.legal_type = LegalType.NATURAL_PERSON
+        result.append(current_person)
+        return result
+    current_person.legal_type = LegalType.LEGAL_ENTITY
+    result.append(current_person)
+    return result
+
+
+
+def get_procedural_participation(header: str, namespace: dict, second_party_start_regex: list, representation_start: dict, party_gender: dict, lawyer_representation: dict, lawyer_name: dict) -> ProceduralParticipation:
+    header_parts = re.split('|'.join(second_party_start_regex), header)
+    if len(header_parts) < 2:
+        raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url']}")
+    party = ProceduralParticipation()
+    plaintiff_representation = add_representation(header_parts[0], representation_start, lawyer_representation, lawyer_name, namespace)
+    defendant_representation = add_representation(header_parts[1], representation_start, lawyer_representation, lawyer_name, namespace)
+
+    party.plaintiffs = get_party(header_parts[0], namespace, party_gender)
+    party.defendants = get_party(header_parts[1], namespace, party_gender)
+
+    for plaintiff in party.plaintiffs:
+        plaintiff.legal_counsel = plaintiff_representation
+    for defendant in party.defendants:
+        defendant.legal_counsel = defendant_representation
+    # uncomment to debug
+    # print(party)
+    return party
 
 
 
 
 
+def testing():
+    """
+    This function tests the extracting functions checking if their output is correct given a test header (that was copied from the section splitting output)
+    """
+    ZG_Verwaltungsgericht_test_header = ['Normal.dot', 'VERWALTUNGSGERICHT DES KANTONS ZUG', 'SOZIALVERSICHERUNGSRECHTLICHE KAMMER', 'Mitwirkende Richter: lic. iur. Adrian Willimann, Vorsitz lic. iur. Jacqueline Iten-Staub und Dr. iur. Matthias Suter Gerichtsschreiber: MLaw Patrick Trütsch', 'U R T E I L vom 18. Juni 2020 [rechtskräftig] gemäss § 29 der Geschäftsordnung', 'in Sachen', 'A._ Beschwerdeführer vertreten durch B._ AG', 'gegen', 'Ausgleichskasse Zug, Baarerstrasse 11, Postfach, 6302 Zug Beschwerdegegnerin', 'betreffend', 'Ergänzungsleistungen (hypothetisches Erwerbseinkommen)', 'S 2019 121', '2', 'Urteil S 2019 121']
+
+    ZH_Steuerrekurs_test_header = ['Endentscheid Kammer', 'Steuerrekursgericht des Kantons Zürich', '2. Abteilung', '2 DB.2017.240 2 ST.2017.296', 'Entscheid', '5. Februar 2019', 'Mitwirkend:', 'Abteilungspräsident Christian Mäder, Steuerrichterin Micheline Roth, Steuerrichterin Barbara Collet und Gerichtsschreiber Hans Heinrich Knüsli', 'In Sachen', '1. A, 2. B,', 'Beschwerdeführer/ Rekurrenten, vertreten durch C AG,', 'gegen', '1. Schw eizer ische E idgenossenschaf t , Beschwerdegegnerin, 2. Staat Zür ich , Rekursgegner, vertreten durch das kant. Steueramt, Division Konsum, Bändliweg 21, Postfach, 8090 Zürich,', 'betreffend', 'Direkte Bundessteuer 2012 sowie Staats- und Gemeindesteuern 2012', '- 2 -', '2 DB.2017.240 2 ST.2017.296']
+
+    ZH_Baurekurs_test_header = ['BRGE Nr. 0/; GUTH vom', 'Baurekursgericht des Kantons Zürich', '2. Abteilung', 'G.-Nr. R2.2018.00197 und R2.2019.00057 BRGE II Nr. 0142/2019 und 0143/2019', 'Entscheid vom 10. September 2019', 'Mitwirkende Abteilungsvizepräsident Adrian Bergmann, Baurichter Stefano Terzi,  Marlen Patt, Gerichtsschreiber Daniel Schweikert', 'in Sachen Rekurrentin', 'V. L. [...]', 'vertreten durch [...]', 'gegen Rekursgegnerschaft', '1. Baubehörde X 2. M. I. und K. I.-L. [...]', 'Nr. 2 vertreten durch [...]', 'R2.2018.00197 betreffend Baubehördenbeschluss vom 4. September 2017; Baubewilligung für Um-', 'bau Einfamilienhausteil und Ausbau Dachgeschoss, [...], BRGE II Nr. 00025/2018 vom 6. März 2018; Rückweisung zum  mit VB.2018.00209 vom 20. September 2018', 'R2.2019.00057 Präsidialverfügung vom 29. März 2019; Baubewilligung für Umbau  und Ausbau Dachgeschoss (1. Projektänderung), [...] _', 'R2.2018.00197 Seite 2']
+
+    ZH_Obergericht_test_header = ['Urteil - Abweisung, begründet', 'Bezirksgericht Zürich 3. Abteilung', 'Geschäfts-Nr.: CG170019-L / U', 'Mitwirkend: Vizepräsident lic. iur. Th. Kläusli, Bezirksrichter lic. iur. K. Vogel,', 'Ersatzrichter MLaw D. Brugger sowie der Gerichtsschreiber M.A.', 'HSG Ch. Reitze', 'Urteil vom 4. März 2020', 'in Sachen', 'A._, Kläger', 'vertreten durch Rechtsanwalt lic. iur. W._', 'gegen', '1. B._, 2. C._-Stiftung, 3. D._, Beklagte', '1 vertreten durch Rechtsanwalt Dr. iur. X._', '2 vertreten durch Rechtsanwältin Dr. iur. Y._']
+
+    ZH_Verwaltungsgericht_test_header = ['Verwaltungsgericht des Kantons Zürich 4. Abteilung', 'VB.2020.00452', 'Urteil', 'der 4. Kammer', 'vom 24. September 2020', 'Mitwirkend: Abteilungspräsidentin Tamara Nüssle (Vorsitz), Verwaltungsrichter Reto Häggi Furrer, Verwaltungsrichter Martin Bertschi, Gerichtsschreiber David Henseler.', 'In Sachen', 'A, vertreten durch RA B,', 'Beschwerdeführerin,', 'gegen', 'Migrationsamt des Kantons Zürich,', 'Beschwerdegegner,', 'betreffend vorzeitige Erteilung der Niederlassungsbewilligung,']
+
+    ZH_Sozialversicherungsgericht_test_header = ['Sozialversicherungsgerichtdes Kantons ZürichIV.2014.00602', 'II. Kammer', 'Sozialversicherungsrichter Mosimann, Vorsitzender', 'Sozialversicherungsrichterin Käch', 'Sozialversicherungsrichterin Sager', 'Gerichtsschreiberin Kudelski', 'Urteil vom 11. August 2015', 'in Sachen', 'X._', 'Beschwerdeführerin', 'vertreten durch Rechtsanwalt Dr. Kreso Glavas', 'Advokatur Glavas AG', 'Markusstrasse 10, 8006 Zürich', 'gegen', 'Sozialversicherungsanstalt des Kantons Zürich, IV-Stelle', 'Röntgenstrasse 17, Postfach, 8087 Zürich', 'Beschwerdegegnerin', 'weitere Verfahrensbeteiligte:', 'Personalvorsorgestiftung der Y._', 'Beigeladene']
+
+
+    ZG_Verwaltungsgericht_test_string = ' '.join(map(str, ZG_Verwaltungsgericht_test_header))
+    ZH_Steuerrekurs_test_string = ' '.join(map(str, ZH_Steuerrekurs_test_header))
+    ZH_Baurekurs_test_string = ' '.join(map(str, ZH_Baurekurs_test_header))
+    ZH_Obergericht_test_string = ' '.join(map(str, ZH_Obergericht_test_header))
+    ZH_Verwaltungsgericht_test_string = ' '.join(map(str, ZH_Verwaltungsgericht_test_header))
+    ZH_Sozialversicherungsgericht_test_string = ' '.join(map(str, ZH_Sozialversicherungsgericht_test_header))
+
+    namespace = {'language' : Language.DE}
+
+    zg_vg_json = ZG_Verwaltungsgericht(ZG_Verwaltungsgericht_test_string, namespace)
+    zg_vg = json.loads(zg_vg_json)
+    # print(zg_vg)
+    assert zg_vg['plaintiffs'][0]['legal_counsel'][0]['name'] == 'B._ AG'
+    assert zg_vg['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'legal entity'
+    # zh_sr = ZH_Steuerrekurs(ZH_Steuerrekurs_test_string, namespace)
+    # zh_br = ZH_Baurekurs(ZH_Baurekurs_test_string, namespace) 
+    # zh_og = ZH_Obergericht(ZH_Obergericht_test_string, namespace)
+    # zh_vg= ZH_Verwaltungsgericht(ZH_Verwaltungsgericht_test_string, namespace)
+    # zh_svg = ZH_Sozialversicherungsgericht(ZH_Sozialversicherungsgericht_test_string, namespace)
+
+
+# uncomment to test
+testing()

@@ -17,7 +17,7 @@ class ProceduralParticipation:
                 'legal_type': party.legal_type.value,
                 'legal_counsel': [{
                     'name': counsel.name,
-                    'gender': counsel.gender,
+                    'gender': counsel.gender.value,
                     'legal_type': counsel.legal_type.value
                 } for counsel in party.legal_counsel]
             } for party in self.plaintiffs],
@@ -26,7 +26,7 @@ class ProceduralParticipation:
                 'legal_type': party.legal_type.value,
                 'legal_counsel': [{
                     'name': counsel.name,
-                    'gender': counsel.gender,
+                    'gender': counsel.gender.value,
                     'legal_type': counsel.legal_type.value
                 } for counsel in party.legal_counsel]
             } for party in self.defendants],
