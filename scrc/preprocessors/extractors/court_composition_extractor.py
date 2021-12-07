@@ -1,13 +1,13 @@
 from __future__ import annotations
-import configparser
 from typing import Any, TYPE_CHECKING
 
-from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.enums.section import Section
+from scrc.utils.main_utils import get_config
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
+
 
 class CourtCompositionExtractor(AbstractExtractor):
     """
@@ -18,13 +18,13 @@ class CourtCompositionExtractor(AbstractExtractor):
         super().__init__(config, function_name='court_composition_extracting_functions', col_name='court_composition')
         self.processed_file_path = self.progress_dir / "spiders_court_composition_extracted.txt"
         self.logger_info = {
-        'start': 'Started extracting the court compositions', 
-        'finished': 'Finished extracting the court compositions', 
-        'start_spider': 'Started extracting the court compositions for spider', 
-        'finish_spider': 'Finished extracting the court compositions for spider', 
-        'saving': 'Saving chunk of court compositions',
-        'processing_one': 'Extracting the court composition from',
-        'no_functions': 'Not extracting the court compositions.'
+            'start': 'Started extracting the court compositions',
+            'finished': 'Finished extracting the court compositions',
+            'start_spider': 'Started extracting the court compositions for spider',
+            'finish_spider': 'Finished extracting the court compositions for spider',
+            'saving': 'Saving chunk of court compositions',
+            'processing_one': 'Extracting the court composition from',
+            'no_functions': 'Not extracting the court compositions.'
         }
 
     def get_database_selection_string(self, spider: str, lang: str) -> str:
@@ -33,17 +33,17 @@ class CourtCompositionExtractor(AbstractExtractor):
 
     def get_required_data(self, series: DataFrame) -> Any:
         """Returns the data required by the processing functions"""
-        data = {Section.HEADER: series['header'], Section.FACTS: series['facts'], Section.CONSIDERATIONS: series['considerations'], Section.RULINGS: series['rulings'], Section.FOOTER: series['footer']}
-        return series['header']
+        return {Section.HEADER: series['header'], Section.FACTS: series['facts'],
+                Section.CONSIDERATIONS: series['considerations'], Section.RULINGS: series['rulings'],
+                Section.FOOTER: series['footer']}
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing. 
         e.g. data is required to be present for analysis"""
         return bool(data)
 
-if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
 
+if __name__ == '__main__':
+    config = get_config()
     court_composition_extractor = CourtCompositionExtractor(config)
     court_composition_extractor.start()

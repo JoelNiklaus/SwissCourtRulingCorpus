@@ -8,6 +8,7 @@ from scrc.data_classes.proceedings_party import ProceedingsParty
 from scrc.enums.gender import Gender
 from scrc.enums.language import Language
 from scrc.enums.legal_type import LegalType
+from scrc.enums.section import Section
 
 """
 This file is used to extract the parties from decisions sorted by spiders.
@@ -15,17 +16,20 @@ The name of the functions should be equal to the spider! Otherwise, they won't b
 Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
-def XX_SPIDER(header: str, namespace: dict) -> Optional[str]:
+
+def XX_SPIDER(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
-def CH_BGer(header: str, namespace: dict) -> Optional[str]:
+
+def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     Extract lower courts from decisions of the Federal Supreme Court of Switzerland
     :param header:      the string containing the header
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
+    header = sections[Section.HEADER]
 
     information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen|Parties|Participants à la procédure|formée? par|[Dd]ans la cause|Parti|Partecipanti al procedimento|Visto il ricorso.*?da'
     second_party_start_regex = [
@@ -45,12 +49,14 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     }
 
     party_gender = {
-        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)', r'recourant(?!e)', r'intimés?(?!e)', r'ricorrente'],
+        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)', r'recourant(?!e)', r'intimés?(?!e)',
+                      r'ricorrente'],
         Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin', r'recourantes?', r'intimées?']
     }
 
     lawyer_representation = {
-        Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)', r'avocats?(?!e)', r'dall\'avv\.', r'l\'avv\.'],
+        Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)', r'avocats?(?!e)', r'dall\'avv\.',
+                      r'l\'avv\.'],
         Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin', r'avocates?']
     }
 
@@ -66,8 +72,8 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         header = header[start_pos.span()[1]:]
     end_pos = {
         Language.DE: re.search(r'(?<=Beschwerdegegnerin).+?', header) or re.search(r'(?<=Beschwerdegegner).+?',
-                                                                            header) or re.search(r'Gegenstand',
-                                                                                                 header) or re.search(
+                                                                                   header) or re.search(r'Gegenstand',
+                                                                                                        header) or re.search(
             r'A\.\- ', header) or re.search(r'gegen das Urteil', header),
         Language.FR: re.search(r'Objet', header) or re.search(r'Vu', header),
         Language.IT: re.search(r'Oggetto', header)
@@ -191,46 +197,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
 #    return CH_BGer(rulings, namespace)
 
 
-
-
-
-
-def ZG_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-
-    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
-
-    pass
-
-def ZH_Baurekurs(header: str, namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-
-    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
-
-    pass
-
-def ZH_Obergericht(header: str, namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-
-    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
-
-    pass
-
-def ZH_Sozialversicherungsgericht(header: str, namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-
-    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
-
-    pass
-
-def ZH_Steuerrekurs(header: str, namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-
-    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
-
-    pass
-
-def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
+def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
 
     information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
@@ -238,8 +205,44 @@ def ZH_Verwaltungsgericht(header: str, namespace: dict) -> Optional[str]:
     pass
 
 
+def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
+
+    pass
 
 
+def ZH_Obergericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
+
+    pass
+
+
+def ZH_Sozialversicherungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
+
+    pass
+
+
+def ZH_Steuerrekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
+
+    pass
+
+
+def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
+
+    pass
 
 
 def get_regex():
@@ -251,8 +254,10 @@ def get_regex():
         r'vertreten durch',
     }
     party_gender = {
-        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)', r'Antragsteller(?!in)', r'Antragsgegner(?!in)', r'Rekurrent(?!in)', r'Rekursgegner(?!in)'],
-        Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin', r'Antragstellerin', r'Antragsgegnerin', r'Rekurrentin', r'Rekursgegnerin']
+        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)', r'Antragsteller(?!in)',
+                      r'Antragsgegner(?!in)', r'Rekurrent(?!in)', r'Rekursgegner(?!in)'],
+        Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin', r'Antragstellerin', r'Antragsgegnerin',
+                        r'Rekurrentin', r'Rekursgegnerin']
     }
     lawyer_representation = {
         Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)'],
@@ -263,9 +268,3 @@ def get_regex():
     }
 
     return information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name
-
-
-
-
-
-
