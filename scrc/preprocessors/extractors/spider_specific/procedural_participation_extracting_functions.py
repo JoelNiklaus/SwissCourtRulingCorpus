@@ -305,7 +305,8 @@ def get_regex():
     }
     lawyer_representation = {
         Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)'],
-        Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin']
+        Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin'],
+        Gender.UNKNOWN: [r'RA']
     }
     lawyer_name = {
         Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|(.$)|. Gegen| und)'
@@ -325,10 +326,7 @@ def get_participation_from_header(header: str, information_start_regex: dict, na
     if start_pos:
         header = header[start_pos.span()[1]:]
     end_pos = {
-        Language.DE: re.search(r'(?<=Beschwerdegegnerin).+?', header) or re.search(r'(?<=Beschwerdegegner).+?',
-                                                                            header) or re.search(r'Gegenstand',
-                                                                                                header) or re.search(
-            r'A\.\- ', header) or re.search(r'gegen das Urteil', header) or re.search(r'betreffend', header) or re.search(r'Sachverhalt', header)
+        Language.DE: re.search(r'betreffend', header) or re.search(r'Sachverhalt', header) or re.search(r'(?<=Beschwerdegegnerin).+?', header) or re.search(r'(?<=Beschwerdegegner).+?', header) or re.search(r'Gegenstand', header) or re.search(r'A\.\- ', header) or re.search(r'gegen das Urteil', header)
     }
     end_pos = end_pos[namespace['language']]
     if end_pos:
@@ -351,6 +349,7 @@ def search_lawyers(text: str, lawyer_representation: dict, lawyer_name: dict, na
             else:
                 name_match = re.search(lawyer_name[namespace['language']], text[:pos.span()[0]])
                 lawyer.name = name_match.group() if name_match else None
+            lawyer.name = lawyer.name.strip()
             lawyer.legal_type = LegalType.NATURAL_PERSON
             lawyers.append(lawyer)
 
@@ -375,7 +374,7 @@ def add_representation(text: str, representation_start: dict, lawyer_representat
             representations.extend(lawyers)
             continue
 
-        name_match = re.search(r'[A-Z][\w\s\.\-\']*(?=,)', current_text)
+        name_match = re.search(r'[A-Z][\w\s\.\-\']*(?=\b)', current_text)
         if name_match:
             name = name_match.group()
             if name.startswith('Me'):
@@ -466,35 +465,63 @@ def testing():
 
     ZH_Steuerrekurs_test_header = ['Endentscheid Kammer', 'Steuerrekursgericht des Kantons Zürich', '2. Abteilung', '2 DB.2017.240 2 ST.2017.296', 'Entscheid', '5. Februar 2019', 'Mitwirkend:', 'Abteilungspräsident Christian Mäder, Steuerrichterin Micheline Roth, Steuerrichterin Barbara Collet und Gerichtsschreiber Hans Heinrich Knüsli', 'In Sachen', '1. A, 2. B,', 'Beschwerdeführer/ Rekurrenten, vertreten durch C AG,', 'gegen', '1. Schw eizer ische E idgenossenschaf t , Beschwerdegegnerin, 2. Staat Zür ich , Rekursgegner, vertreten durch das kant. Steueramt, Division Konsum, Bändliweg 21, Postfach, 8090 Zürich,', 'betreffend', 'Direkte Bundessteuer 2012 sowie Staats- und Gemeindesteuern 2012', '- 2 -', '2 DB.2017.240 2 ST.2017.296']
 
-    ZH_Baurekurs_test_header = ['BRGE Nr. 0/; GUTH vom', 'Baurekursgericht des Kantons Zürich', '2. Abteilung', 'G.-Nr. R2.2018.00197 und R2.2019.00057 BRGE II Nr. 0142/2019 und 0143/2019', 'Entscheid vom 10. September 2019', 'Mitwirkende Abteilungsvizepräsident Adrian Bergmann, Baurichter Stefano Terzi,  Marlen Patt, Gerichtsschreiber Daniel Schweikert', 'in Sachen Rekurrentin', 'V. L. [...]', 'vertreten durch [...]', 'gegen Rekursgegnerschaft', '1. Baubehörde X 2. M. I. und K. I.-L. [...]', 'Nr. 2 vertreten durch [...]', 'R2.2018.00197 betreffend Baubehördenbeschluss vom 4. September 2017; Baubewilligung für Um-', 'bau Einfamilienhausteil und Ausbau Dachgeschoss, [...], BRGE II Nr. 00025/2018 vom 6. März 2018; Rückweisung zum  mit VB.2018.00209 vom 20. September 2018', 'R2.2019.00057 Präsidialverfügung vom 29. März 2019; Baubewilligung für Umbau  und Ausbau Dachgeschoss (1. Projektänderung), [...] _', 'R2.2018.00197 Seite 2']
+    ZH_Baurekurs_test_header = ['BRGE Nr. 0/; GUTH vom', 'Baurekursgericht des Kantons Zürich', '2. Abteilung', 'G.-Nr. R2.2011.00160 BRGE II Nr. 0049/2012', 'Entscheid vom 20. März 2012', 'Mitwirkende Abteilungsvizepräsident Emil Seliner, Baurichter Peter Rütimann,  Adrian Bergmann, Gerichtsschreiber Robert Durisch', 'in Sachen Rekurrentin', 'Hotel Uto Kulm AG, Gratstrasse, 8143 Stallikon', 'vertreten durch Rechtsanwalt Dr. iur. Christof Truniger, Metzgerrainle 9, Postfach 5024, 6000 Luzern 5', 'gegen Rekursgegnerinnen', '1. Bau- und Planungskommission Stallikon, 8143 Stallikon 2. Baudirektion Kanton Zürich, Walchetor, Walcheplatz 2, Postfach,', '8090 Zürich', 'betreffend Bau- und Planungskommissionsbeschluss vom 24. August 2011 und Ver-', 'fügung der Baudirektion Kanton Zürich Nr. BVV 06.0429_1 vom 8. Juli 2011; Verweigerung der nachträglichen Baubewilligung für Aussen- und Turmbeleuchtung Uto Kulm (Neubeurteilung), Kat.-Nr. 1032, Gratstrasse, Hotel-Restaurant Uto Kulm, Üetliberg / Stallikon _', 'R2.2011.00160 Seite 2']
 
-    ZH_Obergericht_test_header = ['Urteil - Abweisung, begründet', 'Bezirksgericht Zürich 3. Abteilung', 'Geschäfts-Nr.: CG170019-L / U', 'Mitwirkend: Vizepräsident lic. iur. Th. Kläusli, Bezirksrichter lic. iur. K. Vogel,', 'Ersatzrichter MLaw D. Brugger sowie der Gerichtsschreiber M.A.', 'HSG Ch. Reitze', 'Urteil vom 4. März 2020', 'in Sachen', 'A._, Kläger', 'vertreten durch Rechtsanwalt lic. iur. W._', 'gegen', '1. B._, 2. C._-Stiftung, 3. D._, Beklagte', '1 vertreten durch Rechtsanwalt Dr. iur. X._', '2 vertreten durch Rechtsanwältin Dr. iur. Y._']
+    ZH_Obergericht_test_header = ['Urteil', 'Handelsgericht des Kantons Zürich', 'Geschäfts-Nr.: HG150139-O U/jc', 'Mitwirkend: Oberrichter Dr. George Daetwyler, Präsident, und Oberrichterin Dr.', 'Claudia Bühler, die Handelsrichter Prof. Dr. Othmar Strasser, Peter', 'Leutenegger und Ursula Mengelt sowie die Gerichtsschreiberin', 'Kerstin Habegger', 'Urteil vom 7. Dezember 2015', 'in Sachen', 'A._ Genossenschaft,', 'Klägerin', 'vertreten durch Rechtsanwältin Dr. iur. X1._', 'vertreten durch Rechtsanwalt Dr. iur. X2._', 'gegen', 'B._,', 'Beklagter']
 
     ZH_Verwaltungsgericht_test_header = ['Verwaltungsgericht des Kantons Zürich 4. Abteilung', 'VB.2020.00452', 'Urteil', 'der 4. Kammer', 'vom 24. September 2020', 'Mitwirkend: Abteilungspräsidentin Tamara Nüssle (Vorsitz), Verwaltungsrichter Reto Häggi Furrer, Verwaltungsrichter Martin Bertschi, Gerichtsschreiber David Henseler.', 'In Sachen', 'A, vertreten durch RA B,', 'Beschwerdeführerin,', 'gegen', 'Migrationsamt des Kantons Zürich,', 'Beschwerdegegner,', 'betreffend vorzeitige Erteilung der Niederlassungsbewilligung,']
 
     ZH_Sozialversicherungsgericht_test_header = ['Sozialversicherungsgerichtdes Kantons ZürichIV.2014.00602', 'II. Kammer', 'Sozialversicherungsrichter Mosimann, Vorsitzender', 'Sozialversicherungsrichterin Käch', 'Sozialversicherungsrichterin Sager', 'Gerichtsschreiberin Kudelski', 'Urteil vom 11. August 2015', 'in Sachen', 'X._', 'Beschwerdeführerin', 'vertreten durch Rechtsanwalt Dr. Kreso Glavas', 'Advokatur Glavas AG', 'Markusstrasse 10, 8006 Zürich', 'gegen', 'Sozialversicherungsanstalt des Kantons Zürich, IV-Stelle', 'Röntgenstrasse 17, Postfach, 8087 Zürich', 'Beschwerdegegnerin', 'weitere Verfahrensbeteiligte:', 'Personalvorsorgestiftung der Y._', 'Beigeladene']
 
 
-    ZG_Verwaltungsgericht_test_string = ' '.join(map(str, ZG_Verwaltungsgericht_test_header))
-    ZH_Steuerrekurs_test_string = ' '.join(map(str, ZH_Steuerrekurs_test_header))
-    ZH_Baurekurs_test_string = ' '.join(map(str, ZH_Baurekurs_test_header))
-    ZH_Obergericht_test_string = ' '.join(map(str, ZH_Obergericht_test_header))
-    ZH_Verwaltungsgericht_test_string = ' '.join(map(str, ZH_Verwaltungsgericht_test_header))
-    ZH_Sozialversicherungsgericht_test_string = ' '.join(map(str, ZH_Sozialversicherungsgericht_test_header))
+    ZG_Verwaltungsgericht_test_string = ', '.join(map(str, ZG_Verwaltungsgericht_test_header))
+    ZH_Steuerrekurs_test_string = ', '.join(map(str, ZH_Steuerrekurs_test_header))
+    ZH_Baurekurs_test_string = ', '.join(map(str, ZH_Baurekurs_test_header))
+    ZH_Obergericht_test_string = ', '.join(map(str, ZH_Obergericht_test_header))
+    ZH_Verwaltungsgericht_test_string = ', '.join(map(str, ZH_Verwaltungsgericht_test_header))
+    ZH_Sozialversicherungsgericht_test_string = ', '.join(map(str, ZH_Sozialversicherungsgericht_test_header))
 
     namespace = {'language' : Language.DE}
 
     zg_vg_json = ZG_Verwaltungsgericht(ZG_Verwaltungsgericht_test_string, namespace)
     zg_vg = json.loads(zg_vg_json)
-    # print(zg_vg)
     assert zg_vg['plaintiffs'][0]['legal_counsel'][0]['name'] == 'B._ AG'
     assert zg_vg['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'legal entity'
-    # zh_sr = ZH_Steuerrekurs(ZH_Steuerrekurs_test_string, namespace)
-    # zh_br = ZH_Baurekurs(ZH_Baurekurs_test_string, namespace) 
-    # zh_og = ZH_Obergericht(ZH_Obergericht_test_string, namespace)
-    # zh_vg= ZH_Verwaltungsgericht(ZH_Verwaltungsgericht_test_string, namespace)
-    # zh_svg = ZH_Sozialversicherungsgericht(ZH_Sozialversicherungsgericht_test_string, namespace)
+
+    zh_sr_json = ZH_Steuerrekurs(ZH_Steuerrekurs_test_string, namespace)
+    zh_sr = json.loads(zh_sr_json)
+    assert zh_sr['defendants'][0]['legal_counsel'][0]['name'] == 'Steueramt'
+    assert zh_sr['defendants'][0]['legal_counsel'][0]['legal_type'] == 'legal entity'
+    assert zh_sr['plaintiffs'][0]['legal_counsel'][0]['name'] == 'C AG'
+    assert zh_sr['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'legal entity'
+
+    zh_br_json = ZH_Baurekurs(ZH_Baurekurs_test_string, namespace) 
+    zh_br = json.loads(zh_br_json)
+    assert zh_br['plaintiffs'][0]['legal_counsel'][0]['name'] == 'Dr. iur. Christof Truniger'
+    assert zh_br['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'natural person'
+    assert zh_br['plaintiffs'][0]['legal_counsel'][0]['gender'] == 'male'
+
+    zh_og_json = ZH_Obergericht(ZH_Obergericht_test_string, namespace)
+    zh_og = json.loads(zh_og_json)
+    assert zh_og['plaintiffs'][0]['legal_counsel'][0]['name'] == 'Dr. iur. X1._'
+    assert zh_og['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'natural person'
+    assert zh_og['plaintiffs'][0]['legal_counsel'][0]['gender'] == 'female'
+    assert zh_og['plaintiffs'][0]['legal_counsel'][1]['name'] == 'Dr. iur. X2._'
+    assert zh_og['plaintiffs'][0]['legal_counsel'][1]['legal_type'] == 'natural person'
+    assert zh_og['plaintiffs'][0]['legal_counsel'][1]['gender'] == 'male'
+
+    zh_vg_json = ZH_Verwaltungsgericht(ZH_Verwaltungsgericht_test_string, namespace)
+    zh_vg = json.loads(zh_vg_json)
+    assert zh_vg['plaintiffs'][0]['legal_counsel'][0]['name'] == 'B'
+    assert zh_vg['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'natural person'
+    assert zh_vg['plaintiffs'][0]['legal_counsel'][0]['gender'] == 'unknown'
+
+    zh_svg_json = ZH_Sozialversicherungsgericht(ZH_Sozialversicherungsgericht_test_string, namespace)
+    zh_svg = json.loads(zh_svg_json)
+    assert zh_svg['plaintiffs'][0]['legal_counsel'][0]['name'] == 'Dr. Kreso Glavas'
+    assert zh_svg['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'natural person'
+    assert zh_svg['plaintiffs'][0]['legal_counsel'][0]['gender'] == 'male'
 
 
 # uncomment to test
-testing()
+# testing()
