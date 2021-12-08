@@ -275,6 +275,16 @@ def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
+    # This court sometimes uses newlines to separate names of people. 
+    # To deal with that, this loop inserts a comma if a new line starts with lic. iur. to separate names.
+    lines = []
+    lines = decision.split('\n')
+    for idx, line in enumerate(lines):
+        if 'lic. iur.' in line:
+            line = re.sub(r'^lic\. iur\.', ', lic. iur.', line)
+            lines[idx] = line
+    decision = '\n'.join(map(str, lines))
+
     paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 

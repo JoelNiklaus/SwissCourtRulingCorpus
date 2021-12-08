@@ -180,17 +180,20 @@ def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
 
     role_regexes = {
         Gender.MALE: {
-            CourtRole.JUDGE: [r'Richter(?!in)', r'Einzelrichter(?!in)'],
+            CourtRole.JUDGE: [r'Richter(?!in)', r'Einzelrichter(?!in)', r'Schiedsrichter(?!in)'],
             CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
         },
         Gender.FEMALE: {
-            CourtRole.JUDGE: [r'Richterin(nen)?',r'Einzelrichterin(nen)?'],
+            CourtRole.JUDGE: [r'Richterin(nen)?', r'Einzelrichterin(nen)?', r'Schiedsrichterin(nen)?'],
             CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
         }
     }
 
+    # reularize the different forms of the word Urteil
     header = header.replace('U R T E I L', 'Urteil')
+    header = header.replace('U R TE I L', 'Urteil')
     header = header.replace('URTEIL', 'Urteil')
+    header = header.replace('Z W I S C H E N E N T S C H E I D', 'Zwischenentscheid')
 
     information_start_regex = r'Mitwirkende|Einzelrichter'
     start_pos = re.search(information_start_regex, header)
@@ -198,7 +201,7 @@ def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
         # split off the first word
         header = header[start_pos.span()[1]:]
 
-    information_end_regex = r'Urteil'
+    information_end_regex = r'Urteil|Zwischenentscheid'
     end_pos = re.search(information_end_regex, header)
     if end_pos:
         header = header[:end_pos.span()[1]]
@@ -355,12 +358,16 @@ def ZH_Steuerrekurs(sections: Dict[Section, str], namespace: dict) -> Optional[s
 
     role_regexes = {
         Gender.MALE: {
-            CourtRole.JUDGE: [r'Abteilungspräsident(?!in)', r'Steuerrichter(?!in)', r'Ersatzrichter(?!in)', r'Einzelrichter(?!in)'],
-            CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
+            CourtRole.JUDGE: [r'Abteilungspräsident(?!in)', r'Abteilungsvizepräsident(?!in)', r'Steuerrichter(?!in)', r'Ersatzrichter(?!in)', r'Einzelrichter(?!in)'],
+            CourtRole.CLERK: [r'Gerichtsschreiber(?!in)', r'Sekretär(?!in)']
         },
         Gender.FEMALE: {
-            CourtRole.JUDGE: [r'Abteilungspräsidentin(nen)?',r'Steuerrichterin(nen)?',r'Ersatzrichterin(nen)?',r'Einzelrichterin(nen)?'],
-            CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
+            CourtRole.JUDGE: [r'Abteilungspräsidentin(nen)?', r'Abteilungsvizepräsidentin(nen)?', r'Steuerrichterin(nen)?', r'Ersatzrichterin(nen)?', r'Einzelrichterin(nen)?'],
+            CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?', r'Sekretärin(nen)?']
+        }
+        ,
+        Gender.UNKNOWN: {
+            CourtRole.JUDGE: [r'Ersatzmitglied(er)?', r'Mitglied(er)?']
         }
     }
 
@@ -428,31 +435,42 @@ def get_besetzungs_strings(header: str) -> list:
     :param header:  the header of a decision
     :return:        a list of besetzungs_strings
     """
+    # repeating commas aren't necessary
+    header = re.sub(r', *, *', ', ', header)
+    # trying to join words that are split over two lines
+    header = re.sub(r'- *, *', '', header)
+    header = header.replace('- ', '')
     # regularize different forms to denote the Vorsitz
     header = header.replace('(Vorsitz)', 'Vorsitz')
     header = header.replace('Vorsitzender', 'Vorsitz')
     header = header.replace('Vorsitzende', 'Vorsitz')
     header = header.replace('Vorsitz', ', Vorsitz, ')
     # these word separators aren't relevant here
-    header = header.replace('- ', '')
     header = header.replace(':', '')
     # a semicolon can be treated as a comma here
     header = header.replace(';', ',')
     # der & die aren't relevant for this task
     header = header.replace(' der ', ' ')
     header = header.replace(' die ', ' ')
-    header = header.replace('  ', ' ')
     # und & sowie separte different people
     header = header.replace(' und', ', ')
     header = header.replace(' sowie', ', ')
-    # academic degrees aren't relevant for this task
-    header = header.replace('lic. ', '')
-    header = header.replace('iur. ', '')
-    header = header.replace('Dr. ', '')
+    # academic degrees presumably aren't relevant for this task
+    header = header.replace('lic.', '')
+    header = header.replace('iur.', '')
+    header = header.replace('Dr.', '')
+    header = header.replace('Prof.', '')
     header = header.replace('MLaw ', '')
-    header = header.replace('M.A. ', '')
+    header = header.replace('M.A.', '')
     header = header.replace('HSG ', '')
     header = header.replace('PD ', '')
+    header = header.replace('a.o.', '')
+    header = header.replace('LL.M.', '')
+    header = header.replace('LL. M.', '')
+    header = header.replace('LLM ', '')
+    # delete multiple spaces
+    header = header.strip()
+    header = re.sub(' +', ' ', header)
     # neither is this relevant
     header = header.replace(' als Einzelrichterin', '')
     header = header.replace(' als Einzelrichter', '')
@@ -580,12 +598,13 @@ def find_besetzung(header: str, role_regexes: dict, namespace: dict) -> CourtCom
                         if (last_role == CourtRole.CLERK and len(besetzung.clerks) == 0) or (last_role == CourtRole.JUDGE and len(besetzung.judges) == 0):
                             break
 
-                        last_person_name = besetzung.clerks.pop().name if (last_role == CourtRole.CLERK) else besetzung.clerks.pop().name # rematch in database with new role
-                        last_person_new_match = CourtPerson(last_person_name, gender, current_role)
-                        if current_role == CourtRole.JUDGE:
-                            besetzung.judges.append(last_person_new_match)
-                        elif current_role == CourtRole.CLERK:
-                            besetzung.clerks.append(last_person_new_match)
+                        if len(besetzung.clerks) != 0:
+                            last_person_name = besetzung.clerks.pop().name if (last_role == CourtRole.CLERK) else besetzung.clerks.pop().name # rematch in database with new role
+                            last_person_new_match = CourtPerson(last_person_name, gender, current_role)
+                            if current_role == CourtRole.JUDGE:
+                                besetzung.judges.append(last_person_new_match)
+                            elif current_role == CourtRole.CLERK:
+                                besetzung.clerks.append(last_person_new_match)
                     matched_person = CourtPerson(name, gender, current_role)
                     if current_role == CourtRole.JUDGE:
                         besetzung.judges.append(matched_person)
@@ -643,8 +662,8 @@ def testing():
     namespace = {'language' : Language.DE}
 
     sections = {}
-    sections[Section.HEADER] = ZG_Verwaltungsgericht_test_string
 
+    sections[Section.HEADER] = ZG_Verwaltungsgericht_test_string
     zg_vg = ZG_Verwaltungsgericht(sections, namespace)
     # No tests for the gender because this court uses a generic masculine noun for multiple judges
     assert zg_vg.president.name == 'Adrian Willimann'
