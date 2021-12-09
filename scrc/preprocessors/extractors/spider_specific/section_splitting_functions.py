@@ -84,8 +84,6 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
     """
-    
-    global x
     all_section_markers = {
         Language.DE: {
             Section.FACTS: [r'^Sachverhalt:?\s*$', r'^Tatsachen$', 
@@ -96,12 +94,12 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
                                     r'^Entscheidungsgründe$', r'[iI]n Erwägung[:,]?\s*$',
                                     r'Aus den Erwägungen:',
                                     r'^Auszug aus den Erwägungen:'],
-            Section.RULINGS: [r'Strafzumessung', 
-                            r'Strafkammer erkennt', 
+            Section.RULINGS: [ 
+                            r'Strafkammer erkennt',     #Urteil
+                            r'Strafkammer beschliesst', #Beschluss
                             r'Demgemäss erkennt d[\w]{2}', 
-                            r'erkennt d[\w]{2} [A-Z]\w+:', 
                             r'Appellationsgericht (\w+ )?(\(\w+\) )?erkennt', 
-                            r'^und erkennt:$', r'erkennt:\s*$',
+                            r'^und erkennt:$',
                             r'Das Gericht beschliesst:',
                             r'^Die Beschwerdekammer in Strafsachen beschliesst:$'],
             Section.FOOTER: [r'Hinweise:', r'Rechtsmittelbelehrung']
@@ -117,15 +115,12 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
                 matches = re.finditer(reg, decision, re.MULTILINE)
                 for num, match in enumerate(matches, start=1):
                     sections_found.update({match.start(): sect})
-                    #print(f'\t{sect}\t {match.start()}...{match.end()}\t {match.group()}')
 
     paragraphs_by_section = {section: [] for section in Section}
     sorted_section_pos = sorted(sections_found.keys())
     if len(sorted_section_pos) == 0:
-        x += 1
-        raise ValueError(f"(--{x}--{namespace['id']}): No sections found at all. Please check! Here you have the url to the decision: {namespace['pdf_url']}")
+        raise ValueError(f"({namespace['id']}): No sections found at all. Please check! Here you have the url to the decision: {namespace['pdf_url']}")
     else:
-        ##print(f"----------{namespace['pdf_url']}----")
         # If no regex for the header is defined, consider all text before the first section as header
         if Section.HEADER not in all_section_markers[Language.DE]:
             paragraphs_by_section[Section.HEADER].append(decision[:sorted_section_pos[0]])   
@@ -140,17 +135,8 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
             else:
                 to_ = sorted_section_pos[i+1]
             paragraphs_by_section[actual_section].append(decision[from_:to_])
-
-        for s in paragraphs_by_section:
-            if len(paragraphs_by_section[s]) == 0 and s in all_section_markers[Language.DE]:
-                #print(f'{s} is empty')
-                pass
-            else:
-                for t in paragraphs_by_section[s]:
-                    pass
-                    ##print(f'{s} length is {len(t)/len(decision):.1%} of whole decision')
     
-
+    return paragraphs_by_section        
 
 def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
