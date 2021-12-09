@@ -7,3 +7,7 @@ class Section(Enum):
     CONSIDERATIONS = 'considerations'
     RULINGS = 'rulings'
     FOOTER = 'footer'
+
+    @classmethod
+    def without_facts(cls):
+        return cls.HEADER, cls.CONSIDERATIONS, cls.RULINGS, cls.FOOTER
