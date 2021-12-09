@@ -7,6 +7,7 @@ import re
 from scrc.enums.language import Language
 from scrc.enums.section import Section
 from scrc.utils.main_utils import clean_text
+from scrc.utils.log_utils import get_logger
 
 """
 This file is used to extract sections from decisions sorted by spiders.
@@ -182,7 +183,7 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
         else:
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
                   f"Here is the date of the decision: {namespace['date']}"
-        raise ValueError(message)
+        get_logger(__name__).warning(message)
     return paragraphs_by_section
 
 def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
