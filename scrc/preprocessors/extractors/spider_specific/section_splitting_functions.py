@@ -151,20 +151,27 @@ def prepare_section_markers(all_section_markers, namespace: dict) -> Dict[Sectio
         section_markers[section] = unicodedata.normalize('NFC', regexes)
     return section_markers
 
-def associate_sections(paragraphs: List[str], section_markers, namespace: dict):
-    paragraphs_by_section = {section: [] for section in Section}
+def associate_sections(paragraphs: List[str], section_markers, namespace: dict, sections: List[Section] = list(Section)):
+    """
+    Associate sections to paragraphs
+    :param paragraphs: list of paragraphs
+    :param section_markers: dict of section markers
+    :param namespace: dict of namespace
+    :param sections: if some sections are not present in the court, pass a list with the missing section excluded
+    """
+    paragraphs_by_section = { section: [] for section in sections }
+
+    # assert that for every passed section a section_marker is present, the header is included by default
+    assert set(sections) == set(section_markers.keys()).union(set([Section.HEADER])), \
+        f"Missing section marker: {set(sections) - set(section_markers.keys()).union(set([Section.HEADER]))}"
     current_section = Section.HEADER
     for paragraph in paragraphs:
         # update the current section if it changed
-        current_section = update_section(current_section, paragraph, section_markers)
+        current_section = update_section(current_section, paragraph, section_markers, sections)
 
         # add paragraph to the list of paragraphs
         paragraphs_by_section[current_section].append(paragraph)
     if current_section != Section.FOOTER:
-        # count how many times the footer wasn't reached
-        global x
-        x += 1
-        print(x)
         # change the message depending on whether there's a url
         if namespace['html_url']:
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
@@ -178,10 +185,17 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict):
         raise ValueError(message)
     return paragraphs_by_section
 
-def update_section(current_section: Section, paragraph: str, section_markers) -> Section:
+def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
+    """
+    Update the current section if it changed
+    :param current_section:
+    :param paragraph: the current paragraph
+    :param section_markers: dict of section markers
+    :param sections: if some sections are not present in the court, pass a list with the missing section excluded
+    :return:
+    """
     if current_section == Section.FOOTER:
         return current_section  # we made it to the end, hooray!
-    sections = list(Section)
     next_section_index = sections.index(current_section) + 1
     # consider all following sections
     next_sections = sections[next_section_index:]
