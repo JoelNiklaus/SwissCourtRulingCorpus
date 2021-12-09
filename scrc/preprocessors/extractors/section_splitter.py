@@ -85,7 +85,7 @@ class SectionSplitter(AbstractExtractor):
             df_chunk = pd.read_json(str(path / f"{chunk}.json"))
             summary['total_collected'] += df_chunk.shape[0]
             for section in Section:
-                summary[section.value] += df_chunk[section.value].count()
+                summary[section.value] += int((df_chunk[section.value] != '').sum())
 
         if summary['total_collected'] == 0:
             self.logger.info(f"Could not find any stored log files for batch {batch_info['uuid']} in {lang}")
