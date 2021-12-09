@@ -70,6 +70,33 @@ def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
+def BS_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+    if namespace['language'] != Language.DE:
+        raise ValueError(f'This function is only implemented for {Language.DE} so far.')
+
+    judgments =  getJudgments(rulings, all_judgment_markers) 
+
+    # validate
+    if len(judgments) == 0:
+        raise ValueError(f"Found no judgment for the rulings {namespace['date']}. Please check!")
+  
+    return judgments
+
+def BE_ZivilStraf(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+    pass
+
 def UR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     """
     Extract judgment outcomes from the rulings
@@ -270,3 +297,25 @@ def search_rulings(rulings: str, start: str, end: str):
 # This needs special care
 # def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
 #    return CH_BGer(rulings, namespace)
+
+def getJudgments(text: str, judgment_markers, debug=False) -> Optional[List[Judgment]]:
+    """
+    Get the judgment outcomes based on a regex dictionary for a given section string.
+    :param text:               the text string of the section, usually Section.RULINGS
+    :param judgment_markers:   the regex dicttionary for the different judgment outcomes
+    :param debug:              if set to True, prints debug output to console
+    :return:                   the list of judgment outcomes
+    """
+    
+    judgments = []
+    for lang in all_judgment_markers:
+        for judg in all_judgment_markers[lang]:
+            for reg in (all_judgment_markers[lang])[judg]:
+                matches = re.finditer(reg, text, re.MULTILINE)
+                for num, match in enumerate(matches, start=1):
+                    from_, to_, match_text  = match.start(), match.end(), match.group()
+                    judgments.append(judg)
+                    if debug:
+                        print(f'{judg} ("{match.group()}") at {to_/len(text):.1%} of the section.')
+                    
+    return judgments
