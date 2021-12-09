@@ -636,3 +636,68 @@ def BE_BVD(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional
         sections[section] = [title] + paired
     
     return sections
+
+def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+
+    markers = {
+        Language.DE: {
+            # "header" has no markers!
+            # "facts" are not present either in this court, leave them out
+            Section.CONSIDERATIONS: [r'^Erwägungen:|^Erwägungen$', r'Auszug aus den Erwägungen', r'Formelles$'],
+            Section.RULINGS: [r'^Die (?:Aufsichtsbehörde|Kammer) entscheidet:', r'(?:^|\. )Dispositiv',
+                              r'^Der Instrkutionsrichter entscheidet:', r'Strafkammer erkennt:',
+                              r'^Die Beschwerdekammer in Strafsachen beschliesst:'],
+            # "Weiter wird verfügt:" often causes problems with summarys in the considerations section, leave it out
+            Section.FOOTER: [r'^Zu eröffnen:$', r'\d\. Zu eröffnen:', r'^Schriftlich zu eröffnen:$',
+                             r'^Rechtsmittelbelehrung', r'^Hinweis:'] # r'^Weiter wird verfügt:'
+        },
+        Language.FR: {
+            # "header" has no markers!
+            # "facts" are not present either in this court, leave them out
+            Section.CONSIDERATIONS: [r'^Considérants(?: :|:)?', r'^Extrait des (?:considérations|considérants)(?: :|:)'], # r'Avis de la Cour', r'^Avis de la Cour$'],
+            Section.RULINGS: [r'^La Chambre de recours pénale décide(?: :|:)', r'^Dispositif'],
+            Section.FOOTER: [r'A notifier(?: :|:)', r'Le présent (?:jugement|dispositif) est à notifier(?: :|:)',
+                             r'Le présent jugement est à notifier par écrit(?: :|:)']
+        }
+    }
+
+    if namespace['language'] not in markers:
+        message = f"This function is only implemented for the languages {list(markers.keys())} so far."
+        raise ValueError(message)
+    
+    section_markers = markers[namespace['language']]
+
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    def get_paragraphs(soup):
+        """
+        Get Paragraphs in the decision
+        :param soup: the string extracted of the pdf
+        :return: a list of paragraphs
+        """
+        paragraphs = []
+        # remove spaces between two line breaks
+        soup = re.sub('\\n +\\n', '\\n\\n', soup)
+        # split the lines when there are two line breaks
+        lines = soup.split('\n\n')
+        for element in lines:
+            element = element.replace('  ',' ')
+            paragraph = clean_text(element)
+            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+                paragraphs.append(paragraph)
+        return paragraphs
+
+    paragraphs = get_paragraphs(decision)
+
+    # pass custom sections without facts
+    return associate_sections(paragraphs, section_markers, namespace, list(Section.without_facts()))
