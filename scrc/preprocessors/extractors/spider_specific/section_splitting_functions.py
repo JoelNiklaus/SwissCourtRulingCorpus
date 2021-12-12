@@ -744,3 +744,71 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
                 break
     
     return sections
+
+def CH_BPatG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    Remark: This court does not have a facts section, and some don't have a footer.
+    """
+    markers = {
+        Language.DE: {
+            # Section.FACTS: [], # no facts in this court
+            Section.CONSIDERATIONS: [r'^(?:Das Bundespatentgericht|(?:Der|Das) Präsident|Die Gerichtsleitung|Das Gericht|Der (?:Einzelrichter|Instruktionsrichter))' \
+                                      r' zieht in Erwägung(?:,|:)',
+                                     r'Der Präsident erwägt:', r'Aus(?:|zug aus) den Erwägungen:', r'Sachverhalt:'],
+            Section.RULINGS: [r'(?:Der Instruktionsrichter|Das Bundespatentgericht|(?:Das|Der) Präsident) (?:erkennt|verfügt|beschliesst)(?:,|:)',
+                              r'Die Gerichtsleitung beschliesst:', r'Der Einzelrichter erkennt:'],
+            Section.FOOTER: [r'Rechtsmittelbelehrung:', r'Dieser Entscheid geht an:']     
+        },
+        Language.FR: {
+            # Section.FACTS: [], # no facts in this court
+            Section.CONSIDERATIONS: [r'Le Tribunal fédéral des brevets considère(?: :|:|,)', r'Le [pP]résident considère(?: :|:|,)'],
+            Section.RULINGS: [r'Le Tribunal fédéral des brevets décide:', r'Le [pP]résident (décide|reconnaît):'],
+            Section.FOOTER: [r'Voies de droit:']
+        },
+        Language.IT: {
+            # Section.FACTS: [], # no facts in this court
+            Section.CONSIDERATIONS: [r'Considerando in fatto e in diritto:'],
+            Section.RULINGS: [r'Per questi motivi, il giudice unico pronuncia:'],
+            Section.FOOTER: [r'Rimedi giuridici:']
+        }
+    }
+
+    if namespace['language'] not in markers:
+        message = f"This function is only implemented for the languages {list(markers.keys())}, not {namespace['language']}."
+        raise ValueError(message)
+    
+    section_markers = markers[namespace['language']]
+
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+    
+    if namespace['language'] == Language.DE:
+        # remove the page numbers, they are not relevant for the decisions
+        decision = re.sub(r'Seite \d', '', decision)
+
+    def get_paragraphs(soup):
+        """
+        Get Paragraphs in the decision
+        :param soup: the string extracted of the pdf
+        :return: a list of paragraphs
+        """
+        paragraphs = []
+        # remove spaces between two line breaks
+        soup = re.sub('\\n +\\n', '\\n\\n', soup)
+        # split the lines when there are two line breaks
+        lines = soup.split('\n\n')
+        for element in lines:
+            element = element.replace('  ',' ')
+            paragraph = clean_text(element)
+            if paragraph not in ['', ' ', None]:
+                paragraphs.append(paragraph)
+        return paragraphs
+
+    paragraphs = get_paragraphs(decision)
+
+    # pass custom sections without facts
+    return associate_sections(paragraphs, section_markers, namespace, list(Section.without_facts()))
