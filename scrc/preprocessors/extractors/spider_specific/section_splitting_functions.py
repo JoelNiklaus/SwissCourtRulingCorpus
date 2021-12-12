@@ -636,3 +636,111 @@ def BE_BVD(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional
         sections[section] = [title] + paired
     
     return sections
+
+def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+       
+    Remarks:
+    * This court does not have a facts section (few edge cases), but concatenates the facts with the considerations. For now both are
+      added to the considerations section, but it might make sense to create a new type of section which unions the two.
+    * Accuracy could still be improved, but the decisions which are not fully matched are edge-cases with typos or weird
+      pdf parsing errors.
+    * About the poor performance on the footer section in german decisions: The facts and considerations
+      section often contains a summary with the exact same keywords used to detect the footer:
+          '\n\nWeiter wird verfügt:\n\n'
+      This could be solved but the possibilites are not very straight-forward. Some options are:
+        - estimate on where in the document the footer would be and try to extract it from that text part
+        - use the second match to split it apart. As the association between section markers and sections
+          is done in a helper method, this parser would have to be rewritten from scratch as the helper
+          cannot be updated to support this case.
+    * The rulings section in the german version has bad accuracy because many decision do not have a rulings section.
+      examples of the last paragraph of the considerations section:
+      - "Aus den Darlegungen erhellt, dass die Konkursandrohung in der Betreibung Nr. 123
+        des Betreibungs- und Konkursamtes B, Dienststelle P., nicht nichtig ist."
+      - "Nach dem Gesagten ist auf die Beschwerde nicht einzutreten."
+      - "Vor diesem Hintergrund ist das Vorgehen der Dienststelle unter den dargelegten
+        Umständen nicht zu beanstanden und die vorliegende Beschwerde abzuweisen."
+      This is resolved by using the last paragraph of the considerations section as the rulings section.
+    * The problem with the footer detection is the same for the rulings, as they are mentioned with the same keywords in
+      the summary of the considerations as well.
+    """
+
+    markers = {
+        Language.DE: {
+            # "header" has no markers!
+            # "facts" are not present either in this court, leave them out
+            Section.CONSIDERATIONS: [r'^Erwägungen:|^Erwägungen$', r'Auszug aus den Erwägungen', r'Formelles$', '^Sachverhalt(?: |:)'],
+            Section.RULINGS: [r'^Die (?:Aufsichtsbehörde|Kammer) entscheidet:', r'(?:^|\. )Dispositiv',
+                              r'^Der Instrkutionsrichter entscheidet:', r'^Strafkammer erkennt:',
+                              r'^Die Beschwerdekammer in Strafsachen (?:beschliesst|hat beschlossen):', r'^Das Gericht beschliesst:',
+                              r'^Die Verfahrensleitung verfügt:', r'^Der Vizepräsident entscheidet:',
+                              r'^Das Handelsgericht entscheidet:', r'^Die \d. Strafkammer beschliesst:'],
+            # "Weiter wird verfügt:" often causes problems with summarys in the considerations section, leave it out
+            Section.FOOTER: [r'^Zu eröffnen:', r'\d\. Zu eröffnen:', r'^Schriftlich zu eröffnen:$',
+                             r'^Rechtsmittelbelehrung', r'^Hinweis:'] # r'^Weiter wird verfügt:'
+        },
+        Language.FR: {
+            # "header" has no markers!
+            # "facts" are not present either in this court, leave them out
+            Section.CONSIDERATIONS: [r'^Considérants(?: :|:)?', r'^Extrait des (?:considérations|considérants)(?: :|:)'],
+            Section.RULINGS: [r'^La Chambre de recours pénale décide(?: :|:)', r'^Dispositif'],
+            Section.FOOTER: [r'A notifier(?: :|:)', r'Le présent (?:jugement|dispositif) est à notifier(?: :|:)',
+                             r'Le présent jugement est à notifier par écrit(?: :|:)']
+        }
+    }
+
+    if namespace['language'] not in markers:
+        message = f"This function is only implemented for the languages {list(markers.keys())} so far."
+        raise ValueError(message)
+    
+    section_markers = markers[namespace['language']]
+
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    def get_paragraphs(soup):
+        """
+        Get Paragraphs in the decision
+        :param soup: the string extracted of the pdf
+        :return: a list of paragraphs
+        """
+        paragraphs = []
+        # remove spaces between two line breaks
+        soup = re.sub('\\n +\\n', '\\n\\n', soup)
+        # split the lines when there are two line breaks
+        lines = soup.split('\n\n')
+        for element in lines:
+            element = element.replace('  ',' ')
+            paragraph = clean_text(element)
+            if paragraph not in ['', ' ', None]:
+                paragraphs.append(paragraph)
+        return paragraphs
+
+    paragraphs = get_paragraphs(decision)
+
+    # pass custom sections without facts
+    sections = associate_sections(paragraphs, section_markers, namespace, list(Section.without_facts()))
+
+    # regularly happens that the decision is within the CONSIDERATIONS section, so if no rulings are found by the
+    # section_markers we try to extract the rulings from the considerations section instead
+    if sections[Section.RULINGS] == [] and sections[Section.CONSIDERATIONS] != []:
+        # got no rulings, use the chance that the ruling is in the considerations section, traverse backwards to find it
+        for index, paragraph in enumerate(reversed(sections[Section.CONSIDERATIONS])):
+            # make sure the paragraph contains some ruling keywords
+            keywords = r"abzuweisen|Abweisung der Beschwerde|gutzuheissen|Beschwerde gutgeheissen|rechtsgenüglich begründet|" \
+                       r"Beschwerde [\w\s]* als begründet\.|obsiegend"
+            if re.findall(keywords, paragraph):
+                # if res contains some ruling keywords it is the decision, remove it from considerations, add it to rulings
+                # add everything after it to the ruling as well
+                sections[Section.RULINGS] = sections[Section.CONSIDERATIONS][index:]
+                sections[Section.CONSIDERATIONS] = sections[Section.CONSIDERATIONS][:index]
+                break
+    
+    return sections

@@ -85,7 +85,9 @@ class SectionSplitter(AbstractExtractor):
             df_chunk = pd.read_json(str(path / f"{chunk}.json"))
             summary['total_collected'] += df_chunk.shape[0]
             for section in Section:
-                summary[section.value] += int((df_chunk[section.value] != '').sum())
+                # count the amount of found sections if the section is not empty
+                if df_chunk.notna()[section.value].any():
+                    summary[section.value] += int((df_chunk[section.value] != '').sum())
 
         if summary['total_collected'] == 0:
             self.logger.info(f"Could not find any stored log files for batch {batch_info['uuid']} in {lang}")
@@ -138,6 +140,7 @@ class SectionSplitter(AbstractExtractor):
                 self.update(engine, df, lang, [section.value for section in Section] + ['paragraphs'], log_dir, filename)
                 self.log_progress(self.chunksize)
                 batchinfo['chunknumber'] += 1
+                self.log_coverage_from_json(engine, spider, lang, batchinfo)
                 
             if self._check_write_privilege(engine):
                 self.log_coverage(engine, spider, lang)
