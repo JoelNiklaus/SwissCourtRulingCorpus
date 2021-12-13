@@ -9,6 +9,9 @@ import bs4
 import pandas as pd
 import uuid
 
+from sqlalchemy.sql.schema import MetaData, Table
+
+
 from scrc.enums.language import Language
 from scrc.enums.section import Section
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
@@ -26,7 +29,7 @@ class SectionSplitter(AbstractExtractor):
     """
 
     def __init__(self, config: dict):
-        super().__init__(config, function_name='section_splitting_functions', col_name='')
+        super().__init__(config, function_name='section_splitting_functions', col_name='sections')
         self.logger = get_logger(__name__)
         self.logger_info = {
             'start': 'Started section splitting',
@@ -50,17 +53,33 @@ class SectionSplitter(AbstractExtractor):
             return pdf_raw
         return None
 
-    def get_database_selection_string(self, spider: str, lang: str) -> str:
+    def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-        return f"spider='{spider}'"
+        return self.select(engine, 'file LEFT JOIN decision on decision.file_id = file.file_id LEFT JOIN language ON language.language_id = decision.language_id', f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN (SELECT file_id from decision WHERE chamber_id IN (SELECT chamber_id FROM chamber WHERE spider_id IN (SELECT spider_id FROM spider WHERE spider.name = '{spider}')))", chunksize=self.chunksize)
+    
+    def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
+        key_to_id = {
+            'full_text': 1,
+            'header': 2,
+            'facts': 3,
+            'considerations': 4,
+            'rulings': 5,
+            'footer': 6
+        }
 
-    def add_columns(self, engine: Engine) -> None:
-        """Override method to add more than one column"""
-        for lang in self.languages:
-            for section in Section:  # add empty section columns
-                self.add_column(engine, lang, col_name=section.value, data_type='text')
-            self.add_column(engine, lang, col_name='paragraphs', data_type='jsonb')
 
+        for idx, row in df.iterrows():
+            with engine.connect() as conn:
+                t = Table('section', MetaData(), autoload_with=engine)
+                t.delete().where(f"decision_id in ({df['decision_id'].tolist()}))")
+                engine.execute()
+                for k in row['sections'].keys():
+                    
+                    section_type_id = key_to_id[k.value]
+                    t.insert().values([{"decision_id": row['decision_id'], "section_type_id": section_type_id, "section_text": row['sections'][k]}])
+                engine.execute()
+                
+        
     def read_column(self, engine: Engine, spider: str, name: str, lang: str) -> pd.DataFrame:
         query = f"SELECT count({name}) FROM {lang} WHERE {self.get_database_selection_string(spider, lang)} AND {name} <> ''"
         return pd.read_sql(query, engine.connect())['count'][0]
@@ -123,7 +142,7 @@ class SectionSplitter(AbstractExtractor):
                 f"({section_amount / self.total_to_process:.2%}) "
             )
 
-    def process_one_spider(self, engine: Engine, spider: str):
+    """  def process_one_spider(self, engine: Engine, spider: str):
         self.logger.info(self.logger_info['start_spider'] + ' ' + spider)
 
         for lang in self.languages:
@@ -136,8 +155,8 @@ class SectionSplitter(AbstractExtractor):
             log_dir = Path.joinpath(self.output_dir, os.getlogin(), spider, lang, batchinfo['uuid'])
             for df in dfs:
                 df = df.apply(self.process_one_df_row, axis='columns')
-                filename = f"{batchinfo['chunknumber']}.json"
-                self.update(engine, df, lang, [section.value for section in Section] + ['paragraphs'], log_dir, filename)
+                self.save_data_to_database(df)
+                self.update(engine, df, lang, [section.value for section in Section] + ['paragraphs'], self.output_dir)
                 self.log_progress(self.chunksize)
                 batchinfo['chunknumber'] += 1
                 self.log_coverage_from_json(engine, spider, lang, batchinfo)
@@ -147,10 +166,11 @@ class SectionSplitter(AbstractExtractor):
             else:
                 self.log_coverage_from_json(engine, spider, lang, batchinfo)
 
-        self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
+        self.logger.info(f"{self.logger_info['finish_spider']} {spider}") 
+    """
 
-    def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
-        """Override method to handle section data and paragraph data individually"""
+    """  def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
+        Override method to handle section data and paragraph data individually
         # TODO consider removing the overriding function altogether with new db
         self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
         namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
@@ -165,7 +185,7 @@ class SectionSplitter(AbstractExtractor):
         except TypeError as e:
             self.logger.error(f"While processing decision {series['html_url']} caught exception {e}")
         return series
-
+    """
 
 if __name__ == '__main__':
     config = get_config()

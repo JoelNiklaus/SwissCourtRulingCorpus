@@ -29,10 +29,14 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     @abstractmethod
     def get_required_data(self, series: pd.DataFrame) -> Any:
         """Returns the data required by the processing functions"""
-
+        
     @abstractmethod
-    def get_database_selection_string(self, spider: str, lang: str) -> str:
-        """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
+    def save_data_to_database(self, series: pd.DataFrame, engine: Engine):
+        """Splits the data into their respective parts and saves them to the table"""
+        
+    @abstractmethod
+    def select_df(self, engine: Engine, spider: str):
+        """Selects the dataframe from the database"""
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing.
@@ -56,7 +60,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         self.logger.info(message)
 
         engine = self.get_engine(self.db_scrc)
-        self.add_columns(engine)
+        #self.add_columns(engine)
 
         self.start_spider_loop(spider_list, engine)
 
@@ -66,10 +70,10 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         spider_list, message = self.compute_remaining_spiders(self.processed_file_path)
         return spider_list, message
 
-    def add_columns(self, engine: Engine):
+    """  def add_columns(self, engine: Engine):
         for lang in self.languages:
             self.add_column(engine, lang, col_name=self.col_name, data_type=self.col_type)
-
+    """
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
             if hasattr(self.processing_functions, spider):
@@ -84,25 +88,25 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     def process_one_spider(self, engine: Engine, spider: str):
         self.logger.info(self.logger_info["start_spider"] + " " + spider)
 
-        for lang in self.languages:
-            where = self.get_database_selection_string(spider, lang)
-            self.start_progress(engine, spider, lang)
-            # stream dfs from the db
-            dfs = self.select(engine, lang, where=where,
-                              chunksize=self.chunksize)
-            for df in dfs:
-                df = df.apply(self.process_one_df_row, axis="columns")
-                self.update(engine, df, lang, [self.col_name], self.output_dir)
-                self.log_progress(self.chunksize)
+        dfs = self.select_df(engine, spider)
+        #self.start_progress(engine, spider)
+        # stream dfs from the db
+        #dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
+        for df in dfs:
+            df = df.apply(self.process_one_df_row, axis="columns")
+            self.save_data_to_database(df, engine)
+            # self.update(engine, df, lang, [self.col_name], self.output_dir)
+            #self.log_progress(self.chunksize)
 
-            self.log_coverage(engine, spider, lang)
+        #self.log_coverage(engine, spider)
 
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
         """Processes one row of a raw df"""
-        self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
-        namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
+        #self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
+        #namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
+        namespace = dict()
         namespace['language'] = Language(series['language'])
         data = self.get_required_data(series)
         assert data
@@ -124,18 +128,18 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
             # just ignore the error for now. It would need much more rules to prevent this.
             return None
 
-    def coverage_get_total(self, engine: Engine, spider: str, lang: str) -> int:
+    def coverage_get_total(self, engine: Engine, spider: str, table: str) -> int:
         """
         Returns total amount of valid entries to be processed by extractor
         """
-        sql_string = f"SELECT count(*) FROM {lang} WHERE {self.get_database_selection_string(spider, lang)}"
+        sql_string = f"SELECT count(*) FROM {table} WHERE {self.get_database_selection_string(spider, table)}"
         return pd.read_sql(sql_string, engine.connect())["count"][0]
 
-    def coverage_get_successful(self, engine: Engine, spider: str, lang: str) -> int:
+    def coverage_get_successful(self, engine: Engine, spider: str, table: str) -> int:
         """Returns the total entries that got processed successfully"""
         query = (
-            f"SELECT count({self.col_name}) FROM {lang} WHERE "
-            f"{self.get_database_selection_string(spider, lang)} AND {self.col_name} <> 'null'"
+            f"SELECT count({self.col_name}) FROM {table} WHERE "
+            f"{self.get_database_selection_string(spider)} AND {self.col_name} <> 'null'"
         )
         return pd.read_sql(query, engine.connect())["count"][0]
 
@@ -149,10 +153,10 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
             self.processed_amount + chunksize, self.total_to_process)
         self.logger.info(f"{self.logger_info['saving']} ({self.processed_amount}/{self.total_to_process})")
 
-    def log_coverage(self, engine: Engine, spider: str, lang: str):
-        successful_attempts = self.coverage_get_successful(engine, spider, lang)
+    def log_coverage(self, engine: Engine, spider: str, table: str):
+        successful_attempts = self.coverage_get_successful(engine, spider, table)
         self.logger.info(
-            f"{self.logger_info['finish_spider']} in {lang} with "
+            f"{self.logger_info['finish_spider']} with "
             f"{successful_attempts} / {self.total_to_process} "
             f"({successful_attempts / self.total_to_process:.2%}) "
             "working"

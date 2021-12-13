@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
+from sqlalchemy.engine.base import Engine
+from sqlalchemy.sql.expression import insert
 
 from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
@@ -63,9 +65,10 @@ class Cleaner(AbstractExtractor):
         spider_list, message = self.compute_remaining_spiders(processed_file_path)
         self.logger.info(message)
 
-    def get_database_selection_string(self, spider: str, lang: str) -> str:
+    def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-        return f"spider='{spider}'"
+        
+        return self.select(engine, 'file LEFT JOIN decision on decision.file_id = file.file_id', 'decision_id,file_id,html_raw,pdf_raw', where=f"file.file_id IN (SELECT file_id from decision WHERE chamber_id IN (SELECT chamber_id FROM chamber WHERE spider_id IN (SELECT spider_id FROM spider WHERE spider.name = '{spider}')))", chunksize=self.chunksize)
 
     def get_required_data(self, series: pd.DataFrame) -> Any:
         return series['spider']
@@ -75,24 +78,26 @@ class Cleaner(AbstractExtractor):
         e.g. data is required to be present for analysis"""
         return True
     
+    def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
+        df['section_type_id'] = 1
+        self.update(engine, df, 'section', ['decision_id', 'section_type_id', 'section_text'], self.output_dir)
 
     def process_one_spider(self, engine, spider):
         """Cleans one spider csv file"""
         self.logger.info(f"Started cleaning {spider}")
 
-        for lang in self.languages:
-            where = self.get_database_selection_string(spider, lang)
-            self.start_progress(engine, spider, lang)
-            dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)  # stream dfs from the db
-            for df in dfs:
-                # according to docs you should aim for a partition size of 100MB
-                ddf = dd.from_pandas(df, npartitions=self.num_cpus)
-                ddf = ddf.apply(self.process_one_df_row, axis='columns', meta=ddf)  # apply cleaning function to each row
-                with ProgressBar():
-                    df = ddf.compute(scheduler='processes')
-                self.update(engine, df, lang, [self.col_name], self.output_dir)
-                self.log_progress(self.chunksize)
-            self.log_coverage(engine, spider, lang)
+            
+        self.start_progress(engine, spider, engine)
+        dfs = self.select_df(engine, spider)  # stream dfs from the db
+        for df in dfs:
+            # according to docs you should aim for a partition size of 100MB
+            ddf = dd.from_pandas(df, npartitions=self.num_cpus)
+            ddf = ddf.apply(self.process_one_df_row, axis='columns', meta=ddf)  # apply cleaning function to each row
+            with ProgressBar():
+                df = ddf.compute(scheduler='processes')
+            self.save_data_to_database(df, engine)
+        #    self.log_progress(self.chunksize)
+        #self.log_coverage(engine, spider, lang)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
     def process_one_df_row(self, series):
@@ -100,7 +105,7 @@ class Cleaner(AbstractExtractor):
         self.logger.debug(
             f"{self.logger_info['processing_one']} {series['file_name']}")
         namespace = series[
-            ['file_number', 'file_number_additional', 'date', 'language', 'pdf_url', 'html_url']].to_dict()
+            ['file_id', 'pdf_url', 'html_url']].to_dict()
         spider = self.get_required_data(series)
 
         html_clean, pdf_clean = '', ''
@@ -120,7 +125,7 @@ class Cleaner(AbstractExtractor):
         series['text'] = np.where(html_clean != '', html_clean, pdf_clean)
         if series['text'] == '':
             # series['text'] = np.nan  # set to nan, so that it can be removed afterwards
-            self.logger.warning(f"No raw text available for court decision {series['file_number']}")
+            self.logger.warning(f"No raw text available for court decision {series['file_id']}")
 
         series.text = str(series.text)  # otherwise we get an error when we want to save it into the db
 

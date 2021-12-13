@@ -68,28 +68,6 @@ class TextToDatabase(AbstractPreprocessor):
         spider_list, message = self.compute_remaining_spiders(processed_file_path)
         self.logger.info(message)
 
-        self.logger.info("Creating the tables")
-        for lang in self.languages:
-            meta = MetaData()
-            lang_table = Table(
-                lang, meta,
-                Column('id', Integer, primary_key=True),
-                Column('spider', String),
-                Column('language', String),
-                Column('canton', String),
-                Column('court', String),
-                Column('chamber', String),
-                Column('date', Date),
-                Column('file_name', String),
-                Column('file_number', String),
-                Column('file_number_additional', String),
-                Column('html_url', String),
-                Column('html_raw', String),
-                Column('pdf_url', String),
-                Column('pdf_raw', String),
-            )
-            meta.create_all(self.get_engine(self.db_scrc))
-
         for spider in spider_list:
             self.build_spider_dataset(spider)
             self.mark_as_processed(processed_file_path, spider)
@@ -116,10 +94,7 @@ class TextToDatabase(AbstractPreprocessor):
         df = pd.DataFrame(spider_dict_list)
 
         self.logger.info(f"Saving data to db")
-        for lang in self.languages:
-            lang_df = df[df.language.str.contains(lang, na=False)]  # select only decisions by language
-            if len(lang_df.index) > 0:
-                lang_df.to_sql(lang, self.get_engine(self.db_scrc), if_exists="append", index=False)
+        df.to_sql('test', self.get_engine(self.db_scrc), if_exists="append", index=False)
 
     def build_spider_dict_list(self, spider_dir: Path) -> list:
         """ Builds the spider dict list which we can convert to a pandas Data Frame later """
