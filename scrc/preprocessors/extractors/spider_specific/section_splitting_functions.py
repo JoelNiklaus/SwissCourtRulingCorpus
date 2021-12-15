@@ -15,8 +15,6 @@ The name of the functions should be equal to the spider! Otherwise, they won't b
 Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
-x = 0
-
 def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -139,12 +137,43 @@ def get_paragraphs(divs):
                     paragraphs.append(paragraph)
         return paragraphs
 
+def get_pdf_paragraphs(soup: str) -> list:
+    """
+    Get the paragraphs of a decision
+    :param soup:    the string extracted of the pdf
+    :return:        a list of paragraphs
+    """
+
+    paragraphs = []
+    # remove spaces between two line breaks
+    soup = re.sub('\\n +\\n', '\\n\\n', soup)
+    # split the lines when there are two line breaks
+    lines = soup.split('\n\n')
+    for element in lines:
+        element = element.replace('  ',' ')
+        paragraph = clean_text(element)
+        if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+            paragraphs.append(paragraph)
+    return paragraphs
+
+
 def valid_namespace(namespace: dict, all_section_markers):
+    """
+    Check if the section markers have been implemented for a given language
+    :param namespace:               the namespace containing some metadata of the court decision
+    :param all_section_markers:     the section markers of a decision
+    """
     if namespace['language'] not in all_section_markers:
         message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
         raise ValueError(message)   
 
 def prepare_section_markers(all_section_markers, namespace: dict) -> Dict[Section, str]: 
+    """
+    Join and normalize the section markers
+    :param all_section_markers:     the section markers of a decision
+    :param namespace:               the namespace containing some metadata of the court decision
+    :return:                        a Dict of the Section and the section markers
+    """
     section_markers = all_section_markers[namespace['language']]
     section_markers = dict(
         map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
@@ -155,10 +184,10 @@ def prepare_section_markers(all_section_markers, namespace: dict) -> Dict[Sectio
 def associate_sections(paragraphs: List[str], section_markers, namespace: dict, sections: List[Section] = list(Section)):
     """
     Associate sections to paragraphs
-    :param paragraphs: list of paragraphs
+    :param paragraphs:      list of paragraphs
     :param section_markers: dict of section markers
-    :param namespace: dict of namespace
-    :param sections: if some sections are not present in the court, pass a list with the missing section excluded
+    :param namespace:       dict of namespace
+    :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
     """
     paragraphs_by_section = { section: [] for section in sections }
 
@@ -189,11 +218,11 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
 def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
     """
     Update the current section if it changed
-    :param current_section:
-    :param paragraph: the current paragraph
+    :param current_section: the current section
+    :param paragraph:       the current paragraph
     :param section_markers: dict of section markers
-    :param sections: if some sections are not present in the court, pass a list with the missing section excluded
-    :return:
+    :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
+    :return:                the updated section
     """
     if current_section == Section.FOOTER:
         return current_section  # we made it to the end, hooray!
@@ -218,6 +247,7 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
 
 def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Verwaltungsgericht of Zug into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -247,30 +277,23 @@ def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
+    # This court sometimes uses newlines to separate names of people. 
+    # To deal with that, this loop inserts a comma if a new line starts with lic. iur. to separate names.
+    lines = []
+    lines = decision.split('\n')
+    for idx, line in enumerate(lines):
+        if 'lic. iur.' in line:
+            line = re.sub(r'^lic\. iur\.', ', lic. iur.', line)
+            lines[idx] = line
+    decision = '\n'.join(map(str, lines))
 
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
 def ZH_Baurekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Baurekursgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -301,32 +324,14 @@ def ZH_Baurekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Op
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup:
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
 
 def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Obergericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -357,30 +362,13 @@ def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> 
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
 def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Sozialversicherungsgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -414,8 +402,8 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
     def get_paragraphs(soup):
         """
         Get Paragraphs in the decision
-        :param soup: the decision parsed by bs4
-        :return: a list of paragraphs
+        :param soup:    the decision parsed by bs4
+        :return:        a list of paragraphs
         """
         # this should be the div closest to the content
         divs = soup.find("div", id="view:_id1:inputRichText1")
@@ -454,6 +442,7 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
 
 def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Steuerrekursgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -485,32 +474,14 @@ def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
 
 def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Verwaltungsgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -546,8 +517,8 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
     def get_paragraphs(soup):
         """
         Get Paragraphs in the decision
-        :param soup: the decision parsed by bs4 
-        :return: a list of paragraphs
+        :param soup:    the decision parsed by bs4 
+        :return:        a list of paragraphs
         """
         # sometimes the div with the content is called WordSection1
         divs = soup.find_all("div", class_="WordSection1")
