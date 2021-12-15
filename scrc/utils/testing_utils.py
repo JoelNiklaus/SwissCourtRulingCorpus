@@ -1,9 +1,12 @@
 import json
+import unittest
 
 from scrc.enums.language import Language
 from scrc.enums.section import Section
 import scrc.preprocessors.extractors.spider_specific.court_composition_extracting_functions as c
 import scrc.preprocessors.extractors.spider_specific.procedural_participation_extracting_functions as p
+
+from scrc.preprocessors.extractors.spider_specific.court_composition_extracting_functions import ZH_Steuerrekurs as zig
 
 """
     Helper module to test the functions of other modules.
@@ -32,150 +35,158 @@ ZH_Verwaltungsgericht_test_header = ['Verwaltungsgericht des Kantons Zürich 4. 
 ZH_Sozialversicherungsgericht_test_header = ['Sozialversicherungsgerichtdes Kantons ZürichIV.2014.00602', 'II. Kammer', 'Sozialversicherungsrichter Mosimann, Vorsitzender', 'Sozialversicherungsrichterin Käch', 'Sozialversicherungsrichterin Sager', 'Gerichtsschreiberin Kudelski', 'Urteil vom 11. August 2015', 'in Sachen', 'X._', 'Beschwerdeführerin', 'vertreten durch Rechtsanwalt Dr. Kreso Glavas', 'Advokatur Glavas AG', 'Markusstrasse 10, 8006 Zürich', 'gegen', 'Sozialversicherungsanstalt des Kantons Zürich, IV-Stelle', 'Röntgenstrasse 17, Postfach, 8087 Zürich', 'Beschwerdegegnerin', 'weitere Verfahrensbeteiligte:', 'Personalvorsorgestiftung der Y._', 'Beigeladene']
 
 
-def court_composition_testing():
+class test_court_composition_extracting_functions(unittest.TestCase):
     """
     This function tests whether the court composition extracting functions give the correct procedural participation for a given input. If the output is incorrect, an error is shown. 
     """
 
-    ZG_Verwaltungsgericht_test_string = ' '.join(map(str, ZG_Verwaltungsgericht_test_header))
-    ZH_Steuerrekurs_test_string = ' '.join(map(str, ZH_Steuerrekurs_test_header))
-    ZH_Baurekurs_test_string = ' '.join(map(str, ZH_Baurekurs_test_header))
-    ZH_Obergericht_test_string = ' '.join(map(str, ZH_Obergericht_test_header))
-    ZH_Verwaltungsgericht_test_string = ' '.join(map(str, ZH_Verwaltungsgericht_test_header))
-    ZH_Sozialversicherungsgericht_test_string = ' '.join(map(str, ZH_Sozialversicherungsgericht_test_header))
+    def test_ZG_Verwaltungsgericht(self):
+        ZG_Verwaltungsgericht_test_string = ' '.join(map(str, ZG_Verwaltungsgericht_test_header))
+        sections = {}
+        sections[Section.HEADER] = ZG_Verwaltungsgericht_test_string
+        zg_vg = c.ZG_Verwaltungsgericht(sections, {'language' : Language.DE})
+        # No tests for the gender because this court uses a generic masculine noun for multiple judges
+        self.assertEqual(zg_vg.president.name, 'Adrian Willimann')
+        self.assertEqual(zg_vg.judges[0].name, 'Adrian Willimann')
+        self.assertEqual(zg_vg.judges[1].name, 'Jacqueline Iten-Staub')
+        self.assertEqual(zg_vg.judges[2].name, 'Matthias Suter')
+        self.assertEqual(zg_vg.clerks[0].name, 'Patrick Trütsch')
 
-    namespace = {'language' : Language.DE}
-    sections = {}
+    def test_ZH_Steuerrekurs(self):
+        ZH_Steuerrekurs_test_string = ' '.join(map(str, ZH_Steuerrekurs_test_header))
+        sections = {}
+        sections[Section.HEADER] = ZH_Steuerrekurs_test_string
+        zh_sr = c.ZH_Steuerrekurs(sections, {'language' : Language.DE})
+        self.assertEqual( zh_sr.president.name , 'Christian Mäder')
+        self.assertEqual( zh_sr.president.gender.value , 'male')
+        self.assertEqual( zh_sr.judges[0].name , 'Christian Mäder')
+        self.assertEqual( zh_sr.judges[0].gender.value , 'male')
+        self.assertEqual( zh_sr.judges[1].name , 'Micheline Roth')
+        self.assertEqual( zh_sr.judges[1].gender.value , 'female')
+        self.assertEqual( zh_sr.judges[2].name , 'Barbara Collet')
+        self.assertEqual( zh_sr.judges[2].gender.value , 'female')
+        self.assertEqual( zh_sr.clerks[0].name , 'Hans Heinrich Knüsli')
+        self.assertEqual( zh_sr.clerks[0].gender.value , 'male')
 
-    sections[Section.HEADER] = ZG_Verwaltungsgericht_test_string
-    zg_vg = c.ZG_Verwaltungsgericht(sections, namespace)
-    # No tests for the gender because this court uses a generic masculine noun for multiple judges
-    assert zg_vg.president.name == 'Adrian Willimann'
-    assert zg_vg.judges[0].name == 'Adrian Willimann'
-    assert zg_vg.judges[1].name == 'Jacqueline Iten-Staub'
-    assert zg_vg.judges[2].name == 'Matthias Suter'
-    assert zg_vg.clerks[0].name == 'Patrick Trütsch'
+    def test_ZH_Baurekurs(self):
+        ZH_Baurekurs_test_string = ' '.join(map(str, ZH_Baurekurs_test_header))
+        sections = {}
+        sections[Section.HEADER] = ZH_Baurekurs_test_string
+        zh_br = c.ZH_Baurekurs(sections, {'language' : Language.DE}) 
+        self.assertEqual( zh_br.president , None)
+        self.assertEqual( zh_br.judges[0].name , 'Adrian Bergmann')
+        self.assertEqual( zh_br.judges[0].gender.value , 'male')
+        self.assertEqual( zh_br.judges[1].name , 'Stefano Terzi')
+        self.assertEqual( zh_br.judges[1].gender.value , 'male')
+        self.assertEqual( zh_br.judges[2].name , 'Marlen Patt')
+        self.assertEqual( zh_br.judges[2].gender.value , 'male')
+        self.assertEqual( zh_br.clerks[0].name , 'Daniel Schweikert')
+        self.assertEqual( zh_br.clerks[0].gender.value , 'male')
 
-    sections[Section.HEADER] = ZH_Steuerrekurs_test_string
-    zh_sr = c.ZH_Steuerrekurs(sections, namespace)
-    assert zh_sr.president.name == 'Christian Mäder'
-    assert zh_sr.president.gender.value == 'male'
-    assert zh_sr.judges[0].name == 'Christian Mäder'
-    assert zh_sr.judges[0].gender.value == 'male'
-    assert zh_sr.judges[1].name == 'Micheline Roth'
-    assert zh_sr.judges[1].gender.value == 'female'
-    assert zh_sr.judges[2].name == 'Barbara Collet'
-    assert zh_sr.judges[2].gender.value == 'female'
-    assert zh_sr.clerks[0].name == 'Hans Heinrich Knüsli'
-    assert zh_sr.clerks[0].gender.value == 'male'
+    def test_ZH_Obergericht(self):
+        ZH_Obergericht_test_string = ' '.join(map(str, ZH_Obergericht_test_header))
+        sections = {}
+        sections[Section.HEADER] = ZH_Obergericht_test_string
+        zh_og = c.ZH_Obergericht(sections, {'language' : Language.DE})
+        self.assertEqual( zh_og.president , None)
+        self.assertEqual( zh_og.judges[0].name , 'Th. Kläusli')
+        self.assertEqual( zh_og.judges[0].gender.value , 'male')
+        self.assertEqual( zh_og.judges[1].name , 'K. Vogel')
+        self.assertEqual( zh_og.judges[1].gender.value , 'male')
+        self.assertEqual( zh_og.judges[2].name , 'D. Brugger')
+        self.assertEqual( zh_og.judges[2].gender.value , 'male')
+        self.assertEqual( zh_og.clerks[0].name , 'Ch. Reitze')
+        self.assertEqual( zh_og.clerks[0].gender.value , 'male')
 
-    sections[Section.HEADER] = ZH_Baurekurs_test_string
-    zh_br = c.ZH_Baurekurs(sections, namespace) 
-    assert zh_br.president == None
-    assert zh_br.judges[0].name == 'Adrian Bergmann'
-    assert zh_br.judges[0].gender.value == 'male'
-    assert zh_br.judges[1].name == 'Stefano Terzi'
-    assert zh_br.judges[1].gender.value == 'male'
-    assert zh_br.judges[2].name == 'Marlen Patt'
-    assert zh_br.judges[2].gender.value == 'male'
-    assert zh_br.clerks[0].name == 'Daniel Schweikert'
-    assert zh_br.clerks[0].gender.value == 'male'
+    def test_ZH_Verwaltungsgericht(self):
+        ZH_Verwaltungsgericht_test_string = ' '.join(map(str, ZH_Verwaltungsgericht_test_header))
+        sections = {}
+        sections[Section.HEADER] = ZH_Verwaltungsgericht_test_string
+        zh_vg= c.ZH_Verwaltungsgericht(sections, {'language' : Language.DE})
+        self.assertEqual( zh_vg.president.name , 'Tamara Nüssle')
+        self.assertEqual( zh_vg.president.gender.value , 'female')
+        self.assertEqual( zh_vg.judges[0].name , 'Tamara Nüssle')
+        self.assertEqual( zh_vg.judges[0].gender.value , 'female')
+        self.assertEqual( zh_vg.judges[1].name , 'Reto Häggi Furrer')
+        self.assertEqual( zh_vg.judges[1].gender.value , 'male')
+        self.assertEqual( zh_vg.judges[2].name , 'Martin Bertschi')
+        self.assertEqual( zh_vg.judges[2].gender.value , 'male')
+        self.assertEqual( zh_vg.clerks[0].name , 'David Henseler')
+        self.assertEqual( zh_vg.clerks[0].gender.value , 'male')
 
-    sections[Section.HEADER] = ZH_Obergericht_test_string
-    zh_og = c.ZH_Obergericht(sections, namespace)
-    assert zh_og.president == None
-    assert zh_og.judges[0].name == 'Th. Kläusli'
-    assert zh_og.judges[0].gender.value == 'male'
-    assert zh_og.judges[1].name == 'K. Vogel'
-    assert zh_og.judges[1].gender.value == 'male'
-    assert zh_og.judges[2].name == 'D. Brugger'
-    assert zh_og.judges[2].gender.value == 'male'
-    assert zh_og.clerks[0].name == 'Ch. Reitze'
-    assert zh_og.clerks[0].gender.value == 'male'
-
-    sections[Section.HEADER] = ZH_Verwaltungsgericht_test_string
-    zh_vg= c.ZH_Verwaltungsgericht(sections, namespace)
-    assert zh_vg.president.name == 'Tamara Nüssle'
-    assert zh_vg.president.gender.value == 'female'
-    assert zh_vg.judges[0].name == 'Tamara Nüssle'
-    assert zh_vg.judges[0].gender.value == 'female'
-    assert zh_vg.judges[1].name == 'Reto Häggi Furrer'
-    assert zh_vg.judges[1].gender.value == 'male'
-    assert zh_vg.judges[2].name == 'Martin Bertschi'
-    assert zh_vg.judges[2].gender.value == 'male'
-    assert zh_vg.clerks[0].name == 'David Henseler'
-    assert zh_vg.clerks[0].gender.value == 'male'
-
-    sections[Section.HEADER] = ZH_Sozialversicherungsgericht_test_string
-    zh_svg = c.ZH_Sozialversicherungsgericht(sections, namespace)
-    assert zh_svg.president.name == 'Mosimann'
-    assert zh_svg.president.gender.value == 'male'
-    assert zh_svg.judges[0].name == 'Mosimann'
-    assert zh_svg.judges[0].gender.value == 'male'
-    assert zh_svg.judges[1].name == 'Käch'
-    assert zh_svg.judges[1].gender.value == 'female'
-    assert zh_svg.judges[2].name == 'Sager'
-    assert zh_svg.judges[2].gender.value == 'female'
-    assert zh_svg.clerks[0].name == 'Kudelski'
-    assert zh_svg.clerks[0].gender.value == 'female'
-
-# uncomment to test
-# court_composition_testing()
+    def test_ZH_Sozialversicherungsgericht(self):
+        ZH_Sozialversicherungsgericht_test_string = ' '.join(map(str, ZH_Sozialversicherungsgericht_test_header))
+        sections = {}
+        sections[Section.HEADER] = ZH_Sozialversicherungsgericht_test_string
+        zh_svg = c.ZH_Sozialversicherungsgericht(sections, {'language' : Language.DE})
+        self.assertEqual( zh_svg.president.name , 'Mosimann')
+        self.assertEqual( zh_svg.president.gender.value , 'male')
+        self.assertEqual( zh_svg.judges[0].name , 'Mosimann')
+        self.assertEqual( zh_svg.judges[0].gender.value , 'male')
+        self.assertEqual( zh_svg.judges[1].name , 'Käch')
+        self.assertEqual( zh_svg.judges[1].gender.value , 'female')
+        self.assertEqual( zh_svg.judges[2].name , 'Sager')
+        self.assertEqual( zh_svg.judges[2].gender.value , 'female')
+        self.assertEqual( zh_svg.clerks[0].name , 'Kudelski')
+        self.assertEqual( zh_svg.clerks[0].gender.value , 'female')
 
 
-def procedural_participation_testing():
+class test_procedural_participation_extracting_functions(unittest.TestCase):
     """
     This function tests whether the procedural participation extracting functions give the correct procedural participation for a given input. If the output is incorrect, an error is shown. 
     """
 
-    ZG_Verwaltungsgericht_test_string = ', '.join(map(str, ZG_Verwaltungsgericht_test_header))
-    ZH_Steuerrekurs_test_string = ', '.join(map(str, ZH_Steuerrekurs_test_header))
-    ZH_Baurekurs_test_string = ', '.join(map(str, ZH_Baurekurs_test_header_2))
-    ZH_Obergericht_test_string = ', '.join(map(str, ZH_Obergericht_test_header_2))
-    ZH_Verwaltungsgericht_test_string = ', '.join(map(str, ZH_Verwaltungsgericht_test_header))
-    ZH_Sozialversicherungsgericht_test_string = ', '.join(map(str, ZH_Sozialversicherungsgericht_test_header))
+    def test_ZG_Verwaltungsgericht(self):
+        ZG_Verwaltungsgericht_test_string = ', '.join(map(str, ZG_Verwaltungsgericht_test_header))
+        zg_vg_json = p.ZG_Verwaltungsgericht(ZG_Verwaltungsgericht_test_string, {'language' : Language.DE})
+        zg_vg = json.loads(zg_vg_json)
+        self.assertEqual(zg_vg['plaintiffs'][0]['legal_counsel'][0]['name'], 'B._ AG')
+        self.assertEqual(zg_vg['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'legal entity')
 
-    namespace = {'language' : Language.DE}
+    def test_ZH_Steuerrekurs(self):
+        ZH_Steuerrekurs_test_string = ', '.join(map(str, ZH_Steuerrekurs_test_header))
+        zh_sr_json = p.ZH_Steuerrekurs(ZH_Steuerrekurs_test_string, {'language' : Language.DE})
+        zh_sr = json.loads(zh_sr_json)
+        self.assertEqual( zh_sr['defendants'][0]['legal_counsel'][0]['name'] , 'Steueramt')
+        self.assertEqual( zh_sr['defendants'][0]['legal_counsel'][0]['legal_type'] , 'legal entity')
+        self.assertEqual( zh_sr['plaintiffs'][0]['legal_counsel'][0]['name'] , 'C AG')
+        self.assertEqual( zh_sr['plaintiffs'][0]['legal_counsel'][0]['legal_type'] , 'legal entity')
 
-    zg_vg_json = p.ZG_Verwaltungsgericht(ZG_Verwaltungsgericht_test_string, namespace)
-    zg_vg = json.loads(zg_vg_json)
-    assert zg_vg['plaintiffs'][0]['legal_counsel'][0]['name'] == 'B._ AG'
-    assert zg_vg['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'legal entity'
+    def test_ZH_Baurekurs(self):
+        ZH_Baurekurs_test_string = ', '.join(map(str, ZH_Baurekurs_test_header_2))
+        zh_br_json = p.ZH_Baurekurs(ZH_Baurekurs_test_string, {'language' : Language.DE}) 
+        zh_br = json.loads(zh_br_json)
+        self.assertEqual( zh_br['plaintiffs'][0]['legal_counsel'][0]['name'] , 'Dr. iur. Christof Truniger')
+        self.assertEqual( zh_br['plaintiffs'][0]['legal_counsel'][0]['legal_type'] , 'natural person')
+        self.assertEqual( zh_br['plaintiffs'][0]['legal_counsel'][0]['gender'] , 'male')
 
-    zh_sr_json = p.ZH_Steuerrekurs(ZH_Steuerrekurs_test_string, namespace)
-    zh_sr = json.loads(zh_sr_json)
-    assert zh_sr['defendants'][0]['legal_counsel'][0]['name'] == 'Steueramt'
-    assert zh_sr['defendants'][0]['legal_counsel'][0]['legal_type'] == 'legal entity'
-    assert zh_sr['plaintiffs'][0]['legal_counsel'][0]['name'] == 'C AG'
-    assert zh_sr['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'legal entity'
+    def test_ZH_Obergericht(self):
+        ZH_Obergericht_test_string = ', '.join(map(str, ZH_Obergericht_test_header_2))
+        zh_og_json = p.ZH_Obergericht(ZH_Obergericht_test_string, {'language' : Language.DE})
+        zh_og = json.loads(zh_og_json)
+        self.assertEqual( zh_og['plaintiffs'][0]['legal_counsel'][0]['name'] , 'Dr. iur. C. D.')
+        self.assertEqual( zh_og['plaintiffs'][0]['legal_counsel'][0]['legal_type'] , 'natural person')
+        self.assertEqual( zh_og['plaintiffs'][0]['legal_counsel'][0]['gender'] , 'male')
+        self.assertEqual( zh_og['defendants'][0]['legal_counsel'][0]['name'] , 'lic. iur. E. F.')
+        self.assertEqual( zh_og['defendants'][0]['legal_counsel'][0]['legal_type'] , 'natural person')
+        self.assertEqual( zh_og['defendants'][0]['legal_counsel'][0]['gender'] , 'female')
 
-    zh_br_json = p.ZH_Baurekurs(ZH_Baurekurs_test_string, namespace) 
-    zh_br = json.loads(zh_br_json)
-    assert zh_br['plaintiffs'][0]['legal_counsel'][0]['name'] == 'Dr. iur. Christof Truniger'
-    assert zh_br['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'natural person'
-    assert zh_br['plaintiffs'][0]['legal_counsel'][0]['gender'] == 'male'
+    def test_ZH_Verwaltungsgericht(self):
+        ZH_Verwaltungsgericht_test_string = ', '.join(map(str, ZH_Verwaltungsgericht_test_header))
+        zh_vg_json = p.ZH_Verwaltungsgericht(ZH_Verwaltungsgericht_test_string, {'language' : Language.DE})
+        zh_vg = json.loads(zh_vg_json)
+        self.assertEqual( zh_vg['plaintiffs'][0]['legal_counsel'][0]['name'] , 'B')
+        self.assertEqual( zh_vg['plaintiffs'][0]['legal_counsel'][0]['legal_type'] , 'natural person')
+        self.assertEqual( zh_vg['plaintiffs'][0]['legal_counsel'][0]['gender'] , 'unknown')
 
-    zh_og_json = p.ZH_Obergericht(ZH_Obergericht_test_string, namespace)
-    zh_og = json.loads(zh_og_json)
-    assert zh_og['plaintiffs'][0]['legal_counsel'][0]['name'] == 'Dr. iur. C. D.'
-    assert zh_og['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'natural person'
-    assert zh_og['plaintiffs'][0]['legal_counsel'][0]['gender'] == 'male'
-    assert zh_og['defendants'][0]['legal_counsel'][0]['name'] == 'lic. iur. E. F.'
-    assert zh_og['defendants'][0]['legal_counsel'][0]['legal_type'] == 'natural person'
-    assert zh_og['defendants'][0]['legal_counsel'][0]['gender'] == 'female'
-
-    zh_vg_json = p.ZH_Verwaltungsgericht(ZH_Verwaltungsgericht_test_string, namespace)
-    zh_vg = json.loads(zh_vg_json)
-    assert zh_vg['plaintiffs'][0]['legal_counsel'][0]['name'] == 'B'
-    assert zh_vg['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'natural person'
-    assert zh_vg['plaintiffs'][0]['legal_counsel'][0]['gender'] == 'unknown'
-
-    zh_svg_json = p.ZH_Sozialversicherungsgericht(ZH_Sozialversicherungsgericht_test_string, namespace)
-    zh_svg = json.loads(zh_svg_json)
-    assert zh_svg['plaintiffs'][0]['legal_counsel'][0]['name'] == 'Dr. Kreso Glavas'
-    assert zh_svg['plaintiffs'][0]['legal_counsel'][0]['legal_type'] == 'natural person'
-    assert zh_svg['plaintiffs'][0]['legal_counsel'][0]['gender'] == 'male'
+    def test_ZH_Sozialversicherungsgericht(self):
+        ZH_Sozialversicherungsgericht_test_string = ', '.join(map(str, ZH_Sozialversicherungsgericht_test_header))
+        zh_svg_json = p.ZH_Sozialversicherungsgericht(ZH_Sozialversicherungsgericht_test_string, {'language' : Language.DE})
+        zh_svg = json.loads(zh_svg_json)
+        self.assertEqual( zh_svg['plaintiffs'][0]['legal_counsel'][0]['name'] , 'Dr. Kreso Glavas')
+        self.assertEqual( zh_svg['plaintiffs'][0]['legal_counsel'][0]['legal_type'] , 'natural person')
+        self.assertEqual( zh_svg['plaintiffs'][0]['legal_counsel'][0]['gender'] , 'male')
 
 
-# uncomment to test
-# procedural_participation_testing()
+if __name__ == '__main__':
+    unittest.main()
