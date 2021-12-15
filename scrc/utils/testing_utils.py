@@ -6,15 +6,19 @@ from scrc.enums.section import Section
 import scrc.preprocessors.extractors.spider_specific.court_composition_extracting_functions as c
 import scrc.preprocessors.extractors.spider_specific.procedural_participation_extracting_functions as p
 
-from scrc.preprocessors.extractors.spider_specific.court_composition_extracting_functions import ZH_Steuerrekurs as zig
-
 """
     Helper module to test the functions of other modules.
     Allows to check if the court composition extraction and the procedural participation extraction returns the expected result for a given test input.
 
-    Methods:
-        `court_composition_testing()`
-        `procedural_participation_testing()`
+    Classes:
+        `test_court_composition_extracting_functions()`
+        `test_procedural_participation_extracting_functions()`
+
+    Usage:
+        Run from the commandline with `python -m unittest scrc.utils.testing_utils`,
+        or with `python -m unittest -v scrc.utils.testing_utils` to get more verbose output.
+        Run specific classes with e.g. `python -m unittest scrc.utils.testing_utils.test_court_composition_extracting_functions`.
+        Run specific functions with e.g. `python -m unittest scrc.utils.testing_utils.test_court_composition_extracting_functions.test_ZG_Verwaltungsgericht`.
 """
 
 
