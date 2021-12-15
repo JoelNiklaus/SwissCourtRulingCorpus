@@ -15,10 +15,16 @@ import scrc.preprocessors.extractors.spider_specific.procedural_participation_ex
         `test_procedural_participation_extracting_functions()`
 
     Usage:
-        Run from the commandline with `python -m unittest scrc.utils.testing_utils`,
-        or with `python -m unittest -v scrc.utils.testing_utils` to get more verbose output.
-        Run specific classes with e.g. `python -m unittest scrc.utils.testing_utils.test_court_composition_extracting_functions`.
-        Run specific functions with e.g. `python -m unittest scrc.utils.testing_utils.test_court_composition_extracting_functions.test_ZG_Verwaltungsgericht`.
+        Run from the command line with `python -m unittest scrc.utils.testing_utils`
+        Run with `python -m unittest -v scrc.utils.testing_utils` to get more verbose output
+        Run specific classes with e.g. `python -m unittest scrc.utils.testing_utils.test_court_composition_extracting_functions`
+        Run specific functions with e.g. `python -m unittest scrc.utils.testing_utils.test_court_composition_extracting_functions.test_ZG_Verwaltungsgericht`
+
+    Adding tests:
+        Add tests for a new module by creating a new class.
+        Add tests for a new spider by creating a new function in the corresponding class.
+        Add more tests for an existing spider by including more assertions in the corresponding function.
+
 """
 
 
