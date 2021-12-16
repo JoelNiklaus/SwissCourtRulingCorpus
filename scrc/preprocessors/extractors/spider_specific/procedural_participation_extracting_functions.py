@@ -306,10 +306,6 @@ def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
 
 
 def get_regex():
-    """
-    Return regex that is used for several different dourts.
-    :return:    regex for the header subsections and the procedural participants
-    """
     information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen'
     second_party_start_regex = [
         r'gegen',
@@ -318,18 +314,23 @@ def get_regex():
         r'vertreten durch',
     }
     party_gender = {
-        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)', r'Antragsteller(?!in)',
-                      r'Antragsgegner(?!in)', r'Rekurrent(?!in)', r'Rekursgegner(?!in)'],
-        Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin', r'Antragstellerin', r'Antragsgegnerin',
-                        r'Rekurrentin', r'Rekursgegnerin']
+        Gender.MALE: [r'Beschwerdeführer(?!in)', r'Beschwerdegegner(?!in)', r'Antragsteller(?!in)', r'Antragsgegner(?!in)', r'Rekurrent(?!in)', r'Rekursgegner(?!in)'],
+        Gender.FEMALE: [r'Beschwerdeführerin', r'Beschwerdegegnerin', r'Antragstellerin', r'Antragsgegnerin', r'Rekurrentin', r'Rekursgegnerin']
     }
     lawyer_representation = {
         Gender.MALE: [r'Rechtsanwalt', r'Fürsprecher(?!in)', r'Advokat(?!in)'],
-        Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin']
+        Gender.FEMALE: [r'Rechtsanwältin', r'Fürsprecherin', r'Advokatin'],
+        Gender.UNKNOWN: [r'RA']
     }
     lawyer_name = {
-        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|(.$)|. Gegen| und)'
+        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|($)| Gegen| und)'
     }
+
+    representation_start = '|'.join(representation_start)
+    for key in lawyer_representation:
+        lawyer_representation[key] = '|'.join(lawyer_representation[key])
+    for key in party_gender:
+        party_gender[key] = '|'.join(party_gender[key])
 
     return information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name
 
