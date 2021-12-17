@@ -8,6 +8,7 @@ from typing import Optional, TYPE_CHECKING, Union
 import bs4
 import pandas as pd
 import uuid
+from sqlalchemy.sql.expression import text
 
 from sqlalchemy.sql.schema import MetaData, Table
 
@@ -71,13 +72,13 @@ class SectionSplitter(AbstractExtractor):
         for idx, row in df.iterrows():
             with engine.connect() as conn:
                 t = Table('section', MetaData(), autoload_with=engine)
-                t.delete().where(f"decision_id in ({df['decision_id'].tolist()}))")
-                engine.execute()
+                stmt = t.delete().where(text(f"decision_id in ({','.join([chr(39)+str(item)+chr(39) for item in df['decision_id'].tolist()])})"))
+                conn.execute(stmt)
                 for k in row['sections'].keys():
                     
                     section_type_id = key_to_id[k.value]
-                    t.insert().values([{"decision_id": row['decision_id'], "section_type_id": section_type_id, "section_text": row['sections'][k]}])
-                engine.execute()
+                    stmt = t.insert().values([{"decision_id": str(row['decision_id']), "section_type_id": section_type_id, "section_text": row['sections'][k]}])
+                    conn.execute(stmt)
                 
         
     def read_column(self, engine: Engine, spider: str, name: str, lang: str) -> pd.DataFrame:

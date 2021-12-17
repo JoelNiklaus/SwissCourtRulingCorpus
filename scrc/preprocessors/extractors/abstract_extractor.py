@@ -53,6 +53,8 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         self.processed_amount = 0
         self.total_to_process = -1
         self.spider_specific_dir = self.create_dir(ROOT_DIR, config['dir']['spider_specific_dir'])
+        #### DEBUG ####
+        self.chunksize = 2
 
     def start(self):
         self.logger.info(self.logger_info["start"])
@@ -107,6 +109,8 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         #self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
         #namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
         namespace = dict()
+        if 'html_url' in series:
+            namespace['html_url'] = series.get('html_url')
         namespace['language'] = Language(series['language'])
         data = self.get_required_data(series)
         assert data

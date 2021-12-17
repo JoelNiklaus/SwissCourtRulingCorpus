@@ -31,7 +31,7 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
         if bge.string:  # make sure it is not empty or None
             rulings.append({"type": "bge", "url": bge['href'], "text": bge.string})
 
-    return {"laws": laws, "rulings": rulings}
+    return {"law": laws, "ruling": rulings}
 
 # This needs special care
 # def CH_BGE(soup: Any, namespace: dict) -> Optional[dict]:
