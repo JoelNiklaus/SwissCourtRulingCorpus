@@ -149,14 +149,18 @@ class test_procedural_participation_extracting_functions(unittest.TestCase):
 
     def test_ZG_Verwaltungsgericht(self):
         ZG_Verwaltungsgericht_test_string = ', '.join(map(str, ZG_Verwaltungsgericht_test_header))
-        zg_vg_json = p.ZG_Verwaltungsgericht(ZG_Verwaltungsgericht_test_string, namespace_de)
+        sections = {}
+        sections[Section.HEADER] = ZG_Verwaltungsgericht_test_string
+        zg_vg_json = p.ZG_Verwaltungsgericht(sections, namespace_de)
         zg_vg = json.loads(zg_vg_json)
         self.assertEqual(zg_vg['plaintiffs'][0]['legal_counsel'][0]['name'], 'B._ AG')
         self.assertEqual(zg_vg['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'legal entity')
 
     def test_ZH_Steuerrekurs(self):
         ZH_Steuerrekurs_test_string = ', '.join(map(str, ZH_Steuerrekurs_test_header))
-        zh_sr_json = p.ZH_Steuerrekurs(ZH_Steuerrekurs_test_string, namespace_de)
+        sections = {}
+        sections[Section.HEADER] = ZH_Steuerrekurs_test_string
+        zh_sr_json = p.ZH_Steuerrekurs(sections, namespace_de)
         zh_sr = json.loads(zh_sr_json)
         self.assertEqual(zh_sr['defendants'][0]['legal_counsel'][0]['name'], 'Steueramt')
         self.assertEqual(zh_sr['defendants'][0]['legal_counsel'][0]['legal_type'], 'legal entity')
@@ -165,7 +169,9 @@ class test_procedural_participation_extracting_functions(unittest.TestCase):
 
     def test_ZH_Baurekurs(self):
         ZH_Baurekurs_test_string = ', '.join(map(str, ZH_Baurekurs_test_header_2))
-        zh_br_json = p.ZH_Baurekurs(ZH_Baurekurs_test_string, namespace_de) 
+        sections = {}
+        sections[Section.HEADER] = ZH_Baurekurs_test_string
+        zh_br_json = p.ZH_Baurekurs(sections, namespace_de) 
         zh_br = json.loads(zh_br_json)
         self.assertEqual(zh_br['plaintiffs'][0]['legal_counsel'][0]['name'], 'Dr. iur. Christof Truniger')
         self.assertEqual(zh_br['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'natural person')
@@ -173,7 +179,9 @@ class test_procedural_participation_extracting_functions(unittest.TestCase):
 
     def test_ZH_Obergericht(self):
         ZH_Obergericht_test_string = ', '.join(map(str, ZH_Obergericht_test_header_2))
-        zh_og_json = p.ZH_Obergericht(ZH_Obergericht_test_string, namespace_de)
+        sections = {}
+        sections[Section.HEADER] = ZH_Obergericht_test_string
+        zh_og_json = p.ZH_Obergericht(sections, namespace_de)
         zh_og = json.loads(zh_og_json)
         self.assertEqual(zh_og['plaintiffs'][0]['legal_counsel'][0]['name'], 'Dr. iur. C. D.')
         self.assertEqual(zh_og['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'natural person')
@@ -184,7 +192,9 @@ class test_procedural_participation_extracting_functions(unittest.TestCase):
 
     def test_ZH_Verwaltungsgericht(self):
         ZH_Verwaltungsgericht_test_string = ', '.join(map(str, ZH_Verwaltungsgericht_test_header))
-        zh_vg_json = p.ZH_Verwaltungsgericht(ZH_Verwaltungsgericht_test_string, namespace_de)
+        sections = {}
+        sections[Section.HEADER] = ZH_Verwaltungsgericht_test_string
+        zh_vg_json = p.ZH_Verwaltungsgericht(sections, namespace_de)
         zh_vg = json.loads(zh_vg_json)
         self.assertEqual(zh_vg['plaintiffs'][0]['legal_counsel'][0]['name'], 'B')
         self.assertEqual(zh_vg['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'natural person')
@@ -192,7 +202,9 @@ class test_procedural_participation_extracting_functions(unittest.TestCase):
 
     def test_ZH_Sozialversicherungsgericht(self):
         ZH_Sozialversicherungsgericht_test_string = ', '.join(map(str, ZH_Sozialversicherungsgericht_test_header))
-        zh_svg_json = p.ZH_Sozialversicherungsgericht(ZH_Sozialversicherungsgericht_test_string, namespace_de)
+        sections = {}
+        sections[Section.HEADER] = ZH_Sozialversicherungsgericht_test_string
+        zh_svg_json = p.ZH_Sozialversicherungsgericht(sections, namespace_de)
         zh_svg = json.loads(zh_svg_json)
         self.assertEqual(zh_svg['plaintiffs'][0]['legal_counsel'][0]['name'], 'Dr. Kreso Glavas')
         self.assertEqual(zh_svg['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'natural person')
