@@ -189,7 +189,7 @@ def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
         }
     }
 
-    # reularize the different forms of the word Urteil
+    # regularize different forms of words
     header = header.replace('U R T E I L', 'Urteil')
     header = header.replace('U R TE I L', 'Urteil')
     header = header.replace('URTEIL', 'Urteil')
