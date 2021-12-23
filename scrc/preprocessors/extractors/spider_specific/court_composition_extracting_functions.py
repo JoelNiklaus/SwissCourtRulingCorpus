@@ -476,6 +476,9 @@ def get_besetzungs_strings(header: str) -> list:
 
 
 def get_skip_strings() -> dict:
+    """
+    :return:    strings which should be skipped when extracting the court composition
+    """
     return {
         Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger', 'Berufungskläger'],
         Language.FR: ['Juge suppléant', 'en qualité de juge unique'],
