@@ -261,35 +261,38 @@ def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]
 
 def ZH_Obergericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Obergericht of Zurich
-    :param header:      the string containing the header
+    Extract the court composition from decisions of the Obergericht of Zurich
+    :param header:      the dict containing the sections per section key
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
 
     header = sections[Section.HEADER]
 
     role_regexes = {
         Gender.MALE: {
-            CourtRole.JUDGE: [r'Oberrichter(?!in)', r'Ersatzrichter(?!in)'],
-            CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
+            CourtRole.JUDGE: [r'Oberrichter(?!in)', r'Ersatzoberrichter(?!in)', r'Ersatzrichter(?!in)', r'Kassationsrichter(?!in)', r'Vizepräsident(?!in)', r'Bezirksrichter(?!in)', r'Handelsrichter(?!in)', r'Einzelrichter(?!in)'],
+            CourtRole.CLERK: [r'Gerichtsschreiber(?!in)', r'Sekretär(?!in)']
         },
         Gender.FEMALE: {
-            CourtRole.JUDGE: [r'Oberrichterin(nen)?',r'Ersatzrichterin(nen)?'],
-            CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
+            CourtRole.JUDGE: [r'Oberrichterin(nen)?', r'Ersatzoberrichterin(nen)?', r'Ersatzrichterin(nen)?', r'Kassationsrichterin(nen)?', r'Vizepräsidentin(nen)?', r'Bezirksrichterin(nen)?', r'Handelsrichterin(nen)?', r'Einzelrichterin(nen)?'],
+            CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?', r'Sekretärin(nen)?']
         }
     }
 
-    information_start_regex = r'Mitwirkend:'
+    information_start_regex = r'Mitwirkend'
     start_pos = re.search(information_start_regex, header)
     if start_pos:
-        header = header[start_pos.span()[0]:]
+        # split off the first word
+        header = header[start_pos.span()[1]:]
     
-    information_end_regex = r'Beschluss vom|Urteil vom|Beschluss und Urteil vom'
+    information_end_regex = r'Zirkulationsbeschluss vom|Beschluss vom|Urteil vom|Verfügung vom|Beschluss und|in Sachen'
     end_pos = re.search(information_end_regex, header)
     if end_pos:
-        header = header[:end_pos.span()[1] - 1]
-    
+        header = header[:end_pos.span()[1]]
+        # split off the last two words
+        header = header.rsplit(' ', 2)[0]
+
     besetzung = CourtComposition()
     besetzung = find_besetzung(header, role_regexes, namespace)
     return besetzung
