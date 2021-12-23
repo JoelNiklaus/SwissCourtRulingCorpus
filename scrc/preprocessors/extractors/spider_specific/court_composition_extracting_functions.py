@@ -170,34 +170,50 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
 
 def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Verwaltungsgericht of Zug
-    :param header:      the string containing the header
+    Extract the court composition from decisions of the Verwaltungsgericht of Zug
+    :param header:      the dict containing the sections per section key
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition of a decision
     """
     
     header = sections[Section.HEADER]
 
     role_regexes = {
         Gender.MALE: {
-            CourtRole.JUDGE: [r'Richter(?!in)', r'Einzelrichter(?!in)'],
+            CourtRole.JUDGE: [r'Richter(?!in)', r'Einzelrichter(?!in)', r'Schiedsrichter(?!in)'],
             CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
         },
         Gender.FEMALE: {
-            CourtRole.JUDGE: [r'Richterin(nen)?',r'Einzelrichterin(nen)?'],
+            CourtRole.JUDGE: [r'Richterin(nen)?', r'Einzelrichterin(nen)?', r'Schiedsrichterin(nen)?'],
             CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
         }
     }
 
+    # reularize the different forms of the word Urteil
+    header = header.replace('U R T E I L', 'Urteil')
+    header = header.replace('U R TE I L', 'Urteil')
+    header = header.replace('URTEIL', 'Urteil')
+    header = header.replace('Z W I S C H E N E N T S C H E I D', 'Zwischenentscheid')
+
     information_start_regex = r'Mitwirkende|Einzelrichter'
     start_pos = re.search(information_start_regex, header)
     if start_pos:
-        header = header[start_pos.span()[0]:]
+        # split off the first word
+        header = header[start_pos.span()[1]:]
 
-    information_end_regex = r'Urteil|U R T E I L|URTEIL'
+    information_end_regex = r'Urteil|Zwischenentscheid'
     end_pos = re.search(information_end_regex, header)
     if end_pos:
-        header = header[:end_pos.span()[1] - 1]
+        header = header[:end_pos.span()[1]]
+        # split off the last word
+        header = header.rsplit(' ', 1)[0]
+
+    # this puts a comma before every judicial role
+    for gender in role_regexes:
+        for regex_key in role_regexes[gender]:
+            for regex in role_regexes[gender][regex_key]:
+                regex_group = r"(" + regex + r")"
+                header = re.sub(regex_group, r', \1', header)
 
     besetzung = CourtComposition()
     besetzung = find_besetzung(header, role_regexes, namespace)
