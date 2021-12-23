@@ -222,13 +222,13 @@ def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
 
 def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
-    Extract judicial persons from decisions of the Baurekursgericht of Zurich
-    :param header:      the string containing the header
+    Extract the court composition from decisions of the Baurekursgericht of Zurich
+    :param header:      the dict containing the sections per section key
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict
+    :return:            the court composition
     """
+
     header = sections[Section.HEADER]
-    print(header)
 
     role_regexes = {
         Gender.MALE: {
@@ -236,7 +236,7 @@ def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]
             CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
         },
         Gender.FEMALE: {
-            CourtRole.JUDGE: [r'Abteilungspräsidentin(nen)?',r'Baurichterin(nen)?', r'Abteilungsvizepräsidentin(nen)?', r'Ersatzrichterin(nen)?'],
+            CourtRole.JUDGE: [r'Abteilungspräsidentin(nen)?', r'Baurichterin(nen)?', r'Abteilungsvizepräsidentin(nen)?', r'Ersatzrichterin(nen)?'],
             CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
         }
     }
@@ -244,13 +244,17 @@ def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]
     information_start_regex = r'Mitwirkende'
     start_pos = re.search(information_start_regex, header)
     if start_pos:
-        header = header[start_pos.span()[0]:]
+        # split off the first word
+        header = header[start_pos.span()[1]:]
 
-    information_end_regex = r'in Sachen '
+
+    information_end_regex = r'in Sachen'
     end_pos = re.search(information_end_regex, header)
     if end_pos:
-        header = header[:end_pos.span()[1] - 1]
-    
+        header = header[:end_pos.span()[1]]
+        # split off the last two words
+        header = header.rsplit(' ', 2)[0]
+
     besetzung = CourtComposition()
     besetzung = find_besetzung(header, role_regexes, namespace)
     return besetzung
