@@ -426,16 +426,52 @@ def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
 
 
 def get_besetzungs_strings(header: str) -> list:
+    """
+    Modifies the header of a decision and turns it into a list
+    :param header:  the header of a decision
+    :return:        a list of besetzungs_strings
+    """
+    # repeating commas aren't necessary
+    header = re.sub(r', *, *', ', ', header)
+    # trying to join words that are split over two lines
+    header = re.sub(r'- *, *', '', header)
+    header = header.replace('- ', '')
+    # regularize different forms to denote the Vorsitz
+    header = header.replace('(Vorsitz)', 'Vorsitz')
+    header = header.replace('Vorsitzender', 'Vorsitz')
+    header = header.replace('Vorsitzende', 'Vorsitz')
+    header = header.replace('Vorsitz', ', Vorsitz, ')
+    # these word separators aren't relevant here
+    header = header.replace(':', '')
+    # a semicolon can be treated as a comma here
     header = header.replace(';', ',')
-    header = header.replace(' und ', ', ')
-    header = header.replace(' sowie ', ', ')
-    header = header.replace('lic. ', '')
-    header = header.replace('iur. ', '')
-    header = header.replace('Dr. ', '')
+    # der & die aren't relevant for this task
+    header = re.sub(r'\bder\b', '', header)
+    header = re.sub(r'\bdie\b', '', header)
+    # und & sowie separte different people
+    header = header.replace(' und', ', ')
+    header = header.replace(' sowie', ', ')
+    # academic degrees presumably aren't relevant for this task
+    header = header.replace('lic.', '')
+    header = header.replace('iur.', '')
+    header = header.replace('Dr.', '')
+    header = header.replace('Prof.', '')
     header = header.replace('MLaw ', '')
+    header = header.replace('M.A.', '')
+    header = header.replace('HSG ', '')
     header = header.replace('PD ', '')
+    header = header.replace('a.o.', '')
+    header = header.replace('LL.M.', '')
+    header = header.replace('LL. M.', '')
+    header = header.replace('LLM ', '')
+    # delete multiple spaces
+    header = header.strip()
+    header = re.sub(' +', ' ', header)
+    # neither is this relevant
     header = header.replace(' als Einzelrichterin', '')
     header = header.replace(' als Einzelrichter', '')
+    # uncomment to debug
+    # print(header)
     return header.split(',')
 
 
