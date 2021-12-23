@@ -215,9 +215,9 @@ def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
                 regex_group = r"(" + regex + r")"
                 header = re.sub(regex_group, r', \1', header)
 
-    besetzung = CourtComposition()
-    besetzung = find_besetzung(header, role_regexes, namespace)
-    return besetzung
+    composition = CourtComposition()
+    composition = find_composition(header, role_regexes, namespace)
+    return composition
 
 
 def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
@@ -255,9 +255,9 @@ def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]
         # split off the last two words
         header = header.rsplit(' ', 2)[0]
 
-    besetzung = CourtComposition()
-    besetzung = find_besetzung(header, role_regexes, namespace)
-    return besetzung
+    composition = CourtComposition()
+    composition = find_composition(header, role_regexes, namespace)
+    return composition
 
 def ZH_Obergericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
@@ -293,9 +293,9 @@ def ZH_Obergericht(sections: Dict[Section, str], namespace: dict) -> Optional[st
         # split off the last two words
         header = header.rsplit(' ', 2)[0]
 
-    besetzung = CourtComposition()
-    besetzung = find_besetzung(header, role_regexes, namespace)
-    return besetzung
+    composition = CourtComposition()
+    composition = find_composition(header, role_regexes, namespace)
+    return composition
 
 
 def ZH_Sozialversicherungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
@@ -339,9 +339,9 @@ def ZH_Sozialversicherungsgericht(sections: Dict[Section, str], namespace: dict)
                 regex_group = r"(" + regex + r")"
                 header = re.sub(regex_group, r', \1', header)
 
-    besetzung = CourtComposition()
-    besetzung = find_besetzung(header, role_regexes, namespace)
-    return besetzung
+    composition = CourtComposition()
+    composition = find_composition(header, role_regexes, namespace)
+    return composition
 
 def ZH_Steuerrekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
@@ -381,9 +381,9 @@ def ZH_Steuerrekurs(sections: Dict[Section, str], namespace: dict) -> Optional[s
         # split off the first word
         header = header.rsplit(' ', 2)[0]
 
-    besetzung = CourtComposition()
-    besetzung = find_besetzung(header, role_regexes, namespace)
-    return besetzung
+    composition = CourtComposition()
+    composition = find_composition(header, role_regexes, namespace)
+    return composition
 
 def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
@@ -419,17 +419,17 @@ def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
         # split off the last two words
         header = header.rsplit(' ', 2)[0]
 
-    besetzung = CourtComposition()
-    besetzung = find_besetzung(header, role_regexes, namespace)
-    return besetzung
+    composition = CourtComposition()
+    composition = find_composition(header, role_regexes, namespace)
+    return composition
 
 
 
-def get_besetzungs_strings(header: str) -> list:
+def get_composition_strings(header: str) -> list:
     """
     Modifies the header of a decision and turns it into a list
     :param header:  the header of a decision
-    :return:        a list of besetzungs_strings
+    :return:        a list of composition_strings
     """
     # repeating commas aren't necessary
     header = re.sub(r', *, *', ', ', header)
@@ -522,7 +522,7 @@ def match_person_to_database(person: CourtPerson, current_gender: Gender) -> Tup
     return person, False
 
 
-def find_besetzung(header: str, role_regexes: dict, namespace: dict) -> CourtComposition:
+def find_composition(header: str, role_regexes: dict, namespace: dict) -> CourtComposition:
     """
     Find the court composition in the header of a decision
     :param header:          the string containing the header
@@ -531,8 +531,8 @@ def find_besetzung(header: str, role_regexes: dict, namespace: dict) -> CourtCom
     :return:                the court composition
     """
     skip_strings = get_skip_strings()
-    besetzungs_strings = get_besetzungs_strings(header)
-    besetzung = CourtComposition()
+    composition_strings = get_composition_strings(header)
+    composition = CourtComposition()
     current_role = CourtRole.JUDGE
     last_person: CourtPerson = None
     person: CourtPerson = None
@@ -550,7 +550,7 @@ def find_besetzung(header: str, role_regexes: dict, namespace: dict) -> CourtCom
     if not any_matches():
         return
 
-    for text in besetzungs_strings:
+    for text in composition_strings:
         text = text.strip()
         # delete the last character if it's a dot following a lower-case character
         if re.search(r'[a-z]\.$', text):
@@ -560,7 +560,7 @@ def find_besetzung(header: str, role_regexes: dict, namespace: dict) -> CourtCom
         if (re.search(r'Vorsitz', text) or re.search(r'(?<![Vv]ize)[Pp]räsident', text)):  
         # Set president either to the current person or the last Person (case 1: Präsident Niklaus, case 2: Niklaus, Präsident)
             if last_person:
-                besetzung.president = last_person
+                composition.president = last_person
                 continue
             else:
                 pos = re.search(r'(?<![Vv]ize)[Pp]räsident(in)?', text)
@@ -573,7 +573,7 @@ def find_besetzung(header: str, role_regexes: dict, namespace: dict) -> CourtCom
                     last_gender = Gender.MALE
                 text = text[pos.span()[1]:]
                 text = text.strip()
-                besetzung.president = CourtPerson(text, last_gender)
+                composition.president = CourtPerson(text, last_gender)
         has_role_in_string = False
         matched_gender_regex = False
 
@@ -593,21 +593,21 @@ def find_besetzung(header: str, role_regexes: dict, namespace: dict) -> CourtCom
 
                     name = name_match.group() if name_match else text[role_pos.span()[1] + 1:]
                     if len(name.strip()) == 0:
-                        if (last_role == CourtRole.CLERK and len(besetzung.clerks) == 0) or (last_role == CourtRole.JUDGE and len(besetzung.judges) == 0):
+                        if (last_role == CourtRole.CLERK and len(composition.clerks) == 0) or (last_role == CourtRole.JUDGE and len(composition.judges) == 0):
                             break
 
-                        if len(besetzung.clerks) != 0:
-                            last_person_name = besetzung.clerks.pop().name if (last_role == CourtRole.CLERK) else besetzung.clerks.pop().name # rematch in database with new role
+                        if len(composition.clerks) != 0:
+                            last_person_name = composition.clerks.pop().name if (last_role == CourtRole.CLERK) else composition.clerks.pop().name # rematch in database with new role
                             last_person_new_match = CourtPerson(last_person_name, gender, current_role)
                             if current_role == CourtRole.JUDGE:
-                                besetzung.judges.append(last_person_new_match)
+                                composition.judges.append(last_person_new_match)
                             elif current_role == CourtRole.CLERK:
-                                besetzung.clerks.append(last_person_new_match)
+                                composition.clerks.append(last_person_new_match)
                     matched_person = CourtPerson(name, gender, current_role)
                     if current_role == CourtRole.JUDGE and len(name.strip()) != 0:
-                        besetzung.judges.append(matched_person)
+                        composition.judges.append(matched_person)
                     elif current_role == CourtRole.CLERK and len(name.strip()) != 0:
-                        besetzung.clerks.append(matched_person)
+                        composition.clerks.append(matched_person)
                     last_person = matched_person
                     last_gender = matched_person.gender
                     has_role_in_string = True
@@ -622,9 +622,9 @@ def find_besetzung(header: str, role_regexes: dict, namespace: dict) -> CourtCom
             person = CourtPerson(name, last_gender, current_role)
             matched_person = person
             if current_role == CourtRole.JUDGE:
-                besetzung.judges.append(matched_person)
+                composition.judges.append(matched_person)
             elif current_role == CourtRole.CLERK:
-                besetzung.clerks.append(matched_person)
+                composition.clerks.append(matched_person)
             last_person = person
-    return besetzung
+    return composition
 
