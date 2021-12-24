@@ -8,13 +8,14 @@ from enum import Enum
     Methods:
         `visualize_sections(sections: dict, compact: bool = True)`
         `visualize_paragraphs(sections: dict)`
-        `visualize_sections_and_break(sections: dict, compact: bool = False)`
-        `visualize_paragraphs_and_break(sections: dict)`
+        `visualize_sections_and_break(sections: dict, url: str = None, compact: bool = False)`
+        `visualize_paragraphs_and_break(sections: dict, url: str = None, )`
 
     Usage:
         include with `import scrc.utils.debug_utils as debug`
-        call with `debug.<function>(list_of_sections, optional: compact)`
+        call with `debug.<function>(list_of_sections, optional: url, optional: compact)`
         optional: pass `compact=True` to print the sections in a compact way
+        optional: pass `url` to print the url of the decision
         the `list_of_sections` should be in the standard section_splitting output format, e.g.
         `{'section_name': [list_of_paragraphs]}`
 
@@ -57,21 +58,23 @@ def visualize_sections(sections: dict, compact: bool = True):
     if compact:
         for section in sections_texts:
           if len(section) > 100:
-            res += section[:50] + ' < ... > ' + section[-50:]
+            res += section[:50] + ' < ... > ' + section[-50:] + '\n'
           else:
-            res += section
+            res += section + '\n'
     else:
-        res = ''.join(sections_texts)
+        res = '\n'.join(sections_texts)
 
     res += Color.RESET.value
     print(res)
 
-def visualize_sections_and_break(sections: dict, compact: bool = False):
+def visualize_sections_and_break(sections: dict, url: str = None, compact: bool = False):
     visualize_sections(sections, compact)
+    if(url): print('URL:' + url)
     pdb.set_trace()
 
-def visualize_paragraphs_and_break(sections: dict):
+def visualize_paragraphs_and_break(sections: dict, url: str = None):
     visualize_paragraphs(sections)
+    if(url): print('URL:' + url)
     pdb.set_trace()
 
 

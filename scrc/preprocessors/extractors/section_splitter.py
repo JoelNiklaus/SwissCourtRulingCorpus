@@ -1,9 +1,13 @@
 from __future__ import annotations
 import configparser
+from datetime import datetime
+import os
+from pathlib import Path
 from typing import Optional, TYPE_CHECKING, Union
 
 import bs4
 import pandas as pd
+import uuid
 
 from scrc.enums.language import Language
 from scrc.enums.section import Section
@@ -61,6 +65,54 @@ class SectionSplitter(AbstractExtractor):
         query = f"SELECT count({name}) FROM {lang} WHERE {self.get_database_selection_string(spider, lang)} AND {name} <> ''"
         return pd.read_sql(query, engine.connect())['count'][0]
 
+    """log_coverage for users without database write privileges, parses results from json logs
+       allows to print coverage half way through with the coverage for the parsed chunks still being valid"""
+    def log_coverage_from_json(self, engine: Engine, spider: str, lang: str, batch_info: dict) -> None:
+        
+        if self.total_to_process == 0:
+            # no entries to process
+            return
+        
+        path = Path.joinpath(self.output_dir, os.getlogin(), spider, lang, batch_info['uuid'])
+        
+        # summary: all collected elements and the count of found sections, initialized to zero
+        summary = { 'total_collected': 0 }
+        for section in Section:
+            summary[section.value] = 0
+        
+        # retrieve all chunks iteratively to limit memory usage
+        for chunk in range(batch_info['chunknumber']):
+            df_chunk = pd.read_json(str(path / f"{chunk}.json"))
+            summary['total_collected'] += df_chunk.shape[0]
+            for section in Section:
+                # count the amount of found sections if the section is not empty
+                if df_chunk.notna()[section.value].any():
+                    summary[section.value] += int((df_chunk[section.value] != '').sum())
+
+        if summary['total_collected'] == 0:
+            self.logger.info(f"Could not find any stored log files for batch {batch_info['uuid']} in {lang}")
+            return
+
+        total_processed = self.total_to_process
+        # ceil division to get the number of files (chunks) that should be present if pipeline finished
+        total_chunks = -(self.total_to_process // - self.chunksize)
+        # if the pipeline was interrupted, notify the user, this allows to print coverage half way through
+        # with the coverage for the parsed chunks still being valid
+        if total_chunks > batch_info['chunknumber']:
+            self.logger.info("The pipeline was interrupted or logged intermittently, " \
+                             f"the last chunk was {batch_info['uuid']} with number {str(batch_info['chunknumber'])}")
+            self.logger.info(f"Coverage for the processed chunks:")
+            # update total to give a correct coverage
+            total_processed = summary['total_collected']
+        else:
+            self.logger.info(f"{self.logger_info['finish_spider']} in {lang} with the following amount recognized:")
+        for section in Section:
+            section_amount = summary[section.value]
+            self.logger.info(
+                f"{section.value.capitalize()}:\t{section_amount} / {total_processed} "
+                f"({section_amount / total_processed:.2%}) "
+            )
+
     def log_coverage(self, engine: Engine, spider: str, lang: str):
         """Override method to get custom coverage report"""
         self.logger.info(f"{self.logger_info['finish_spider']} in {lang} with the following amount recognized:")
@@ -79,12 +131,21 @@ class SectionSplitter(AbstractExtractor):
             self.start_progress(engine, spider, lang)
             # stream dfs from the db
             dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
+            # passing batch_info to store results in json readable for the coverage report if readonly user
+            batchinfo = {'uuid': uuid.uuid4().hex[:8], 'chunknumber': 0}
+            log_dir = Path.joinpath(self.output_dir, os.getlogin(), spider, lang, batchinfo['uuid'])
             for df in dfs:
                 df = df.apply(self.process_one_df_row, axis='columns')
-                self.update(engine, df, lang, [section.value for section in Section] + ['paragraphs'], self.output_dir)
+                filename = f"{batchinfo['chunknumber']}.json"
+                self.update(engine, df, lang, [section.value for section in Section] + ['paragraphs'], log_dir, filename)
                 self.log_progress(self.chunksize)
-
-            self.log_coverage(engine, spider, lang)
+                batchinfo['chunknumber'] += 1
+                self.log_coverage_from_json(engine, spider, lang, batchinfo)
+                
+            if self._check_write_privilege(engine):
+                self.log_coverage(engine, spider, lang)
+            else:
+                self.log_coverage_from_json(engine, spider, lang, batchinfo)
 
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 

@@ -86,10 +86,10 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
 
         for lang in self.languages:
             where = self.get_database_selection_string(spider, lang)
+            # TODO make quick request to see if there are decisions at all: if not, skip lang so no confusing report is printed
             self.start_progress(engine, spider, lang)
             # stream dfs from the db
-            dfs = self.select(engine, lang, where=where,
-                              chunksize=self.chunksize)
+            dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
             for df in dfs:
                 df = df.apply(self.process_one_df_row, axis="columns")
                 self.update(engine, df, lang, [self.col_name], self.output_dir)

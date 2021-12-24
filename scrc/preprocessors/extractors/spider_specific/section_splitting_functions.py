@@ -7,14 +7,13 @@ import re
 from scrc.enums.language import Language
 from scrc.enums.section import Section
 from scrc.utils.main_utils import clean_text
+from scrc.utils.log_utils import get_logger
 
 """
 This file is used to extract sections from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
 Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
-
-x = 0
 
 def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
@@ -251,12 +250,43 @@ def get_paragraphs(divs):
                     paragraphs.append(paragraph)
         return paragraphs
 
+def get_pdf_paragraphs(soup: str) -> list:
+    """
+    Get the paragraphs of a decision
+    :param soup:    the string extracted of the pdf
+    :return:        a list of paragraphs
+    """
+
+    paragraphs = []
+    # remove spaces between two line breaks
+    soup = re.sub('\\n +\\n', '\\n\\n', soup)
+    # split the lines when there are two line breaks
+    lines = soup.split('\n\n')
+    for element in lines:
+        element = element.replace('  ',' ')
+        paragraph = clean_text(element)
+        if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+            paragraphs.append(paragraph)
+    return paragraphs
+
+
 def valid_namespace(namespace: dict, all_section_markers):
+    """
+    Check if the section markers have been implemented for a given language
+    :param namespace:               the namespace containing some metadata of the court decision
+    :param all_section_markers:     the section markers of a decision
+    """
     if namespace['language'] not in all_section_markers:
         message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
         raise ValueError(message)   
 
 def prepare_section_markers(all_section_markers, namespace: dict) -> Dict[Section, str]: 
+    """
+    Join and normalize the section markers
+    :param all_section_markers:     the section markers of a decision
+    :param namespace:               the namespace containing some metadata of the court decision
+    :return:                        a Dict of the Section and the section markers
+    """
     section_markers = all_section_markers[namespace['language']]
     section_markers = dict(
         map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
@@ -264,19 +294,26 @@ def prepare_section_markers(all_section_markers, namespace: dict) -> Dict[Sectio
         section_markers[section] = unicodedata.normalize('NFC', regexes)
     return section_markers
 
-def associate_sections(paragraphs: List[str], section_markers, namespace: dict):
-    paragraphs_by_section = {section: [] for section in Section}
+def associate_sections(paragraphs: List[str], section_markers, namespace: dict, sections: List[Section] = list(Section)):
+    """
+    Associate sections to paragraphs
+    :param paragraphs:      list of paragraphs
+    :param section_markers: dict of section markers
+    :param namespace:       dict of namespace
+    :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
+    """
+    paragraphs_by_section = { section: [] for section in sections }
+
+    # assert that for every passed section a section_marker is present, the header is included by default
+    assert set(sections) == set(section_markers.keys()).union(set([Section.HEADER])), \
+        f"Missing section marker: {set(sections) - set(section_markers.keys()).union(set([Section.HEADER]))}"
     current_section = Section.HEADER
     for paragraph in paragraphs:
         # update the current section if it changed
-        current_section = update_section(current_section, paragraph, section_markers)
+        current_section = update_section(current_section, paragraph, section_markers, sections)
         # add paragraph to the list of paragraphs
         paragraphs_by_section[current_section].append(paragraph)
     if current_section != Section.FOOTER:
-        # count how many times the footer wasn't reached
-        global x
-        x += 1
-        print(x)
         # change the message depending on whether there's a url
         if namespace['html_url']:
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
@@ -287,13 +324,20 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict):
         else:
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
                   f"Here is the date of the decision: {namespace['date']}"
-        raise ValueError(message)
+        get_logger(__name__).warning(message)
     return paragraphs_by_section
 
-def update_section(current_section: Section, paragraph: str, section_markers) -> Section:
+def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
+    """
+    Update the current section if it changed
+    :param current_section: the current section
+    :param paragraph:       the current paragraph
+    :param section_markers: dict of section markers
+    :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
+    :return:                the updated section
+    """
     if current_section == Section.FOOTER:
         return current_section  # we made it to the end, hooray!
-    sections = list(Section)
     next_section_index = sections.index(current_section) + 1
     # consider all following sections
     next_sections = sections[next_section_index:]
@@ -315,6 +359,7 @@ def update_section(current_section: Section, paragraph: str, section_markers) ->
 
 def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Verwaltungsgericht of Zug into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -344,30 +389,23 @@ def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
+    # This court sometimes uses newlines to separate names of people. 
+    # To deal with that, this loop inserts a comma if a new line starts with lic. iur. to separate names.
+    lines = []
+    lines = decision.split('\n')
+    for idx, line in enumerate(lines):
+        if 'lic. iur.' in line:
+            line = re.sub(r'^lic\. iur\.', ', lic. iur.', line)
+            lines[idx] = line
+    decision = '\n'.join(map(str, lines))
 
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
 def ZH_Baurekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Baurekursgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -398,32 +436,14 @@ def ZH_Baurekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Op
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup:
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
 
 def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Obergericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -454,30 +474,13 @@ def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> 
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
 def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Sozialversicherungsgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -511,8 +514,8 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
     def get_paragraphs(soup):
         """
         Get Paragraphs in the decision
-        :param soup: the decision parsed by bs4
-        :return: a list of paragraphs
+        :param soup:    the decision parsed by bs4
+        :return:        a list of paragraphs
         """
         # this should be the div closest to the content
         divs = soup.find("div", id="view:_id1:inputRichText1")
@@ -551,6 +554,7 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
 
 def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Steuerrekursgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -582,32 +586,14 @@ def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ',' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
 
 def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
+    Split a decision of the Verwaltungsgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
@@ -643,8 +629,8 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
     def get_paragraphs(soup):
         """
         Get Paragraphs in the decision
-        :param soup: the decision parsed by bs4 
-        :return: a list of paragraphs
+        :param soup:    the decision parsed by bs4 
+        :return:        a list of paragraphs
         """
         # sometimes the div with the content is called WordSection1
         divs = soup.find_all("div", class_="WordSection1")
@@ -733,3 +719,179 @@ def BE_BVD(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional
         sections[section] = [title] + paired
     
     return sections
+
+def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+       
+    Remarks:
+    * This court does not have a facts section (few edge cases), but concatenates the facts with the considerations. For now both are
+      added to the considerations section, but it might make sense to create a new type of section which unions the two.
+    * Accuracy could still be improved, but the decisions which are not fully matched are edge-cases with typos or weird
+      pdf parsing errors.
+    * About the poor performance on the footer section in german decisions: The facts and considerations
+      section often contains a summary with the exact same keywords used to detect the footer:
+          '\n\nWeiter wird verfügt:\n\n'
+      This could be solved but the possibilites are not very straight-forward. Some options are:
+        - estimate on where in the document the footer would be and try to extract it from that text part
+        - use the second match to split it apart. As the association between section markers and sections
+          is done in a helper method, this parser would have to be rewritten from scratch as the helper
+          cannot be updated to support this case.
+    * The rulings section in the german version has bad accuracy because many decision do not have a rulings section.
+      examples of the last paragraph of the considerations section:
+      - "Aus den Darlegungen erhellt, dass die Konkursandrohung in der Betreibung Nr. 123
+        des Betreibungs- und Konkursamtes B, Dienststelle P., nicht nichtig ist."
+      - "Nach dem Gesagten ist auf die Beschwerde nicht einzutreten."
+      - "Vor diesem Hintergrund ist das Vorgehen der Dienststelle unter den dargelegten
+        Umständen nicht zu beanstanden und die vorliegende Beschwerde abzuweisen."
+      This is resolved by using the last paragraph of the considerations section as the rulings section.
+    * The problem with the footer detection is the same for the rulings, as they are mentioned with the same keywords in
+      the summary of the considerations as well.
+    """
+
+    markers = {
+        Language.DE: {
+            # "header" has no markers!
+            # "facts" are not present either in this court, leave them out
+            Section.CONSIDERATIONS: [r'^Erwägungen:|^Erwägungen$', r'Auszug aus den Erwägungen', r'Formelles$', '^Sachverhalt(?: |:)'],
+            Section.RULINGS: [r'^Die (?:Aufsichtsbehörde|Kammer) entscheidet:', r'(?:^|\. )Dispositiv',
+                              r'^Der Instrkutionsrichter entscheidet:', r'^Strafkammer erkennt:',
+                              r'^Die Beschwerdekammer in Strafsachen (?:beschliesst|hat beschlossen):', r'^Das Gericht beschliesst:',
+                              r'^Die Verfahrensleitung verfügt:', r'^Der Vizepräsident entscheidet:',
+                              r'^Das Handelsgericht entscheidet:', r'^Die \d. Strafkammer beschliesst:'],
+            # "Weiter wird verfügt:" often causes problems with summarys in the considerations section, leave it out
+            Section.FOOTER: [r'^Zu eröffnen:', r'\d\. Zu eröffnen:', r'^Schriftlich zu eröffnen:$',
+                             r'^Rechtsmittelbelehrung', r'^Hinweis:'] # r'^Weiter wird verfügt:'
+        },
+        Language.FR: {
+            # "header" has no markers!
+            # "facts" are not present either in this court, leave them out
+            Section.CONSIDERATIONS: [r'^Considérants(?: :|:)?', r'^Extrait des (?:considérations|considérants)(?: :|:)'],
+            Section.RULINGS: [r'^La Chambre de recours pénale décide(?: :|:)', r'^Dispositif'],
+            Section.FOOTER: [r'A notifier(?: :|:)', r'Le présent (?:jugement|dispositif) est à notifier(?: :|:)',
+                             r'Le présent jugement est à notifier par écrit(?: :|:)']
+        }
+    }
+
+    if namespace['language'] not in markers:
+        message = f"This function is only implemented for the languages {list(markers.keys())} so far."
+        raise ValueError(message)
+    
+    section_markers = markers[namespace['language']]
+
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    def get_paragraphs(soup):
+        """
+        Get Paragraphs in the decision
+        :param soup: the string extracted of the pdf
+        :return: a list of paragraphs
+        """
+        paragraphs = []
+        # remove spaces between two line breaks
+        soup = re.sub('\\n +\\n', '\\n\\n', soup)
+        # split the lines when there are two line breaks
+        lines = soup.split('\n\n')
+        for element in lines:
+            element = element.replace('  ',' ')
+            paragraph = clean_text(element)
+            if paragraph not in ['', ' ', None]:
+                paragraphs.append(paragraph)
+        return paragraphs
+
+    paragraphs = get_paragraphs(decision)
+
+    # pass custom sections without facts
+    sections = associate_sections(paragraphs, section_markers, namespace, list(Section.without_facts()))
+
+    # regularly happens that the decision is within the CONSIDERATIONS section, so if no rulings are found by the
+    # section_markers we try to extract the rulings from the considerations section instead
+    if sections[Section.RULINGS] == [] and sections[Section.CONSIDERATIONS] != []:
+        # got no rulings, use the chance that the ruling is in the considerations section, traverse backwards to find it
+        for index, paragraph in enumerate(reversed(sections[Section.CONSIDERATIONS])):
+            # make sure the paragraph contains some ruling keywords
+            keywords = r"abzuweisen|Abweisung der Beschwerde|gutzuheissen|Beschwerde gutgeheissen|rechtsgenüglich begründet|" \
+                       r"Beschwerde [\w\s]* als begründet\.|obsiegend"
+            if re.findall(keywords, paragraph):
+                # if res contains some ruling keywords it is the decision, remove it from considerations, add it to rulings
+                # add everything after it to the ruling as well
+                sections[Section.RULINGS] = sections[Section.CONSIDERATIONS][index:]
+                sections[Section.CONSIDERATIONS] = sections[Section.CONSIDERATIONS][:index]
+                break
+    
+    return sections
+
+def CH_BPatG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    Remark: This court does not have a facts section, and some don't have a footer.
+    """
+    markers = {
+        Language.DE: {
+            # Section.FACTS: [], # no facts in this court
+            Section.CONSIDERATIONS: [r'^(?:Das Bundespatentgericht|(?:Der|Das) Präsident|Die Gerichtsleitung|Das Gericht|Der (?:Einzelrichter|Instruktionsrichter))' \
+                                      r' zieht in Erwägung(?:,|:)',
+                                     r'Der Präsident erwägt:', r'Aus(?:|zug aus) den Erwägungen:', r'Sachverhalt:'],
+            Section.RULINGS: [r'(?:Der Instruktionsrichter|Das Bundespatentgericht|(?:Das|Der) Präsident) (?:erkennt|verfügt|beschliesst)(?:,|:)',
+                              r'Die Gerichtsleitung beschliesst:', r'Der Einzelrichter erkennt:'],
+            Section.FOOTER: [r'Rechtsmittelbelehrung:', r'Dieser Entscheid geht an:']     
+        },
+        Language.FR: {
+            # Section.FACTS: [], # no facts in this court
+            Section.CONSIDERATIONS: [r'Le Tribunal fédéral des brevets considère(?: :|:|,)', r'Le [pP]résident considère(?: :|:|,)'],
+            Section.RULINGS: [r'Le Tribunal fédéral des brevets décide:', r'Le [pP]résident (décide|reconnaît):'],
+            Section.FOOTER: [r'Voies de droit:']
+        },
+        Language.IT: {
+            # Section.FACTS: [], # no facts in this court
+            Section.CONSIDERATIONS: [r'Considerando in fatto e in diritto:'],
+            Section.RULINGS: [r'Per questi motivi, il giudice unico pronuncia:'],
+            Section.FOOTER: [r'Rimedi giuridici:']
+        }
+    }
+
+    if namespace['language'] not in markers:
+        message = f"This function is only implemented for the languages {list(markers.keys())}, not {namespace['language']}."
+        raise ValueError(message)
+    
+    section_markers = markers[namespace['language']]
+
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+    
+    if namespace['language'] == Language.DE:
+        # remove the page numbers, they are not relevant for the decisions
+        decision = re.sub(r'Seite \d', '', decision)
+
+    def get_paragraphs(soup):
+        """
+        Get Paragraphs in the decision
+        :param soup: the string extracted of the pdf
+        :return: a list of paragraphs
+        """
+        paragraphs = []
+        # remove spaces between two line breaks
+        soup = re.sub('\\n +\\n', '\\n\\n', soup)
+        # split the lines when there are two line breaks
+        lines = soup.split('\n\n')
+        for element in lines:
+            element = element.replace('  ',' ')
+            paragraph = clean_text(element)
+            if paragraph not in ['', ' ', None]:
+                paragraphs.append(paragraph)
+        return paragraphs
+
+    paragraphs = get_paragraphs(decision)
+
+    # pass custom sections without facts
+    return associate_sections(paragraphs, section_markers, namespace, list(Section.without_facts()))
