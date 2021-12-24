@@ -10,6 +10,7 @@ from sqlalchemy.sql.schema import MetaData, Table
 from scrc.enums.section import Section
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.main_utils import get_config
+from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, join_file_on_decision, where_string_spider
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
@@ -55,7 +56,8 @@ class ProceduralParticipationExtractor(AbstractExtractor):
     
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-        return self.select(engine, 'section headersection LEFT JOIN decision on decision.decision_id = headersection.decision_id LEFT JOIN language ON language.language_id = decision.language_id LEFT JOIN file ON file.file_id = decision.file_id LEFT JOIN section footersection on headersection.decision_id = footersection.decision_id and footersection.section_type_id = 6', f"headersection.decision_id, headersection.section_text as header, footersection.section_text as footer,'{spider}' as spider, iso_code as language, html_url", where=f"headersection.section_type_id = 1 AND headersection.decision_id IN (SELECT decision_id from decision WHERE chamber_id IN (SELECT chamber_id FROM chamber WHERE spider_id IN (SELECT spider_id FROM spider WHERE spider.name = '{spider}')))", chunksize=self.chunksize)
+        section_self_join = 'LEFT JOIN section footersection on headersection.decision_id = footersection.decision_id and footersection.section_type_id = 6' # Joining the footer on to the same row as the header so each decision goes through the erxtractor only once per decision
+        return self.select(engine, f"section headersection {join_decision_and_language_on_parameter('decision_id', 'headersection.decision_id')} {join_file_on_decision} {section_self_join}", f"headersection.decision_id, headersection.section_text as header, footersection.section_text as footer,'{spider}' as spider, iso_code as language, html_url", where=f"headersection.section_type_id = 1 AND headersection.decision_id IN {where_string_spider('decision_id', spider)}", chunksize=self.chunksize)
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
         
@@ -72,7 +74,7 @@ class ProceduralParticipationExtractor(AbstractExtractor):
                 t_party = Table('party', MetaData(), autoload_with=conn)
                 
                 # Delete person
-                stmt = t_party.delete().where(text(f"decision_id in ({','.join([chr(39)+str(item)+chr(39) for item in df['decision_id'].tolist()])})"))
+                stmt = t_party.delete().where(delete_stmt_decisions_with_df(df))
                 conn.execute(stmt)
                 
                 parties = json.loads(row['parties'])

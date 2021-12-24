@@ -513,7 +513,7 @@ def get_skip_strings() -> dict:
 
 
 def match_person_to_database(person: CourtPerson, current_gender: Gender) -> Tuple[CourtPerson, bool]:
-    """"Matches a name of a given role to a person from personal_information.json"""
+    """"Matches a name of a given role to a person from personal_information.json if found it adds the party and selects more accurate CourtRole"""
     personal_information_database = json.loads(Path("personal_information.json").read_text())
 
     results = []

@@ -18,6 +18,7 @@ from scrc.utils.log_utils import get_logger
 import json
 
 from scrc.utils.main_utils import get_legal_area, legal_areas, get_region
+from scrc.utils.sql_select_utils import join_tables_on_decision
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -227,6 +228,12 @@ class DatasetCreator(AbstractPreprocessor):
                   f"{origin_canton}, {origin_court}, {origin_chamber}, {origin_date}, {origin_file_number}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
+        
+        ###
+        # Check if feature col or label col got renamed and in which table they now are, then use the new syntax:
+        # SELECT select_fields_from_table(['canton_id as origin_canton', 'court_id as origin_court', ...], 'lower_court'), feature_col, label_col FROM join_tables_on_decision(['lower_court', <TABLE NEEDED FOR FEATURE COLUMN AND LABEL>])
+        ###
+        
         df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
                               chunksize=self.get_chunksize()))
         df = self.clean_df(df, feature_col)

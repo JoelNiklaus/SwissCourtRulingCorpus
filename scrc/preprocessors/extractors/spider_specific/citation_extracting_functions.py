@@ -1,5 +1,7 @@
 from typing import Any, Optional
 
+from scrc.enums.citation_type import CitationType
+
 """
 This file is used to extract citations from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
@@ -31,7 +33,7 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
         if bge.string:  # make sure it is not empty or None
             rulings.append({"type": "bge", "url": bge['href'], "text": bge.string})
 
-    return {"law": laws, "ruling": rulings}
+    return {CitationType.LAW: laws, CitationType.RULING: rulings}
 
 # This needs special care
 # def CH_BGE(soup: Any, namespace: dict) -> Optional[dict]:

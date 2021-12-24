@@ -19,6 +19,7 @@ from scrc.utils.log_utils import get_logger
 import tika
 
 from scrc.utils.main_utils import get_config
+from scrc.utils.sql_select_utils import save_from_text_to_database
 
 os.environ['TIKA_LOG_PATH'] = str(AbstractPreprocessor.create_dir(Path(os.getcwd()), 'logs'))
 tika.initVM()
@@ -72,17 +73,7 @@ class TextToDatabase(AbstractPreprocessor):
             self.build_spider_dataset(spider)
             self.mark_as_processed(processed_file_path, spider)
 
-        for lang in self.languages:
-            self.create_indexes(lang)
-
         self.logger.info("Finished extracting text and metadata from court rulings files")
-
-    def create_indexes(self, lang):
-        self.logger.info(f"Creating indexes for {lang}")
-        with self.get_engine(self.db_scrc).connect() as conn:
-            for index in self.indexes:
-                self.logger.info(f"Creating index for column {index} in table {lang}")
-                conn.execute(f"CREATE INDEX IF NOT EXISTS {lang}_{index} ON {lang}({index})")
 
     def build_spider_dataset(self, spider: str) -> None:
         """ Builds a dataset for a spider """
@@ -94,13 +85,14 @@ class TextToDatabase(AbstractPreprocessor):
         df = pd.DataFrame(spider_dict_list)
 
         self.logger.info(f"Saving data to db")
-        df.to_sql('test', self.get_engine(self.db_scrc), if_exists="append", index=False)
+        
+        save_from_text_to_database(df)
 
     def build_spider_dict_list(self, spider_dir: Path) -> list:
         """ Builds the spider dict list which we can convert to a pandas Data Frame later """
         # we take the json files as a starting point to get the corresponding html or pdf files
         json_filenames = self.get_filenames_of_extension(spider_dir, 'json')
-        spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=1)
+        spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=100)
 
         return [spider_dict for spider_dict in spider_dict_list if spider_dict]  # remove None values
 

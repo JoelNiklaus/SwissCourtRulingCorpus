@@ -5,11 +5,13 @@ import pandas as pd
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.schema import MetaData, Table
+from scrc.enums.citation_type import CitationType
 
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
+from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, where_string_spider
 
 
 class CitationExtractor(AbstractExtractor):
@@ -44,23 +46,17 @@ class CitationExtractor(AbstractExtractor):
 
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-        return self.select(engine, 'file LEFT JOIN decision on decision.file_id = file.file_id LEFT JOIN language ON language.language_id = decision.language_id', f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN (SELECT file_id from decision WHERE chamber_id IN (SELECT chamber_id FROM chamber WHERE spider_id IN (SELECT spider_id FROM spider WHERE spider.name = '{spider}')))", chunksize=self.chunksize)
+        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}", f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN {where_string_spider('file_id', spider)}", chunksize=self.chunksize)
     
     
-    def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
-        key_to_id = {
-            'ruling': 1,
-            'law': 2,
-            'commentary': 3
-        }
-        
+    def save_data_to_database(self, df: pd.DataFrame, engine: Engine):       
         for idx, row in df.iterrows():
             with engine.connect() as conn:
                 t = Table('citation', MetaData(), autoload_with=engine)
-                stmt = t.delete().where(text(f"decision_id in ({','.join([chr(39)+str(item)+chr(39) for item in df['decision_id'].tolist()])})"))
+                stmt = t.delete().where(delete_stmt_decisions_with_df(df))
                 engine.execute(stmt)
                 for k in row['citations'].keys():
-                    citation_type_id = key_to_id[k]
+                    citation_type_id = CitationType(k).value
                     for citation in row['citations'][k]:
                         stmt = t.insert().values([{"decision_id": str(row['decision_id']), "citation_type_id": citation_type_id, "url": citation.get("url"), "text": citation["text"]}])
                         engine.execute(stmt)

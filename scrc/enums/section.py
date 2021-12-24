@@ -2,11 +2,12 @@ from enum import Enum
 
 
 class Section(Enum):
-    HEADER = 'header'
-    FACTS = 'facts'
-    CONSIDERATIONS = 'considerations'
-    RULINGS = 'rulings'
-    FOOTER = 'footer'
+    FULLTEXT = 1
+    HEADER = 2
+    FACTS = 3
+    CONSIDERATIONS = 4
+    RULINGS = 5
+    FOOTER = 6
 
     @classmethod
     def without_facts(cls):

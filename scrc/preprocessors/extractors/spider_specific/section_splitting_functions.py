@@ -163,7 +163,7 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
     paragraphs_by_section = { section: [] for section in sections }
 
     # assert that for every passed section a section_marker is present, the header is included by default
-    assert set(sections) == set(section_markers.keys()).union(set([Section.HEADER])), \
+    assert set(sections) == set(section_markers.keys()).union(set([Section.HEADER, Section.FULLTEXT])), \
         f"Missing section marker: {set(sections) - set(section_markers.keys()).union(set([Section.HEADER]))}"
     current_section = Section.HEADER
     for paragraph in paragraphs:

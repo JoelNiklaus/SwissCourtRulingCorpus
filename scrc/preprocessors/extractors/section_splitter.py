@@ -19,6 +19,7 @@ from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
+from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, where_string_spider
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -56,30 +57,24 @@ class SectionSplitter(AbstractExtractor):
 
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-        return self.select(engine, 'file LEFT JOIN decision on decision.file_id = file.file_id LEFT JOIN language ON language.language_id = decision.language_id', f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN (SELECT file_id from decision WHERE chamber_id IN (SELECT chamber_id FROM chamber WHERE spider_id IN (SELECT spider_id FROM spider WHERE spider.name = '{spider}')))", chunksize=self.chunksize)
+        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}", f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN {where_string_spider('file_id', spider)}", chunksize=self.chunksize)
     
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
-        key_to_id = {
-            'full_text': 1,
-            'header': 2,
-            'facts': 3,
-            'considerations': 4,
-            'rulings': 5,
-            'footer': 6
-        }
-
-
+        
         for idx, row in df.iterrows():
             with engine.connect() as conn:
                 t = Table('section', MetaData(), autoload_with=engine)
-                stmt = t.delete().where(text(f"decision_id in ({','.join([chr(39)+str(item)+chr(39) for item in df['decision_id'].tolist()])})"))
+                t_paragraph = Table('paragraph', MetaData(), autoload_with=engine)
+                row['sections'][Section.FULLTEXT] = '\n\n'.join(['\n'.join(row['sections'][section]) for section in row['sections'] if len(row['sections']) > 0])
+                stmt = t.delete().where(delete_stmt_decisions_with_df(df))
                 conn.execute(stmt)
                 for k in row['sections'].keys():
-                    
-                    section_type_id = key_to_id[k.value]
-                    stmt = t.insert().values([{"decision_id": str(row['decision_id']), "section_type_id": section_type_id, "section_text": row['sections'][k]}])
-                    conn.execute(stmt)
-                
+                    section_type_id = k.value
+                    stmt = t.insert().returning(text("section_id")).values([{"decision_id": str(row['decision_id']), "section_type_id": section_type_id, "section_text": row['sections'][k]}])
+                    section_id = conn.execute(stmt).fetchone()['section_id']
+                    for paragraph in row['sections'][k]:
+                        stmt = t_paragraph.insert().values([{'section_id': str(section_id), 'paragraph_text': paragraph, 'first_level': None, 'second_level': None, 'third_level': None}])
+                        conn.execute(stmt)
         
     def read_column(self, engine: Engine, spider: str, name: str, lang: str) -> pd.DataFrame:
         query = f"SELECT count({name}) FROM {lang} WHERE {self.get_database_selection_string(spider, lang)} AND {name} <> ''"

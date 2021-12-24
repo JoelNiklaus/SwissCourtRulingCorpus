@@ -8,6 +8,7 @@ from sqlalchemy.sql.schema import MetaData, Table
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
+from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, join_file_on_decision, where_string_spider
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
@@ -48,7 +49,7 @@ class LowerCourtExtractor(AbstractExtractor):
 
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-        return self.select(engine, 'section LEFT JOIN decision on decision.decision_id = section.decision_id LEFT JOIN language ON language.language_id = decision.language_id LEFT JOIN file ON file.file_id = decision.file_id', f"section.decision_id, section_text, '{spider}' as spider, iso_code as language, html_url", where=f"section.section_type_id = 2 AND section.decision_id IN (SELECT decision_id from decision WHERE chamber_id IN (SELECT chamber_id FROM chamber WHERE spider_id IN (SELECT spider_id FROM spider WHERE spider.name = '{spider}')))", chunksize=self.chunksize)
+        return self.select(engine, f"section {join_decision_and_language_on_parameter('decision_id', 'section.decision_id')} {join_file_on_decision()}", f"section.decision_id, section_text, '{spider}' as spider, iso_code as language, html_url", where=f"section.section_type_id = 2 AND section.decision_id IN {where_string_spider('decision_id', spider)}", chunksize=self.chunksize)
     
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
         for idx, row in df.iterrows():
@@ -69,7 +70,7 @@ class LowerCourtExtractor(AbstractExtractor):
                 
             with engine.connect() as conn:
                 t = Table('lower_court', MetaData(), autoload_with=conn)
-                stmt = t.delete().where(text(f"decision_id in ({','.join([chr(39)+str(item)+chr(39) for item in df['decision_id'].tolist()])})"))
+                stmt = t.delete().where(delete_stmt_decisions_with_df(df))
                 conn.execute(stmt)
                 stmt = t.insert().values([{"decision_id": str(row['decision_id']), "court_id": res.get('court_id'), "canton_id": res.get('canton_id'), "chamber_id": res.get('chamber_id'), "date": lower_court.get('date'), "file_number": lower_court.get('file_number')}])
                 conn.execute(stmt)

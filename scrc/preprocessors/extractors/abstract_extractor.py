@@ -53,7 +53,6 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         self.processed_amount = 0
         self.total_to_process = -1
         self.spider_specific_dir = self.create_dir(ROOT_DIR, config['dir']['spider_specific_dir'])
-        #### DEBUG ####
         self.chunksize = 2
 
     def start(self):

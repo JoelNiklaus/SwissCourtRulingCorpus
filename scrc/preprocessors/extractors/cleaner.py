@@ -15,6 +15,7 @@ from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import clean_text, get_config
+from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, join_decision_on_parameter, where_string_spider
 
 # TODO Adrian passt so an, dass der AbstractExtractor gebraucht werden kann als Superklasse
 class Cleaner(AbstractExtractor):
@@ -68,7 +69,7 @@ class Cleaner(AbstractExtractor):
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         
-        return self.select(engine, 'file LEFT JOIN decision on decision.file_id = file.file_id', 'decision_id,file_id,html_raw,pdf_raw', where=f"file.file_id IN (SELECT file_id from decision WHERE chamber_id IN (SELECT chamber_id FROM chamber WHERE spider_id IN (SELECT spider_id FROM spider WHERE spider.name = '{spider}')))", chunksize=self.chunksize)
+        return self.select(engine, f"file {join_decision_on_parameter('file_id', 'file.file_id')}", 'decision_id,file_id,html_raw,pdf_raw', where=f"file.file_id IN {where_string_spider('file_id', spider)}", chunksize=self.chunksize)
 
     def get_required_data(self, series: pd.DataFrame) -> Any:
         return series['spider']

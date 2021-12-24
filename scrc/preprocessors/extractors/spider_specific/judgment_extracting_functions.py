@@ -155,7 +155,7 @@ def BS_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
             # if partial_dismissal is found, it will find dismissal as well
             judgments.discard(Judgment.DISMISSAL)
 
-    return [judgment.value for judgment in judgments]
+    return judgments
 
 
 def CH_BGer(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
@@ -186,7 +186,7 @@ def CH_BGer(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
             # if partial_dismissal is found, it will find dismissal as well
             judgments.discard(Judgment.DISMISSAL)
 
-    return [judgment.value for judgment in judgments]
+    return judgments
 
 def get_judgments(rulings: str, namespace: dict) -> set:
     """
