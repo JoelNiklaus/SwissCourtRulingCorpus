@@ -8,7 +8,7 @@ from scrc.data_classes.proceedings_party import ProceedingsParty
 @dataclass
 class ProceduralParticipation:
 
-    plaintiffs: List[ProceedingsParty] = field(default_factory=list)# BeschwerdeführerIn / Kläger
+    plaintiffs: List[ProceedingsParty] = field(default_factory=list) # BeschwerdeführerIn / Kläger
     defendants: List[ProceedingsParty] = field(default_factory=list) # Beklagter
 
     def toJSON(self):

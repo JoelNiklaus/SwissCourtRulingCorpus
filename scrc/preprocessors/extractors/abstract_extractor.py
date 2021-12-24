@@ -90,6 +90,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         self.logger.info(self.logger_info["start_spider"] + " " + spider)
 
         dfs = self.select_df(engine, spider)
+        # TODO make quick request to see if there are decisions at all: if not, skip lang so no confusing report is printed
         #self.start_progress(engine, spider)
         # stream dfs from the db
         #dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
@@ -100,7 +101,6 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
             #self.log_progress(self.chunksize)
 
         #self.log_coverage(engine, spider)
-
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
