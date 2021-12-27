@@ -50,6 +50,28 @@ def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     paragraphs = get_paragraphs(divs)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    # As soon as one of the strings in the list (regexes) is encountered we switch to the corresponding section (key)
+    # (?:C|c) is much faster for case insensitivity than [Cc] or (?i)c
+    all_section_markers = {
+        Language.DE: {
+            Section.CONSIDERATIONS: [r'nachdem sich ergeben', r'nachdem sich ergeben und in Erwägung:', 'in Erwägung'],
+            Section.RULINGS: [r'^erkennt[:]?$', r'^beschlossen[:]?$', r'^verfügt[:]?$', r'^erkannt[:]?$', r'erkannt und beschlossen[:]?$', r'beschlossen und erkannt[:]?$'],
+            Section.FOOTER: [r'^Namens', r'^Versand']
+        }
+    }
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+
+    paragraphs = get_pdf_paragraphs(decision)
+    return associate_sections(paragraphs, section_markers, namespace, list(Section.without_facts()))
+
 
 def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
@@ -213,6 +235,8 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
                   f"Here is the date of the decision: {namespace['date']}"
         get_logger(__name__).warning(message)
+    if paragraphs_by_section[Section.RULINGS] == []:
+        print()
     return paragraphs_by_section
 
 def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
