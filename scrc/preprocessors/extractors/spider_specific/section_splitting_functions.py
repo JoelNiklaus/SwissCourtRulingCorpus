@@ -50,6 +50,42 @@ def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     paragraphs = get_paragraphs(divs)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    # As soon as one of the strings in the list (regexes) is encountered we switch to the corresponding section (key)
+    # (?:C|c) is much faster for case insensitivity than [Cc] or (?i)c
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'^Sachverhalt:?\s*$', r'^Tatsachen$'],
+            Section.CONSIDERATIONS: [r'^Begründung:\s*$',r'Erwägung(en)?:?\s*$',r'^Entscheidungsgründe$', r'[iI]n Erwägung[:,]?\s*$'],
+            Section.RULINGS: [r'Demgemäss erkennt d[\w]{2}', r'erkennt d[\w]{2} [A-Z]\w+:', r'Appellationsgericht (\w+ )?(\(\w+\) )?erkennt', r'^und erkennt:$', r'erkennt:\s*$'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung$',
+                             r'AUFSICHTSKOMMISSION', r'APPELLATIONSGERICHT']
+        },
+              Language.FR: {
+            Section.FACTS: [r'Faits\s?:', r'en fait et en droit', r'(?:V|v)u\s?:', r'A.-', r'Vu les faits suivants'],
+            Section.CONSIDERATIONS: [r'Considérant en (?:fait et en )?droit\s?:?', r'(?:C|c)onsidérant(s?)\s?:',
+                                     r'considère'],
+            Section.RULINGS: [r'prononce\s?:', r'Par ces? motifs?\s?', r'ordonne\s?:'],
+            Section.FOOTER: [
+                r'\w*,\s(le\s?)?((\d?\d)|\d\s?(er|re|e)|premier|première|deuxième|troisième)\s?(?:janv|févr|mars|avr|mai|juin|juill|août|sept|oct|nov|déc).{0,10}\d?\d?\d\d\s?(.{0,5}[A-Z]{3}|(?!.{2})|[\.])',
+                r'Au nom de la Cour'
+            ]
+        },
+    }
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+
+    divs = decision.find_all(
+        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
+    paragraphs = get_paragraphs(divs)
+    return associate_sections(paragraphs, section_markers, namespace)
+
 
 def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
