@@ -67,13 +67,13 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
                              r'AUFSICHTSKOMMISSION', r'APPELLATIONSGERICHT']
         },
               Language.FR: {
-            Section.FACTS: [r'Faits\s?:', r'en fait et en droit', r'(?:V|v)u\s?:', r'A.-', r'Vu les faits suivants'],
-            Section.CONSIDERATIONS: [r'Considérant en (?:fait et en )?droit\s?:?', r'(?:C|c)onsidérant(s?)\s?:',
-                                     r'considère'],
-            Section.RULINGS: [r'prononce\s?:', r'Par ces? motifs?\s?', r'ordonne\s?:'],
+            Section.FACTS: [r'Faits\s?:', r'en fait et en droit', r'(?:V|v)u\s?:', r'A.-', r'[V,v]u les faits suivants', r'constate en fait(\s*)?:?', r'^[E,e]n fait\s?:?$', r'^[V,v]u en fait\s?:?'],
+            Section.CONSIDERATIONS: [r'Considérant en (?:fait et en )?droit\s?:?', r'(?:C|c)onsidérant(s?)\s?:?$',
+                                     r'^considère\s?:?$', r'^(et)?\s?[C,c]onsidère en droit\s?:?$'],
+            Section.RULINGS: [r'prononce\s?:', r'[P,p]ar ces? motifs?\s?', r'ordonne\s?:'],
             Section.FOOTER: [
-                r'\w*,\s(le\s?)?((\d?\d)|\d\s?(er|re|e)|premier|première|deuxième|troisième)\s?(?:janv|févr|mars|avr|mai|juin|juill|août|sept|oct|nov|déc).{0,10}\d?\d?\d\d\s?(.{0,5}[A-Z]{3}|(?!.{2})|[\.])',
-                r'Au nom de la Cour'
+                r'^([^\s]*)?\w*,\s(le\s?)?((\d?\d)|\d\s?(er|re|e)|premier|première|deuxième|troisième)\s?(?:janv|févr|mars|avr|mai|juin|juill|août|sept|oct|nov|déc).{0,10}\d?\d?\d\d\s?([^\s]*)?\w*$',
+                r'Au nom de la Cour', r'^Lausanne, le$'
             ]
         },
     }
@@ -249,6 +249,8 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
                   f"Here is the date of the decision: {namespace['date']}"
         get_logger(__name__).warning(message)
+    if paragraphs_by_section[Section.FACTS] == []:
+        test = 5
     return paragraphs_by_section
 
 def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
