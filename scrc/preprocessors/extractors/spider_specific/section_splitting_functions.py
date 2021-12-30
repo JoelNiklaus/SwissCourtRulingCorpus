@@ -225,7 +225,7 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
     current_section = Section.HEADER
     for paragraph in paragraphs:
         # update the current section if it changed
-        current_section = update_section(current_section, paragraph, section_markers, sections, namespace)
+        current_section = update_section(current_section, paragraph, section_markers, sections)
         # add paragraph to the list of paragraphs
         paragraphs_by_section[current_section].append(paragraph)
     if current_section != Section.FOOTER:
@@ -242,7 +242,7 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
         get_logger(__name__).warning(message)
     return paragraphs_by_section
 
-def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section], namespace) -> Section:
+def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
     """
     Update the current section if it changed
     :param current_section: the current section
@@ -266,11 +266,6 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
 # This needs special care
 # def CH_BGE(decision: Any, namespace: dict) -> Optional[dict]:
 #    return CH_BGer(decision, namespace)
-
-
-
-
-
 
 def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
