@@ -59,18 +59,11 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     # As soon as one of the strings in the list (regexes) is encountered we switch to the corresponding section (key)
     # (?:C|c) is much faster for case insensitivity than [Cc] or (?i)c
     all_section_markers = {
-        Language.DE: {
-            Section.FACTS: [r'^Sachverhalt:?\s*$', r'^Tatsachen$'],
-            Section.CONSIDERATIONS: [r'^Begründung:\s*$',r'Erwägung(en)?:?\s*$',r'^Entscheidungsgründe$', r'[iI]n Erwägung[:,]?\s*$'],
-            Section.RULINGS: [r'Demgemäss erkennt d[\w]{2}', r'erkennt d[\w]{2} [A-Z]\w+:', r'Appellationsgericht (\w+ )?(\(\w+\) )?erkennt', r'^und erkennt:$', r'erkennt:\s*$'],
-            Section.FOOTER: [r'^Rechtsmittelbelehrung$',
-                             r'AUFSICHTSKOMMISSION', r'APPELLATIONSGERICHT']
-        },
               Language.FR: {
-            Section.FACTS: [r'Faits\s?:', r'en fait et en droit', r'(?:V|v)u\s?:', r'A.-', r'[V,v]u les faits suivants', r'constate en fait(\s*)?:?', r'^[E,e]n fait\s?:?$', r'^[V,v]u en fait\s?:?'],
+            Section.FACTS: [r'^[L,l]a Cour de droit administratif et public\s?[,:]?\s?$', r'Faits\s?:', r'[E,e]n fait et en droit', r'(?:V|v)u\s?:', r'A.-', r'[V,v]u les faits suivants', r'constate en fait(\s*)?:?', r'^[E,e]n fait\s?:?$', r'^[V,v]u en fait\s?:?'],
             Section.CONSIDERATIONS: [r'Considérant en (?:fait et en )?droit\s?:?', r'(?:C|c)onsidérant(s?)\s?:?$',
-                                     r'^considère\s?:?$', r'^(et)?\s?[C,c]onsidère en droit\s?:?$'],
-            Section.RULINGS: [r'prononce\s?:', r'[P,p]ar ces? motifs?\s?', r'ordonne\s?:'],
+                                     r'^considère\s?:?$', r'^(et)?\s?[C,c]onsidère en droit\s?:?$', r'[E,e]n droit\s?[:,]?\s?$'],
+            Section.RULINGS: [r'^prononce\s?:', r'^[P,p]ar ces? motifs?\s?[,:]?\s?', r'^ordonne\s?:'],
             Section.FOOTER: [
                 r'^([^\s]*)?\w*,\s(le\s?)?((\d?\d)|\d\s?(er|re|e)|premier|première|deuxième|troisième)\s?(?:janv|févr|mars|avr|mai|juin|juill|août|sept|oct|nov|déc).{0,10}\d?\d?\d\d\s?([^\s]*)?\w*$',
                 r'Au nom de la Cour', r'^Lausanne, le$'
@@ -192,7 +185,6 @@ def get_pdf_paragraphs(soup: str) -> list:
             paragraphs.append(paragraph)
     return paragraphs
 
-
 def valid_namespace(namespace: dict, all_section_markers):
     """
     Check if the section markers have been implemented for a given language
@@ -233,8 +225,7 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
     current_section = Section.HEADER
     for paragraph in paragraphs:
         # update the current section if it changed
-        current_section = update_section(current_section, paragraph, section_markers, sections)
-
+        current_section = update_section(current_section, paragraph, section_markers, sections, namespace)
         # add paragraph to the list of paragraphs
         paragraphs_by_section[current_section].append(paragraph)
     if current_section != Section.FOOTER:
@@ -249,11 +240,9 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
                   f"Here is the date of the decision: {namespace['date']}"
         get_logger(__name__).warning(message)
-    if paragraphs_by_section[Section.FACTS] == []:
-        test = 5
     return paragraphs_by_section
 
-def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
+def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section], namespace) -> Section:
     """
     Update the current section if it changed
     :param current_section: the current section
@@ -262,6 +251,7 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
     :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
     :return:                the updated section
     """
+    paragraph = unicodedata.normalize('NFC', paragraph)  # if we don't do this, we get weird matching behaviour
     if current_section == Section.FOOTER:
         return current_section  # we made it to the end, hooray!
     next_section_index = sections.index(current_section) + 1
@@ -269,7 +259,6 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
     next_sections = sections[next_section_index:]
     for next_section in next_sections:
         marker = section_markers[next_section]
-        paragraph = unicodedata.normalize('NFC', paragraph)  # if we don't do this, we get weird matching behaviour
         if re.search(marker, paragraph):
             return next_section  # change to the next section
     return current_section  # stay at the old section
