@@ -280,10 +280,10 @@ def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
     all_section_markers = {
         Language.DE: {
             # "header" has no markers!
-            Section.FACTS: [r'wird Folgendes festgestellt:', r'wird nach Einsicht in', r'^A\.\s'],
+            Section.FACTS: [r'wird Folgendes festgestellt:', r'wird nach Einsicht in', r'^A\.\s', r'^A\.a\)\s'],
             Section.CONSIDERATIONS: [r'(Der|Die|Das) \w+ erwägt:', r'und in Erwägung, dass'],
-            Section.RULINGS: [r'Demnach erkennt', r'Folgendes verfügt', r'(Der|Die|Das) \w+ verfügt:', r'Demnach wird verfügt:'],
-            Section.FOOTER: [r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}']
+            Section.RULINGS: [r'Demnach erkennt', r'Folgendes verfügt', r'(Der|Die|Das) \w+ verfügt:', r'Demnach wird verfügt:', r'Demnach wird erkannt'],
+            Section.FOOTER: [r'^[\s]*Zug,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}']
         }
     }
 
@@ -328,9 +328,9 @@ def ZH_Baurekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Op
             # "header" has no markers!
             Section.FACTS: [r'hat sich ergeben', r'Gegenstand des Rekursverfahrens'],
             Section.CONSIDERATIONS: [r'Es kommt in Betracht', r'Aus den Erwägungen'],
-            Section.RULINGS: [r'Zusammengefasst (ist|sind)', r'Zusammenfassend ist festzuhalten', r'Zusammengefasst ergibt sich', r'Der Rekurs ist nach', r'Gesamthaft ist der Rekurs'],
-            # this court has few if any footers
-            Section.FOOTER: [r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}']
+            Section.RULINGS: [r'(Zusammengefasst|Zusammenfassend) (ist|sind)', r'(Zusammengefasst|Zusammenfassend) ergibt sich', r'Der Rekurs ist nach', r'Gesamthaft ist der Rekurs', r'Dies führt zur (Aufhebung|Abweisung|Gutheissung|teilweisen)'],
+            # there are generally no footers
+            Section.FOOTER: [r'Im Namen des Baurekursgerichts']
         },
     }
 
@@ -364,12 +364,11 @@ def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> 
     all_section_markers = {
         Language.DE: {
             # "header" has no markers!
-            Section.FACTS: [r'betreffend'],
-            Section.CONSIDERATIONS: [r'Erwägungen:', r'Das Gericht erwägt'],
-            Section.RULINGS: [r'Es wird (erkannt|beschlossen|verfügt):', r'Das Gericht beschliesst:', r'(Sodann|Demnach) beschliesst das Gericht:'],
+            Section.FACTS: [r'^[\s]*betreffend(\s|$)', r'Sachverhalt:'],
+            Section.CONSIDERATIONS: [r'(?:A|a)us den Erwägungen ', r'Erwägungen:', r'^[\s]*Erwägungen[\s]*$', r'Das (Einzelgericht|Gericht) erwägt', r'Das (Einzelgericht|Gericht) zieht in (Erwägung|Betracht)'],
+            Section.RULINGS: [r'^[\s]*Es wird (erkannt|beschlossen|verfügt):', r'^[\s]*wird beschlossen:[\s]*$', r'Das (Einzelgericht|Gericht) (erkennt|beschliesst):', r'(Sodann|Demnach|Demgemäss) beschliesst das Gericht:'],
             Section.FOOTER: [
-                r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))',
-                r'Obergericht des Kantons Zürich', r'OBERGERICHT DES KANTONS ZÜRICH']
+                r'^[\s]*Zürich,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$)', r'OBERGERICHT DES KANTONS ZÜRICH']
         }
     }
 
@@ -401,11 +400,11 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
     all_section_markers = {
         Language.DE: {
             # "header" has no markers!
-            Section.FACTS: [r'Sachverhalt:'],
-            Section.CONSIDERATIONS: [r'in Erwägung, dass', r'zieht in Erwägung:', r'Erwägungen:'],
-            Section.RULINGS: [r'Das Gericht (erkennt|beschliesst):', r'(Der|Die) Einzelrichter(in)? (erkennt|beschliesst):', r'erkennt das Gericht:', r'und erkennt sodann:'],
-            # this court doesn't always have a footer
-            Section.FOOTER: [r'Sozialversicherungsgericht des Kantons Zürich']
+            Section.FACTS: [r'Sachverhalt:', r'^[\s]*Sachverhalt[\s]*$', r'Unter Hinweis darauf,'],
+            Section.CONSIDERATIONS: [r'in Erwägung,', r'zieht in Erwägung:', r'Erwägungen:'],
+            Section.RULINGS: [r'Das Gericht (erkennt|beschliesst|verfügt):', r'(Der|Die) Einzelrichter(in)? (erkennt|beschliesst|verfügt):', r'(beschliesst|erkennt) das Gericht:', r'und erkennt sodann:', r'(Der|Die) Referent(in)? (erkennt|beschliesst|verfügt):'],
+            # this court only sometimes has a footer
+            Section.FOOTER: [r'Im Namen des Sozialversicherungsgerichts', r'^[\s]*Sozialversicherungsgericht des Kantons Zürich[\s]*$']
         }
     }
 
@@ -423,21 +422,64 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
         section_markers[section] = unicodedata.normalize('NFC', regexes)
         # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
-    def get_paragraphs(soup):
+    # This should be the div closest to the content:
+    content = decision.find("div", id="view:_id1:inputRichText1")
+    multiple_results = False
+    # Sometimes there is no content:
+    if len(content.contents) == 0:
+        return
+    # Ideally, the content is directly below the above div, but if not:
+    if len(content.contents) <= 5:
+        # The main content should have more than 5 children:
+        div = content.find('div')
+        if div and len(div.contents) >= 5:
+            # There's a div with enough children to be the main content:
+            # But maybe there's more than one:
+            content_list = [tag for tag in content.find_all("div") if len(tag.contents) > 1]
+            if content_list and len(content_list) > 1 and not content.find_all(class_="domino-par--indent"):
+                multiple_results = True
+            elif content.find_all(class_="domino-par--indent"):
+                content_list = [tag for tag in content.find_all("div", class_="domino-par--indent", recursive=False) if len(tag.contents) > 1]
+                multiple_results = True
+            # If there's only one:
+            else:
+                content = div
+                assert len(content.contents) >= 5
+        elif not div:
+            # If the div doesn't exist, there should be a ul directly below the id:
+            content = content.find("ul", class_="domino-par--indent", recursive=False)
+            assert len(content) >= 5
+        elif div and len(div.contents) == 1 and not div.find_all(class_="domino-par--indent"):
+            # Possibly there's a div with the content directly below the div
+            div2 = div.find('div', recursive=False)
+            if div2 and len(div2.contents) >= 5:
+                content = div2
+            else:
+                pass
+        elif div and len(div.contents) < 5:
+            # The relevant content has class 'domino-par--indent' and the following style:
+            content_list = [tag for tag in content.find_all(class_="domino-par--indent", attrs={'style':'padding-left: 62pt'}) if len(tag.contents) > 1]
+            if len(content_list) > 0:
+                multiple_results = True
+            else:
+                # Sometimes the relevant content has this style
+                content_list = [tag for tag in content.find_all(class_="domino-par--indent", attrs={'style':'padding-left: 85pt'}) if len(tag.contents) > 1]
+                if len(content_list) > 0:
+                    multiple_results = True
+                else:
+                    # Sometimes there is no style but this is less precise
+                    content_list = [tag for tag in content.find_all(class_="domino-par--indent") if len(tag.contents) > 1]
+                    multiple_results = True
+
+    def get_paragraphs(content):
         """
-        Get Paragraphs in the decision
-        :param soup:    the decision parsed by bs4
+        Get the paragraphs from a piece of html content
+        :param soup:    the content parsed by bs4
         :return:        a list of paragraphs
         """
-        # this should be the div closest to the content
-        divs = soup.find("div", id="view:_id1:inputRichText1")
-        # sometimes the content is not directly below but nested in other divs
-        if len(divs) < 2:
-            divs = divs.find('div')
-
         paragraphs = []
         heading, paragraph = None, None
-        for element in divs:
+        for element in content:
             if isinstance(element, bs4.element.Tag):
                 text = str(element.string)
                 # This is a hack to also get tags which contain other tags such as links to BGEs
@@ -452,14 +494,20 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
                     else:
                         paragraph = text
                     heading = None  # reset heading
-                if paragraph not in ['', ' ', None]:  # only clean non-empty paragraphs
-                    paragraph = clean_text(paragraph)
                 if paragraph not in ['', ' ', None]:  # discard empty paragraphs
                     paragraphs.append(paragraph)
         return paragraphs
 
-    paragraphs = get_paragraphs(decision)
-    return associate_sections(paragraphs, section_markers, namespace)
+    if content:
+        paragraphs = []
+        if multiple_results:
+            for el in content_list:
+                paragraphs += get_paragraphs(el)
+        else:
+            paragraphs = get_paragraphs(content)
+        return associate_sections(paragraphs, section_markers, namespace)
+    else:
+        return
 
 
 
@@ -477,11 +525,10 @@ def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
             # "header" has no markers!
             Section.FACTS: [r'hat sich ergeben:'],
             Section.CONSIDERATIONS: [r'zieht in Erwägung:', r'sowie in der Erwägung'],
-            Section.RULINGS: [r'Demgemäss (erkennt|beschliesst)', r'beschliesst die Rekurskommission'],
-            # often there is no footer
+            Section.RULINGS: [r'Demgemäss (erkennt|beschliesst|verfügt)', r'beschliesst die Rekurskommission', r'verfügt der Einzelrichter', r'verfügt die Einzelrichterin'],
+            # there is generally no footer
             Section.FOOTER: [
-                r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))',
-                r'Im Namen des']
+                r'Im Namen des Steuerrekursgerichts']
         }
     }
 
@@ -514,13 +561,11 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
     all_section_markers = {
         Language.DE: {
             # "header" has no markers!
-            Section.FACTS: [r'hat sich ergeben:', r'^\s*I\.\s+A\.\s*', r'^\s*I\.\s+$'],
-            Section.CONSIDERATIONS: [r'erwägt:', r'zieht in Erwägung:'],
-            Section.RULINGS: [r'Demgemäss (erkennt|beschliesst|entscheidet)'],
+            Section.FACTS: [r'hat sich ergeben:', r'^\s*I\.\s+A\.\s*', r'^\s*I\.\s+(&nbsp;)?$', r'^\s*I\.\s[A-Z]+', r'nach Einsichtnahme in', r'Sachverhalt[:]?[\s]*$'],
+            Section.CONSIDERATIONS: [r'erwägt:', r'zieht in (Erwägung|Betracht)', r'zieht (der Einzelrichter|die Einzelrichterin) in Erwägung', r'in Erwägung, dass', r'(?:A|a)us den Erwägungen', r'hat erwogen:'],
+            Section.RULINGS: [r'(Demgemäss|Demnach|Dementsprechend|Demmäss) (erkennt|erkannt|beschliesst|entscheidet|verfügt)', r'Das Verwaltungsgericht entscheidet', r'(Die Kammer|Der Einzelrichter|Die Einzelrichterin) (erkennt|entscheidet|beschliesst|hat beschlossen)', r'Demgemäss[\s|(&nbsp;)]*die Kammer:', r'Der Abteilungspräsident verfügt:', r'^[\s]*verfügt[:]?[\s]*$', r'^[\s]*entschieden:[\s]*$', r'^[\s]*und (entscheidet|erkennt):[\s]*$'],
             # this court generally has no footer
-            Section.FOOTER: [
-                r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))',
-                r'Im Namen des']
+            Section.FOOTER: [r'Im Namen des Verwaltungsgerichts']
         }
     }
 
