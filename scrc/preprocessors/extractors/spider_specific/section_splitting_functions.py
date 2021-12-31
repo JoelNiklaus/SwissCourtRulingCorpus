@@ -163,6 +163,35 @@ def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     paragraphs = get_paragraphs(divs)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    # As soon as one of the strings in the list (regexes) is encountered we switch to the corresponding section (key)
+    # (?:C|c) is much faster for case insensitivity than [Cc] or (?i)c
+    all_section_markers = {
+              Language.FR: {
+            Section.FACTS: [r'^[L,l]a Cour de droit administratif et public\s?[,:]?\s?$', r'Faits\s?:', r'[E,e]n fait et en droit', r'(?:V|v)u\s?:', r'A.-', r'[V,v]u les faits suivants', r'constate en fait(\s*)?:?', r'^[E,e]n fait\s?:?$', r'^[V,v]u en fait\s?:?'],
+            Section.CONSIDERATIONS: [r'Considérant en (?:fait et en )?droit\s?:?', r'(?:C|c)onsidérant(s?)\s?:?$',
+                                     r'^considère\s?:?$', r'^(et)?\s?[C,c]onsidère en droit\s?:?$', r'[E,e]n droit\s?[:,]?\s?$'],
+            Section.RULINGS: [r'^prononce\s?:', r'^[P,p]ar ces? motifs?\s?[,:]?\s?', r'^ordonne\s?:'],
+            Section.FOOTER: [
+                r'^([^\s]*)?\w*,\s(le\s?)?((\d?\d)|\d\s?(er|re|e)|premier|première|deuxième|troisième)\s?(?:janv|févr|mars|avr|mai|juin|juill|août|sept|oct|nov|déc).{0,10}\d?\d?\d\d\s?([^\s]*)?\w*$',
+                r'Au nom de la Cour', r'^Lausanne, le$'
+            ]
+        },
+    }
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+
+    divs = decision.find_all(
+        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
+    paragraphs = get_paragraphs(divs)
+    return associate_sections(paragraphs, section_markers, namespace)
+
 
 def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
@@ -269,7 +298,6 @@ def get_pdf_paragraphs(soup: str) -> list:
             paragraphs.append(paragraph)
     return paragraphs
 
-
 def valid_namespace(namespace: dict, all_section_markers):
     """
     Check if the section markers have been implemented for a given language
@@ -336,6 +364,7 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
     :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
     :return:                the updated section
     """
+    paragraph = unicodedata.normalize('NFC', paragraph)  # if we don't do this, we get weird matching behaviour
     if current_section == Section.FOOTER:
         return current_section  # we made it to the end, hooray!
     next_section_index = sections.index(current_section) + 1
@@ -343,7 +372,6 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
     next_sections = sections[next_section_index:]
     for next_section in next_sections:
         marker = section_markers[next_section]
-        paragraph = unicodedata.normalize('NFC', paragraph)  # if we don't do this, we get weird matching behaviour
         if re.search(marker, paragraph):
             return next_section  # change to the next section
     return current_section  # stay at the old section
@@ -351,11 +379,6 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
 # This needs special care
 # def CH_BGE(decision: Any, namespace: dict) -> Optional[dict]:
 #    return CH_BGer(decision, namespace)
-
-
-
-
-
 
 def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
