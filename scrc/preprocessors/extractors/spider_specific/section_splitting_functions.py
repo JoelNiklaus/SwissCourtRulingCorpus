@@ -24,6 +24,119 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
+def UR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'Sachverhalt:'],
+            Section.CONSIDERATIONS: [r'Aus den Erwägungen:', r'Aus den Erwägungen des Bundesgerichts:', r'Erwägungen:']
+        }
+    }
+
+    sections_found = {}
+    for lang in all_section_markers:
+        for sect in all_section_markers[lang]:
+            for reg in (all_section_markers[lang])[sect]:
+                matches = re.finditer(reg, decision, re.MULTILINE)
+                for num, match in enumerate(matches, start=1):
+                    sections_found.update({match.start(): sect})
+
+    paragraphs_by_section = {section: [] for section in Section}
+    sorted_section_pos = sorted(sections_found.keys())
+
+    # If no regex for the header is defined, consider all text before the first section, if any, as header
+    if Section.HEADER not in all_section_markers[Language.DE] and len(sorted_section_pos) > 0:
+        paragraphs_by_section[Section.HEADER].append(decision[:sorted_section_pos[0]])   
+
+    # Assign the corresponding part of the decision to its section 
+    for i,match_start in enumerate(sorted_section_pos):
+        actual_section = sections_found[match_start]
+        from_ = match_start
+        if i >= len(sorted_section_pos)-1: 
+            # This is the last section, till end of decision
+            to_ = len(decision)
+        else:
+            to_ = sorted_section_pos[i+1]
+        paragraphs_by_section[actual_section].append(decision[from_:to_])
+
+    # Validate the results
+    error = True
+    date = namespace['date']
+    id = namespace['id']
+    for defined_sections in all_section_markers[Language.DE]:
+        if len(paragraphs_by_section[defined_sections]) != 0:
+            error = False
+            break
+    if error == True:
+        message = f'None of the section_markers gave any result. Date of the decision is {date} and id {id}'
+        raise ValueError(message)
+
+    return paragraphs_by_section
+
+def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'^Sachverhalt:?\s*$', r'^Tatsachen$', 
+                            r'^Prozessgeschichte und Eintreten$', 
+                            r'^Ausgangslage$',
+                            r'Sachverhalt und Beweiswürdigung'],
+            Section.CONSIDERATIONS: [r'^Begründung:\s*$',r'Erwägung(en)?:?\s*$',
+                                    r'^Entscheidungsgründe$', r'[iI]n Erwägung[:,]?\s*$',
+                                    r'Aus den Erwägungen:',
+                                    r'^Auszug aus den Erwägungen:'],
+            Section.RULINGS: [ 
+                            r'Strafkammer erkennt',     #Urteil
+                            r'Strafkammer beschliesst', #Beschluss
+                            r'Demgemäss erkennt d[\w]{2}', 
+                            r'Appellationsgericht (\w+ )?(\(\w+\) )?erkennt', 
+                            r'^und erkennt:$',
+                            r'Das Gericht beschliesst:',
+                            r'^Die Beschwerdekammer in Strafsachen beschliesst:$'],
+            Section.FOOTER: [r'Hinweise:', r'Rechtsmittelbelehrung']
+        }
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    sections_found = {}
+    for lang in all_section_markers:
+        for sect in all_section_markers[lang]:
+            for reg in (all_section_markers[lang])[sect]:
+                matches = re.finditer(reg, decision, re.MULTILINE)
+                for num, match in enumerate(matches, start=1):
+                    sections_found.update({match.start(): sect})
+
+    paragraphs_by_section = {section: [] for section in Section}
+    sorted_section_pos = sorted(sections_found.keys())
+    if len(sorted_section_pos) == 0:
+        raise ValueError(f"({namespace['id']}): No sections found at all. Please check! Here you have the url to the decision: {namespace['pdf_url']}")
+    else:
+        # If no regex for the header is defined, consider all text before the first section as header
+        if Section.HEADER not in all_section_markers[Language.DE]:
+            paragraphs_by_section[Section.HEADER].append(decision[:sorted_section_pos[0]])   
+
+        # Assign the corresponding part of the decision to its section 
+        for i,match_start in enumerate(sorted_section_pos):
+            actual_section = sections_found[match_start]
+            from_ = match_start
+            if i >= len(sorted_section_pos)-1: 
+                # This is the last section, till end of decision
+                to_ = len(decision)
+            else:
+                to_ = sorted_section_pos[i+1]
+            paragraphs_by_section[actual_section].append(decision[from_:to_])
+    
+    return paragraphs_by_section        
+
 def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -198,7 +311,6 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
     for paragraph in paragraphs:
         # update the current section if it changed
         current_section = update_section(current_section, paragraph, section_markers, sections)
-
         # add paragraph to the list of paragraphs
         paragraphs_by_section[current_section].append(paragraph)
     if current_section != Section.FOOTER:
