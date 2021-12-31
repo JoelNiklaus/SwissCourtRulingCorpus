@@ -17,8 +17,7 @@ from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
 
-from scrc.utils.main_utils import get_legal_area, legal_areas, get_region
-from scrc.utils.sql_select_utils import join_tables_on_decision
+from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -231,7 +230,7 @@ class DatasetCreator(AbstractPreprocessor):
         
         ###
         # Check if feature col or label col got renamed and in which table they now are, then use the new syntax:
-        # SELECT select_fields_from_table(['canton_id as origin_canton', 'court_id as origin_court', ...], 'lower_court'), feature_col, label_col FROM join_tables_on_decision(['lower_court', <TABLE NEEDED FOR FEATURE COLUMN AND LABEL>])
+        # SELECT select_fields_from_table(['lower_court.canton_id as origin_canton', 'lower_court.court_id as origin_court', ...], 'lower_court'), feature_col, label_col FROM join_tables_on_decision(['lower_court', <TABLE NEEDED FOR FEATURE COLUMN AND LABEL>])
         ###
         
         df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
@@ -240,14 +239,6 @@ class DatasetCreator(AbstractPreprocessor):
         df['legal_area'] = df.chamber.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
 
-        if save_reports:  # only calculate this if we save the reports because it takes a long time
-            # TODO precompute this in previous step after section splitting for each section
-            # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
-            spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
-            self.logger.debug("Started tokenizing with spacy")
-            df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
-            self.logger.debug("Started tokenizing with bert")
-            df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
 
         self.logger.info("Finished loading the data from the database")
 

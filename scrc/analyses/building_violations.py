@@ -1,5 +1,5 @@
 from root import ROOT_DIR
-from scrc.dataset_creation.judgment_dataset_creator import clean_judgments_from_df
+from scrc.dataset_creation.judgment_dataset_creator import convert_to_binary_judgments
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import pandas as pd
@@ -41,7 +41,7 @@ class BuildingViolationsAnalysis(AbstractPreprocessor):
         # Do some preprocessing
         df = df.dropna(subset=["parties", "judgments"])  # remove decisions with no parties and no judgments
         original_judgments = df.judgments.copy()
-        df = clean_judgments_from_df(df)  # clean judgments so that we get one clear outcome
+        df = convert_to_binary_judgments(df)  # clean judgments so that we get one clear outcome
         df['original_judgments'] = original_judgments  # keep original judgments for later analysis
         # df.dropna(subset=["original_judgments", "judgments"])
 

@@ -6,6 +6,7 @@ from scrc.utils.log_utils import get_logger
 import numpy as np
 
 from scrc.utils.main_utils import get_config
+from scrc.utils.sql_select_utils import convert_to_binary_judgments
 
 
 class JudgmentDatasetCreator(DatasetCreator):
@@ -37,7 +38,7 @@ class JudgmentDatasetCreator(DatasetCreator):
             df = df[~df[feature_col].str.startswith('Nach Einsicht')]
 
         df = df.dropna(subset=['judgments'])
-        df = clean_judgments_from_df(df, self.with_partials, self.with_write_off, self.with_unification,
+        df = convert_to_binary_judgments(df, self.with_partials, self.with_write_off, self.with_unification,
                                      self.with_inadmissible, self.make_single_label)
         df = df.dropna(subset=['judgments'])  # drop empty labels introduced by cleaning before
 
@@ -46,54 +47,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         return df, labels
 
 
-def clean_judgments_from_df(df, with_partials=False, with_write_off=False, with_unification=False,
-                            with_inadmissible=False, make_single_label=True):
-    def clean(judgments):
-        out = set()
-        for judgment in judgments:
-            # remove "partial_" from all the items to merge them with full ones
-            if not with_partials:
-                judgment = judgment.replace("partial_", "")
 
-            out.add(judgment)
-
-        if not with_write_off:
-            # remove write_off because reason for it happens mostly behind the scenes and not written in the facts
-            if 'write_off' in judgments:
-                out.remove('write_off')
-
-        if not with_unification:
-            # remove unification because reason for it happens mostly behind the scenes and not written in the facts
-            if 'unification' in judgments:
-                out.remove('unification')
-
-        if not with_inadmissible:
-            # remove inadmissible because it is a formal reason and not that interesting semantically.
-            # Facts are formulated/summarized in a way to justify the decision of inadmissibility
-            # hard to know solely because of the facts (formal reasons, not visible from the facts)
-            if 'inadmissible' in judgments:
-                out.remove('inadmissible')
-
-        # remove all labels which are complex combinations (reason: different questions => model cannot know which one to pick)
-        if make_single_label:
-            # contrary judgments point to multiple questions which is too complicated
-            if 'dismissal' in out and 'approval' in out:
-                return np.nan
-            # if we have inadmissible and another one, we just remove inadmissible
-            if 'inadmissible' in out and len(out) > 1:
-                out.remove('inadmissible')
-            if len(out) > 1:
-                message = f"By now we should only have one label. But instead we still have the labels {out}"
-                raise ValueError(message)
-            elif len(out) == 1:
-                return out.pop()  # just return the first label because we only have one left
-            else:
-                return np.nan
-
-        return list(out)
-
-    df.judgments = df.judgments.apply(clean)
-    return df
 
 
 if __name__ == '__main__':

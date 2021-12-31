@@ -4,7 +4,7 @@ import glob
 import json
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from sqlalchemy import MetaData, Table, Column, Integer, String, Date
 import pandas as pd
 import bs4
@@ -13,7 +13,6 @@ from tqdm.contrib.concurrent import process_map
 
 from root import ROOT_DIR
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
-from scrc.utils.language_identification_singleton import LanguageIdentificationSingleton
 from scrc.utils.log_utils import get_logger
 
 import tika
@@ -45,7 +44,6 @@ class TextToDatabase(AbstractPreprocessor):
         super().__init__(config)
         self.court_keys = [
             "spider",
-            "language",
             "canton",
             "court",
             "chamber",
@@ -58,24 +56,29 @@ class TextToDatabase(AbstractPreprocessor):
             "pdf_url",
             "pdf_raw",
         ]
-        self.lang_id = LanguageIdentificationSingleton()
         self.logger = get_logger(__name__)
 
-    def build_dataset(self) -> None:
+    def build_dataset(self) -> List[dict]:
         """ Builds the dataset for all the spiders """
         self.logger.info("Started extracting text and metadata from court rulings files")
-
         processed_file_path = self.progress_dir / "spiders_extracted.txt"
+
+        if self.ignore_cache:
+            processed_file_path.unlink()
+
         spider_list, message = self.compute_remaining_spiders(processed_file_path)
         self.logger.info(message)
 
+        all_processed_files = []
         for spider in spider_list:
-            self.build_spider_dataset(spider)
+            spider_dict_list = self.build_spider_dataset(spider)
+            all_processed_files.extend(spider_dict_list)
             self.mark_as_processed(processed_file_path, spider)
 
         self.logger.info("Finished extracting text and metadata from court rulings files")
+        return all_processed_files
 
-    def build_spider_dataset(self, spider: str) -> None:
+    def build_spider_dataset(self, spider: str) -> list:
         """ Builds a dataset for a spider """
         spider_dir = self.spiders_dir / spider
         self.logger.info(f"Building spider dataset for {spider}")
@@ -86,7 +89,8 @@ class TextToDatabase(AbstractPreprocessor):
 
         self.logger.info(f"Saving data to db")
         
-        save_from_text_to_database(df)
+        save_from_text_to_database(self.get_engine('scrc'), df)
+        return spider_dict_list
 
     def build_spider_dict_list(self, spider_dir: Path) -> list:
         """ Builds the spider dict list which we can convert to a pandas Data Frame later """
@@ -125,12 +129,10 @@ class TextToDatabase(AbstractPreprocessor):
             # add pdf content
             court_dict = dict(court_dict, **pdf_content_dict)
 
-        # ATTENTION: If both files exist:
-        # html_content_dict will override language from pdf_content_dict because it is more reliable
         html_content_dict = self.extract_corresponding_html_content(corresponding_html_path)
         if html_content_dict is not None:  # if it could be parsed correctly
             # add html content
-            court_dict = dict(court_dict, **html_content_dict)  # may override language added from pdf_content_dict
+            court_dict = dict(court_dict, **html_content_dict)  
         return court_dict
 
     def get_filenames_of_extension(self, spider_dir: Path, extension: str) -> list:
@@ -196,8 +198,7 @@ class TextToDatabase(AbstractPreprocessor):
             else:
                 soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
                 assert soup.find()  # make sure it is valid html
-                language = self.lang_id.get_lang(soup.get_text())
-                return {"html_raw": html_raw, "language": language}
+                return {"html_raw": html_raw}
 
     def extract_corresponding_pdf_content(self, corresponding_pdf_path) -> Optional[dict]:
         """Extracts the the raw text, the pdf metadata and the language from the pdf file, if it exists"""
@@ -217,8 +218,7 @@ class TextToDatabase(AbstractPreprocessor):
             else:
                 pdf_raw = self.remove_nul(pdf_raw)
                 pdf_raw = pdf_raw.strip()  # strip leading and trailing whitespace
-                language = self.lang_id.get_lang(pdf_raw)
-                return {"pdf_raw": pdf_raw, "language": language}
+                return {"pdf_raw": pdf_raw}
 
     def remove_nul(self, string):
         """Otherwise we get an error when inserting into Postgres"""

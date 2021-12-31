@@ -53,10 +53,13 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         self.processed_amount = 0
         self.total_to_process = -1
         self.spider_specific_dir = self.create_dir(ROOT_DIR, config['dir']['spider_specific_dir'])
-        self.chunksize = 2
 
-    def start(self):
+    def start(self, decision_ids: Optional[List] = None):
         self.logger.info(self.logger_info["start"])
+        if self.ignore_cache:
+           self.processed_file_path.unlink()
+        elif decision_ids is not None:
+            self.decision_ids = decision_ids
         spider_list, message = self.get_processed_spiders()
         self.logger.info(message)
 

@@ -1,7 +1,7 @@
 import configparser
 import json
 import re
-from typing import Optional, Any
+from typing import List, Optional, Any
 
 import bs4
 import numpy as np
@@ -15,7 +15,7 @@ from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import clean_text, get_config
-from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, join_decision_on_parameter, where_string_spider
+from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, join_decision_on_parameter, where_decisionid_in_list, where_string_spider
 
 # TODO Adrian passt so an, dass der AbstractExtractor gebraucht werden kann als Superklasse
 class Cleaner(AbstractExtractor):
@@ -58,18 +58,22 @@ class Cleaner(AbstractExtractor):
             cleaning_regexes = json.load(f)
         return cleaning_regexes
 
-    def clean(self):
+    def clean(self, decision_ids: Optional[List] = None):
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
         self.logger.info("Started cleaning raw court rulings")
-
         processed_file_path = self.progress_dir / "spiders_cleaned.txt"
+
+        if self.ignore_cache:
+            processed_file_path.unlink()
+        elif decision_ids is not None:
+            self.decision_ids = decision_ids
         spider_list, message = self.compute_remaining_spiders(processed_file_path)
         self.logger.info(message)
 
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-        
-        return self.select(engine, f"file {join_decision_on_parameter('file_id', 'file.file_id')}", 'decision_id,file_id,html_raw,pdf_raw', where=f"file.file_id IN {where_string_spider('file_id', spider)}", chunksize=self.chunksize)
+        only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
+        return self.select(engine, f"file {join_decision_on_parameter('file_id', 'file.file_id')}", 'decision_id,file_id,html_raw,pdf_raw', where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
 
     def get_required_data(self, series: pd.DataFrame) -> Any:
         return series['spider']

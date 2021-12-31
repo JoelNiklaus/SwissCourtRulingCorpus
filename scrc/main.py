@@ -1,4 +1,6 @@
 
+from typing import List, Dict
+from scrc.preprocessors.language_identifier import LanguageIdentifier
 from scrc.preprocessors.name_to_gender import NameToGender
 from scrc.preprocessors.extractors.procedural_participation_extractor import ProceduralParticipationExtractor
 from scrc.preprocessors.extractors.court_composition_extractor import CourtCompositionExtractor
@@ -78,32 +80,40 @@ def create_specialized_datasets(config):
 
 
 def construct_base_dataset(config):
+    # TODO: return files to process / decisions to process
+    # TODO: "ignore cache" flag -> in config
+    
     scraper = Scraper(config)
-    scraper.download_subfolders(base_url + "docs/")
+    new_files = scraper.download_subfolders(base_url + "docs/")
 
+    # TODO: Decide whether it should really go after file list from scraper or with the old technique
     extractor = TextToDatabase(config)
-    extractor.build_dataset()
+    list_of_files: List[Dict] = extractor.build_dataset(new_files)
+    
+    # TODO: Decide whether it should really go after file list from scraper or with the old technique
+    language_identifier = LanguageIdentifier(config)
+    decision_ids = language_identifier.start()
 
     cleaner = Cleaner(config)
-    cleaner.clean()
+    cleaner.clean(decision_ids)
 
     section_splitter = SectionSplitter(config)
-    section_splitter.start()
+    section_splitter.start(decision_ids)
 
     citation_extractor = CitationExtractor(config)
-    citation_extractor.start()
+    citation_extractor.start(decision_ids)
 
     judgment_extractor = JudgmentExtractor(config)
-    judgment_extractor.start()
+    judgment_extractor.start(decision_ids)
 
     lower_court_extractor = LowerCourtExtractor(config)
-    lower_court_extractor.start()
+    lower_court_extractor.start(decision_ids)
 
     court_composition_extractor = CourtCompositionExtractor(config)
-    court_composition_extractor.start()
+    court_composition_extractor.start(decision_ids)
 
     procedural_participation_extractor = ProceduralParticipationExtractor(config)
-    procedural_participation_extractor.start()
+    procedural_participation_extractor.start(decision_ids)
 
     #name_to_gender = NameToGender(config)
     #name_to_gender.start()

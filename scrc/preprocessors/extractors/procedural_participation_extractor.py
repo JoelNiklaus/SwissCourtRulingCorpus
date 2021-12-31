@@ -10,7 +10,7 @@ from sqlalchemy.sql.schema import MetaData, Table
 from scrc.enums.section import Section
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, join_file_on_decision, where_string_spider
+from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, join_file_on_decision, where_decisionid_in_list, where_string_spider
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
@@ -56,8 +56,9 @@ class ProceduralParticipationExtractor(AbstractExtractor):
     
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
+        only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
         section_self_join = 'LEFT JOIN section footersection on headersection.decision_id = footersection.decision_id and footersection.section_type_id = 6' # Joining the footer on to the same row as the header so each decision goes through the erxtractor only once per decision
-        return self.select(engine, f"section headersection {join_decision_and_language_on_parameter('decision_id', 'headersection.decision_id')} {join_file_on_decision} {section_self_join}", f"headersection.decision_id, headersection.section_text as header, footersection.section_text as footer,'{spider}' as spider, iso_code as language, html_url", where=f"headersection.section_type_id = 1 AND headersection.decision_id IN {where_string_spider('decision_id', spider)}", chunksize=self.chunksize)
+        return self.select(engine, f"section headersection {join_decision_and_language_on_parameter('decision_id', 'headersection.decision_id')} {join_file_on_decision} {section_self_join}", f"headersection.decision_id, headersection.section_text as header, footersection.section_text as footer,'{spider}' as spider, iso_code as language, html_url", where=f"headersection.section_type_id = 1 AND headersection.decision_id IN {where_string_spider('decision_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
         
