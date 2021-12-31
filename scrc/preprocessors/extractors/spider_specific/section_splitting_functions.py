@@ -8,6 +8,7 @@ from scrc.enums.language import Language
 from scrc.enums.section import Section
 from scrc.utils.main_utils import clean_text
 from scrc.utils.log_utils import get_logger
+from scrc.analyses.scan_regex import test
 
 """
 This file is used to extract sections from decisions sorted by spiders.
@@ -72,6 +73,8 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     }
     valid_namespace(namespace, all_section_markers)
 
+    test(decision)
+    
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
     divs = decision.find_all(

@@ -140,7 +140,7 @@ class SectionSplitter(AbstractExtractor):
                 self.update(engine, df, lang, [section.value for section in Section] + ['paragraphs'], log_dir, filename)
                 self.log_progress(self.chunksize)
                 batchinfo['chunknumber'] += 1
-                self.log_coverage_from_json(engine, spider, lang, batchinfo)
+                # self.log_coverage_from_json(engine, spider, lang, batchinfo)
                 
             if self._check_write_privilege(engine):
                 self.log_coverage(engine, spider, lang)
