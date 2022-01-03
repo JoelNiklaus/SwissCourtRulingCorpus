@@ -213,13 +213,11 @@ def UR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     
     # validate
     if len(judgments) > 1:
-        # TODO: using from_ and to_ position of judgment, check the following cases
-        #   1) a match is included in another --> discard the one included
-        #   2) two matches overlap --> problem, check 
-        #   3) no judgment found --> update the all_judgment_markers 
-        raise ValueError(f"Found several judgments for the rulings {namespace['date']} . Please check!")
+        message = f"For the decision {namespace['html_url']} several rulings where found from the rulings: {rulings}"
+        raise ValueError(message)
     if len(judgments) == 0:
-        raise ValueError(f"Found no judgment for the rulings {namespace['date']}. Please check!")
+        message = f"For the decision {namespace['html_url']} no main ruling was found from the rulings: {rulings}"
+        raise ValueError(message)
 
     return judgments
     
