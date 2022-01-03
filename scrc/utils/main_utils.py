@@ -146,7 +146,7 @@ regions = {
     "Central_Switzerland": ["UR", "SZ", "OW", "NW", "LU", "ZG"],
     "Northwestern_Switzerland": ["BS", "BL", "AG"],
     "Espace_Mittelland": ["BE", "SO", "FR", "NE", "JU"],
-    "Région lémanique": ["GE", "VD", "VS"],
+    "Region_Lemanique": ["GE", "VD", "VS"],
     "Ticino": ["TI"],
     "Federation": ["CH"],  # this is a hack to map CH to a region too
 }

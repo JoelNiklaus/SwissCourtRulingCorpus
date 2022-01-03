@@ -1,5 +1,5 @@
 import unicodedata
-from typing import Optional, List
+from typing import Any, Dict, Optional, List
 
 import re
 
@@ -59,181 +59,12 @@ Formelle Mitteilung:
 
 """
 
-
-def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-    pass
-
-def BS_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-    if namespace['language'] != Language.DE:
-        raise ValueError(f'This function is only implemented for {Language.DE} so far.')
-
-    judgments =  getJudgments(rulings, all_judgment_markers) 
-
-    # validate
-    if len(judgments) == 0:
-        raise ValueError(f"Found no judgment for the rulings {namespace['date']}. Please check!")
-  
-    return judgments
-
-def UR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-    
-    # Rather than extend and update the global markers, for this spider, specific markers are defined.
-    all_judgment_markers = {
-        Language.DE: {
-            Judgment.APPROVAL: [r'Gutheissung der Beschwerde', r'Bejahung der Beschwerdelegimitation'],
-            Judgment.PARTIAL_APPROVAL: [r'Teilweise Gutheissung der Beschwerde'],
-            Judgment.DISMISSAL: [r'Abweisung der Beschwerde', 
-                                r'Der Anzeige wird keine Folge gegeben', 
-                                r'Verneinung der Beschwerdelegimitation', 
-                                r'Abweisung der Verwaltungsgerichtsbeschwerde', 
-                                r'Abweisung der [Vv]erwaltungsrechtlichen Klage',
-                                r'Abweisung des Gesuches um Wiederherstellung der Frist',
-                                r'In concreto Abweisung der Berufung der Dienstbarkeitsbelasteten'],
-            Judgment.WRITE_OFF: [r'Abschreibung der Beschwerde vom Geschäftsprotokoll ']
-        }
-    }
-
-    # In canton UR, de only
-    if namespace['language'] != Language.DE:
-        raise ValueError(f'This function is only implemented for {Language.DE} so far.')
-    
-    # find all judgments in the rulings
-    judgments = []
-    for lang in all_judgment_markers:
-        for judg in all_judgment_markers[lang]:
-            for reg in (all_judgment_markers[lang])[judg]:
-                matches = re.finditer(reg, rulings, re.MULTILINE)
-                for num, match in enumerate(matches, start=1):
-                    from_, to_, match_text  = match.start(), match.end(), match.group()
-                    judgments.append(judg)
-    
-    # validate
-    if len(judgments) > 1:
-        # TODO: using from_ and to_ position of judgment, check the following cases
-        #   1) a match is included in another --> discard the one included
-        #   2) two matches overlap --> problem, check 
-        #   3) no judgment found --> update the all_judgment_markers 
-        raise ValueError(f"Found several judgments for the rulings {namespace['date']} . Please check!")
-    if len(judgments) == 0:
-        raise ValueError(f"Found no judgment for the rulings {namespace['date']}. Please check!")
-
-    return judgments
-
-def BE_ZivilStraf(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-    pass
-
-def UR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-    
-    # Rather than extend and update the global markers, for this spider, specific markers are defined.
-    all_judgment_markers = {
-        Language.DE: {
-            Judgment.APPROVAL: [r'Gutheissung der Beschwerde', r'Bejahung der Beschwerdelegimitation'],
-            Judgment.PARTIAL_APPROVAL: [r'Teilweise Gutheissung der Beschwerde'],
-            Judgment.DISMISSAL: [r'Abweisung der Beschwerde', 
-                                r'Der Anzeige wird keine Folge gegeben', 
-                                r'Verneinung der Beschwerdelegimitation', 
-                                r'Abweisung der Verwaltungsgerichtsbeschwerde', 
-                                r'Abweisung der [Vv]erwaltungsrechtlichen Klage',
-                                r'Abweisung des Gesuches um Wiederherstellung der Frist',
-                                r'In concreto Abweisung der Berufung der Dienstbarkeitsbelasteten'],
-            Judgment.WRITE_OFF: [r'Abschreibung der Beschwerde vom Geschäftsprotokoll ']
-        }
-    }
-
-    # In canton UR, de only
-    if namespace['language'] != Language.DE:
-        raise ValueError(f'This function is only implemented for {Language.DE} so far.')
-    
-    # find all judgments in the rulings
-    judgments = []
-    for lang in all_judgment_markers:
-        for judg in all_judgment_markers[lang]:
-            for reg in (all_judgment_markers[lang])[judg]:
-                matches = re.finditer(reg, rulings, re.MULTILINE)
-                for num, match in enumerate(matches, start=1):
-                    from_, to_, match_text  = match.start(), match.end(), match.group()
-                    judgments.append(judg)
-    
-    # validate
-    if len(judgments) > 1:
-        # TODO: using from_ and to_ position of judgment, check the following cases
-        #   1) a match is included in another --> discard the one included
-        #   2) two matches overlap --> problem, check 
-        #   3) no judgment found --> update the all_judgment_markers 
-        raise ValueError(f"Found several judgments for the rulings {namespace['date']} . Please check!")
-    if len(judgments) == 0:
-        raise ValueError(f"Found no judgment for the rulings {namespace['date']}. Please check!")
-
-    return judgments
-
-def CH_BGer(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = get_judgments(rulings, namespace)
-
-    if not judgments:
-        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
-        raise ValueError(message)
-    elif len(judgments) > 1:
-        if Judgment.PARTIAL_APPROVAL in judgments:
-            # if partial_approval is found, it will find approval as well
-            judgments.discard(Judgment.APPROVAL)
-        if Judgment.PARTIAL_DISMISSAL in judgments:
-            # if partial_dismissal is found, it will find dismissal as well
-            judgments.discard(Judgment.DISMISSAL)
-
-    return [judgment.value for judgment in judgments]
-
-
 all_judgment_markers = {
     Language.DE: {
-        Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung'],
+        Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung','schuldig erklärt', 'rechtmässig'],
         Judgment.PARTIAL_APPROVAL: ['teilweise gutgeheissen', 'teilweise gutzuheissen',
                                     'In teilweiser Gutheissung'],
-        Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen'],
+        Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen', 'erstinstanzliche Urteil wird bestätigt'],
         Judgment.PARTIAL_DISMISSAL: ['abgewiesen, soweit darauf einzutreten ist',
                                      'abzuweisen, soweit darauf einzutreten ist',
                                      'abgewiesen, soweit auf sie einzutreten ist',
@@ -286,6 +117,128 @@ all_judgment_markers = {
 }
 
 
+def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    pass
+
+def BS_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+
+    if namespace['language'] not in all_judgment_markers:
+        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
+        raise ValueError(message)
+
+    # make sure we don't have any nasty unicode problems
+    rulings = clean_text(rulings)
+
+    judgments = get_judgments(rulings, namespace)
+
+    if not judgments:
+        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
+        raise ValueError(message)
+    elif len(judgments) > 1:
+        if Judgment.PARTIAL_APPROVAL in judgments:
+            # if partial_approval is found, it will find approval as well
+            judgments.discard(Judgment.APPROVAL)
+        if Judgment.PARTIAL_DISMISSAL in judgments:
+            # if partial_dismissal is found, it will find dismissal as well
+            judgments.discard(Judgment.DISMISSAL)
+
+    return [judgment.value for judgment in judgments]
+
+  
+def UR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+    
+    # Rather than extend and update the global markers, for this spider, specific markers are defined.
+    all_judgment_markers = {
+        Language.DE: {
+            Judgment.APPROVAL: [r'Gutheissung der Beschwerde', r'Bejahung der Beschwerdelegimitation'],
+            Judgment.PARTIAL_APPROVAL: [r'Teilweise Gutheissung der Beschwerde'],
+            Judgment.DISMISSAL: [r'Abweisung der Beschwerde', 
+                                r'Der Anzeige wird keine Folge gegeben', 
+                                r'Verneinung der Beschwerdelegimitation', 
+                                r'Abweisung der Verwaltungsgerichtsbeschwerde', 
+                                r'Abweisung der [Vv]erwaltungsrechtlichen Klage',
+                                r'Abweisung des Gesuches um Wiederherstellung der Frist',
+                                r'In concreto Abweisung der Berufung der Dienstbarkeitsbelasteten'],
+            Judgment.WRITE_OFF: [r'Abschreibung der Beschwerde vom Geschäftsprotokoll ']
+        }
+    }
+
+    # In canton UR, de only
+    if namespace['language'] != Language.DE:
+        raise ValueError(f'This function is only implemented for {Language.DE} so far.')
+    
+    # find all judgments in the rulings
+    judgments = []
+    for lang in all_judgment_markers:
+        for judg in all_judgment_markers[lang]:
+            for reg in (all_judgment_markers[lang])[judg]:
+                matches = re.finditer(reg, rulings, re.MULTILINE)
+                for num, match in enumerate(matches, start=1):
+                    from_, to_, match_text  = match.start(), match.end(), match.group()
+                    judgments.append(judg)
+    
+    # validate
+    if len(judgments) > 1:
+        # TODO: using from_ and to_ position of judgment, check the following cases
+        #   1) a match is included in another --> discard the one included
+        #   2) two matches overlap --> problem, check 
+        #   3) no judgment found --> update the all_judgment_markers 
+        raise ValueError(f"Found several judgments for the rulings {namespace['date']} . Please check!")
+    if len(judgments) == 0:
+        raise ValueError(f"Found no judgment for the rulings {namespace['date']}. Please check!")
+
+    return judgments
+  
+
+def CH_BGer(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+
+    if namespace['language'] not in all_judgment_markers:
+        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
+        raise ValueError(message)
+
+    # make sure we don't have any nasty unicode problems
+    rulings = clean_text(rulings)
+
+    judgments = get_judgments(rulings, namespace)
+
+    if not judgments:
+        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
+        raise ValueError(message)
+    elif len(judgments) > 1:
+        if Judgment.PARTIAL_APPROVAL in judgments:
+            # if partial_approval is found, it will find approval as well
+            judgments.discard(Judgment.APPROVAL)
+        if Judgment.PARTIAL_DISMISSAL in judgments:
+            # if partial_dismissal is found, it will find dismissal as well
+            judgments.discard(Judgment.DISMISSAL)
+
+    return [judgment.value for judgment in judgments]
+
 def get_judgments(rulings: str, namespace: dict) -> set:
     """
     Get the judgment outcomes based on a rulings string and the given namespace context.
@@ -294,27 +247,63 @@ def get_judgments(rulings: str, namespace: dict) -> set:
     :return:            the set of judgment outcomes
     """
     judgments = set()
+    
+    judgment_markers = prepare_judgment_markers(all_judgment_markers, namespace)
+    
+    pattern = rf"{1}\.(.+?)(?:{2}\.|$)"
+    romanPattern = rf"{int_to_roman(1)}\.(.+?)(?:{int_to_roman(2)}\.|$)"
+    
+    if (re.search(pattern, rulings) or re.search(romanPattern, rulings)):
+        judgments = numbered_rulings(judgments, rulings, namespace, judgment_markers)
+        if not judgments:
+            judgments = unnumbered_rulings(judgments, rulings, judgment_markers, namespace)  
+    else:
+        judgments = unnumbered_rulings(judgments, rulings, judgment_markers,namespace) 
+    return judgments
 
-    judgment_markers = all_judgment_markers[namespace['language']]
+def unnumbered_rulings(judgments: set, rulings: str, judgment_markers: dict, namespace: dict):
+    return iterate_Judgments(rulings, judgments, judgment_markers, False)
 
-    # combine multiple regex into one for each section due to performance reasons
-    judgment_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), judgment_markers.items()))
-
+def numbered_rulings(judgments: set, rulings: str, namespace: dict, judgment_markers: dict):
     n = 1
     while len(judgments) == 0:
         try:
             ruling = get_nth_ruling(rulings, namespace, n)
-            for judgment in Judgment:
-                markers = judgment_markers[judgment]
-                ruling = unicodedata.normalize('NFC', ruling)  # if we don't do this, we get weird matching behaviour
-                if re.search(markers, ruling):
-                    judgments.add(judgment)
+            judgments = iterate_Judgments(ruling, judgments, judgment_markers, True)
             n += 1
         except ValueError:
             break
     return judgments
 
+def iterate_Judgments(ruling: str, judgments: set, judgment_markers: dict, numberedRuling: bool) -> set:
+    positions = [];
+    for judgment in Judgment:
+                markers = judgment_markers[judgment]
+                ruling = unicodedata.normalize('NFC', ruling)  # if we don't do this, we get weird matching behaviour
+                matching = re.search(markers, ruling)
+                if matching:
+                    if numberedRuling:
+                        judgments.add(judgment)
+                    else: 
+                        positions.append({"match": matching, "judgment": judgment})
+    if not numberedRuling and positions:
+        judgments = getFirstInstance(positions, judgments) 
+    return judgments
 
+def getFirstInstance(positions: dict, judgments: set) -> set:
+    firstInstance = positions[0]
+    judgments = {firstInstance["judgment"]}
+    for judgment in positions[1:]:
+        position = firstInstance["match"].span()
+        comparison = judgment["match"].span()
+        if(comparison[0] < position[0]):
+            firstInstance = judgment
+            judgments = {firstInstance["judgment"]}
+        elif(position[0] == comparison[0]):
+            firstInstance = judgment
+            judgments.add(firstInstance["judgment"])
+    return judgments
+            
 def get_nth_ruling(rulings: str, namespace: dict, n: int) -> str:
     """
     Gets the nth ruling from the rulings string
@@ -348,24 +337,9 @@ def search_rulings(rulings: str, start: str, end: str):
 # def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
 #    return CH_BGer(rulings, namespace)
 
-def getJudgments(text: str, judgment_markers, debug=False) -> Optional[List[Judgment]]:
-    """
-    Get the judgment outcomes based on a regex dictionary for a given section string.
-    :param text:               the text string of the section, usually Section.RULINGS
-    :param judgment_markers:   the regex dicttionary for the different judgment outcomes
-    :param debug:              if set to True, prints debug output to console
-    :return:                   the list of judgment outcomes
-    """
-    
-    judgments = []
-    for lang in all_judgment_markers:
-        for judg in all_judgment_markers[lang]:
-            for reg in (all_judgment_markers[lang])[judg]:
-                matches = re.finditer(reg, text, re.MULTILINE)
-                for num, match in enumerate(matches, start=1):
-                    from_, to_, match_text  = match.start(), match.end(), match.group()
-                    judgments.append(judg)
-                    if debug:
-                        print(f'{judg} ("{match.group()}") at {to_/len(text):.1%} of the section.')
-                    
-    return judgments
+
+def prepare_judgment_markers(all_judgment_markers: dict, namespace: dict) -> dict: 
+    judgment_markers = all_judgment_markers[namespace['language']]
+        # combine multiple regex into one for each section due to performance reasons
+    judgment_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), judgment_markers.items()))
+    return judgment_markers

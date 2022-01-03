@@ -82,15 +82,24 @@ git fetch upstream
 git rebase upstream/main
 ```
 
-### Pushing your code
+### Opening a Pull Request
 
-Push the changes to your account using:
+Push the changes to your forked repository using:
 
 ```bash
 git push -u origin a-descriptive-name-for-my-changes
 ```
 
-Then you can go to your GitHub Repository and click on Pull Request, where your codes gets reviewed.
+Then you can go to your GitHub Repository and open a Pull Request to the main branch of the original repository.
+Please make sure to create a good Pull Request by following guidelines such as [How to Make a Perfect Pull Request](https://betterprogramming.pub/how-to-make-a-perfect-pull-request-3578fb4c112). Maybe the following list also serves as a good starting point (https://www.pullrequest.com/blog/writing-a-great-pull-request-description/):
+```
+## What?
+## Why?
+## How?
+## Testing?
+## Screenshots (optional)
+## Anything Else?
+```
 
 ## Tasks
 
