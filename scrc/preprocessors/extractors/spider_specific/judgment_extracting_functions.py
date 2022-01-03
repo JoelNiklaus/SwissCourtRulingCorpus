@@ -185,16 +185,31 @@ def UR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     # In canton UR, de only
     if namespace['language'] != Language.DE:
         raise ValueError(f'This function is only implemented for {Language.DE} so far.')
+
+    def getJudgments(text: str, judgment_markers, debug=False) -> Optional[List[Judgment]]:
+        """
+        Get the judgment outcomes based on a regex dictionary for a given section string.
+        :param text:               the text string of the section, usually Section.RULINGS
+        :param judgment_markers:   the regex dicttionary for the different judgment outcomes
+        :param debug:              if set to True, prints debug output to console
+        :return:                   the list of judgment outcomes
+        """
+        
+        judgments = []
+        for lang in judgment_markers:
+            for judg in judgment_markers[lang]:
+                for reg in (judgment_markers[lang])[judg]:
+                    matches = re.finditer(reg, text, re.MULTILINE)
+                    for num, match in enumerate(matches, start=1):
+                        from_, to_, match_text  = match.start(), match.end(), match.group()
+                        judgments.append(judg)
+                        if debug:
+                            print(f'{judg} ("{match.group()}") at {to_/len(text):.1%} of the section.')
+                        
+        return judgments
     
     # find all judgments in the rulings
-    judgments = []
-    for lang in all_judgment_markers:
-        for judg in all_judgment_markers[lang]:
-            for reg in (all_judgment_markers[lang])[judg]:
-                matches = re.finditer(reg, rulings, re.MULTILINE)
-                for num, match in enumerate(matches, start=1):
-                    from_, to_, match_text  = match.start(), match.end(), match.group()
-                    judgments.append(judg)
+    judgments = getJudgments(rulings, all_section_markers)
     
     # validate
     if len(judgments) > 1:
