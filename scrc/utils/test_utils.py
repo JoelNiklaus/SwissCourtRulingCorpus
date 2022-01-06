@@ -85,9 +85,9 @@ class TestCourtCompositionExtractingFunctions:
         # ZG_Verwaltungsgericht
         (zg_vg.president.name, 'Adrian Willimann'),
         (zg_vg.judges[0].name, 'Adrian Willimann'), 
-        # (zg_vg.judges[1].name, 'Jacqueline Iten-Staub'),
-        # (zg_vg.judges[2].name, 'Matthias Suter'),
-        # (zg_vg.clerks[0].name, 'Patrick Trütsch'),
+        (zg_vg.judges[1].name, 'Jacqueline Iten-Staub'),
+        (zg_vg.judges[2].name, 'Matthias Suter'),
+        (zg_vg.clerks[0].name, 'Patrick Trütsch'),
         # ZH_Steuerrekurs
         (zh_sr.president.gender.value, 'male'),
         (zh_sr.judges[0].name, 'Christian Mäder'),
@@ -132,12 +132,12 @@ class TestCourtCompositionExtractingFunctions:
         (zh_svg.president.gender.value, 'male'),
         (zh_svg.judges[0].name, 'Mosimann'),
         (zh_svg.judges[0].gender.value, 'male'),
-        # (zh_svg.judges[1].name, 'Käch'),
-        # (zh_svg.judges[1].gender.value, 'female'),
-        # (zh_svg.judges[2].name, 'Sager'),
-        # (zh_svg.judges[2].gender.value, 'female'),
-        # (zh_svg.clerks[0].name, 'Kudelski'),
-        # (zh_svg.clerks[0].gender.value, 'female'),
+        (zh_svg.judges[1].name, 'Käch'),
+        (zh_svg.judges[1].gender.value, 'female'),
+        (zh_svg.judges[2].name, 'Sager'),
+        (zh_svg.judges[2].gender.value, 'female'),
+        (zh_svg.clerks[0].name, 'Kudelski'),
+        (zh_svg.clerks[0].gender.value, 'female'),
     ]
 
     @pytest.mark.parametrize("input, expected", test_data)
