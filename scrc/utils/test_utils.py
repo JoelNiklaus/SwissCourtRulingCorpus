@@ -82,6 +82,8 @@ class TestCourtCompositionExtractingFunctions:
     zh_svg = court_composition_setup(c.ZH_Sozialversicherungsgericht, ZH_Sozialversicherungsgericht_test_header, namespace_de)
 
     test_data = [
+        # The first element of each tuple is the value to be tested,
+        # and the second element is the expected result.
         # ZG_Verwaltungsgericht
         (zg_vg.president.name, 'Adrian Willimann'),
         (zg_vg.judges[0].name, 'Adrian Willimann'), 
@@ -173,6 +175,8 @@ class TestProceduralParticipationExtractingFunctions():
     zh_svg = procedural_participation_setup(p.ZH_Sozialversicherungsgericht, ZH_Sozialversicherungsgericht_test_header, namespace_de)
 
     test_data = [
+        # The first element of each tuple is the value to be tested,
+        # and the second element is the expected result.
         # ZG_Verwaltungsgericht
         (zg_vg['plaintiffs'][0]['legal_counsel'][0]['name'], 'B._ AG'),
         (zg_vg['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'legal entity'),
