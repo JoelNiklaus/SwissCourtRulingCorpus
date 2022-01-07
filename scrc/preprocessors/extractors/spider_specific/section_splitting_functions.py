@@ -8,7 +8,7 @@ from scrc.enums.language import Language
 from scrc.enums.section import Section
 from scrc.utils.main_utils import clean_text
 from scrc.utils.log_utils import get_logger
-from scrc.analyses.scan_regex import test
+from scrc.analyses.scan_regex import analyse_regex
 
 """
 This file is used to extract sections from decisions sorted by spiders.
@@ -51,7 +51,7 @@ def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     paragraphs = get_paragraphs(divs)
     return associate_sections(paragraphs, section_markers, namespace)
 
-def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
@@ -60,27 +60,19 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     # As soon as one of the strings in the list (regexes) is encountered we switch to the corresponding section (key)
     # (?:C|c) is much faster for case insensitivity than [Cc] or (?i)c
     all_section_markers = {
-              Language.FR: {
-            Section.FACTS: [r'^[L,l]a Cour de droit administratif et public\s?[,:]?\s?$', r'Faits\s?:', r'[E,e]n fait et en droit', r'(?:V|v)u\s?:', r'A.-', r'[V,v]u les faits suivants', r'constate en fait(\s*)?:?', r'^[E,e]n fait\s?:?$', r'^[V,v]u en fait\s?:?'],
-            Section.CONSIDERATIONS: [r'Considérant en (?:fait et en )?droit\s?:?', r'(?:C|c)onsidérant(s?)\s?:?$',
-                                     r'^considère\s?:?$', r'^(et)?\s?[C,c]onsidère en droit\s?:?$', r'[E,e]n droit\s?[:,]?\s?$'],
-            Section.RULINGS: [r'^prononce\s?:', r'^[P,p]ar ces? motifs?\s?[,:]?\s?', r'^ordonne\s?:'],
-            Section.FOOTER: [
-                r'^([^\s]*)?\w*,\s(le\s?)?((\d?\d)|\d\s?(er|re|e)|premier|première|deuxième|troisième)\s?(?:janv|févr|mars|avr|mai|juin|juill|août|sept|oct|nov|déc).{0,10}\d?\d?\d\d\s?([^\s]*)?\w*$',
-                r'Au nom de la Cour', r'^Lausanne, le$'
-            ]
-        },
+        Language.DE: {
+            Section.CONSIDERATIONS: [r'nachdem sich ergeben', r'nachdem sich ergeben und in Erwägung:', 'in Erwägung'],
+            Section.RULINGS: [r'^erkennt[:]?$', r'^beschlossen[:]?$', r'^verfügt[:]?$', r'^erkannt[:]?$', r'erkannt und beschlossen[:]?$', r'beschlossen und erkannt[:]?$'],
+            Section.FOOTER: [r'^Namens', r'^Versand']
+        }
     }
     valid_namespace(namespace, all_section_markers)
 
-    test(decision)
-    
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    divs = decision.find_all(
-        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
-    paragraphs = get_paragraphs(divs)
-    return associate_sections(paragraphs, section_markers, namespace)
+    paragraphs = get_pdf_paragraphs(decision)
+    analyse_regex(paragraphs)
+    return associate_sections(paragraphs, section_markers, namespace, list(Section.without_facts()))
 
 
 def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -243,6 +235,8 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
                   f"Here is the date of the decision: {namespace['date']}"
         get_logger(__name__).warning(message)
+    if paragraphs_by_section[Section.RULINGS] == []:
+        print()
     return paragraphs_by_section
 
 def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
