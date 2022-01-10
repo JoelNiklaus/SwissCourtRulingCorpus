@@ -201,6 +201,62 @@ def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
     paragraphs = get_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def BE_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [r'STEUERREKURSKOMMISSION DES KANTONS BERN'],
+            Section.FACTS: [r'(hat die Steuerrekurskommission den )*Akten entnommen:'],
+            Section.CONSIDERATIONS: [r'Die Steuerrekurskommission zieht in Erwägung:'],
+            Section.RULINGS: [r'Aus diesen Gründen wird erkannt:'],
+            Section.FOOTER: [r'IM NAMEN DER STEUERREKURSKOMMISSION']
+         },
+
+        Language.FR: {
+            Section.HEADER: [r'COMMISSION DES RECOURS'],
+            Section.FACTS: [r'(La Commission des recours en matière fiscale )*constate en fait:'],
+            Section.CONSIDERATIONS: [r'La Commission des recours en matière fiscale considère en droit:'],
+            Section.RULINGS: [r'Par ces motifs, la Commission des recours en matière fiscale prononce:'],
+            Section.FOOTER: [r'AU NOM DE LA COMMISSION DES RECOURS']
+        }
+    }
+
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
+
+    section_markers = all_section_markers[namespace['language']]
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    def get_paragraphs(soup):
+        """
+        Get Paragraphs in the decision
+        :param soup: the string extracted of the pdf
+        :return: a list of paragraphs
+        """
+        paragraphs = []
+        soup = re.sub('\\n +\\n', '\\n\\n', soup)
+        lines = soup.split('\n\n')
+        for element in lines:
+            element = element.replace('  ', ' ')
+            paragraph = clean_text(element)
+            if paragraph not in ['', ' ', None]:
+                paragraphs.append(paragraph)
+        return paragraphs
+
+    paragraphs = get_paragraphs(decision)
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
 def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
