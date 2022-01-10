@@ -595,6 +595,11 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
                 text = str(element.string)
                 # This is a hack to also get tags which contain other tags such as links to BGEs
                 if text.strip() == 'None':
+                    # replace br tags with spaces and insert spaces before div end tags
+                    # without this, words might get stuck together
+                    html_string = str(element)
+                    html_string = html_string.replace('<br>', ' ').replace('<br/>', ' ').replace('<br />', ' ').replace('</div>', ' </div>')
+                    element = bs4.BeautifulSoup(html_string, 'html.parser')
                     text = element.get_text()
                 # get numerated titles such as 1. or A.
                 if "." in text and len(text) < 5:
