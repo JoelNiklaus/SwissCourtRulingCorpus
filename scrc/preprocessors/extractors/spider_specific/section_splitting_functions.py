@@ -595,6 +595,11 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
                 text = str(element.string)
                 # This is a hack to also get tags which contain other tags such as links to BGEs
                 if text.strip() == 'None':
+                    # replace br tags with spaces and insert spaces before div end tags
+                    # without this, words might get stuck together
+                    html_string = str(element)
+                    html_string = html_string.replace('<br>', ' ').replace('<br/>', ' ').replace('<br />', ' ').replace('</div>', ' </div>')
+                    element = bs4.BeautifulSoup(html_string, 'html.parser')
                     text = element.get_text()
                 # get numerated titles such as 1. or A.
                 if "." in text and len(text) < 5:
@@ -605,7 +610,8 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
                     else:
                         paragraph = text
                     heading = None  # reset heading
-                if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+                if paragraph not in ['', ' ', None]:  # only clean and append non-empty paragraphs
+                    paragraph = clean_text(paragraph)
                     paragraphs.append(paragraph)
         return paragraphs
 
@@ -726,9 +732,8 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
                     else:
                         paragraph = text
                     heading = None  # reset heading
-                if paragraph not in ['', ' ', None]:  # only clean non-empty paragraphs
+                if paragraph not in ['', ' ', None]:  # only clean and append non-empty paragraphs
                     paragraph = clean_text(paragraph)
-                if paragraph not in ['', ' ', None]:  # discard empty paragraphs
                     paragraphs.append(paragraph)
         return paragraphs
 
