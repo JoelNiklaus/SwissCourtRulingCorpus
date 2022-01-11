@@ -1,11 +1,9 @@
 import os
-import configparser
 import glob
 import json
 from json import JSONDecodeError
 from pathlib import Path
 from typing import List, Optional
-from sqlalchemy import MetaData, Table, Column, Integer, String, Date
 import pandas as pd
 import bs4
 import requests
@@ -96,8 +94,7 @@ class TextToDatabase(AbstractPreprocessor):
         """ Builds the spider dict list which we can convert to a pandas Data Frame later """
         # we take the json files as a starting point to get the corresponding html or pdf files
         json_filenames = self.get_filenames_of_extension(spider_dir, 'json')
-        spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=100)
-
+        spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=1000)
         return [spider_dict for spider_dict in spider_dict_list if spider_dict]  # remove None values
 
     def build_spider_dict(self, json_file: str) -> Optional[dict]:

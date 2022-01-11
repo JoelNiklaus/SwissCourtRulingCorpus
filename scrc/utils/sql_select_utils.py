@@ -207,6 +207,10 @@ def join_tables_on_decision(tables: List[str]) -> str:
     return join_string
 
 def select_paragraphs_with_decision_and_meta_data() -> str:
+    """ 
+        Edit this according to the example given below. 
+        Easiest function to default join tables to a decision.
+    """
     return join_tables_on_decision(['paragraph', 'judgment', 'citation', 'file', 'file_number'])
 
 def select_fields_from_table(fields: List[str], table): 

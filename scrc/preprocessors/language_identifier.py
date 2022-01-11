@@ -1,5 +1,6 @@
 import bs4
 import pandas as pd
+from scrc.enums.language import Language
 from scrc.utils.language_identification_singleton import LanguageIdentificationSingleton
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
@@ -29,14 +30,7 @@ class LanguageIdentifier(AbstractPreprocessor):
         return all_decision_ids
     
     def get_lang(self, series: pd.Series):
-        key_to_id = {
-            'de': 1,
-            'fr': 2,
-            'it': 3,
-            'en': 4,
-            '--': -1
-        }
-        
+                
         html_raw = series['html_raw']
         pdf_raw = series['pdf_raw']
         language = '--'
@@ -47,7 +41,7 @@ class LanguageIdentifier(AbstractPreprocessor):
             assert soup.find()  # make sure it is valid html
             language = self.lang_id.get_lang(soup.get_text())
             
-        series['language_id'] = key_to_id[language]
+        series['language_id'] = Language.get_id_value(language)
         return series
         
         

@@ -79,10 +79,7 @@ def create_specialized_datasets(config):
     criticality_dataset_creator.create_dataset()
 
 
-def construct_base_dataset(config):
-    # TODO: return files to process / decisions to process
-    # TODO: "ignore cache" flag -> in config
-    
+def construct_base_dataset(config):   
     scraper = Scraper(config)
     new_files = scraper.download_subfolders(base_url + "docs/")
 

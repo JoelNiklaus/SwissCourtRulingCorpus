@@ -3,7 +3,7 @@ import configparser
 from datetime import datetime
 import os
 from pathlib import Path
-from typing import Dict, Optional, TYPE_CHECKING, Union
+from typing import Dict, List, Optional, TYPE_CHECKING, Tuple, Union
 
 import bs4
 import pandas as pd
@@ -30,7 +30,7 @@ class SectionSplitter(AbstractExtractor):
     Splits the raw html into sections which can later separately be used. This represents the section splitting task.
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, run_tokenizer: bool):
         super().__init__(config, function_name='section_splitting_functions', col_name='sections')
         self.logger = get_logger(__name__)
         self.logger_info = {
@@ -42,6 +42,15 @@ class SectionSplitter(AbstractExtractor):
             'processing_one': 'Splitting sections from file',
             'no_functions': 'Not splitting into sections.'
         }
+        self.run_tokenizer = run_tokenizer
+        if self.run_tokenizer: 
+            # spacy_tokenizer, bert_tokenizer = tokenizers['de']
+            self.tokenizers: dict[Language, Tuple[any, any]] = {
+                Language.DE: self.get_tokenizers('de'),
+                Language.FR: self.get_tokenizers('fr'),
+                Language.IT: self.get_tokenizers('it'),
+            }
+        
         self.processed_file_path = self.progress_dir / "spiders_section_split.txt"
 
     def get_required_data(self, series: pd.DataFrame) -> Union[bs4.BeautifulSoup, str, None]:
@@ -64,7 +73,7 @@ class SectionSplitter(AbstractExtractor):
         # only calculate this if we save the reports because it takes a long time
         # TODO precompute this in previous step after section splitting for each section
         # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
-        spacy_tokenizer, bert_tokenizer = self.get_tokenizers(df['language'][0])
+        spacy_tokenizer, bert_tokenizer = self.tokenizers.get(df['language'][0])
         
         result = {}
         
@@ -80,8 +89,8 @@ class SectionSplitter(AbstractExtractor):
         return result
     
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
-        
-        tokens = self.run_tokenizer(df)
+        if self.run_tokenizer:
+            tokens = self.run_tokenizer(df)
         
         for idx, row in df.iterrows():
             with engine.connect() as conn:

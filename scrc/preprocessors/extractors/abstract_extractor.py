@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Set, TYPE_CHECKING, Tuple
+from typing import Any, List, Optional, Set, TYPE_CHECKING, Tuple
 import pandas as pd
 
 from root import ROOT_DIR
@@ -58,7 +58,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         self.logger.info(self.logger_info["start"])
         if self.ignore_cache:
            self.processed_file_path.unlink()
-        elif decision_ids is not None:
+        if decision_ids is not None:
             self.decision_ids = decision_ids
         spider_list, message = self.get_processed_spiders()
         self.logger.info(message)

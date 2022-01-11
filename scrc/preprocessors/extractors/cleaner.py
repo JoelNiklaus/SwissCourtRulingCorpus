@@ -65,7 +65,7 @@ class Cleaner(AbstractExtractor):
 
         if self.ignore_cache:
             processed_file_path.unlink()
-        elif decision_ids is not None:
+        if decision_ids is not None:
             self.decision_ids = decision_ids
         spider_list, message = self.compute_remaining_spiders(processed_file_path)
         self.logger.info(message)

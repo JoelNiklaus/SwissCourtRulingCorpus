@@ -1,5 +1,21 @@
 # Contributors
 
+- [Contributors](#contributors)
+  - [Setup](#setup)
+  - [Developing](#developing)
+    - [Before starting](#before-starting)
+    - [Coding](#coding)
+    - [Running a pipeline step](#running-a-pipeline-step)
+    - [Opening a Pull Request](#opening-a-pull-request)
+  - [Tasks](#tasks)
+    - [Section Splitting](#section-splitting)
+    - [Citation Extraction](#citation-extraction)
+    - [Judgment Outcome Extraction](#judgment-outcome-extraction)
+    - [Judicial Person Extraction](#judicial-person-extraction)
+      - [Court Composition](#court-composition)
+      - [Procedural Participation](#procedural-participation)
+  - [Questions?](#questions)
+
 ## Setup
 
 1. Fork the repository by clicking on the 'Fork' button on the repository's page. This creates a copy of the code under
@@ -51,7 +67,7 @@ After logging in you should be in the conda `scrc` environment which is visible 
 ```
 
 You can find the code in the cloned GitHub directory `SwissCourtRulingCorpus`.
-
+****
 ### Coding
 
 Make the changes in the files you want to modify or create files accordingly. To get an idea how you might add
@@ -82,6 +98,20 @@ git fetch upstream
 git rebase upstream/main
 ```
 
+### Running a pipeline step
+Each pipeline step can be run in three different modes.
+1. ignore cache flag set to true in the `config.ini` file.
+   
+   The module will delete and recreate the progress file. This means the step is run again for all spiders.
+
+1. Decision_ids set in the `start` method of the extractors (`clean` method for the `Cleaner`) 
+
+   The module will read the progress file and from the spiders it has not done yet will select only the given decision_ids. It then executes the pipeline for the given decision_ids from the spider not yet in the progress file.
+   This can be combined with the ignore cache flag in the `config.ini` to run it for every spider with the given decision_ids 
+
+1. Decision_ids not set in the `start` method of the extractors (`clean` method for the `Cleaner`)
+
+   The module will execute all the decisions of the spider not yet present in the progress file. 
 ### Opening a Pull Request
 
 Push the changes to your forked repository using:

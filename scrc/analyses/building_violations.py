@@ -1,5 +1,5 @@
 from root import ROOT_DIR
-from scrc.dataset_creation.judgment_dataset_creator import convert_to_binary_judgments
+from scrc.utils.sql_select_utils import convert_to_binary_judgments
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import pandas as pd
