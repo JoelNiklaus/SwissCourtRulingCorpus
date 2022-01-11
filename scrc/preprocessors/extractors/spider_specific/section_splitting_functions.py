@@ -610,9 +610,8 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
                     else:
                         paragraph = text
                     heading = None  # reset heading
-                if paragraph not in ['', ' ', None]:  # only clean non-empty paragraphs
+                if paragraph not in ['', ' ', None]:  # only clean and append non-empty paragraphs
                     paragraph = clean_text(paragraph)
-                if paragraph not in ['', ' ', None]:  # discard empty paragraphs
                     paragraphs.append(paragraph)
         return paragraphs
 
@@ -733,9 +732,8 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
                     else:
                         paragraph = text
                     heading = None  # reset heading
-                if paragraph not in ['', ' ', None]:  # only clean non-empty paragraphs
+                if paragraph not in ['', ' ', None]:  # only clean and append non-empty paragraphs
                     paragraph = clean_text(paragraph)
-                if paragraph not in ['', ' ', None]:  # discard empty paragraphs
                     paragraphs.append(paragraph)
         return paragraphs
 
