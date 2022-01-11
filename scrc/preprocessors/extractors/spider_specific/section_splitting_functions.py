@@ -137,70 +137,6 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
     
     return paragraphs_by_section
 
-def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    """
-    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict (keys: section, values: list of paragraphs)
-    """
-
-    all_section_markers = {
-        Language.DE: {
-            Section.HEADER: [r'Verwaltungsgericht des Kantons Bern', r'Beschluss', r'SK\-*\s*Nr\.\s\d*/\d*',
-                             r'\w*\-*\s*\d*\/*\s*\-*\d*\,\s(\w+\s)*\d{4}\s*\d*'],
-            Section.FACTS: [r'Sachverhalt( und Erwägungen)*:', r'Regeste(:)*'],
-            Section.CONSIDERATIONS: [r'Erwägungen:',
-                                     r'(Der|Die|Das)\s\w+\s*(.+)\s*(e|E)rwäg(t|ung)(:)*(\,\s*dass)*(:)*'],
-            Section.RULINGS: [r'Demnach entscheidet\s\w+\s*(.+)\s*:'],
-            Section.FOOTER: [r'Rechtsmittelbelehrung']
-        },
-
-        Language.FR: {
-            Section.HEADER: [r'Tribunal administratif du canton de Berne', r'\w+\-\d*\s\d*\,\s(\w+\s)*\d{4}',
-                             r'Décision', r'\w*\s*\d*\s*\d*\,*\s*(\w+\.*\s)*\d{2}'],
-            Section.FACTS: [r'En fait:'],
-            Section.CONSIDERATIONS: [r'En droit:'],
-            Section.RULINGS: [r'Par ces motifs:'],
-            Section.FOOTER: [r'Voie de recours']
-        }
-    }
-
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
-
-    section_markers = all_section_markers[namespace['language']]
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
-
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
-
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-
-        paragraphs = []
-        soup = re.sub('\\n', '\\n', soup)
-        lines = soup.split('\n')
-        for element in lines:
-            element = element.replace('  ', ' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    valid_namespace(namespace, all_section_markers)
-
-    section_markers = prepare_section_markers(all_section_markers, namespace)
-
-    paragraphs = get_paragraphs(decision)
-    return associate_sections(paragraphs, section_markers, namespace)
-
 def BE_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -237,23 +173,7 @@ def BE_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
     for section, regexes in section_markers.items():
         section_markers[section] = unicodedata.normalize('NFC', regexes)
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ', ' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
