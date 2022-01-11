@@ -402,6 +402,11 @@ def add_representation(text: str, representation_start: dict, lawyer_representat
     start_positions = tuple(re.finditer(representation_start, text))
     if not start_positions:
         return []
+    
+    # If a string like 'vertreten durch [..' is encountered, it can be assumed that the representation has been redacted, and searching for a representation could lead to false positive.
+    if re.search(r'vertreten durch \[[\s]*\.\.', text):
+        return []
+
 
     for match_index in range(len(start_positions)):
         start_pos = start_positions[match_index].span()[1]
