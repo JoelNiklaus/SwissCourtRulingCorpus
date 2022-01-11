@@ -14,6 +14,12 @@ from scrc.utils.main_utils import get_config, string_contains_one_of_list, get_l
 
 import plotly.express as px
 
+"""
+Two large difficulties with this analysis:
+1. Automatic sentence splitting in legal documents works very badly
+2. Automatic negation detection is very hard in the multilingual setting and even harder in legal documents
+"""
+
 
 class FundamentalImportanceAnalysis(AbstractPreprocessor):
 
@@ -88,18 +94,29 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
         return df
 
     def analyze(self, type, overwrite_cache=False):
+        self.logger.info(f"Analyzing Fundamental Importance by searching with {type}")
         self.analysis_dir = ROOT_DIR / f'analyses/fundamental_importance/{type}'
         self.analysis_dir.mkdir(parents=True, exist_ok=True)  # create folder if it does not exist yet
 
         df = self.retrieve_data(type, overwrite_cache=overwrite_cache)
+
+        num_entries = df.groupby('language').text.count()
+        num_entries.index = df.language.unique()
+        self.logger.info(f"Found {num_entries.de} German decisions"
+                         f", {num_entries.fr} French decisions "
+                         f"and {num_entries.it} Italian decisions"
+                         f" ({num_entries.sum()} in Total)")
 
         self.logger.info("Splitting the text into sentences")
         df = df.apply(self.sentencize, axis="columns")
 
         self.logger.info("Removing the sentences that do not contain any legal question of fundamental importance")
         df = df.apply(self.filter_by_fundamental_importance, axis="columns")
-        # print(df.sentences.str.len()) # print the number of sentences
-        # print(df.fundamental_importance_sentences.str.len()) # print the number of sentences
+
+        self.logger.info("Removing the decisions where no direct mention of fundamental importance is found")
+        df = df[df.fundamental_importance_sentences.apply(lambda x: len(x)) > 0]
+        self.logger.info(f"Removed {num_entries.sum() - df.text.count()} entries "
+                         f"(Originally: {num_entries.sum()}, Now: {df.text.count()})")
 
         self.logger.info("Filtering decisions containing negations in the same sentence "
                          "as the legal question of fundamental importance was found")
@@ -123,9 +140,11 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
 
         df.to_csv(self.analysis_dir / "fundamental_importance_result.csv")
 
-        # use this for debugging large dfs so it can show everything
-        # with pd.option_context('display.max_rows', None, 'display.max_columns',None):
-        # print(df)
+        # Sample decisions to check the validity of the process
+        df = df[["language", "negated", "legal_area", "html_url"]]
+
+        sample = df.groupby(["language", "negated"]).sample(n=3, random_state=42)
+        sample.to_csv(self.analysis_dir / "samples.csv")
 
     def create_summary_df(self, group_by, df, negated_df, not_negated_df):
         # create summary df for nice condensed presentation of results
@@ -134,8 +153,15 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
         summary_df['not_negated'] = not_negated_df.groupby(group_by).text.count()
         summary_df['total'] = df.groupby(group_by).text.count()
         summary_df = summary_df.fillna(0)
+        total = summary_df.sum()
+        total.name = 'All'  # add row for all
+        # Assign sum of all rows of DataFrame as a new Row
+        summary_df = summary_df.append(total.transpose())
+
         summary_df['not_negated_percentage'] = round(100 * summary_df.not_negated / summary_df.total, 2)
-        summary_df.index = df[group_by].unique()  # give nice names to rows
+        row_names = df[group_by].unique().tolist()
+        row_names.append("All")  # add name for last sum row
+        summary_df.index = row_names  # give nice names to rows
 
         # draw histogram
         fig = px.bar(summary_df, x=summary_df.index, y='not_negated_percentage')
@@ -146,10 +172,10 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
         return summary_df
 
     def contains_negation_fundamental_importance(self, df):
-        # TODO bessere negation detection einbauen: https://spacy.io/universe/project/negspacy
+        # TODO bessere negation detection einbauen: https://spacy.io/universe/project/negspacy, https://drive.google.com/drive/folders/1md-_WBrg9x2Kp4g6jNExLJrEt5HBGL23
         negation_fundamental_importance_search_strings = {
-            "de": ["keine", "nicht", "mangels", ],
-            "fr": ["aucune", "ne", "pas", "absence", ],
+            "de": ["keine", "kein", "nicht", "mangels", "nur", "weder"],
+            "fr": ["aucune", "absence", "ne", "n'", "pas", "que", "qu'"],
             "it": ["non", "né", ]
         }
         df['fundamental_importance_tokens'] = self.nltk_word_tokenize(df.fundamental_importance_sentences, df.language)
