@@ -323,7 +323,7 @@ def get_regex():
         Gender.UNKNOWN: [r'RA']
     }
     lawyer_name = {
-        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|($)| Gegen| und)'
+        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[A-Za-zÀ-ž0-9\s\.\-\_\']*?(?=(,)|($)| Gegen| und)'
     }
 
     representation_start = '|'.join(representation_start)
@@ -415,7 +415,7 @@ def add_representation(text: str, representation_start: dict, lawyer_representat
             representations.extend(lawyers)
             continue
 
-        name_match = re.search(r'[A-Z][\w\s\.\-\']*(?=\b)', current_text)
+        name_match = re.search(r'[A-Z][A-Za-zÀ-ž0-9\s\.\-\_\'\&]*(?=\b)', current_text)
         if name_match:
             name = name_match.group()
             if name.startswith('Me'):
@@ -427,7 +427,7 @@ def add_representation(text: str, representation_start: dict, lawyer_representat
                 lawyer.gender = Gender.UNKNOWN
             representations.append(lawyer)
             continue
-        name_match = re.search(r'[A-Z][\w\s\.\-\']*', current_text)
+        name_match = re.search(r'[A-Z][A-Za-zÀ-ž0-9\s\.\-\_\'\&]*', current_text)
         if name_match:
             name = name_match.group()
             lawyer = LegalCounsel(name.strip(), legal_type=LegalType.LEGAL_ENTITY)
