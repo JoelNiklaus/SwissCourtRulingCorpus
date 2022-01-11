@@ -306,6 +306,10 @@ def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
 
 
 def get_regex():
+    """
+    Returns various regexes used for different spiders.
+    """
+    
     information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen'
     second_party_start_regex = [
         r'gegen',
