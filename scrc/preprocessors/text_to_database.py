@@ -16,7 +16,7 @@ from scrc.utils.log_utils import get_logger
 import tika
 
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import save_from_text_to_database
+from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, save_from_text_to_database, where_string_spider
 
 os.environ['TIKA_LOG_PATH'] = str(AbstractPreprocessor.create_dir(Path(os.getcwd()), 'logs'))
 tika.initVM()
@@ -37,8 +37,8 @@ class TextToDatabase(AbstractPreprocessor):
     Extracts the textual and meta information from the court rulings files and saves it in csv files for each spider
     and in one for all courts combined
     """
-    
-    def __init__(self, config: dict):
+    #TODO: Implement Flag in call
+    def __init__(self, config: dict, new_files_only: Optional[bool] = True):
         super().__init__(config)
         self.court_keys = [
             "spider",
@@ -55,6 +55,7 @@ class TextToDatabase(AbstractPreprocessor):
             "pdf_raw",
         ]
         self.logger = get_logger(__name__)
+        self.new_files_only = new_files_only
 
     def build_dataset(self) -> List[dict]:
         """ Builds the dataset for all the spiders """
@@ -80,7 +81,7 @@ class TextToDatabase(AbstractPreprocessor):
         """ Builds a dataset for a spider """
         spider_dir = self.spiders_dir / spider
         self.logger.info(f"Building spider dataset for {spider}")
-        spider_dict_list = self.build_spider_dict_list(spider_dir)
+        spider_dict_list = self.build_spider_dict_list(spider_dir, spider)
 
         self.logger.info("Building pandas DataFrame from list of dicts")
         df = pd.DataFrame(spider_dict_list)
@@ -90,12 +91,28 @@ class TextToDatabase(AbstractPreprocessor):
         save_from_text_to_database(self.get_engine('scrc'), df)
         return spider_dict_list
 
-    def build_spider_dict_list(self, spider_dir: Path) -> list:
+    def build_spider_dict_list(self, spider_dir: Path, spider: str) -> list:
         """ Builds the spider dict list which we can convert to a pandas Data Frame later """
         # we take the json files as a starting point to get the corresponding html or pdf files
         json_filenames = self.get_filenames_of_extension(spider_dir, 'json')
+        if self.new_files_only:
+            len_before = len(json_filenames)
+            json_filenames = self.filter_already_present(json_filenames, spider)
+            len_after = len(json_filenames)
+            if len_after != len_before:
+                self.logger.info(f"Processing {len(json_filenames)} files as the others were already done")
+            
         spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=1000)
         return [spider_dict for spider_dict in spider_dict_list if spider_dict]  # remove None values
+
+    def filter_already_present(self, json_filenames: List[str], spider: str) -> List[str]:
+        table_string = f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}"
+        where_string = f"file.file_id IN {where_string_spider('file_id', spider)}"
+        all_filenames_of_spider = self.select( self.get_engine(self.db_scrc), table_string, "file_name", where_string)
+        for filename_chunk in all_filenames_of_spider:
+            filename_chunk = list(filename_chunk['file_name'])
+            json_filenames = [filename for filename in json_filenames if filename.split('/')[-1].split('.')[0] not in filename_chunk]
+        return json_filenames
 
     def build_spider_dict(self, json_file: str) -> Optional[dict]:
         """Extracts the information from all the available files"""
