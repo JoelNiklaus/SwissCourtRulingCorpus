@@ -75,6 +75,7 @@ class ProceduralParticipationExtractor(AbstractExtractor):
                 t_party = Table('party', MetaData(), autoload_with=conn)
                 
                 # Delete person
+                # Delete and reinsert as no upsert command is available
                 stmt = t_party.delete().where(delete_stmt_decisions_with_df(df))
                 conn.execute(stmt)
                 

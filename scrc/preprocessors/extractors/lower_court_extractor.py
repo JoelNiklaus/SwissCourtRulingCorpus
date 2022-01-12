@@ -71,6 +71,7 @@ class LowerCourtExtractor(AbstractExtractor):
                 
             with engine.connect() as conn:
                 t = Table('lower_court', MetaData(), autoload_with=conn)
+                # Delete and reinsert as no upsert command is available
                 stmt = t.delete().where(delete_stmt_decisions_with_df(df))
                 conn.execute(stmt)
                 stmt = t.insert().values([{"decision_id": str(row['decision_id']), "court_id": res.get('court_id'), "canton_id": res.get('canton_id'), "chamber_id": res.get('chamber_id'), "date": lower_court.get('date'), "file_number": lower_court.get('file_number')}])

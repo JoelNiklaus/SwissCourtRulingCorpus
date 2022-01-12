@@ -54,6 +54,7 @@ class JudgmentExtractor(AbstractExtractor):
         for idx, row in df.iterrows():
             with engine.connect() as conn:
                 t = Table('judgment_map', MetaData(), autoload_with=engine)
+                # Delete and reinsert as no upsert command is available
                 stmt = t.delete().where(delete_stmt_decisions_with_df(df))
                 engine.execute(stmt)
                 for k in row['judgments']: 

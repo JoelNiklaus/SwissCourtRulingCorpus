@@ -98,6 +98,7 @@ class SectionSplitter(AbstractExtractor):
                 t_paragraph = Table('paragraph', MetaData(), autoload_with=engine)
                 t_num_tokens = Table('num_tokens', MetaData(), autoload_with=engine)
                 
+                # Delete and reinsert as no upsert command is available. This pattern is used multiple times in this method
                 stmt = t.delete().returning(text('section_id')).where(delete_stmt_decisions_with_df(df))
                 section_ids_result = conn.execute(stmt).all()
                 section_ids = [i['section_id'] for i in section_ids_result]

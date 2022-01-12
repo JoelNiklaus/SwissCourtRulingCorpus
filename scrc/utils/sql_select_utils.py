@@ -99,6 +99,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         series['decision_id'] = pd.read_sql(f"SELECT decision_id FROM decision WHERE file_id = '{series['file_id']}'", engine.connect())["decision_id"][0]
         with engine.connect as conn:
              t = Table('file_number', MetaData(), autoload_with=engine)
+             # Delete and reinsert as no upsert command is available
              stmt = t.delete().where(delete_stmt_decisions_with_df(series))
              conn.execute(stmt)
         series['decision_id'] = pd.read_sql(f"SELECT decision_id FROM decision WHERE file_id = '{series['file_id']}'", engine.connect())["decision_id"][0]
