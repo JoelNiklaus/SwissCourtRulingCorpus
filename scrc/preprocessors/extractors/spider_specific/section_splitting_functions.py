@@ -223,6 +223,59 @@ def BE_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
     paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def GR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [
+                r'(Entscheid|Urteil|Verfügung|Beschluss)\s*(vom)*\s*\d*\.*\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)*\s*\d*',
+                r'Revisionsurteil', r'Strafmandat'],
+            Section.FACTS: [r'Sachverhalt(:)*', r'betreffend\s*\w*'],
+            Section.CONSIDERATIONS: [r'(I|II)*\.*\s*Erwägungen(:)*',
+                                     r'^((Die|De|Das|Aus|In)*\s*\w+\s*(zieht in )*Erwägung(en)*\s*\,*(:)*)', r'Begründung:'],
+            Section.RULINGS: [r'Demnach wird (verfügt|erkannt)(:)*', r'entschieden:$',
+                              r'^(Demnach (erkennt|verfügt) (das|die|der) (Gericht|Beschwerdekammer|Einzelrichter|Einzelrichterin|Kantonsgerichtsausschuss|Kantonsgerichtspräsidium|Vorsitzende|Schuldbetreibungs)\s*:)',
+                              r'erkannt(:)*$', r'Demnach (beschliesst|erkennt) die(\sII\.)* (Justizaufsichts|Zivil)kammer :', r'Demnach erkennt die (I*\.)* Strafkammer\s*:', r'verfügt\s*(:)*$'],
+            Section.FOOTER: [r'Für den Kantonsgerichtsausschuss von Graubünden']
+        },
+        Language.IT: {
+            Section.HEADER: [r'TRIBUNALE AMMINISTRATIVO DEL CANTONE DEI GRIGIONI', r'Tribunale cantonale dei Grigioni', r'Dretgira chantunala dal Grischun'],
+            Section.FACTS: [r'concernente\s*\w*\s*\w*'],
+            Section.CONSIDERATIONS: [r'\s*Considerando\s*in\s*diritto\s*:\s*', r'(in )*constatazione e in considerazione,',
+                                     r'La (Presidenza|Commissione) del Tribunale cantonale considera :',
+                                     r'Considerandi', r'La Camera (di gravame|civile) considera :', r'La derschadra singula tira en consideraziun:',
+                                     r'In considerazione:', r'visto e considerato:',
+                                     r'Considerato in fatto e in diritto:', r'La dertgira trai en consideraziun:',
+                                     r'Il derschader singul trai en consideraziun:'],
+            Section.RULINGS: [r'^(((L|l)a (Prima|Seconda) )*Camera (penale|civile) (pronuncia|giudica|decreta|decide|ordina|considera)\s*:)',
+                              r'Decisione \─ Dispositivo', r'Per questi motivi il Tribunale giudica:', r'Il Tribunale decide:',
+                              r'La (Presidenza|Commissione) del Tribunale cantonale (ordina|giudica:)', r'La Camera di gravame (considera|decide) :', r'Per questi motivi si decreta:',
+                              r'(La )*Camera civile giudica:', r'decide:', r'(la Presidenza )ordina\s*(:)*', r'(Si )*giudica',
+                              r'La Camera delle esecuzioni e dei fallimenti decide:', r'(i|I)l Giudice unico decide:',
+                              r'decreta', r'(Il derschader singul|La dertgira) decida damai:'],
+            Section.FOOTER: [r'Per la Presidenza del Tribunale cantonale dei Grigioni']
+        }
+    }
+
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
+
+    section_markers = all_section_markers[namespace['language']]
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    paragraphs = get_pdf_paragraphs(decision)
+    return associate_sections(paragraphs, section_markers, namespace)
+
 def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
