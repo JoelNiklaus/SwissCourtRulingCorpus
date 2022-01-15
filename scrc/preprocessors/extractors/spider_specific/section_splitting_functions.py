@@ -77,6 +77,38 @@ def UR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
 
     return paragraphs_by_section
 
+def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [r'(Entscheid|Urteil|Zwischenentscheid|Beschluss|Abschreibungsentscheid|Abschreibungsverfügung) vom \d*\. (Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) \d*',
+                             r'\d*\.\/\d*\.\s(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d*'],
+            Section.FACTS: [r'Sachverhalt:', r'Prozessgeschichte:', r'Nach Einsicht:'],
+            Section.CONSIDERATIONS: [r'Erwägungen:'],
+            Section.RULINGS: [r'Rechtsspruch:', r'(Demgemäss|Demnach) (beschliesst|erkennt|verfügt) (die|das) (Obergericht|Verfahrensleitung|Verwaltungsgericht|Prozessleitung)(:)*'],
+            Section.FOOTER: [r'Stans\,\s\d*\.\s(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d*']
+         }
+    }
+
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
+
+    section_markers = all_section_markers[namespace['language']]
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    paragraphs = get_pdf_paragraphs(decision)
+    return associate_sections(paragraphs, section_markers, namespace)
+
 def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
