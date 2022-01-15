@@ -336,6 +336,54 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     paragraphs = get_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def CH_BSTG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [r'(Verfügung|Beschluss|Urteil|Entscheid) vom \d*\.* (Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d*'],
+            Section.FACTS: [r'^(Sachverhalt(:)*)$', r'Prozessgeschichte(:)*', r'(Die|Der)\s\w+\s*(.+)\s*hält fest, dass\s*(:*)'],
+            Section.CONSIDERATIONS: [r'^(Nach Einsicht in)$', r'^([iI]n\sErwägung(:)*)', r'^(Erwägungen:*)$', r'(Die|Der|Das|Aus)(\s([\w\.])*)*\s[eE]rwäg\w*(\,\sdass)*\s*(:)*'],
+            Section.RULINGS: [r'^(und (verfugt|erkennt|beschliesst)(:)*)$', r'^(p*(Die|Der|Das|und)(\s(\w|\.)*)*\s(verfügt|erkennt|beschliesst)(:)*)$', r'^(Demnach (erkennt|verfügt|beschliesst)\s\w+\s*(.+)\s\w*(:)*)'],
+            Section.FOOTER: [r'^(Rechtsmittelbelehrung)$']
+        },
+
+        Language.FR: {
+            Section.HEADER: [r'^((Arrêt|Ordonnance|Décision) du \d*\W*\s(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s\d*)$'],
+            Section.FACTS: [r'^((F|f)(AITS|aits)(:)*)', r'(La|Le)*(\s\w*)*\s*(\,\s)*(V|v)u\s*(:)*(que)*(:)*(\sle dossier de la cause)*'],
+            Section.CONSIDERATIONS: [r'(et|Et)*\s*(C|c)onsidérant\s*(que)*:', r'La Cour d’appel considère(\s)*:', r'DROIT', r'(La|Le|Considérant)(\s\w+\s*(.+)\s*)(considère|et) en droit:'],
+            Section.RULINGS: [r'Ordonne:', r'(La|Le)\s\w+\s*(.+)\s(prononce|décide)\s*(:)', r'^(pronnonce\s*(:))', r'Par ces motifs\,(\s\w*)*\s(prononce|decide):'],
+            Section.FOOTER: [r'Indication des voies de (recours|droit)', r'Voies de droit']
+        },
+
+        Language.IT: {
+            Section.HEADER: [r'^((Sentenza|Decisione|Ordinanza)\s*del(l)*\W*\d*\W*\s*(gennaio|febbraio|marzo|aprile|maggio|luglio|agosto|settembre|ottobre|novembre|dicembre|giugno)\s*\d*)$'],
+            Section.FACTS: [r'^([Ff]att(i|o)\s*:)$', r'Visti:', r'^(\w+\s*(.+)\s*penali, vist(o|i)\s*(:)*)', r'(Ritenuto )*in fatto( e(d)* in diritto):'],
+            Section.CONSIDERATIONS: [r'^((e\s)*[Cc]onsiderato:?\s*)$', '^([Dd]iritto:?\s*)$', r'La Corte(\sd\'appello)* considera in diritto:', r'^(In diritto:)$'],
+            Section.RULINGS: [r'La Corte (decreta|pronuncia|ordina):', r'Per questi motivi\,(\s\w*)*\s(decreta|ordina|pronuncia):', r'Il Giudice unico pronuncia:', r'^(Decreta:)$'],
+            Section.FOOTER: [r'(Informazione\ssui\s)*[Rr]imedi\sgiuridici', r'Reclamo alla Corte dei reclami penali del Tribunale penale federale']
+        }
+    }
+
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
+
+    section_markers = all_section_markers[namespace['language']]
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    paragraphs = get_pdf_paragraphs(decision)
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
 def get_paragraphs(divs):
     # """
     # Get Paragraphs in the decision
