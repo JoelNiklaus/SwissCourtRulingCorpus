@@ -9,29 +9,35 @@ from pandas.core.frame import DataFrame
 
 variations = [(r'^', r'$'), (r'^', r'\s\d\d$'), (r'^', r'.$'), (r'^', r'\s$'), (r'^', r'\s.$')]
 
-columns = ['keyword', 'Total Count'] + variations
+counter = 0
+
+columns = ['keyword', 'totalCount'] + variations
 
 dataArray = pd.DataFrame(columns= columns)
 
 def analyse_regex(paragraphs: list):
     global dataArray
+    global counter
     newRow = [1] + [0] * len(variations)
     listToAppend = []
     for item in paragraphs:
         if len(item) < 45:
-            foundInstance = iterate_variations(item)
+            foundInstance = iterate_variations(item, dataArray)
             if not foundInstance:
                 listToAppend.append([item] + newRow)
     dfTemp = pd.DataFrame(listToAppend, columns=columns)
     dataArray = pd.concat([dataArray, dfTemp], ignore_index=True)
     dataArray = dataArray.infer_objects()
+    counter += 1
+    if counter == 500:
+        dropRows()
     
 def apply_regex(paragraph: str, pattern):
     sentence = re.escape(paragraph)
     wildcard = pattern[0] + sentence + pattern[1]
     return wildcard
 
-def iterate_variations(item: str):
+def iterate_variations(item: str, dataArray: DataFrame):
     foundInstance = False
     for idx, element in enumerate(variations):
         indexList = dataArray['keyword'].tolist()
@@ -40,15 +46,14 @@ def iterate_variations(item: str):
         if instance:
             foundInstance = True
             if len(instance) > 1:
-                searchTable(instance, indexList, idx, foundInstance)
+                searchTable(instance, indexList, idx, foundInstance, dataArray)
             else:
                 dataArray.at[instance[0], element] += 1
-                dataArray.at[instance[0], 'Total Count'] += 1
+                dataArray.at[instance[0], 'totalCount'] += 1
     return foundInstance
 
 
-def searchTable(indexes: list, indexList: list, patternPosition: int, alreadyFound: bool):
-    global dataArray
+def searchTable(indexes: list, indexList: list, patternPosition: int, alreadyFound: bool, dataArray: DataFrame):
     mergingRow = {}
     output = [indexList[index] for index in indexes]
     lcs = commonSubstring(output)
@@ -63,11 +68,16 @@ def searchTable(indexes: list, indexList: list, patternPosition: int, alreadyFou
         if i == variations[patternPosition]:
             mergingRow[i] += len(indexes)
     if not alreadyFound:
-        mergingRow['Total Count'] += 1
+        mergingRow['totalCount'] += 1
     dataArray.drop(indexes, inplace=True)
     dataArray.reset_index(drop=True, inplace=True)
     dataArray = dataArray.append(mergingRow, ignore_index=True)
-    # print(dataArray.sort_values(by=['Total Count'], ascending=False), 'after Drop')
+    
+def dropRows():
+    global dataArray
+    dataArray.drop(dataArray[dataArray.totalCount < 15].index, inplace=True)
+    print(dataArray.sort_values(by=['totalCount'], ascending=False))
+    exit()
     
     
 def commonSubstring(arr):
