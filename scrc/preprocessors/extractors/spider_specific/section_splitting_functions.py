@@ -286,7 +286,7 @@ def SO_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     """
     all_section_markers = {
         Language.DE: {
-            Section.HEADER: [r'(Beschluss|Urteil|Entscheid)\svom\s\d*\.*\s(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d*', r'Geschäftsnummer:'],
+            Section.HEADER: [r'(Beschluss|Urteil|Entscheid)\svom\s\d*\.*\s(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d*'],
             Section.FACTS: [r'Sachverhalt\s*(gekürzt)*:', r'In Sachen'],
             Section.CONSIDERATIONS: [r'(Aus den )*Erwägungen:', r'zieht\s\w+\s*(.+)\s*Erwägung(en)*(:)*(, dass)*(:)*'],
             Section.RULINGS: [r'Demnach wird (erkannt|beschlossen|verfügt):', r'^(erkannt:$)', r'(beschlossen|festgestellt) und erkannt:', r'Demnach wird\s\w+\s*(.+)\s*(beschlossen|erkannt|verfügt):'],
