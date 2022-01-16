@@ -109,6 +109,54 @@ def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [r'^((Beschluss|Entscheid|Urteil) des Kantonsgerichts Basel-Landschaft,)', r'^(Entscheid der Aufsichtsbehörde Schuldbetreibung und Konkurs)', r'^(Rechtsprechung Steuergericht Basel-Landschaft)$',
+                             r'^(Rechtsprechung des Kantonsgerichts)$', r'^((Entscheid|Beschluss) vom \d*\. (Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) \d*)',
+                             r'^(Zwangsmassnahmengericht Basel-Landschaft www.bl.ch\/zmg)$', r'^(Rechtsprechung (Steuergericht|Enteignungsgericht))$', r'^(Entscheid des Steuer- und Enteignungsgerichts Basel-Landschaft,)$',
+                             r'12-09 Landabzug im Rahmen einer Baulandumlegung / Ermittlung der Entschädi', r'12-08 Strassenbeitrag / Sondervorteil aufgrund Randsteine, Entwässerung, Stras-',
+                             r'11-05 Enteignung nachbarrechtlicher Abwehransprüche/ Bindung an die Erwägun', r'12-07 Übereinstimmung einer im Strassenreglement aufgeführten Qualifikation einer '],
+            Section.FACTS: [r'^(Betreff)', r'^(Gegenstand)', r'^(betreffend)', r'^(Sachverhalt:*)', r'^(S a c h v e r h a l t:*)', r'^(IV-Stelle Basel-Landschaft, Hauptstrasse 109, 4102 Binningen,)',
+                            r'^(IV-Stelle Basel-Landschaft, Beschwerdegegnerin)', r'^(Verkehrswert einer Liegenschaft im Ausland)$', r'^(Öffentliche Arbeitslosenkasse Baselland)$', r'^(Aus dem Sachverhalt( Zusammenfassung)*:*)$'],
+            Section.CONSIDERATIONS: [r'^((Das|Die) (Kantonsgericht|Steuergericht) zieht\s*i\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*:*\s*)$', r'^(E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*e\s*n\s*:*\s*)$',
+                                     r'^(Das Steuergericht zieht\s*in Erwägung\s*:)$', r'^((Die|Der) Präsident(in)* zieht\s*i\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*:\s*)$',
+                                     r'Der Vizepräsident zieht i n E r w ä g u n g\s*:', r'^(Aus den Erwägungen\s*:*)$', r'^(\s*[Ii]\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*(\s*e n)*\s*:*\s*)$',
+                                     r'Der (Vize-)*Präsident des Steuergerichts zieht in Erwägung\s*: ', r'^(In Erwägung(,)* dass(,|:)*)$',  r'^((I. )*Erwägungen:*\s*)$'
+                                     r'^(Der Präsident des Steuergerichts zieht\s*i\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*:\s*)$',
+                                     r'Das Steuergericht zieht i\s*n E r w ä g u n g\s*: ', r'Das Kantonsgericht hat i n E r w ä g u n g ,',
+                                     r'Auszug aus den Erwägungen:', r'(Der|Die) Präsident(in)* hat\s*i\s*n\s*E\s&r\s*w\s*ä\s*g\s*u\s*n\s*g\s*,\s*'],
+            Section.RULINGS: [r'^(D\s*e\s*m\s*n\s*a\s*c\s*h\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:*\s*)$', r'^(D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:*\s*)$',
+                              r'^((Es)*\s*\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:\s*)$', r'(Demgemäss|Demnach) erkennt das Steuergericht:', r'^(e\s*r\s*k\s*a\s*n\s*n\s*t\s*:\s*)$',
+                              r'^((Es wird)*\s*e\s*n\s*t\s*s\s*c\s*h\s*i\s*e\s*d\s*e\s*n\s*:\s*)$', r'\s*D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*b\s*e\s*s\s*c\s*h\s*l\s*o\s*s\s*s\s*e\s*n\s*:*\s*'],
+            Section.FOOTER: [r'^(Rechtsmittelbelehrung)$']
+         }
+    }
+
+    if namespace['html_url']:
+        valid_namespace(namespace, all_section_markers)
+        section_markers = prepare_section_markers(all_section_markers, namespace)
+        divs = decision.findAll("div", {'id': 'content-content'})
+        paragraphs = get_paragraphs(divs)
+    elif namespace['pdf_url']:
+        if namespace['language'] not in all_section_markers:
+            message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+            raise ValueError(message)
+        section_markers = all_section_markers[namespace['language']]
+        # combine multiple regex into one for each section due to performance reasons
+        section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+        # normalize strings to avoid problems with umlauts
+        for section, regexes in section_markers.items():
+            section_markers[section] = unicodedata.normalize('NFC', regexes)
+        paragraphs = get_pdf_paragraphs(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
 def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -319,6 +367,7 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
 
     divs = decision.find_all(
         "div", class_=['WordSection1', 'Section1', 'WordSection2'])
+
     paragraphs = get_paragraphs(divs)
     return associate_sections(paragraphs, section_markers, namespace)
 
