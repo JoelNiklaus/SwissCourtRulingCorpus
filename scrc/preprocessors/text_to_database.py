@@ -242,5 +242,5 @@ class TextToDatabase(AbstractPreprocessor):
 if __name__ == '__main__':
     config = get_config()
 
-    extractor = TextToDatabase(config)
-    extractor.build_dataset()
+    text_to_database = TextToDatabase(config)
+    text_to_database.build_dataset()

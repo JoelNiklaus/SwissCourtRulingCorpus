@@ -178,31 +178,31 @@ def join_tables_on_decision(tables: List[str]) -> str:
     """
     join_string = 'decision d'
     
-    if ('citation' in join_string or 'citation_type' in join_string):
+    if ('citation' in tables or 'citation_type' in tables):
         join_string += join('citation') + ' LEFT JOIN citation_type ON citation_type.citation_type_id = citation.citation_type_id'
     
-    if ('file' in join_string):
+    if ('file' in tables):
         join_string += join('file', 'file_id')
         
-    if ('section' in join_string or 'section_type' in join_string or 'paragraph' in join_string):
+    if ('section' in tables or 'section_type' in tables or 'paragraph' in tables):
         join_string += join('section') + ' LEFT JOIN section_type ON section_type.section_type_id = section.section_type_id'
         
-    if ('lower_court' in join_string):
+    if ('lower_court' in tables):
         join_string += join('lower_court')
         
-    if ('language' in join_string):
+    if ('language' in tables):
         join_string += join('language', 'language_id')
         
-    if ('chamber' in join_string or 'court' in join_string or 'spider' in join_string):
+    if ('chamber' in tables or 'court' in tables or 'spider' in tables):
         join_string += join('chamber', 'chamber_id') + ' LEFT JOIN court ON court.court_id = chamber.court_id LEFT JOIN spider ON chamber.spider_id = spider.spider_id'
         
-    if ('judgment_map' in join_string or 'judgment' in join_string):
+    if ('judgment_map' in tables or 'judgment' in tables):
         join_string += map_join('judgment_id', 'judgments', 'judgment_map')
         
-    if ('file_number' in join_string):
+    if ('file_number' in tables):
         tables += map_join('file_number_id', 'file_numbers', 'file_number')
         
-    if ('paragraph' in join_string):
+    if ('paragraph' in tables):
         tables += map_join('paragraph_id', 'paragraphs', 'paragraph')
     
     return join_string

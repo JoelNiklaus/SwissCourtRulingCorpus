@@ -55,6 +55,7 @@ class CourtCompositionExtractor(AbstractExtractor):
                 t_jud_person = Table('judicial_person', MetaData(), autoload_with=conn)
                 
                 # Delete person
+                # Delete and reinsert as no upsert command is available
                 stmt = t_jud_person.delete().where(delete_stmt_decisions_with_df(df))
                 conn.execute(stmt)
                 

@@ -17,7 +17,7 @@ from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
 
-from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region
+from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, select_paragraphs_with_decision_and_meta_data
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -156,7 +156,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
-        processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created.txt"
+        processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created2.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
 
@@ -233,6 +233,13 @@ class DatasetCreator(AbstractPreprocessor):
         # SELECT select_fields_from_table(['lower_court.canton_id as origin_canton', 'lower_court.court_id as origin_court', ...], 'lower_court'), feature_col, label_col FROM join_tables_on_decision(['lower_court', <TABLE NEEDED FOR FEATURE COLUMN AND LABEL>])
         ###
         
+        table_string = f"{select_paragraphs_with_decision_and_meta_data()}"
+        field_string = "d.*, file.file_name"
+        where_string = ""
+        
+        df = next(self.select(engine, table_string, field_string, where_string, chunksize=self.get_chunksize))
+        print(df)
+        exit()
         df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
                               chunksize=self.get_chunksize()))
         df = self.clean_df(df, feature_col)

@@ -84,8 +84,8 @@ def construct_base_dataset(config):
     new_files = scraper.download_subfolders(base_url + "docs/")
 
     # TODO: Decide whether it should really go after file list from scraper or with the old technique
-    extractor = TextToDatabase(config)
-    list_of_files: List[Dict] = extractor.build_dataset(new_files)
+    text_to_database = TextToDatabase(config, new_files_only=True)
+    list_of_files: List[Dict] = text_to_database.build_dataset(new_files)
     
     # TODO: Decide whether it should really go after file list from scraper or with the old technique
     language_identifier = LanguageIdentifier(config)
