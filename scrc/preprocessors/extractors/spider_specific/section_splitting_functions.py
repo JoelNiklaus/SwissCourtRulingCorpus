@@ -94,7 +94,7 @@ def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
             Section.FOOTER: [r'Stans\,\s\d*\.\s(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d*']
          }
     }
-
+    print(namespace)
     if namespace['language'] not in all_section_markers:
         message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
         raise ValueError(message)
@@ -102,12 +102,15 @@ def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     section_markers = all_section_markers[namespace['language']]
     # combine multiple regex into one for each section due to performance reasons
     section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
-
+    print('section_markers')
+    print(section_markers)
     # normalize strings to avoid problems with umlauts
     for section, regexes in section_markers.items():
         section_markers[section] = unicodedata.normalize('NFC', regexes)
 
     paragraphs = get_pdf_paragraphs(decision)
+    print('paragraphs')
+    print(paragraphs)
     print(associate_sections(paragraphs, section_markers, namespace))
     return associate_sections(paragraphs, section_markers, namespace)
 
