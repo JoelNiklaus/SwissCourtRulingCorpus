@@ -83,6 +83,7 @@ def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
     """
+    print('we are in NW_GERICHTE')
     all_section_markers = {
         Language.DE: {
             Section.HEADER: [r'(Entscheid|Urteil|Zwischenentscheid|Beschluss|Abschreibungsentscheid|Abschreibungsverfügung) vom \d*\. (Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) \d*',
@@ -107,6 +108,7 @@ def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         section_markers[section] = unicodedata.normalize('NFC', regexes)
 
     paragraphs = get_pdf_paragraphs(decision)
+    print(associate_sections(paragraphs, section_markers, namespace))
     return associate_sections(paragraphs, section_markers, namespace)
 
 def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
