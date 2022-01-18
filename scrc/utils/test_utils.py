@@ -50,6 +50,8 @@ ZH_Obergericht_test_header = ['Urteil - Abweisung, begründet', 'Bezirksgericht 
 
 ZH_Obergericht_test_header_2 = ['Kassationsgericht des Kantons Zürich', 'Kass.-Nr. AA050130/U/mb', 'Mitwirkende: die Kassationsrichter Moritz Kuhn, Präsident, Robert Karrer, Karl', 'Spühler, Paul Baumgartner und die Kassationsrichterin Yvona', 'Griesser sowie die Sekretärin Margrit Scheuber', 'Zirkulationsbeschluss vom 4. September 2006', 'in Sachen', 'A. X., geboren ..., von ..., whft. in ...,', 'Klägerin, Rekurrentin, Anschlussrekursgegnerin und Beschwerdeführerin vertreten durch Rechtsanwalt Dr. iur. C. D.', 'gegen', 'B. X., geboren ..., von ..., whft. in ...,', 'Beklagter, Rekursgegner, Anschlussrekurrent und Beschwerdegegner vertreten durch Rechtsanwältin lic. iur. E. F.']
 
+ZH_Obergericht_test_header_3 = ['Urteil Gutheissung/Abweisung Beschwerde', 'Obergericht des Kantons Zürich I. Zivilkammer', 'Geschäfts-Nr.: PP110014-O/U', 'Mitwirkend: Oberrichter Dr. R. Klopfer, Vorsitzender, Oberrichterin Dr. M. Schaffitz', 'und Oberrichter lic. iur. M. Spahn sowie Gerichtsschreiberin lic. iur.', 'C. Heuberger', 'Urteil vom 28. September 2011', 'in Sachen', 'A._, Beklagte und Beschwerdeführerin', 'gegen', 'B._, Kläger und Beschwerdegegner', 'vertreten durch Rechtsanwältin mag. iur. et lic. oec. publ. X._']
+
 ZH_Verwaltungsgericht_test_header = ['Verwaltungsgericht des Kantons Zürich 4. Abteilung', 'VB.2020.00452', 'Urteil', 'der 4. Kammer', 'vom 24. September 2020', 'Mitwirkend: Abteilungspräsidentin Tamara Nüssle (Vorsitz), Verwaltungsrichter Reto Häggi Furrer, Verwaltungsrichter Martin Bertschi, Gerichtsschreiber David Henseler.', 'In Sachen', 'A, vertreten durch RA B,', 'Beschwerdeführerin,', 'gegen', 'Migrationsamt des Kantons Zürich,', 'Beschwerdegegner,', 'betreffend vorzeitige Erteilung der Niederlassungsbewilligung,']
 
 ZH_Verwaltungsgericht_test_header_2 = ['Verwaltungsgericht des Kantons Zürich 3. Abteilung', 'VB.2011.00558', 'Urteil', 'der 3. Kammer', 'vom 8. Februar 2012', 'Mitwirkend: Abteilungspräsident Rudolf Bodmer (Vorsitz), Verwaltungsrichterin Bea Rotach Tomschin, Ersatzrichter Martin Kayser, Gerichtsschreiber Cyrill Bienz.', 'In Sachen', 'Stadt Zürich, vertreten durch das Polizeidepartement,', 'Beschwerdeführerin,', 'gegen', 'A, vertreten durch RA B,', 'Beschwerdegegner,', 'betreffend Benützung des öffentlichen Grundes zu Sonderzwecken,']
@@ -268,6 +270,7 @@ class TestProceduralParticipationExtractingFunctions():
     zh_br_2 = procedural_participation_setup(p.ZH_Baurekurs, ZH_Baurekurs_test_header_2, namespace_de)
     zh_og = procedural_participation_setup(p.ZH_Obergericht, ZH_Obergericht_test_header, namespace_de)
     zh_og_2 = procedural_participation_setup(p.ZH_Obergericht, ZH_Obergericht_test_header_2, namespace_de)
+    zh_og_3 = procedural_participation_setup(p.ZH_Obergericht, ZH_Obergericht_test_header_3, namespace_de)
     zh_vg = procedural_participation_setup(p.ZH_Verwaltungsgericht, ZH_Verwaltungsgericht_test_header, namespace_de)
     zh_vg_2 = procedural_participation_setup(p.ZH_Verwaltungsgericht, ZH_Verwaltungsgericht_test_header_2, namespace_de)
     zh_svg = procedural_participation_setup(p.ZH_Sozialversicherungsgericht, ZH_Sozialversicherungsgericht_test_header, namespace_de)
@@ -315,6 +318,11 @@ class TestProceduralParticipationExtractingFunctions():
         (zh_og_2['defendants'][0]['legal_counsel'][0]['name'], 'lic. iur. E. F.'),
         (zh_og_2['defendants'][0]['legal_counsel'][0]['legal_type'], 'natural person'),
         (zh_og_2['defendants'][0]['legal_counsel'][0]['gender'], 'female'),
+        # ZH_Obergericht
+        (zh_og_3['plaintiffs'][0]['legal_counsel'], []),
+        (zh_og_3['defendants'][0]['legal_counsel'][0]['name'], 'X._'),
+        (zh_og_3['defendants'][0]['legal_counsel'][0]['legal_type'], 'natural person'),
+        (zh_og_3['defendants'][0]['legal_counsel'][0]['gender'], 'female'),
         # ZH_Verwaltungsgericht
         (zh_vg['plaintiffs'][0]['legal_counsel'][0]['name'], 'B'),
         (zh_vg['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'natural person'),
