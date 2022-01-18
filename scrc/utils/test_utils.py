@@ -303,19 +303,19 @@ class TestProceduralParticipationExtractingFunctions():
         (zh_br['plaintiffs'][0]['legal_counsel'], []),
         (zh_br['defendants'][0]['legal_counsel'], []),
         # ZH_Baurekurs
-        (zh_br_2['plaintiffs'][0]['legal_counsel'][0]['name'], 'Dr. iur. Christof Truniger'),
+        (zh_br_2['plaintiffs'][0]['legal_counsel'][0]['name'], 'Christof Truniger'),
         (zh_br_2['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'natural person'),
         (zh_br_2['plaintiffs'][0]['legal_counsel'][0]['gender'], 'male'),
         (zh_br_2['defendants'][0]['legal_counsel'], []),
         # ZH_Obergericht
-        (zh_og['plaintiffs'][0]['legal_counsel'][0]['name'], 'lic. iur. W._'),
+        (zh_og['plaintiffs'][0]['legal_counsel'][0]['name'], 'W._'),
         (zh_og['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'natural person'),
         (zh_og['plaintiffs'][0]['legal_counsel'][0]['gender'], 'male'),
         # ZH_Obergericht
-        (zh_og_2['plaintiffs'][0]['legal_counsel'][0]['name'], 'Dr. iur. C. D.'),
+        (zh_og_2['plaintiffs'][0]['legal_counsel'][0]['name'], 'C. D.'),
         (zh_og_2['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'natural person'),
         (zh_og_2['plaintiffs'][0]['legal_counsel'][0]['gender'], 'male'),
-        (zh_og_2['defendants'][0]['legal_counsel'][0]['name'], 'lic. iur. E. F.'),
+        (zh_og_2['defendants'][0]['legal_counsel'][0]['name'], 'E. F.'),
         (zh_og_2['defendants'][0]['legal_counsel'][0]['legal_type'], 'natural person'),
         (zh_og_2['defendants'][0]['legal_counsel'][0]['gender'], 'female'),
         # ZH_Obergericht
@@ -335,20 +335,23 @@ class TestProceduralParticipationExtractingFunctions():
         (zh_vg_2['defendants'][0]['legal_counsel'][0]['legal_type'], 'natural person'),
         (zh_vg_2['defendants'][0]['legal_counsel'][0]['gender'], 'unknown'),
         # ZH_Sozialversicherungsgericht
-        (zh_svg['plaintiffs'][0]['legal_counsel'][0]['name'], 'Dr. Kreso Glavas'),
+        (zh_svg['plaintiffs'][0]['legal_counsel'][0]['name'], 'Kreso Glavas'),
         (zh_svg['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'natural person'),
         (zh_svg['plaintiffs'][0]['legal_counsel'][0]['gender'], 'male'),
+        (zh_svg['plaintiffs'][0]['legal_counsel'][0]['titles'][0], 'Dr.'),
         (zh_svg['defendants'][0]['legal_counsel'], []),
         # ZH_Sozialversicherungsgericht
         (zh_svg_2['plaintiffs'][0]['legal_counsel'][0]['name'], 'Rechtsdienst Integration Handicap'),
         (zh_svg_2['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'legal entity'),
-        (zh_svg_2['defendants'][0]['legal_counsel'][0]['name'], 'Dr. Isabelle Vetter-Schreiber'),
+        (zh_svg_2['defendants'][0]['legal_counsel'][0]['name'], 'Isabelle Vetter-Schreiber'),
         (zh_svg_2['defendants'][0]['legal_counsel'][0]['legal_type'], 'natural person'),
         (zh_svg_2['defendants'][0]['legal_counsel'][0]['gender'], 'female'),
+        (zh_svg_2['defendants'][0]['legal_counsel'][0]['titles'][0], 'Dr.'),
         # ZH_Sozialversicherungsgericht
         (zh_svg_3['plaintiffs'][0]['legal_counsel'][0]['name'], 'Christoph Erdös'),
         (zh_svg_3['plaintiffs'][0]['legal_counsel'][0]['legal_type'], 'natural person'),
         (zh_svg_3['plaintiffs'][0]['legal_counsel'][0]['gender'], 'male'),
+        (zh_svg_3['plaintiffs'][0]['legal_counsel'][0]['titles'], []),
         (zh_svg_3['defendants'][0]['legal_counsel'], []),
     ]
 
