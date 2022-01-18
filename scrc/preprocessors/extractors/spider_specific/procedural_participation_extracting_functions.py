@@ -1,6 +1,7 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import re
 import json
+from scrc.enums.title import Title
 from scrc.data_classes.legal_counsel import LegalCounsel
 from scrc.data_classes.procedural_participation import ProceduralParticipation
 from scrc.data_classes.proceedings_party import ProceedingsParty
@@ -360,6 +361,34 @@ def get_participation_from_header(header: str, information_start_regex: dict, na
         header = header[:end_pos.span()[0]]
     return header
 
+def search_titles(text: str) -> Tuple[list, str]:
+    """
+    Search for academic titles in a string.
+    :param text:    the string to search
+    :return:        a list of titles, and the rest of the text without the titles
+    """
+    titles = []
+    # et is not a title but used to combine different titles
+    text = text.replace(' et ', ' ')
+
+    def find_titles(title, enum_title, str):
+        if title.lower() in str.lower():
+            titles.append(enum_title)
+            str = re.sub(title, '', str, flags=re.IGNORECASE)
+        return str
+
+    # check if any value of the enum Title is in the text
+    for t in Title:
+        text = find_titles(t.value, t, text)
+
+    # also check alternative spellings
+    text = find_titles('jur.', Title.IUR, text)
+    text = find_titles('LLM', Title.LLM, text)
+    text = find_titles('LL. M.', Title.LLM, text)
+
+    text.strip()
+    return titles, text
+    
 
 def search_lawyers(text: str, lawyer_representation: dict, lawyer_name: dict, namespace: dict) -> List[LegalCounsel]:
     """
@@ -381,10 +410,18 @@ def search_lawyers(text: str, lawyer_representation: dict, lawyer_name: dict, na
                 lawyer.gender = gender
             name_match = re.search(lawyer_name[namespace['language']], text[pos.span()[1]:])
             if name_match and not text[pos.span()[1]] == ',':
-                lawyer.name = name_match.group()
+                titles, name = search_titles(name_match.group())
+                lawyer.titles = titles if titles else None
+                lawyer.name = name
             else:
                 name_match = re.search(lawyer_name[namespace['language']], text[:pos.span()[0]])
-                lawyer.name = name_match.group() if name_match else None
+                if name_match:
+                    titles, name = search_titles(name_match.group())
+                    lawyer.titles = titles if titles else None
+                    lawyer.name = name
+                else: 
+                    lawyer.name = None
+                # lawyer.name = name_match.group() if name_match else None
             lawyer.name = lawyer.name.strip()
             lawyer.legal_type = LegalType.NATURAL_PERSON
             lawyers.append(lawyer)
