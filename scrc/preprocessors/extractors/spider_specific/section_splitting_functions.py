@@ -207,17 +207,15 @@ def GR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
             Section.HEADER: [r'TRIBUNALE AMMINISTRATIVO DEL CANTONE DEI GRIGIONI', r'Tribunale cantonale dei Grigioni', r'Dretgira chantunala dal Grischun'],
             Section.FACTS: [r'concernente\s*\w*\s*\w*'],
             Section.CONSIDERATIONS: [r'\s*Considerando\s*in\s*diritto\s*:\s*', r'(in )*constatazione e in considerazione,',
-                                     r'La (Presidenza|Commissione) del Tribunale cantonale considera :',
-                                     r'Considerandi', r'La Camera (di gravame|civile) considera :', r'La derschadra singula tira en consideraziun:',
-                                     r'In considerazione:', r'visto e considerato:',
-                                     r'Considerato in fatto e in diritto:', r'La dertgira trai en consideraziun:',
-                                     r'Il derschader singul trai en consideraziun:'],
+                                     r'La (Presidenza|Commissione) del Tribunale cantonale considera :', r'Considerandi', 
+                                     r'La Camera (di gravame|civile) considera :', r'In considerazione:', r'visto e considerato:',
+                                     r'Considerato in fatto e in diritto:', r'^((La|Il)\s(\w+\s)*en consideraziun:)$'],
             Section.RULINGS: [r'^(((L|l)a (Prima|Seconda) )*Camera (penale|civile) (pronuncia|giudica|decreta|decide|ordina|considera)\s*:)',
                               r'Decisione \─ Dispositivo', r'Per questi motivi il Tribunale giudica:', r'Il Tribunale decide:',
                               r'La (Presidenza|Commissione) del Tribunale cantonale (ordina|giudica:)', r'La Camera di gravame (considera|decide) :', r'Per questi motivi si decreta:',
                               r'(La )*Camera civile giudica:', r'decide:', r'(la Presidenza )ordina\s*(:)*', r'(Si )*giudica',
                               r'La Camera delle esecuzioni e dei fallimenti decide:', r'(i|I)l Giudice unico decide:',
-                              r'decreta', r'(Il derschader singul|La dertgira) decida damai:'],
+                              r'decreta', r'^((La|Il)\s(\w+\s)*decida damai:)$', r'^(è giudicato:)$'],
             Section.FOOTER: [r'Per la Presidenza del Tribunale cantonale dei Grigioni']
         }
     }
