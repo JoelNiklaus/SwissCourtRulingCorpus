@@ -216,7 +216,7 @@ def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
     paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
-def BE_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+def GR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
@@ -224,19 +224,31 @@ def BE_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
     """
     all_section_markers = {
         Language.DE: {
-            Section.HEADER: [r'STEUERREKURSKOMMISSION DES KANTONS BERN'],
-            Section.FACTS: [r'(hat die Steuerrekurskommission den )*Akten entnommen:'],
-            Section.CONSIDERATIONS: [r'Die Steuerrekurskommission zieht in Erwägung:'],
-            Section.RULINGS: [r'Aus diesen Gründen wird erkannt:'],
-            Section.FOOTER: [r'IM NAMEN DER STEUERREKURSKOMMISSION']
-         },
-
-        Language.FR: {
-            Section.HEADER: [r'COMMISSION DES RECOURS'],
-            Section.FACTS: [r'(La Commission des recours en matière fiscale )*constate en fait:'],
-            Section.CONSIDERATIONS: [r'La Commission des recours en matière fiscale considère en droit:'],
-            Section.RULINGS: [r'Par ces motifs, la Commission des recours en matière fiscale prononce:'],
-            Section.FOOTER: [r'AU NOM DE LA COMMISSION DES RECOURS']
+            Section.HEADER: [
+                r'(Entscheid|Urteil|Verfügung|Beschluss)\s*(vom)*\s*\d*\.*\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)*\s*\d*',
+                r'Revisionsurteil', r'Strafmandat'],
+            Section.FACTS: [r'Sachverhalt(:)*', r'betreffend\s*\w*'],
+            Section.CONSIDERATIONS: [r'(I|II)*\.*\s*Erwägungen(:)*',
+                                     r'^((Die|De|Das|Aus|In)*\s*\w+\s*(zieht in )*Erwägung(en)*\s*\,*(:)*)', r'Begründung:'],
+            Section.RULINGS: [r'Demnach wird (verfügt|erkannt)(:)*', r'entschieden:$',
+                              r'^(Demnach (erkennt|verfügt) (das|die|der) (Gericht|Beschwerdekammer|Einzelrichter|Einzelrichterin|Kantonsgerichtsausschuss|Kantonsgerichtspräsidium|Vorsitzende|Schuldbetreibungs)\s*:)',
+                              r'erkannt(:)*$', r'Demnach (beschliesst|erkennt) die(\sII\.)* (Justizaufsichts|Zivil)kammer :', r'Demnach erkennt die (I*\.)* Strafkammer\s*:', r'verfügt\s*(:)*$'],
+            Section.FOOTER: [r'Für den Kantonsgerichtsausschuss von Graubünden']
+        },
+        Language.IT: {
+            Section.HEADER: [r'TRIBUNALE AMMINISTRATIVO DEL CANTONE DEI GRIGIONI', r'Tribunale cantonale dei Grigioni', r'Dretgira chantunala dal Grischun'],
+            Section.FACTS: [r'concernente\s*\w*\s*\w*'],
+            Section.CONSIDERATIONS: [r'\s*Considerando\s*in\s*diritto\s*:\s*', r'(in )*constatazione e in considerazione,',
+                                     r'La (Presidenza|Commissione) del Tribunale cantonale considera :', r'Considerandi', 
+                                     r'La Camera (di gravame|civile) considera :', r'In considerazione:', r'visto e considerato:',
+                                     r'Considerato in fatto e in diritto:', r'^((La|Il)\s(\w+\s)*en consideraziun:)$'],
+            Section.RULINGS: [r'^(((L|l)a (Prima|Seconda) )*Camera (penale|civile) (pronuncia|giudica|decreta|decide|ordina|considera)\s*:)',
+                              r'Decisione \─ Dispositivo', r'Per questi motivi il Tribunale giudica:', r'Il Tribunale decide:',
+                              r'La (Presidenza|Commissione) del Tribunale cantonale (ordina|giudica:)', r'La Camera di gravame (considera|decide) :', r'Per questi motivi si decreta:',
+                              r'(La )*Camera civile giudica:', r'decide:', r'(la Presidenza )ordina\s*(:)*', r'(Si )*giudica',
+                              r'La Camera delle esecuzioni e dei fallimenti decide:', r'(i|I)l Giudice unico decide:',
+                              r'decreta', r'^((La|Il)\s(\w+\s)*decida damai:)$', r'^(è giudicato:)$'],
+            Section.FOOTER: [r'Per la Presidenza del Tribunale cantonale dei Grigioni']
         }
     }
 
