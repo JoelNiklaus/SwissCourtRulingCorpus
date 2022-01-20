@@ -24,6 +24,157 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
+def GE_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.FR: {
+            Section.HEADER: [r"Cour d'appel du Pouvoir judiciaire$\n|Chambre civile$\n|Chambre des baux et loyers$\n|Chambre de surveillance$\ndes Offices des poursuites et faillites$\n|Chambre pénale de recours$\n|Chambre administrative$\n|Chambre des assurances sociales$\n|DU TRIBUNAL CANTONAL DES$\nASSURANCES SOCIALES$\n"],
+            Section.FACTS: [r"EN FAIT$\nA.|EN FAIT:$\nA.|EN FAIT$\n|EN FAIT$\n1.|Vu en fait:"],
+            Section.CONSIDERATIONS: [r"EN DROIT$\n1.|CONSIDERANT EN DROIT$\n1.|EN DROIT:$\n1.|EN DROIT$\n"],
+            Section.RULINGS: [r"A la forme$\n|PAR CES MOTIFS,$\n|Par ces motifs$\n|CELA FAIT:$\n"],
+            Section.FOOTER: [r"Indication des voies de recours:$\n"]
+        }
+    }
+
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
+
+    section_markers = all_section_markers[namespace['language']]
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    paragraphs = get_pdf_paragraphs(decision)
+    print('NAMESPACE')
+    print(namespace)
+    print('SECTIONS')
+    print(associate_sections(paragraphs, section_markers, namespace))
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def JU_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.FR: {
+            Section.HEADER: [r"COUR CONSTITUTIONNELLE$\n|TRIBUNAL DE PREMIÈRE INSTANCE|CONSIDERANTS DU JUGEMENT|CHAMBRE PÉNALE DES RECOURS|COUR CIVILE|COUR ADMINISTRATIVE|COUR DES ASSURANCES|COUR DES POURSUITES ET FAILLITES|COUR PÉNALE|COUR ADMINISTRATIVE$\n|TRIBUNAL CANTONAL"],
+            Section.FACTS: [r'En fait:|______|EN PROCEDURE ET EN FAIT|En fait :$\n|En fait :'],
+            Section.CONSIDERATIONS: [r'En droit:|EN DROIT|En droit :$\n|En droit :'],
+            Section.RULINGS: [r'PAR CES MOTIFS LA COUR DES ASSURANCES|PAR CES MOTIFS LA COUR ADMINISTRATIVE|PAR CES MOTIFS LA CHAMBRE PÉNALE DES RECOURS|PAR CES MOTIFS LA COUR CIVILE|LE JUGE PENAL DU TRIBUNAL DE PREMIERE INSTANCE Après exposé oral des motifs|PAR CES MOTIFS LE PRÉSIDENT DE LA COUR CONSTITUTIONNELLE|PAR CES MOTIFS LA COUR CONSTITUTIONNELLE|PAR CES MOTIFS LA COUR PÉNALE|PAR CES MOTIFS LA COUR DES POURSUITES ET FAILLITES|PAR CES MOTIFS$\n|PAR CES MOTIFS'],
+            Section.FOOTER: [r"Communication concernant les moyens de recours|A notifier:"]
+        }
+    }
+
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
+
+    section_markers = all_section_markers[namespace['language']]
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    paragraphs = get_pdf_paragraphs(decision)
+    print('NAMESPACE')
+    print(namespace)
+    print('SECTIONS')
+    print(associate_sections(paragraphs, section_markers, namespace))
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
+def TI_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.IT: {
+            Section.HEADER: [r"La Corte di appello e di revisione penale$\n|La Camera di diritto tributario del Tribunale d'appello$\n|Tribunale cantonale amministrativo$\n|Camera civile del Tribunale d'appello$\n|La Camera di esecuzione e fallimenti del Tribunale d'appello|La Camera di esecuzione e fallimenti del Tribunale d'appello quale autorità di vigilanza|Il Tribunale della pianificazione del territorio"],
+            Section.FACTS: [r"in fatto: *A.|ritenuto$\n|ritenuto che:$\n|ritenuto che$\n|preso atto che:*A.|in fatto ed in diritto$\n|in fatto$\n|in fatto ed in diritto:$\n"],
+            Section.CONSIDERATIONS: [r"in diritto: *1.|e in diritto$\n|In diritto:$\n|Considerando$\n|in diritto$\n"],
+            Section.RULINGS: [r"Per questi motivi,$\n"],
+            Section.FOOTER: [r'Contro decisioni finali, contro']
+        }
+    }
+
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
+
+    section_markers = all_section_markers[namespace['language']]
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    paragraphs = get_pdf_paragraphs(decision)
+    print('TI_GERICHTE')
+    print('NAMESPACE')
+    print(namespace)
+    print('SECTIONS')
+    print(associate_sections(paragraphs, section_markers, namespace))
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def VS_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [r"I. Zivilrechtliche Abteilung|Staatsanwaltschaft des Kantons Wallis|in Sachen$\n|RECHTSÖFFNUNGSENTSCHEID|in Sachen|in Sachen$\n"],
+            Section.FACTS: [r"Verfahren$\nA.|eingesehen$\n|Eingesehen$\n|Sachverhalt$\nA."],
+            Section.CONSIDERATIONS: [r"Erwägungen$\n*(\w+)|erwägend$\n|erwägend,$\n"],
+            Section.RULINGS: [r"erkennt$\n|ERKANNT:$\n|erkannt:$\n|erkennt:$\n|Demnach erkennt das Kantonsgericht:$\n|und erkennt:|erkennt:|erkannt:"],
+            Section.FOOTER: [r"SECTIONFOOTER"]
+        },
+
+        Language.FR: {
+            Section.HEADER: [r"Tribunal cantonal du Valais$\n|du district de Sion$\n"],
+            Section.FACTS: [r"Procédure$\nA.|procédure$\nA."],
+            Section.CONSIDERATIONS: [r"SUR QUOI LA COUR$\nI.|SUR QUOI LE TRIBUNAL DU DISTRICT DE SION|DROIT$\n1.|I. Préliminairement$\n1.|Faits$\n1.|Considérant en droit$\n"],
+            Section.RULINGS: [r"Par ces motifs,$\n*(\w+)|Prononce$\n1."],
+            Section.FOOTER: [r"SECTIONFOOTER"]
+        }
+    }
+
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
+
+    section_markers = all_section_markers[namespace['language']]
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    paragraphs = get_pdf_paragraphs(decision)
+    print('VS_GERICHTE')
+    print('NAMESPACE')
+    print(namespace)
+    print('SECTIONS')
+    print(associate_sections(paragraphs, section_markers, namespace))
+    return associate_sections(paragraphs, section_markers, namespace)
+
 def FR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
         :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -32,17 +183,17 @@ def FR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         """
     all_section_markers = {
         Language.DE: {
-            Section.HEADER: [r"ZIVILAPPELLATIONSHOF|Zivilappellationshof"],
-            Section.FACTS: [r"Sachverhalt|S a c h v e r h a l t|"],
-            Section.CONSIDERATIONS: [r'Erwägungen|E r w ä g u n g e n'],
+            Section.HEADER: [r"ZIVILAPPELLATIONSHOF$\n|Zivilappellationshof$\n|Tribunal cantonal TC Kantonsgericht KG$\n|Tribunal cantonal TC Kantonsgericht"],
+            Section.FACTS: [r"Sachverhalt$\n|S a c h v e r h a l t|Sachverhalt"],
+            Section.CONSIDERATIONS: [r'Erwägungen$\n|E r w ä g u n g e n'],
             Section.RULINGS: [r'Der Hof erkennt:|D e r H o f e r k e n n t :|Der Präsident erkennt:|(\w+ )*erkennt:'],
             Section.FOOTER: [r"Dieses Urteil kann innert 30 Tagen nach seiner Eröffnung mit Beschwerde"]
         },
 
         Language.FR: {
-            Section.HEADER: [r"COUR D’APPEL CIVIL|Cour d'appel civil"],
-            Section.FACTS: [r"(considérant )*en fait:|(considérant )*en fait|(c o n s i d é r a n t )*e n f a i t|attendu|"],
-            Section.CONSIDERATIONS: [r"en droit| e n d r o i t"],
+            Section.HEADER: [r"COUR D’APPEL CIVIL$\n|Cour d'appel civil$\n"],
+            Section.FACTS: [r"(considérant )*en fait:|(considérant )*en fait$\n|(c o n s i d é r a n t )*e n f a i t|attendu|"],
+            Section.CONSIDERATIONS: [r"en droit$\n| e n d r o i t$\n"],
             Section.RULINGS: [r"la Cour arrête:|le Président de la Cour arrête:|l a C o u r a r r ê t e :|la Juge déléguée arrête:|l a J u g e d é l é g u é e a r r ê t e :|le Président arrête|"],
             Section.FOOTER: [r"Cet arrêt peut faire l'object d'un recours constitutionnel au Tribunal|Cet arrêt peut faire l'object d'un recours en matière civile au Tribunal|Le Tribunal fédéral connaît, comme juridiction|la Juge déléguée ordonne:|le Juge délégué ordonne|le Président ordonne|le Vice-Président arrête:|(\w+ )*arrête:"]
         }
@@ -61,6 +212,7 @@ def FR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         section_markers[section] = unicodedata.normalize('NFC', regexes)
 
     paragraphs = get_pdf_paragraphs(decision)
+    print(namespace)
     print('associate sections')
     print(associate_sections(paragraphs, section_markers, namespace))
     return associate_sections(paragraphs, section_markers, namespace)
