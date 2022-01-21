@@ -403,6 +403,30 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     paragraphs = get_paragraphs(divs)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def SO_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [r'^((Beschluss|Urteil|Entscheid)\svom\s\d*\.*\s(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d*)', r'^((SOG|KSGE) \d* Nr\. \d*)$'],
+            Section.FACTS: [r'^(Sachverhalt\s*(gekürzt)*:*)$', r'^(In Sachen)'],
+            Section.CONSIDERATIONS: [r'^((Aus den )*Erwägungen:*)$', r'^(zieht\s\w+\s*(.+)\s*Erwägung(en)*(:)*(, dass)*(:)*)', r'^((Die|Der|Das)\s(\w+\s)*zieht in Erwägung:)$'],
+            Section.RULINGS: [r'^(Demnach wird (erkannt|beschlossen|verfügt):)$', r'^(erkannt:)$', r'^((beschlossen|festgestellt) und erkannt:)', r'^(Demnach wird\s\w+\s*(.+)\s*(beschlossen|erkannt|verfügt):)'],
+            Section.FOOTER: [r'^(Rechtsmittel(\sbelehrung)*(:)*)']
+        }
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+
+    divs = decision.find_all(
+        "div", class_=['WordSection1'])
+    paragraphs = get_paragraphs(divs)
+    return associate_sections(paragraphs, section_markers, namespace)
 
 def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
