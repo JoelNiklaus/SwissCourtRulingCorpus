@@ -166,6 +166,11 @@ main file coordinating the procedural participation (parties and legal counsels)
 code to
 the [procedural_participation_extracting_functions.py](scrc/preprocessors/extractors/spider_specific/procedural_participation_extracting_functions.py)
 
+#### Court Chambers
+
+The [court_chambers.csv](SwissCourtRulingCorpus/court_chambers.csv) file encloses information about how the spiders are broken down into courts. You can improve and simplify your task by dividing the decisions by courts, as you would be working with a lower amount of decisions within the same court.
+When implementing your spider, you can invoke the court chambers from the [court_chambers.json](SwissCourtRulingCorpus/court_chambers.json) file into your code.
+
 ## Questions?
 
 Do not hesitate to contact Adrian Joerg or Joel Niklaus via email: {firstname}.{lastname}@inf.unibe.ch
