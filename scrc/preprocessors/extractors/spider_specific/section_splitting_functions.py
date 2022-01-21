@@ -115,7 +115,7 @@ def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
     """
-    #Regular expressions adapted to each court
+    #Regular expressions adapted to each court separately
     if namespace['court'] == 'BL_SG':
         all_section_markers = {
             Language.DE: {
@@ -165,17 +165,6 @@ def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
                 Section.CONSIDERATIONS: [r'^(Aus den Erwägungen:)$', r'^(\s*[Ii]\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*(\s*e n)*\s*:*\s*)$'],
                 Section.RULINGS: [r'^(D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:*\s*)$', r'^(wird erkannt:)$', r'^(D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*v\s*e\s*r\s*f\s*ü\s*g\s*t\s*:\s*)$'],
                 Section.FOOTER: [r'^(Rechtsmittelbelehrung)$']
-            }
-        }
-    elif namespace['court'] == 'BL_XX':
-        print("I am a decision from BL_XX")
-        all_section_markers = {
-            Language.DE: {
-                Section.HEADER: [r'empty'],
-                Section.FACTS: [r'empty'],
-                Section.CONSIDERATIONS: [r'empty'],
-                Section.RULINGS: [r'empty'],
-                Section.FOOTER: [r'empty']
             }
         }
     else:
