@@ -20,7 +20,7 @@ Place it under `./prodigy`
 everything.
 
 4. To run a task, use `run.sh` in the `/prodigy` folder. It starts the judment extraction classification server. Access it
-at http://fdn-sandbox3.inf.unibe.ch:8080/.
+at http://fdn-sandbox3.inf.unibe.ch:8080/. Login with the credentials configured in the Dockerfile ("admin": "password")
 
 
 ## Configuration
