@@ -16,6 +16,7 @@ import pandas as pd
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
+from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache
 
 from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, select_paragraphs_with_decision_and_meta_data
 
@@ -132,7 +133,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = 2e2
         self.real_chunksize = 2e5
 
-        self.debug = False
+        self.debug = True
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
         self.feature_cols = ["text"]  # to be overridden
@@ -156,7 +157,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
-        processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created2.txt"
+        processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
 
@@ -234,10 +235,12 @@ class DatasetCreator(AbstractPreprocessor):
         ###
         
         table_string = f"{select_paragraphs_with_decision_and_meta_data()}"
-        field_string = "d.*, file.file_name"
+        field_string = "*"
         where_string = ""
-        
-        df = next(self.select(engine, table_string, field_string, where_string, chunksize=self.get_chunksize))
+        df = retrieve_from_cache_if_exists(self.data_dir / '.cache' / 'dataset_creator.csv')
+        if df.empty or True: 
+            df = next(self.select(engine, table_string, field_string, where_string, chunksize=self.get_chunksize()))
+            save_df_to_cache(df, self.data_dir / '.cache' / 'dataset_creator.csv')
         print(df)
         exit()
         df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,

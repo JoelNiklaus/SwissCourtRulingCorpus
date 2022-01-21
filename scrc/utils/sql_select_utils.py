@@ -143,9 +143,13 @@ def join(table_name: str, join_field: str = 'decision_id', join_table: str = 'd'
     """ Helper function """
     return f" LEFT JOIN {table_name} ON {table_name}.{join_field} = {join_table}.{join_field} "
     
-def map_join(map_field: str, new_map_field_name: str, table: str, group: str = 'decision_id', join_table: str = 'd') -> str:
+def map_join(map_field: str, new_map_field_name: str, table: str, fill: Dict[str, str], group: str = 'decision_id', join_table: str = 'd', additional_fields: str = '') -> str:
     """ Joins a table and concatenates multiple value onto one line """
-    return f" LEFT JOIN (SELECT {table}.{group}, array_agg({table}.{map_field}) {new_map_field_name} FROM {table} GROUP BY {group}) as {table} ON {table}.{group} = {join_table}.{group}"
+    if fill:
+        return  (f" LEFT JOIN (SELECT {table}_mapped.{group}, array_agg(({fill.get('field_name')})) {new_map_field_name} FROM (SELECT {fill.get('field_name')}, {group} FROM {table} LEFT JOIN {fill.get('table_name')} "
+                f" ON {fill.get('table_name')}.{fill.get('join_field')} = {table}.{fill.get('join_field')}) as {table}_mapped GROUP BY {group}) as {table} ON {table}.{group} = {join_table}.{group} ")
+        
+    return f" LEFT JOIN (SELECT {table}.{group}, array_agg({table}.{map_field}) {new_map_field_name} {additional_fields} FROM {table} GROUP BY {group}) as {table} ON {table}.{group} = {join_table}.{group}"
 
 def join_decision_with_everything_joined() -> str:
     """Join every table onto decision except party, judicial_person person, party_type, judicial_person_type, paragraph
@@ -154,14 +158,14 @@ def join_decision_with_everything_joined() -> str:
         str: The join string
     """
     tables = "decision d"
-    tables += join('citation') + ' LEFT JOIN citation_type ON citation_type.citation_type_id = citation.citation_type_id'
     tables += join('file', 'file_id')
     tables += join('section') + ' LEFT JOIN section_type ON section_type.section_type_id = section.section_type_id'
     tables += join('lower_court')
     tables += join('language', 'language_id')
     tables += join('chamber', 'chamber_id') + ' LEFT JOIN court ON court.court_id = chamber.court_id LEFT JOIN spider ON chamber.spider_id = spider.spider_id'
-    tables += map_join('judgment_id', 'judgments', 'judgment_map')
-    tables += map_join('file_number_id', 'file_numbers', 'file_number')
+    tables += map_join('citation_id', 'citations', 'citation', fill = {'table_name': 'citation_type', 'field_name': 'name, text, url', 'join_field': 'citation_type_id'})
+    tables += map_join('judgment_id', 'judgments', 'judgment_map', fill = {'table_name': 'judgment', 'field_name': 'text', 'join_field': 'judgment_id'})
+    tables += map_join('text', 'file_numbers', 'file_number')
     
         
     return  tables
@@ -178,8 +182,7 @@ def join_tables_on_decision(tables: List[str]) -> str:
     """
     join_string = 'decision d'
     
-    if ('citation' in tables or 'citation_type' in tables):
-        join_string += join('citation') + ' LEFT JOIN citation_type ON citation_type.citation_type_id = citation.citation_type_id'
+    
     
     if ('file' in tables):
         join_string += join('file', 'file_id')
@@ -196,11 +199,14 @@ def join_tables_on_decision(tables: List[str]) -> str:
     if ('chamber' in tables or 'court' in tables or 'spider' in tables):
         join_string += join('chamber', 'chamber_id') + ' LEFT JOIN court ON court.court_id = chamber.court_id LEFT JOIN spider ON chamber.spider_id = spider.spider_id'
         
+    if ('citation' in tables or 'citation_type' in tables):
+        join_string += map_join('citation_id', 'citations', 'citation', fill = {'table_name': 'citation_type', 'field_name': 'name, text, url', 'join_field': 'citation_type_id'})
+        
     if ('judgment_map' in tables or 'judgment' in tables):
-        join_string += map_join('judgment_id', 'judgments', 'judgment_map')
+        join_string += map_join('judgment_id', 'judgments', 'judgment_map', fill = {'table_name': 'judgment', 'field_name': 'text', 'join_field': 'judgment_id'})
         
     if ('file_number' in tables):
-        tables += map_join('file_number_id', 'file_numbers', 'file_number')
+        tables += map_join('text', 'file_numbers', 'file_number')
         
     if ('paragraph' in tables):
         tables += map_join('paragraph_id', 'paragraphs', 'paragraph')
@@ -212,7 +218,7 @@ def select_paragraphs_with_decision_and_meta_data() -> str:
         Edit this according to the example given below. 
         Easiest function to default join tables to a decision.
     """
-    return join_tables_on_decision(['paragraph', 'judgment', 'citation', 'file', 'file_number'])
+    return join_tables_on_decision(['citation'])
 
 def select_fields_from_table(fields: List[str], table): 
     fields_strings = [f"{table}.{field}" for field in fields]
