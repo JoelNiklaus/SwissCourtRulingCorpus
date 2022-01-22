@@ -32,11 +32,11 @@ def GE_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     """
     all_section_markers = {
         Language.FR: {
-            Section.HEADER: [r"Cour d'appel du Pouvoir judiciaire$\n|Chambre civile$\n|Chambre des baux et loyers$\n|Chambre de surveillance$\ndes Offices des poursuites et faillites$\n|Chambre pénale de recours$\n|Chambre administrative$\n|Chambre des assurances sociales$\n|DU TRIBUNAL CANTONAL DES$\nASSURANCES SOCIALES$\n"],
-            Section.FACTS: [r"EN FAIT$\nA.|EN FAIT:$\nA.|EN FAIT$\n|EN FAIT$\n1.|Vu en fait:"],
-            Section.CONSIDERATIONS: [r"EN DROIT$\n1.|CONSIDERANT EN DROIT$\n1.|EN DROIT:$\n1.|EN DROIT$\n"],
-            Section.RULINGS: [r"A la forme$\n|PAR CES MOTIFS,$\n|Par ces motifs$\n|CELA FAIT:$\n"],
-            Section.FOOTER: [r"Indication des voies de recours:$\n"]
+            Section.HEADER: [r"Cour d'appel du Pouvoir judiciaire$\n|Chambre civile$\n|Chambre des baux et loyers$\n|Chambre de surveillance$\ndes Offices des poursuites et faillites$\n|Chambre pénale de recours$\n|Chambre administrative$\n|Chambre des assurances sociales$\n|DU TRIBUNAL CANTONAL DES$\nASSURANCES SOCIALES$\n|Chambre des baux et loyers|DE LA COUR DE JUSTICE|POUVOIR JUDICIAIRE"],
+            Section.FACTS: [r"EN FAIT$\nA.|EN FAIT:$\nA.|EN FAIT$\n|EN FAIT$\n1.|Vu en fait:|A. a.|"],
+            Section.CONSIDERATIONS: [r"EN DROIT$\n1.|CONSIDERANT EN DROIT$\n1.|EN DROIT:$\n1.|EN DROIT$\n|1. 1."],
+            Section.RULINGS: [r"A la forme$\n|PAR CES MOTIFS,$\n|Par ces motifs$\n|CELA FAIT:$\n|A la forme :|PAR CES MOTIFS,"],
+            Section.FOOTER: [r"Indication des voies de recours:$\n|Voie de recours :Voie de recours :"]
         }
     }
 
@@ -51,8 +51,38 @@ def GE_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     # normalize strings to avoid problems with umlauts
     for section, regexes in section_markers.items():
         section_markers[section] = unicodedata.normalize('NFC', regexes)
+    
+    def get_paragraphs(divs):
+       paragraphs = []
+       heading, paragraph = None, None
+       for div in divs:
+          for p in div:
+             text = ''
+             # This is a hack to also get tags which contain other tags such as links to BGEs
+             if '<p>' in str(p):
+                text = p.get_text().replace('\n', '').replace("\xa0", '')
+             elif '<div class="efd"' in str(p):
+                text = p.get_text().replace('\n', '').replace("\xa0", '')
 
-    paragraphs = get_pdf_paragraphs(decision)
+             if text.strip() == 'None':
+                text = p.get_text()
+                # get numerated titles such as 1. or A.
+             if "." in text and len(text) < 5:
+                heading = text  # set heading for the next paragraph
+             else:
+                if heading is not None:  # if we have a heading
+                   paragraph = heading + " " + text  # add heading to text of the next paragraph
+                else:
+                   paragraph = text
+                heading = None  # reset heading
+             paragraph = clean_text(paragraph)
+             if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+                paragraphs.append(paragraph)
+       return paragraphs
+
+    ps = decision.findAll('div', class_=None, title=None)
+    
+    paragraphs = get_paragraphs(ps)
     print('NAMESPACE')
     print(namespace)
     print('SECTIONS')
@@ -103,10 +133,10 @@ def TI_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     """
     all_section_markers = {
         Language.IT: {
-            Section.HEADER: [r"La Corte di appello e di revisione penale$\n|La Camera di diritto tributario del Tribunale d'appello$\n|Tribunale cantonale amministrativo$\n|Camera civile del Tribunale d'appello$\n|La Camera di esecuzione e fallimenti del Tribunale d'appello|La Camera di esecuzione e fallimenti del Tribunale d'appello quale autorità di vigilanza|Il Tribunale della pianificazione del territorio"],
-            Section.FACTS: [r"in fatto: *A.|ritenuto$\n|ritenuto che:$\n|ritenuto che$\n|preso atto che:*A.|in fatto ed in diritto$\n|in fatto$\n|in fatto ed in diritto:$\n"],
+            Section.HEADER: [r"La Corte di appello e di revisione penale$\n|La Camera di diritto tributario del Tribunale d'appello$\n|Tribunale cantonale amministrativo$\n|Camera civile del Tribunale d'appello$\n|La Camera di esecuzione e fallimenti del Tribunale d'appello|La Camera di esecuzione e fallimenti del Tribunale d'appello quale autorità di vigilanza|Il Tribunale della pianificazione del territorio|La Camera di diritto|Incarto n."],
+            Section.FACTS: [r"in fatto: *A.|ritenuto$\n|ritenuto che:$\n|ritenuto che$\n|preso atto che:*A.|in fatto ed in diritto$\n|in fatto$\n|in fatto ed in diritto:$\n|infatto ed in diritto:|fatto ed  in diritto|in fatto ed in diritto|(\w+ )*in diritto:|diritto:|ritenuto, in"],
             Section.CONSIDERATIONS: [r"in diritto: *1.|e in diritto$\n|In diritto:$\n|Considerando$\n|in diritto$\n"],
-            Section.RULINGS: [r"Per questi motivi,$\n"],
+            Section.RULINGS: [r"Per questi motivi,$\n|dichiarae pronuncia:|Per questi motivi,|dichiara e pronuncia|pronuncia:|Pronuncia:|(\w+ )*pronuncia:"],
             Section.FOOTER: [r'Contro decisioni finali, contro']
         }
     }
@@ -123,7 +153,22 @@ def TI_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     for section, regexes in section_markers.items():
         section_markers[section] = unicodedata.normalize('NFC', regexes)
 
-    paragraphs = get_pdf_paragraphs(decision)
+    def get_paragraphs(divs):
+        paragraphs = []
+
+        for div in divs:
+            text = div.get_text().strip().replace('\r', '').replace('\xa0', '')
+            text = text.split('\n')
+
+            for val in text:
+                if val != '':
+                    paragraphs.append(val.strip())
+
+        return paragraphs
+
+    divs = decision.findAll('div', class_='Section1')
+
+    paragraphs = get_paragraphs(divs)
     print('TI_GERICHTE')
     print('NAMESPACE')
     print(namespace)

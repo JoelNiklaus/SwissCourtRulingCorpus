@@ -64,32 +64,35 @@ all_judgment_markers = {
         Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung','schuldig erklärt', 'rechtmässig'],
         Judgment.PARTIAL_APPROVAL: ['teilweise gutgeheissen', 'teilweise gutzuheissen',
                                     'In teilweiser Gutheissung'],
-        Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen', 'erstinstanzliche Urteil wird bestätigt'],
+        Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen', 'erstinstanzliche Urteil wird bestätigt', 'wird nicht eingetreten', 'zurückgewiesen',
+                             'nicht eingetreten'],
         Judgment.PARTIAL_DISMISSAL: ['abgewiesen, soweit darauf einzutreten ist',
                                      'abzuweisen, soweit darauf einzutreten ist',
                                      'abgewiesen, soweit auf sie einzutreten ist',
                                      'abzuweisen, soweit auf sie einzutreten ist'],
         Judgment.INADMISSIBLE: ['Nichteintreten', 'nicht eingetreten', 'nicht einzutreten',
-                                'wird keine Folge geleistet', 'wird nicht eingegangen',
-                                'soweit darauf einzutreten ist', 'soweit auf sie einzutreten ist'],
+                                'wird keine Folge geleistet',
+                                'soweit darauf einzutreten ist', 'soweit auf sie einzutreten ist', 'Unzulässigkeit', 'unzulässigkeit ' ],
         Judgment.WRITE_OFF: ['abgeschrieben', 'abzuschreiben', 'erweist sich als gegenstandslos'],
         Judgment.UNIFICATION: ["werden vereinigt", "werden gemeinsam beurteilt", "werden nicht vereinigt"]
     },
     Language.FR: {
-        Judgment.APPROVAL: ['admis', 'est annulé', 'Admet'],
+        Judgment.APPROVAL: ['admis', 'est annulé', ' être annulée', 'Admet', 'admet le recours', "admet \n le recours",
+                            "est acquitté"],
         Judgment.PARTIAL_APPROVAL: ['Admet partiellement',
+                                    'admet partiellement' 'admet \n partiellement', "admet très partiellement",
                                     'partiellement admis',
                                     'admis dans la mesure où il est recevable',
                                     'admis dans la mesure où ils sont recevables'
                                     ],
-        Judgment.DISMISSAL: ['rejeté', 'Rejette', 'écarté'],
+        Judgment.DISMISSAL: ['rejeté', 'Rejette', 'rejetée', 'rejette', 'écarté', 'condamne'],
         Judgment.PARTIAL_DISMISSAL: ['rejetés dans la mesure où ils sont recevables',
                                      'rejeté, dans la mesure où il est recevable',
                                      'rejeté dans la mesure où il est recevable',
                                      'rejeté dans la mesure de sa recevabilité'
                                      ],
         Judgment.INADMISSIBLE: ['N\'entre pas en matière', 'irrecevable', 'n\'est pas entré',
-                                'pas pris en considération'],
+                                'pas pris en considération', "l'appel irrecevable", "le recours irrecevable"],
         Judgment.WRITE_OFF: ['retrait', 'est radiée', 'sans objet', 'rayé', 'Raye'],
         Judgment.UNIFICATION: [],
     },
@@ -115,6 +118,88 @@ all_judgment_markers = {
         Judgment.UNIFICATION: ['sono congiunte'],
     }
 }
+
+def VS_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+    print('START PROCESS')
+    def getJudgments(text: str, judgment_markers, debug=False) -> Optional[List[Judgment]]:
+        """
+        Get the judgment outcomes based on a regex dictionary for a given section string.
+        :param text:               the text string of the section, usually Section.RULINGS
+        :param judgment_markers:   the regex dicttionary for the different judgment outcomes
+        :param debug:              if set to True, prints debug output to console
+        :return:                   the list of judgment outcomes
+        """
+        
+        judgments = []
+        for lang in judgment_markers:
+            for judg in judgment_markers[lang]:
+                for reg in (judgment_markers[lang])[judg]:
+                    matches = re.finditer(reg, text, re.MULTILINE)
+                    for num, match in enumerate(matches, start=1):
+                        from_, to_, match_text  = match.start(), match.end(), match.group()
+                        judgments.append(judg)
+                        if debug:
+                            print(f'{judg} ("{match.group()}") at {to_/len(text):.1%} of the section.')
+                        
+        return judgments
+
+    if namespace['language'] not in all_judgment_markers:
+        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
+        raise ValueError(message)
+    print('CHECK')
+    # make sure we don't have any nasty unicode problems
+    rulings = clean_text(rulings)
+    print('CHECK')
+    judgments = getJudgments(rulings, namespace)
+
+    if not judgments:
+        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
+        raise ValueError(message)
+    elif len(judgments) > 1:
+        if Judgment.PARTIAL_APPROVAL in judgments:
+            # if partial_approval is found, it will find approval as well
+            judgments.discard(Judgment.APPROVAL)
+        if Judgment.PARTIAL_DISMISSAL in judgments:
+            # if partial_dismissal is found, it will find dismissal as well
+            judgments.discard(Judgment.DISMISSAL)
+    print(judgments)
+    return [judgment.value for judgment in judgments]
+
+def JU_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+
+    if namespace['language'] not in all_judgment_markers:
+        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
+        raise ValueError(message)
+
+    # make sure we don't have any nasty unicode problems
+    rulings = clean_text(rulings)
+
+    judgments = get_judgments(rulings, namespace)
+
+    if not judgments:
+        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
+        raise ValueError(message)
+    elif len(judgments) > 1:
+        if Judgment.PARTIAL_APPROVAL in judgments:
+            # if partial_approval is found, it will find approval as well
+            judgments.discard(Judgment.APPROVAL)
+        if Judgment.PARTIAL_DISMISSAL in judgments:
+            # if partial_dismissal is found, it will find dismissal as well
+            judgments.discard(Judgment.DISMISSAL)
+    print(judgments)
+    return [judgment.value for judgment in judgments]
 
 
 def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
@@ -210,7 +295,7 @@ def UR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     
     # find all judgments in the rulings
     judgments = getJudgments(rulings, all_section_markers)
-    
+    print(judgments)
     # validate
     if len(judgments) > 1:
         message = f"For the decision {namespace['html_url']} several rulings where found from the rulings: {rulings}"
@@ -272,6 +357,7 @@ def get_judgments(rulings: str, namespace: dict) -> set:
             judgments = unnumbered_rulings(judgments, rulings, judgment_markers, namespace)  
     else:
         judgments = unnumbered_rulings(judgments, rulings, judgment_markers,namespace) 
+    print(judgments)
     return judgments
 
 def unnumbered_rulings(judgments: set, rulings: str, judgment_markers: dict, namespace: dict):
