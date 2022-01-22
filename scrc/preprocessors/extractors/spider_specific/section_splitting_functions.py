@@ -109,6 +109,86 @@ def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    #Regular expressions adapted to each court separately
+    if namespace['court'] == 'BL_SG':
+        all_section_markers = {
+            Language.DE: {
+                Section.HEADER: [r'^(Rechtsprechung Steuergericht( Basel-Landschaft\s*)*)$', r'^((Entscheid|Beschluss) vom \d*\. (Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) \d*)',
+                                 r'07-10(0|1) Abgrenzung Haupterwerb - Nebenerwerb', r'08-64 Verpflegungsmehrkosten', r'08-125 Liegenschaftsunterhalt', r'07-104 Begründungspflicht', r'07-025 Privater Schuldzinsabzug',
+                                 r'08-14(5|6) WIR-Geld', r'08-138 Aktienbewertung bei Ehegatten', r'07-057 Besteuerung eines ohne festen Wohnsitz im Ausland lebenden Ehegatten', r'06-16(7|8) Schneeballprinzip',
+                                 r'07-058 Besteuerung eines ohne festen Wohnsitz im Ausland lebenden Ehegatten', r'07-026 Privater Schuldzinsabzug', r'06-066 Ermittlung des Hauptsteuerdomizils',
+                                 r'08-126 Erbschaftssteuer bei Ausrichtung eines Legats, rechtliches Gehör'],
+                Section.FACTS: [r'^(Sachverhalt:*)$', r'^(Aus dem Sachverhalt( \(Zusammenfassung\))*:)$', r'^(S a c h v e r h a l t :)', r'^(Aus dem Sachverhalt \(gekürzt\):)$'],
+                Section.CONSIDERATIONS: [r'Aus den Erwägungen\s*:*', r'^(Erwägungen:*\s*)$', r'^(\s*[Ii]\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*(\s*e n)*\s*:*\s*)$', r'^(Das Steuergericht zieht\s*i\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*:*\s*)$',
+                                         r'Der Präsident des Steuergerichts zieht in Erwägung :'],
+                Section.RULINGS: [r'^(D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:*\s*)$', r'(Demgemäss|Demnach) erkennt das Steuergericht:',  r'^(w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:\s*)$'],
+                Section.FOOTER: [r'^(Rechtsmittelbelehrung)$']
+            }
+        }
+    elif namespace['court'] == 'BL_ZMG':
+        all_section_markers = {
+            Language.DE: {
+                Section.HEADER: [r'^(Zwangsmassnahmengericht Basel-Landschaft www.bl.ch\/zmg)$', r'^(Entscheid des Zwangsmassnahmengerichts vom 13.09.2016 (350 16 419))'],
+                Section.FACTS: [r'^(Betreffend)', r'^(Sachverhalt)$'],
+                Section.CONSIDERATIONS: [r'^(In Erwägung(,)* dass(,|:)*)$', r'^((I. )*Erwägungen:*\s*)$'],
+                Section.RULINGS: [r'^(Es\swird\se\s*n\s*t\s*s\s*c\s*h\s*i\s*e\s*d\s*e\s*n\s*:)', r'^(wird\s*e\s*n\s*t\s*s\s*c\s*h\s*i\s*e\s*d\s*e\s*n\s*:)', r'^(e n t s c h i e d e n :)$'],
+                Section.FOOTER: [r'^(Rechtsmittelbelehrung)$']
+            }
+        }
+    elif namespace['court'] == 'BL_KG':
+        all_section_markers = {
+            Language.DE: {
+                Section.HEADER: [r'^((Beschluss|Entscheid|Urteil) des Kantonsgerichts Basel-Landschaft, )',  r'^(Rechtsprechung des Kantonsgerichts)$'],
+                Section.FACTS: [r'^(Betreff)', r'^(Gegenstand)', r'^(Sachverhalt:*)$'],
+                Section.CONSIDERATIONS: [r'^((Das|Die) (Kantonsgericht|Steuergericht) zieht\s*i\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*:*\s*)$', r'^((Die|Der) Präsident(in)* zieht\s*i\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*:\s*)$', r'^(In Erwägung(,)* dass(,|:)*)$',
+                                         r'^(Erwägungen\s*)$', r'^(In Erwägung(,)* dass(,|:)*)$', r'^(Auszug aus den Erwägungen:*)$', r'^(Aus den Erwägungen:*)$', r'^(Erwägung)$',
+                                         r'(Der|Die) Präsident(in)* hat\s*i\s*n\s*E\s&r\s*w\s*ä\s*g\s*u\s*n\s*g\s*,\s*', r'Das Kantonsgericht hat i n E r w ä g u n g ,'],
+                Section.RULINGS: [r'^(D\s*e\s*m\s*n\s*a\s*c\s*h\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:*\s*)$', r'^(D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:*\s*)$',
+                                  r'^((Es)*\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:\s*)$', r'^(Demnach wird beschlossen:)$', r'^(Demgemäss wird v e r f ü g t:\s*)$',
+                                  r'^(Demgemäss wird b e s c h l o s s e n :)$', r'^(e\s*r\s*k\s*a\s*n\s*n\s*t\s*:\s*)$', r'://:'],
+                Section.FOOTER: [r'^(Rechtsmittelbelehrung)$']
+            }
+        }
+    elif namespace['court'] == 'BL_EG':
+        all_section_markers = {
+            Language.DE: {
+                Section.HEADER: [r'^(Rechtsprechung Enteignungsgericht)$', r'^(Entscheid des Steuer- und Enteignungsgerichts Basel-Landschaft,)$', r'12-09 Landabzug im Rahmen einer Baulandumlegung \/ Ermittlung der Entschädi',
+                                 r'11-05 Enteignung nachbarrechtlicher Abwehransprüche\/ Bindung an die Erwägun-', r'12-07 Übereinstimmung einer im Strassenreglement aufgeführten Qualifikation einer',
+                                 r'12-08 Strassenbeitrag \/ Sondervorteil aufgrund Randsteine, Entwässerung, Stras-'],
+                Section.FACTS: [r'^(Aus dem Sachverhalt:)$', r'^(Gegenstand)'],
+                Section.CONSIDERATIONS: [r'^(Aus den Erwägungen:)$', r'^(\s*[Ii]\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*(\s*e n)*\s*:*\s*)$'],
+                Section.RULINGS: [r'^(D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:*\s*)$', r'^(wird erkannt:)$', r'^(D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*v\s*e\s*r\s*f\s*ü\s*g\s*t\s*:\s*)$'],
+                Section.FOOTER: [r'^(Rechtsmittelbelehrung)$']
+            }
+        }
+    else:
+        message = f"({namespace['id']}): We got stuck at court {court}. Please check! "
+
+    if namespace['html_url']:
+        valid_namespace(namespace, all_section_markers)
+        section_markers = prepare_section_markers(all_section_markers, namespace)
+        divs = decision.findAll("div", {'id': 'content-content'})
+        paragraphs = get_paragraphs(divs)
+    elif namespace['pdf_url']:
+        if namespace['language'] not in all_section_markers:
+            message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+            raise ValueError(message)
+        section_markers = all_section_markers[namespace['language']]
+        # combine multiple regex into one for each section due to performance reasons
+        section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+        # normalize strings to avoid problems with umlauts
+        for section, regexes in section_markers.items():
+            section_markers[section] = unicodedata.normalize('NFC', regexes)
+        paragraphs = get_pdf_paragraphs(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
 def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -319,6 +399,7 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
 
     divs = decision.find_all(
         "div", class_=['WordSection1', 'Section1', 'WordSection2'])
+
     paragraphs = get_paragraphs(divs)
     return associate_sections(paragraphs, section_markers, namespace)
 
