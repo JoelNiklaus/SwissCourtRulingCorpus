@@ -24,6 +24,44 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
+def FR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+        :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+        :param namespace:   the namespace containing some metadata of the court decision
+        :return:            the sections dict (keys: section, values: list of paragraphs)
+        """
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [r"ZIVILAPPELLATIONSHOF$\n|Zivilappellationshof$\n|Tribunal cantonal TC Kantonsgericht KG$\n|Tribunal cantonal TC Kantonsgericht"],
+            Section.FACTS: [r"Sachverhalt$\n|S a c h v e r h a l t|Sachverhalt"],
+            Section.CONSIDERATIONS: [r'Erwägungen$\n|E r w ä g u n g e n'],
+            Section.RULINGS: [r'Der Hof erkennt:|D e r H o f e r k e n n t :|Der Präsident erkennt:|(\w+ )*erkennt:'],
+            Section.FOOTER: [r"Dieses Urteil kann innert 30 Tagen nach seiner Eröffnung mit Beschwerde"]
+        },
+
+        Language.FR: {
+            Section.HEADER: [r"COUR D’APPEL CIVIL$\n|Cour d'appel civil$\n"],
+            Section.FACTS: [r"(considérant )*en fait:|(considérant )*en fait$\n|(c o n s i d é r a n t )*e n f a i t|attendu|"],
+            Section.CONSIDERATIONS: [r"en droit$\n| e n d r o i t$\n"],
+            Section.RULINGS: [r"la Cour arrête:|le Président de la Cour arrête:|l a C o u r a r r ê t e :|la Juge déléguée arrête:|l a J u g e d é l é g u é e a r r ê t e :|le Président arrête|"],
+            Section.FOOTER: [r"Cet arrêt peut faire l'object d'un recours constitutionnel au Tribunal|Cet arrêt peut faire l'object d'un recours en matière civile au Tribunal|Le Tribunal fédéral c>        }
+    }
+
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
+
+    section_markers = all_section_markers[namespace['language']]
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    paragraphs = get_pdf_paragraphs(decision)
+    return associate_sections(paragraphs, section_markers, namespace)
+
 def UR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
