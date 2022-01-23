@@ -58,7 +58,6 @@ Formelle Mitteilung:
     - Andere
 
 """
-
 all_judgment_markers = {
     Language.DE: {
         Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung','schuldig erklärt', 'rechtmässig'],
@@ -105,7 +104,7 @@ all_judgment_markers = {
                              ],
         Judgment.PARTIAL_DISMISSAL: ['Nella misura in cui è ammissibile, il ricorso è respinto',
                                      'Nella misura in cui è ammissibile, il ricorso di diritto pubblico è respinto',
-                                     'Nella misura in cui è ammissibile, la domanda di revisione è respinta'],
+                                     'Nella misura in cui è ammissibile, la domanda di revisione è respinta'],                                     'Nella misura in cui è ammissibile, la domanda di revisione è respinta'],
         Judgment.INADMISSIBLE: ['inammissibil',  # inamissibil o/i/a/e
                                 'irricevibil',  # irricevibil o/i/a/e
                                 ],
@@ -135,7 +134,7 @@ def VS_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
         :param debug:              if set to True, prints debug output to console
         :return:                   the list of judgment outcomes
         """
-        
+
         judgments = []
         for lang in judgment_markers:
             for judg in judgment_markers[lang]:
@@ -146,7 +145,7 @@ def VS_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
                         judgments.append(judg)
                         if debug:
                             print(f'{judg} ("{match.group()}") at {to_/len(text):.1%} of the section.')
-                        
+
         return judgments
 
     if namespace['language'] not in all_judgment_markers:
@@ -166,126 +165,9 @@ def VS_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
             # if partial_approval is found, it will find approval as well
             judgments.discard(Judgment.APPROVAL)
         if Judgment.PARTIAL_DISMISSAL in judgments:
-            # if partial_dismissal is found, it will find dismissal as well
+ # if partial_dismissal is found, it will find dismissal as well
             judgments.discard(Judgment.DISMISSAL)
     print(judgments)
-    return [judgment.value for judgment in judgments]
-
-def JU_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-    print('CHECK1')
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = get_judgments(rulings, namespace)
-
-    if not judgments:
-        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
-        raise ValueError(message)
-    elif len(judgments) > 1:
-        if Judgment.PARTIAL_APPROVAL in judgments:
-            # if partial_approval is found, it will find approval as well
-            judgments.discard(Judgment.APPROVAL)
-        if Judgment.PARTIAL_DISMISSAL in judgments:
-            # if partial_dismissal is found, it will find dismissal as well
-            judgments.discard(Judgment.DISMISSAL)
-    print(judgments)
-    return [judgment.value for judgment in judgments]
-
-def FR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = get_judgments(rulings, namespace)
-
-    if not judgments:
-        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
-        raise ValueError(message)
-    elif len(judgments) > 1:
-        if Judgment.PARTIAL_APPROVAL in judgments:
-            # if partial_approval is found, it will find approval as well
-            judgments.discard(Judgment.APPROVAL)
-        if Judgment.PARTIAL_DISMISSAL in judgments:
-            # if partial_dismissal is found, it will find dismissal as well
-            judgments.discard(Judgment.DISMISSAL)
-    return [judgment.value for judgment in judgments]
-
-def GE_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = get_judgments(rulings, namespace)
-
-    if not judgments:
-        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
-        raise ValueError(message)
-    elif len(judgments) > 1:
-        if Judgment.PARTIAL_APPROVAL in judgments:
-            # if partial_approval is found, it will find approval as well
-            judgments.discard(Judgment.APPROVAL)
-        if Judgment.PARTIAL_DISMISSAL in judgments:
-            # if partial_dismissal is found, it will find dismissal as well
-            judgments.discard(Judgment.DISMISSAL)
-    return [judgment.value for judgment in judgments]
-
-def TI_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = get_judgments(rulings, namespace)
-
-    if not judgments:
-        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
-        raise ValueError(message)
-    elif len(judgments) > 1:
-        if Judgment.PARTIAL_APPROVAL in judgments:
-            # if partial_approval is found, it will find approval as well
-            judgments.discard(Judgment.APPROVAL)
-        if Judgment.PARTIAL_DISMISSAL in judgments:
-            # if partial_dismissal is found, it will find dismissal as well
-            judgments.discard(Judgment.DISMISSAL)
     return [judgment.value for judgment in judgments]
 
 def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
