@@ -19,27 +19,28 @@ Place it under `./prodigy`
 3. Just run `bash install.sh` in the `/prodigy` folder. This builds the docker image, starts the container and prepares
 everything.
 
-4. To run a task, use `run.sh` in the `/prodigy` folder. It starts the judment extraction classification server. Access it
+4. To run a task, use `run.sh` in the `/prodigy` folder. Pass it the desired parameters explained atop the file. It starts
+your task as a webserver. Access it
 at http://fdn-sandbox3.inf.unibe.ch:8080/. Login with the credentials configured in the Dockerfile ("admin": "password")
 
 
+## Development
+To develop your task or add some changes to existing tasks (recipes), use the script `develop.sh`. (Run setup.sh) beforehand
+if not yet done, the base image has to exist. The develop script will start a development session using the files on the
+host machine, allowing for easy editing. Run your recipe directly within the development shell to test around.
+Don't forget to run `setup.sh` again when you are done, to apply your changes to the productive version of the application.
+For more details see the docs in the script `develop.sh`.
+
 ## Configuration
 If you would like to change configurations edit the file `prodigy.json` and then rebuild and restart the service
-by following the steps in **Setup & Usage**.
+by following the steps in **Setup & Usage** or test around in the development environment.
 
 config everything in prodigy.json:
 - database connection
 - host: use 0.0.0.0 if deployed in docker container, otherwise localhost (except if db is remote)
 
-
 ## Custom Usage
-To create your own module write a recipe as explained in the prodi.gy docs, or extend one of theirs.
+To create your own module write a recipe as explained in the prodi.gy docs, or extend one of theirs. Use the `develop.sh` script
+for easy access and testing.
 
 Prodigy documentation: https://prodi.gy/docs/
-
-To edit and test your module you have two options:
-
-1) Write it outside the container and mount the file manually, then run it.
-2) Execute a bash shell in the container and use terminal tools to write and test your file.
-
-See docker docs for further infos.
