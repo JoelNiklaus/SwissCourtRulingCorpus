@@ -17,11 +17,13 @@ def db_stream(language, spider):
   config = "dbname=scrc user={} password={} host=localhost port=5432".format(os.environ["DB_USER"], os.environ["DB_PASSWORD"])
 
   # prodigy database connection configuration string, to fetch processed ids
-  # TODO: remove hardcoded login credentials
-  config_prodigy = "dbname=prodigy user=prodigy password=ProdigyLog1n host=localhost port=5432"
-  # TODO: find the ids which have been labeled already
+  # TODO:
+  # - remove hardcoded login credentials
+  # - find the ids which have been labeled already
+  # - check which records have already been labeled
+  # last two are easier done once the annotations are direclty fed to the scrc database, allowing for a fast query
+  # instead of parsing all the stored data from prodigy
   latest_id = 0
-  # TODO: check which records have already been labeled
   ids_done = []
 
   # postgres is much faster parsing VALUES() to relations than using a NOT IN query
@@ -63,6 +65,7 @@ def split_string(string):
   language=("The language to use for the recipe", 'positional', None, str)
 )
 
+# function called by the @prodigy-recipe definition
 def judgment_outcome(spider: str, language: str):
 
   # define the default labels (from the enum `Judgmenet` defined in scrc)
@@ -82,6 +85,8 @@ def judgment_outcome(spider: str, language: str):
     }
   }
 
+# small helper to add the label options to the stream
+# will later be displayed as choices in the frontend
 def add_options(stream, options):
   options = [{"id": opt, "text": opt} for opt in options]
   for task in stream:
