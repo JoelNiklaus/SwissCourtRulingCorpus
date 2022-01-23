@@ -83,10 +83,7 @@ def GE_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     ps = decision.findAll('div', class_=None, title=None)
     
     paragraphs = get_paragraphs(ps)
-    print('NAMESPACE')
-    print(namespace)
-    print('SECTIONS')
-    print(associate_sections(paragraphs, section_markers, namespace))
+
     return associate_sections(paragraphs, section_markers, namespace)
 
 def JU_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -118,10 +115,7 @@ def JU_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         section_markers[section] = unicodedata.normalize('NFC', regexes)
 
     paragraphs = get_pdf_paragraphs(decision)
-    print('NAMESPACE')
-    print(namespace)
-    print('SECTIONS')
-    print(associate_sections(paragraphs, section_markers, namespace))
+
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -169,11 +163,6 @@ def TI_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     divs = decision.findAll('div', class_='Section1')
 
     paragraphs = get_paragraphs(divs)
-    print('TI_GERICHTE')
-    print('NAMESPACE')
-    print(namespace)
-    print('SECTIONS')
-    print(associate_sections(paragraphs, section_markers, namespace))
     return associate_sections(paragraphs, section_markers, namespace)
 
 def VS_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -213,11 +202,6 @@ def VS_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         section_markers[section] = unicodedata.normalize('NFC', regexes)
 
     paragraphs = get_pdf_paragraphs(decision)
-    print('VS_GERICHTE')
-    print('NAMESPACE')
-    print(namespace)
-    print('SECTIONS')
-    print(associate_sections(paragraphs, section_markers, namespace))
     return associate_sections(paragraphs, section_markers, namespace)
 
 def FR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -257,9 +241,6 @@ def FR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         section_markers[section] = unicodedata.normalize('NFC', regexes)
 
     paragraphs = get_pdf_paragraphs(decision)
-    print(namespace)
-    print('associate sections')
-    print(associate_sections(paragraphs, section_markers, namespace))
     return associate_sections(paragraphs, section_markers, namespace)
 
 def UR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:

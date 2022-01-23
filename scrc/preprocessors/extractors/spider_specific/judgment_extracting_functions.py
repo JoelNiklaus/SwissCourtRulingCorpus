@@ -78,14 +78,14 @@ all_judgment_markers = {
     },
     Language.FR: {
         Judgment.APPROVAL: ['admis', 'est annulé', ' être annulée', 'Admet', 'admet le recours', "admet \n le recours",
-                            "est acquitté"],
+                            "est acquitté", 'recevable'],
         Judgment.PARTIAL_APPROVAL: ['Admet partiellement',
                                     'admet partiellement' 'admet \n partiellement', "admet très partiellement",
                                     'partiellement admis',
                                     'admis dans la mesure où il est recevable',
                                     'admis dans la mesure où ils sont recevables'
                                     ],
-        Judgment.DISMISSAL: ['rejeté', 'Rejette', 'rejetée', 'rejette', 'écarté', 'condamne'],
+        Judgment.DISMISSAL: ['rejeté', 'Rejette', 'rejetée', 'rejette', 'écarté', 'condamne', 'Condamne'],
         Judgment.PARTIAL_DISMISSAL: ['rejetés dans la mesure où ils sont recevables',
                                      'rejeté, dans la mesure où il est recevable',
                                      'rejeté dans la mesure où il est recevable',
@@ -100,8 +100,8 @@ all_judgment_markers = {
         Judgment.APPROVAL: ['accolt',  # accolt o/i/a/e
                             'annullat'],  # annullat o/i/a/e
         Judgment.PARTIAL_APPROVAL: ['Nella misura in cui è ammissibile, il ricorso è parzialmente accolto',
-                                    'In parziale accoglimento del ricorso'],
-        Judgment.DISMISSAL: ['respint',  # respint o/i/a/e
+                                    'In parziale accoglimento del ricorso', 'parzialmente accolto'],
+        Judgment.DISMISSAL: ['respint',  'respinta' # respint o/i/a/e
                              ],
         Judgment.PARTIAL_DISMISSAL: ['Nella misura in cui è ammissibile, il ricorso è respinto',
                                      'Nella misura in cui è ammissibile, il ricorso di diritto pubblico è respinto',
@@ -182,7 +182,7 @@ def JU_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     if namespace['language'] not in all_judgment_markers:
         message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
         raise ValueError(message)
-
+    print('CHECK1')
     # make sure we don't have any nasty unicode problems
     rulings = clean_text(rulings)
 
@@ -201,6 +201,92 @@ def JU_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     print(judgments)
     return [judgment.value for judgment in judgments]
 
+def FR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+
+    if namespace['language'] not in all_judgment_markers:
+        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
+        raise ValueError(message)
+
+    # make sure we don't have any nasty unicode problems
+    rulings = clean_text(rulings)
+
+    judgments = get_judgments(rulings, namespace)
+
+    if not judgments:
+        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
+        raise ValueError(message)
+    elif len(judgments) > 1:
+        if Judgment.PARTIAL_APPROVAL in judgments:
+            # if partial_approval is found, it will find approval as well
+            judgments.discard(Judgment.APPROVAL)
+        if Judgment.PARTIAL_DISMISSAL in judgments:
+            # if partial_dismissal is found, it will find dismissal as well
+            judgments.discard(Judgment.DISMISSAL)
+    return [judgment.value for judgment in judgments]
+
+def GE_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+
+    if namespace['language'] not in all_judgment_markers:
+        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
+        raise ValueError(message)
+
+    # make sure we don't have any nasty unicode problems
+    rulings = clean_text(rulings)
+
+    judgments = get_judgments(rulings, namespace)
+
+    if not judgments:
+        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
+        raise ValueError(message)
+    elif len(judgments) > 1:
+        if Judgment.PARTIAL_APPROVAL in judgments:
+            # if partial_approval is found, it will find approval as well
+            judgments.discard(Judgment.APPROVAL)
+        if Judgment.PARTIAL_DISMISSAL in judgments:
+            # if partial_dismissal is found, it will find dismissal as well
+            judgments.discard(Judgment.DISMISSAL)
+    return [judgment.value for judgment in judgments]
+
+def TI_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+
+    if namespace['language'] not in all_judgment_markers:
+        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
+        raise ValueError(message)
+
+    # make sure we don't have any nasty unicode problems
+    rulings = clean_text(rulings)
+
+    judgments = get_judgments(rulings, namespace)
+
+    if not judgments:
+        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
+        raise ValueError(message)
+    elif len(judgments) > 1:
+        if Judgment.PARTIAL_APPROVAL in judgments:
+            # if partial_approval is found, it will find approval as well
+            judgments.discard(Judgment.APPROVAL)
+        if Judgment.PARTIAL_DISMISSAL in judgments:
+            # if partial_dismissal is found, it will find dismissal as well
+            judgments.discard(Judgment.DISMISSAL)
+    return [judgment.value for judgment in judgments]
 
 def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     """
