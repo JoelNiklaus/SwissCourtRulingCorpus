@@ -11,7 +11,10 @@ usage=$(cat <<- EOF
     - spider_name: the name of the spider to use, e.g. 'BGer'
 
   Usage:
-    ./run.sh language spider_name
+    ./run.sh task language spider_name
+
+  Example:
+    ./run.sh judgment-outcome de BGer
 
   Consult /prodigy/README.md for more information.
 EOF
