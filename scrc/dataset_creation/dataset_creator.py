@@ -133,7 +133,6 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = 2e2
         self.real_chunksize = 2e5
 
-        self.debug = True
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
         self.feature_cols = ["text"]  # to be overridden
@@ -218,7 +217,7 @@ class DatasetCreator(AbstractPreprocessor):
                     out_file.write(json.dumps(record) + '\n')
 
     def get_df(self, engine, feature_col, label_col, lang, save_reports):
-        self.logger.info("Started loading the data from the database")
+        self.logger.info("Started loading the data")
         origin_canton = "lower_court::json#>>'{canton}' AS origin_canton"
         origin_court = "lower_court::json#>>'{court}' AS origin_court"
         origin_chamber = "lower_court::json#>>'{chamber}' AS origin_chamber"
@@ -234,12 +233,13 @@ class DatasetCreator(AbstractPreprocessor):
         # SELECT select_fields_from_table(['lower_court.canton_id as origin_canton', 'lower_court.court_id as origin_court', ...], 'lower_court'), feature_col, label_col FROM join_tables_on_decision(['lower_court', <TABLE NEEDED FOR FEATURE COLUMN AND LABEL>])
         ###
         
-        table_string = f"{select_paragraphs_with_decision_and_meta_data()}"
-        field_string = "*"
+        table_string, field_string = select_paragraphs_with_decision_and_meta_data()
         where_string = ""
         df = retrieve_from_cache_if_exists(self.data_dir / '.cache' / 'dataset_creator.csv')
         if df.empty or True: 
-            df = next(self.select(engine, table_string, field_string, where_string, chunksize=self.get_chunksize()))
+            self.logger.info("Retrieving the data from the database")
+            df = next(self.select(engine, table_string, field_string, where_string, order_by='year', chunksize=self.get_chunksize()))
+            self.logger.info("Writing the data to a cachefile")
             save_df_to_cache(df, self.data_dir / '.cache' / 'dataset_creator.csv')
         print(df)
         exit()

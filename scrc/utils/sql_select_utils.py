@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 from sqlalchemy.sql.elements import TextClause
@@ -143,32 +143,15 @@ def join(table_name: str, join_field: str = 'decision_id', join_table: str = 'd'
     """ Helper function """
     return f" LEFT JOIN {table_name} ON {table_name}.{join_field} = {join_table}.{join_field} "
     
-def map_join(map_field: str, new_map_field_name: str, table: str, fill: Dict[str, str], group: str = 'decision_id', join_table: str = 'd', additional_fields: str = '') -> str:
+def map_join(map_field: str, new_map_field_name: str, table: str, fill: Optional[Dict[str, str]] = None, group: str = 'decision_id', join_table: str = 'd', additional_fields: str = '') -> str:
     """ Joins a table and concatenates multiple value onto one line """
     if fill:
-        return  (f" LEFT JOIN (SELECT {table}_mapped.{group}, array_agg(({fill.get('field_name')})) {new_map_field_name} FROM (SELECT {fill.get('field_name')}, {group} FROM {table} LEFT JOIN {fill.get('table_name')} "
+        json_object_build_string = ','.join([f"'{item.strip().split('.')[-1]}', {item.strip().split('.')[-1]}" for item in fill.get('field_name').split(',')])
+        json_build_string = f"json_strip_nulls(json_agg(json_build_object({json_object_build_string}))) {new_map_field_name}"
+        return  (f" LEFT JOIN (SELECT {table}_mapped.{group}, {json_build_string} FROM (SELECT {fill.get('field_name')}, {table}.{group} FROM {table} LEFT JOIN {fill.get('table_name')} "
                 f" ON {fill.get('table_name')}.{fill.get('join_field')} = {table}.{fill.get('join_field')}) as {table}_mapped GROUP BY {group}) as {table} ON {table}.{group} = {join_table}.{group} ")
         
     return f" LEFT JOIN (SELECT {table}.{group}, array_agg({table}.{map_field}) {new_map_field_name} {additional_fields} FROM {table} GROUP BY {group}) as {table} ON {table}.{group} = {join_table}.{group}"
-
-def join_decision_with_everything_joined() -> str:
-    """Join every table onto decision except party, judicial_person person, party_type, judicial_person_type, paragraph
-
-    Returns:
-        str: The join string
-    """
-    tables = "decision d"
-    tables += join('file', 'file_id')
-    tables += join('section') + ' LEFT JOIN section_type ON section_type.section_type_id = section.section_type_id'
-    tables += join('lower_court')
-    tables += join('language', 'language_id')
-    tables += join('chamber', 'chamber_id') + ' LEFT JOIN court ON court.court_id = chamber.court_id LEFT JOIN spider ON chamber.spider_id = spider.spider_id'
-    tables += map_join('citation_id', 'citations', 'citation', fill = {'table_name': 'citation_type', 'field_name': 'name, text, url', 'join_field': 'citation_type_id'})
-    tables += map_join('judgment_id', 'judgments', 'judgment_map', fill = {'table_name': 'judgment', 'field_name': 'text', 'join_field': 'judgment_id'})
-    tables += map_join('text', 'file_numbers', 'file_number')
-    
-        
-    return  tables
 
     
 def join_tables_on_decision(tables: List[str]) -> str:
@@ -187,8 +170,8 @@ def join_tables_on_decision(tables: List[str]) -> str:
     if ('file' in tables):
         join_string += join('file', 'file_id')
         
-    if ('section' in tables or 'section_type' in tables or 'paragraph' in tables):
-        join_string += join('section') + ' LEFT JOIN section_type ON section_type.section_type_id = section.section_type_id'
+    if ('section' in tables or 'section_type' in tables):
+        join_string += map_join('section_id', 'sections', 'section', fill = {'table_name': 'section_type', 'field_name': 'name, section_text', 'join_field':'section_type_id'})
         
     if ('lower_court' in tables):
         join_string += join('lower_court')
@@ -206,19 +189,29 @@ def join_tables_on_decision(tables: List[str]) -> str:
         join_string += map_join('judgment_id', 'judgments', 'judgment_map', fill = {'table_name': 'judgment', 'field_name': 'text', 'join_field': 'judgment_id'})
         
     if ('file_number' in tables):
-        tables += map_join('text', 'file_numbers', 'file_number')
+        join_string += map_join('text', 'file_numbers', 'file_number')
         
     if ('paragraph' in tables):
-        tables += map_join('paragraph_id', 'paragraphs', 'paragraph')
+        join_string += map_join('paragraph_id', 'paragraphs', 'paragraph', fill = {'table_name': 'section', 'field_name': 'paragraph_text, section_type_id, paragraph.section_id', 'join_field':'section_id'})
     
     return join_string
 
-def select_paragraphs_with_decision_and_meta_data() -> str:
+def select_paragraphs_with_decision_and_meta_data() -> Tuple[str, str]:
     """ 
         Edit this according to the example given below. 
         Easiest function to default join tables to a decision.
     """
-    return join_tables_on_decision(['citation'])
+    fields = ['d.*', 'extract(year from d.date) as year']
+    fields.append('judgments')
+    fields.append('citations')
+    fields.append('file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw')
+    fields.append('sections')
+    fields.append('paragraphs')
+    fields.append('file_numbers')
+    fields.append('lower_court.date as origin_date, lower_court.court_id as origin_court, lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, lower_court.file_number as origin_file_number')
+    
+    return (join_tables_on_decision(['judgment', 'citation', 'file', 'section', 'paragraph', 'file_number', 'lower_court']), 
+        ', '.join(fields))
 
 def select_fields_from_table(fields: List[str], table): 
     fields_strings = [f"{table}.{field}" for field in fields]

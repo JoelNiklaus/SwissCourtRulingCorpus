@@ -18,7 +18,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-        self.debug = False
+        self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
         self.feature_cols = ['facts', 'considerations']
