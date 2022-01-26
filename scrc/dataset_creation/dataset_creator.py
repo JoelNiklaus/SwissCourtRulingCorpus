@@ -234,6 +234,7 @@ class DatasetCreator(AbstractPreprocessor):
         ###
         
         table_string, field_string = select_paragraphs_with_decision_and_meta_data()
+        # TODO spider testing
         where_string = ""
         df = retrieve_from_cache_if_exists(self.data_dir / '.cache' / 'dataset_creator.csv')
         if df.empty or True: 
