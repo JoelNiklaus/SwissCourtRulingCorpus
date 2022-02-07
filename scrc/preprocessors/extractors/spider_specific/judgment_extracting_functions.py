@@ -64,32 +64,35 @@ all_judgment_markers = {
         Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung','schuldig erklärt', 'rechtmässig'],
         Judgment.PARTIAL_APPROVAL: ['teilweise gutgeheissen', 'teilweise gutzuheissen',
                                     'In teilweiser Gutheissung'],
-        Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen', 'erstinstanzliche Urteil wird bestätigt'],
+        Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen', 'erstinstanzliche Urteil wird bestätigt', 'wird nicht eingetreten', 'zurückgewiesen',
+                             'nicht eingetreten'],
         Judgment.PARTIAL_DISMISSAL: ['abgewiesen, soweit darauf einzutreten ist',
                                      'abzuweisen, soweit darauf einzutreten ist',
                                      'abgewiesen, soweit auf sie einzutreten ist',
                                      'abzuweisen, soweit auf sie einzutreten ist'],
         Judgment.INADMISSIBLE: ['Nichteintreten', 'nicht eingetreten', 'nicht einzutreten',
-                                'wird keine Folge geleistet', 'wird nicht eingegangen',
-                                'soweit darauf einzutreten ist', 'soweit auf sie einzutreten ist'],
+                                'wird keine Folge geleistet',
+                                'soweit darauf einzutreten ist', 'soweit auf sie einzutreten ist', 'Unzulässigkeit', 'unzulässigkeit ' ],
         Judgment.WRITE_OFF: ['abgeschrieben', 'abzuschreiben', 'erweist sich als gegenstandslos'],
         Judgment.UNIFICATION: ["werden vereinigt", "werden gemeinsam beurteilt", "werden nicht vereinigt"]
     },
     Language.FR: {
-        Judgment.APPROVAL: ['admis', 'est annulé', 'Admet'],
+        Judgment.APPROVAL: ['admis', 'est annulé', ' être annulée', 'Admet', 'admet le recours', "admet \n le recours",
+                            "est acquitté", 'recevable'],
         Judgment.PARTIAL_APPROVAL: ['Admet partiellement',
+                                    'admet partiellement' 'admet \n partiellement', "admet très partiellement",
                                     'partiellement admis',
                                     'admis dans la mesure où il est recevable',
                                     'admis dans la mesure où ils sont recevables'
                                     ],
-        Judgment.DISMISSAL: ['rejeté', 'Rejette', 'écarté'],
+        Judgment.DISMISSAL: ['rejeté', 'Rejette', 'rejetée', 'rejette', 'écarté', 'condamne', 'Condamne'],
         Judgment.PARTIAL_DISMISSAL: ['rejetés dans la mesure où ils sont recevables',
                                      'rejeté, dans la mesure où il est recevable',
                                      'rejeté dans la mesure où il est recevable',
                                      'rejeté dans la mesure de sa recevabilité'
                                      ],
         Judgment.INADMISSIBLE: ['N\'entre pas en matière', 'irrecevable', 'n\'est pas entré',
-                                'pas pris en considération'],
+                                'pas pris en considération', "l'appel irrecevable", "le recours irrecevable"],
         Judgment.WRITE_OFF: ['retrait', 'est radiée', 'sans objet', 'rayé', 'Raye'],
         Judgment.UNIFICATION: [],
     },
@@ -97,13 +100,13 @@ all_judgment_markers = {
         Judgment.APPROVAL: ['accolt',  # accolt o/i/a/e
                             'annullat'],  # annullat o/i/a/e
         Judgment.PARTIAL_APPROVAL: ['Nella misura in cui è ammissibile, il ricorso è parzialmente accolto',
-                                    'In parziale accoglimento del ricorso'],
-        Judgment.DISMISSAL: ['respint',  # respint o/i/a/e
+                                    'In parziale accoglimento del ricorso', 'parzialmente accolto'],
+        Judgment.DISMISSAL: ['respint',  'respinta' # respint o/i/a/e
                              ],
         Judgment.PARTIAL_DISMISSAL: ['Nella misura in cui è ammissibile, il ricorso è respinto',
                                      'Nella misura in cui è ammissibile, il ricorso di diritto pubblico è respinto',
-                                     'Nella misura in cui è ammissibile, la domanda di revisione è respinta'],
-        Judgment.INADMISSIBLE: ['inammissibil',  # inamissibil o/i/a/e
+                                     'Nella misura in cui è ammissibile, la domanda di revisione è respinta', 'Nella misura in cui è ammissibile, la domanda di revisione è respinta'],
+ 	Judgment.INADMISSIBLE: ['inammissibil',  # inamissibil o/i/a/e
                                 'irricevibil',  # irricevibil o/i/a/e
                                 ],
         Judgment.WRITE_OFF: ['privo d\'oggetto', 'priva d\'oggetto', 'privo di oggetto', 'priva di oggetto',
@@ -115,6 +118,7 @@ all_judgment_markers = {
         Judgment.UNIFICATION: ['sono congiunte'],
     }
 }
+
 
 
 def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
