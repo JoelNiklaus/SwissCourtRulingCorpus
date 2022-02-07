@@ -24,6 +24,68 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
+def GE_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.FR: {
+            Section.HEADER: [r"Cour d'appel du Pouvoir judiciaire$\n|Chambre civile$\n|Chambre des baux et loyers$\n|Chambre de surveillance$\ndes Offices des poursuites et faillites$\n|Chambre pénale de recours$\n|Chambre administrative$\n|Chambre des assurances sociales$\n|DU TRIBUNAL CANTONAL DES$\nASSURANCES SOCIALES$\n|Chambre des baux et loyers|DE LA COUR DE JUSTICE|POUVOIR JUDICIAIRE"],
+            Section.FACTS: [r"EN FAIT$\nA.|EN FAIT:$\nA.|EN FAIT$\n|EN FAIT$\n1.|Vu en fait:|A. a.|"],
+            Section.CONSIDERATIONS: [r"EN DROIT$\n1.|CONSIDERANT EN DROIT$\n1.|EN DROIT:$\n1.|EN DROIT$\n|1. 1."],
+            Section.RULINGS: [r"A la forme$\n|PAR CES MOTIFS,$\n|Par ces motifs$\n|CELA FAIT:$\n|A la forme :|PAR CES MOTIFS,"],
+            Section.FOOTER: [r"Indication des voies de recours:$\n|Voie de recours :Voie de recours :"]
+        }
+    }
+
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
+
+    section_markers = all_section_markers[namespace['language']]
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    def get_paragraphs(divs):
+       paragraphs = []
+       heading, paragraph = None, None
+       for div in divs:
+          for p in div:
+             text = ''
+             # This is a hack to also get tags which contain other tags such as links to BGEs
+             if '<p>' in str(p):
+                text = p.get_text().replace('\n', '').replace("\xa0", '')
+             elif '<div class="efd"' in str(p):
+                text = p.get_text().replace('\n', '').replace("\xa0", '')
+
+             if text.strip() == 'None':
+                text = p.get_text()
+                # get numerated titles such as 1. or A.
+             if "." in text and len(text) < 5:
+                heading = text  # set heading for the next paragraph
+             else:
+                if heading is not None:  # if we have a heading
+                   paragraph = heading + " " + text  # add heading to text of the next paragraph
+                else:
+                   paragraph = text
+                heading = None  # reset heading
+             paragraph = clean_text(paragraph)
+             if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+                paragraphs.append(paragraph)
+       return paragraphs
+
+    ps = decision.findAll('div', class_=None, title=None)
+
+    paragraphs = get_paragraphs(ps)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
 def UR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
