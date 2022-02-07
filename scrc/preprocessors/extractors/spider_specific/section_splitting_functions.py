@@ -24,6 +24,50 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
+def TI_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    all_section_markers = {
+        Language.IT: {
+            Section.HEADER: [r"La Corte di appello e di revisione penale$\n|La Camera di diritto tributario del Tribunale d'appello$\n|Tribunale cantonale amministrativo$\n|Camera civile del Tribu>            Section.FACTS: [r"in fatto: *A.|ritenuto$\n|ritenuto che:$\n|ritenuto che$\n|preso atto che:*A.|in fatto ed in diritto$\n|in fatto$\n|in fatto ed in diritto:$\n|infatto ed in diritto:|>            Section.CONSIDERATIONS: [r"in diritto: *1.|e in diritto$\n|In diritto:$\n|Considerando$\n|in diritto$\n"],
+            Section.RULINGS: [r"Per questi motivi,$\n|dichiarae pronuncia:|Per questi motivi,|dichiara e pronuncia|pronuncia:|Pronuncia:|(\w+ )*pronuncia:"],
+            Section.FOOTER: [r'Contro decisioni finali, contro']
+        }
+    }
+
+    if namespace['language'] not in all_section_markers:
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        raise ValueError(message)
+
+    section_markers = all_section_markers[namespace['language']]
+    # combine multiple regex into one for each section due to performance reasons
+    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+
+    # normalize strings to avoid problems with umlauts
+    for section, regexes in section_markers.items():
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
+
+    def get_paragraphs(divs):
+        paragraphs = []
+
+        for div in divs:
+            text = div.get_text().strip().replace('\r', '').replace('\xa0', '')
+            text = text.split('\n')
+
+            for val in text:
+                if val != '':
+                    paragraphs.append(val.strip())
+
+        return paragraphs
+
+    divs = decision.findAll('div', class_='Section1')
+
+    paragraphs = get_paragraphs(divs)
+    return associate_sections(paragraphs, section_markers, namespace)
+
 def UR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
