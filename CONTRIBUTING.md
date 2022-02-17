@@ -90,8 +90,12 @@ Push the changes to your forked repository using:
 git push -u origin a-descriptive-name-for-my-changes
 ```
 
-Then you can go to your GitHub Repository and open a Pull Request to the main branch of the original repository.
-Please make sure to create a good Pull Request by following guidelines such as [How to Make a Perfect Pull Request](https://betterprogramming.pub/how-to-make-a-perfect-pull-request-3578fb4c112). Maybe the following list also serves as a good starting point (https://www.pullrequest.com/blog/writing-a-great-pull-request-description/):
+Then you can go to your GitHub Repository and open a Pull Request to the main branch of the original repository. Please
+make sure to create a good Pull Request by following guidelines such
+as [How to Make a Perfect Pull Request](https://betterprogramming.pub/how-to-make-a-perfect-pull-request-3578fb4c112).
+Maybe the following list also serves as a good starting
+point (https://www.pullrequest.com/blog/writing-a-great-pull-request-description/):
+
 ```
 ## What?
 ## Why?
@@ -156,23 +160,40 @@ the [section_splitting_functions.py](scrc/preprocessors/extractors/spider_specif
 #### Court Composition
 
 The [court_composition_extractor.py](scrc/preprocessors/extractors/court_composition_extractor.py) is the main file
-coordinating the court composition (judges and clerks) extraction for all spiders. When you implement a new spider, you should add your code to
+coordinating the court composition (judges and clerks) extraction for all spiders. When you implement a new spider, you
+should add your code to
 the [court_composition_extracting_functions.py](scrc/preprocessors/extractors/spider_specific/court_composition_extracting_functions.py)
 
 #### Procedural Participation
 
 The [procedural_participation_extractor.py](scrc/preprocessors/extractors/procedural_participation_extractor.py) is the
-main file coordinating the procedural participation (parties and legal counsels) extraction for all spiders. When you implement a new spider, you should add your
-code to
+main file coordinating the procedural participation (parties and legal counsels) extraction for all spiders. When you
+implement a new spider, you should add your code to
 the [procedural_participation_extracting_functions.py](scrc/preprocessors/extractors/spider_specific/procedural_participation_extracting_functions.py)
 
 #### Court Chambers
 
-The [court_chambers.csv](SwissCourtRulingCorpus/court_chambers.csv) file encloses information about how the spiders are broken down into courts. You can improve and simplify your task by dividing the decisions by courts, as you would be working with a lower amount of decisions within the same court.
+The [court_chambers.csv](SwissCourtRulingCorpus/court_chambers.csv) file encloses information about how the spiders are
+broken down into courts. You can improve and simplify your task by dividing the decisions by courts, as you would be
+working with a lower amount of decisions within the same court.
 
-When implementing your spider, you can invoke the court chambers from the [court_chambers.json](SwissCourtRulingCorpus/court_chambers.json) file into your code.
+When implementing your spider, you can invoke the court chambers from
+the [court_chambers.json](SwissCourtRulingCorpus/court_chambers.json) file into your code.
 
-In order to retrieve the courts from the database, you have to make use of the namespace['court'], along with a few if statements. Whenever we encounter a certain court, we would like to execute these particular regular expressions and when we encounter a different court to take these alternative regular expressions and so on so forth. You can view an example of court chambers being applied in a section splitting task for this [specific spider](https://github.com/JoelNiklaus/SwissCourtRulingCorpus/blob/3a177d02cdd87eba07aa4d3bca4e2fb52995cb18/scrc/preprocessors/extractors/spider_specific/section_splitting_functions.py#L112-L190).
+In order to retrieve the courts from the database, you have to make use of the namespace['court'], along with a few if
+statements. Whenever we encounter a certain court, we would like to execute these particular regular expressions and
+when we encounter a different court to take these alternative regular expressions and so on so forth. You can view an
+example of court chambers being applied in a section splitting task for
+this [specific spider](https://github.com/JoelNiklaus/SwissCourtRulingCorpus/blob/3a177d02cdd87eba07aa4d3bca4e2fb52995cb18/scrc/preprocessors/extractors/spider_specific/section_splitting_functions.py#L112-L190)
+.
+
+## Running long tasks
+
+Some tasks may take a very long time to run. This means if you just start it in the terminal, the terminal will
+disconnect and thus abort your task. To prevent this, you can use a terminal tool called tmux on the sandbox. To find
+out how it works, just google "tmux tutorial". You will find great tutorials, like the
+following: https://www.hamvocke.com/blog/a-quick-and-easy-guide-to-tmux/
+, https://linuxize.com/post/getting-started-with-tmux/, https://leimao.github.io/blog/Tmux-Tutorial/.
 
 ## Questions?
 
