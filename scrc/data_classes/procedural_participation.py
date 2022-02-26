@@ -15,21 +15,23 @@ class ProceduralParticipation:
         dict_representation = {
             'plaintiffs': [{
                 'legal_type': party.legal_type.value,
+                'name': party.name,
+                'gender': party.gender.value if party.gender else None,
                 'legal_counsel': [{
                     'name': counsel.name,
-                    'gender': counsel.gender.value,
-                    'legal_type': counsel.legal_type.value,
-                    'titles': [title.value for title in (counsel.titles or [])]
+                    'gender': counsel.gender.value if counsel.gender else None,
+                    'legal_type': counsel.legal_type.value
                 } for counsel in party.legal_counsel]
             } for party in self.plaintiffs],
             
             'defendants': [{
                 'legal_type': party.legal_type.value,
+                'name': party.name,
+                'gender': party.gender.value if party.gender else None,
                 'legal_counsel': [{
                     'name': counsel.name,
-                    'gender': counsel.gender.value,
-                    'legal_type': counsel.legal_type.value,
-                    'titles': [title.value for title in (counsel.titles or [])]
+                    'gender': counsel.gender.value if counsel.gender else None,
+                    'legal_type': counsel.legal_type.value
                 } for counsel in party.legal_counsel]
             } for party in self.defendants],
         }

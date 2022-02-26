@@ -217,7 +217,7 @@ def ZG_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
 
     composition = CourtComposition()
     composition = find_composition(header, role_regexes, namespace)
-    return composition
+    return composition.toJSON() if composition else None
 
 
 def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
@@ -257,7 +257,7 @@ def ZH_Baurekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]
 
     composition = CourtComposition()
     composition = find_composition(header, role_regexes, namespace)
-    return composition
+    return composition.toJSON() if composition else None
 
 def ZH_Obergericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
@@ -295,7 +295,7 @@ def ZH_Obergericht(sections: Dict[Section, str], namespace: dict) -> Optional[st
 
     composition = CourtComposition()
     composition = find_composition(header, role_regexes, namespace)
-    return composition
+    return composition.toJSON() if composition else None
 
 
 def ZH_Sozialversicherungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
@@ -341,7 +341,7 @@ def ZH_Sozialversicherungsgericht(sections: Dict[Section, str], namespace: dict)
 
     composition = CourtComposition()
     composition = find_composition(header, role_regexes, namespace)
-    return composition
+    return composition.toJSON() if composition else None
 
 def ZH_Steuerrekurs(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
@@ -383,7 +383,7 @@ def ZH_Steuerrekurs(sections: Dict[Section, str], namespace: dict) -> Optional[s
 
     composition = CourtComposition()
     composition = find_composition(header, role_regexes, namespace)
-    return composition
+    return composition.toJSON() if composition else None
 
 def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
@@ -421,7 +421,7 @@ def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
 
     composition = CourtComposition()
     composition = find_composition(header, role_regexes, namespace)
-    return composition
+    return composition.toJSON() if composition else None
 
 
 
@@ -598,12 +598,12 @@ def find_composition(header: str, role_regexes: dict, namespace: dict) -> CourtC
 
                         if len(composition.clerks) != 0:
                             last_person_name = composition.clerks.pop().name if (last_role == CourtRole.CLERK) else composition.clerks.pop().name # rematch in database with new role
-                            last_person_new_match = CourtPerson(last_person_name, gender, current_role)
+                            last_person_new_match = CourtPerson(last_person_name, gender, court_role=current_role)
                             if current_role == CourtRole.JUDGE:
                                 composition.judges.append(last_person_new_match)
                             elif current_role == CourtRole.CLERK:
                                 composition.clerks.append(last_person_new_match)
-                    matched_person = CourtPerson(name, gender, current_role)
+                    matched_person = CourtPerson(name, gender, court_role=current_role)
                     if current_role == CourtRole.JUDGE and len(name.strip()) != 0:
                         composition.judges.append(matched_person)
                     elif current_role == CourtRole.CLERK and len(name.strip()) != 0:
@@ -619,12 +619,12 @@ def find_composition(header: str, role_regexes: dict, namespace: dict) -> CourtC
             if not name_match:
                 continue
             name = name_match.group()
-            person = CourtPerson(name, last_gender, current_role)
+            person = CourtPerson(name, last_gender, court_role=current_role)
             matched_person = person
             if current_role == CourtRole.JUDGE:
                 composition.judges.append(matched_person)
             elif current_role == CourtRole.CLERK:
                 composition.clerks.append(matched_person)
             last_person = person
-    return composition
+    return composition.toJSON() if composition else None
 

@@ -94,7 +94,7 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
         for (gender, current_regex) in lawyer_representation.items():
             pos = re.search(current_regex, text)
             if pos:
-                lawyer = LegalCounsel()
+                lawyer = LegalCounsel(name="")
                 if not namespace['language'] == Language.IT:
                     lawyer.gender = gender
                 name_match = re.search(lawyer_name[namespace['language']], text[pos.span()[1]:])
@@ -178,7 +178,7 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
 
     header_parts = re.split('|'.join(second_party_start_regex), header)
     if len(header_parts) < 2:
-        raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url']}")
+        raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url'] or namespace['pdf_url']}")
     party = ProceduralParticipation()
     plaintiff_representation = add_representation(header_parts[0])
     defendant_representation = add_representation(header_parts[1])
@@ -409,7 +409,7 @@ def search_lawyers(text: str, lawyer_representation: dict, lawyer_name: dict, na
             if not namespace['language'] == Language.IT:
                 lawyer.gender = gender
             name_match = re.search(lawyer_name[namespace['language']], text[pos.span()[1]:])
-            if name_match and not text[pos.span()[1]] == ',':
+            if name_match and name_match.end() > name_match.start() and not text[pos.span()[1]] == ',':
                 titles, name = search_titles(name_match.group())
                 lawyer.titles = titles if titles else None
                 lawyer.name = name
@@ -542,7 +542,7 @@ def get_procedural_participation(header: str, namespace: dict, second_party_star
     """
     header_parts = re.split('|'.join(second_party_start_regex), header)
     if len(header_parts) < 2:
-        raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url']}")
+        raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url'] or namespace['pdf_url']}")
     party = ProceduralParticipation()
     plaintiff_representation = add_representation(header_parts[0], representation_start, lawyer_representation, lawyer_name, namespace)
     defendant_representation = add_representation(header_parts[1], representation_start, lawyer_representation, lawyer_name, namespace)

@@ -98,13 +98,7 @@ def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
         raise ValueError(message)
 
-    section_markers = all_section_markers[namespace['language']]
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
-
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
     paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
@@ -168,7 +162,7 @@ def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
             }
         }
     else:
-        message = f"({namespace['id']}): We got stuck at court {court}. Please check! "
+        message = f"({namespace['id']}): We got stuck at court {namespace['court']}. Please check! "
 
     if namespace['html_url']:
         valid_namespace(namespace, all_section_markers)
@@ -179,75 +173,10 @@ def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         if namespace['language'] not in all_section_markers:
             message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
             raise ValueError(message)
-        section_markers = all_section_markers[namespace['language']]
-        # combine multiple regex into one for each section due to performance reasons
-        section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
-        # normalize strings to avoid problems with umlauts
-        for section, regexes in section_markers.items():
-            section_markers[section] = unicodedata.normalize('NFC', regexes)
+        section_markers = prepare_section_markers(all_section_markers, namespace)
         paragraphs = get_pdf_paragraphs(decision)
 
     return associate_sections(paragraphs, section_markers, namespace)
-
-def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    """
-    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict (keys: section, values: list of paragraphs)
-    """
-    all_section_markers = {
-        Language.DE: {
-            Section.FACTS: [r'^Sachverhalt:?\s*$', r'^Tatsachen$', 
-                            r'^Prozessgeschichte und Eintreten$', 
-                            r'^Ausgangslage$',
-                            r'Sachverhalt und Beweiswürdigung'],
-            Section.CONSIDERATIONS: [r'^Begründung:\s*$',r'Erwägung(en)?:?\s*$',
-                                    r'^Entscheidungsgründe$', r'[iI]n Erwägung[:,]?\s*$',
-                                    r'Aus den Erwägungen:',
-                                    r'^Auszug aus den Erwägungen:'],
-            Section.RULINGS: [ 
-                            r'Strafkammer erkennt',     #Urteil
-                            r'Strafkammer beschliesst', #Beschluss
-                            r'Demgemäss erkennt d[\w]{2}', 
-                            r'Appellationsgericht (\w+ )?(\(\w+\) )?erkennt', 
-                            r'^und erkennt:$',
-                            r'Das Gericht beschliesst:',
-                            r'^Die Beschwerdekammer in Strafsachen beschliesst:$'],
-            Section.FOOTER: [r'Hinweise:', r'Rechtsmittelbelehrung']
-        }
-    }
-
-    valid_namespace(namespace, all_section_markers)
-
-    sections_found = {}
-    for lang in all_section_markers:
-        for sect in all_section_markers[lang]:
-            for reg in (all_section_markers[lang])[sect]:
-                matches = re.finditer(reg, decision, re.MULTILINE)
-                for num, match in enumerate(matches, start=1):
-                    sections_found.update({match.start(): sect})
-
-    paragraphs_by_section = {section: [] for section in Section}
-    sorted_section_pos = sorted(sections_found.keys())
-    if len(sorted_section_pos) == 0:
-        raise ValueError(f"({namespace['id']}): No sections found at all. Please check! Here you have the url to the decision: {namespace['pdf_url']}")
-    else:
-        # If no regex for the header is defined, consider all text before the first section as header
-        if Section.HEADER not in all_section_markers[Language.DE]:
-            paragraphs_by_section[Section.HEADER].append(decision[:sorted_section_pos[0]])   
-
-        # Assign the corresponding part of the decision to its section 
-        for i,match_start in enumerate(sorted_section_pos):
-            actual_section = sections_found[match_start]
-            from_ = match_start
-            if i >= len(sorted_section_pos)-1: 
-                # This is the last section, till end of decision
-                to_ = len(decision)
-            else:
-                to_ = sorted_section_pos[i+1]
-            paragraphs_by_section[actual_section].append(decision[from_:to_])
-    
-    return paragraphs_by_section
 
 def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
@@ -276,18 +205,6 @@ def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
             Section.FOOTER: [r'Voie de recours']
         }
     }
-
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
-
-    section_markers = all_section_markers[namespace['language']]
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
-
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
 
     valid_namespace(namespace, all_section_markers)
 
@@ -332,17 +249,8 @@ def GR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         }
     }
 
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
-
-    section_markers = all_section_markers[namespace['language']]
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
-
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
+    valid_namespace(namespace, all_section_markers)
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
     paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
@@ -518,7 +426,7 @@ def CH_BSTG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
             Section.HEADER: [r'^((Sentenza|Decisione(\ssupercautelare)*|Ordinanza|Decreto)\s*del(l)*\W*\d*\W*\s*(gennaio|febbraio|marzo|aprile|maggio|luglio|agosto|settembre|ottobre|novembre|dicembre|giugno)\s*\d*)$'],
             Section.FACTS: [r'^([Ff]att(i|o)\s*:)$', r'Visti:', r'^(\w+\s*(.+)\s*penali, vist(o|i)\s*(:)*)', r'(Ritenuto )*in fatto( e(d)* in diritto):'],
             Section.CONSIDERATIONS: [r'^((e\s)*[Cc]onsiderato:?\s*)$', '^([Dd]iritto(:)*\s*)$', r'^(La Corte considera in fatto e in diritto:)',
-                                     r'La Corte(\sd(\'|\’)appello)* considera in diritto:', r'^(In diritto:)$'],
+                                     r'La Corte(\sd(\'|\’)appello)* considera in diritto:', r'^(In diritto:)$', r'Estratto dei considerandi:'],
             Section.RULINGS: [r'La Corte (decreta|pronuncia|ordina):', r'^(Per questi motivi(\,)*(\s\w*)*\s(decreta|ordina|pronuncia):)$', r'^((Per questi motivi, )*[Ll]a I(I)*(\.)* Corte dei reclami penali pronuncia:\s*)$',
                               r'Il Giudice unico pronuncia:', r'^(Decreta:)$', r'^(Il Presidente decreta:)'],
             Section.FOOTER: [r'(Informazione\ssui\s)*[Rr]imedi\sgiuridici', r'^(Intimazione a:)', r'^(Il testo integrale della sentenza viene notificato a:)', r'^(Comunicazione a(:)*\s*)$',
@@ -526,17 +434,9 @@ def CH_BSTG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
         }
     }
 
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
+    valid_namespace(namespace, all_section_markers)
 
-    section_markers = all_section_markers[namespace['language']]
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
-
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
     paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
@@ -632,7 +532,8 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
         current_section = update_section(current_section, paragraph, section_markers, sections)
         # add paragraph to the list of paragraphs
         paragraphs_by_section[current_section].append(paragraph)
-    if current_section != Section.FOOTER:
+    if current_section != Section.FOOTER and False:
+        
         # change the message depending on whether there's a url
         if namespace['html_url']:
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
@@ -689,19 +590,9 @@ def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
         }
     }
 
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
+    valid_namespace(namespace, all_section_markers)
 
-    section_markers = all_section_markers[namespace['language']]
-
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
-
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
-        # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
     # This court sometimes uses newlines to separate names of people. 
     # To deal with that, this loop inserts a comma if a new line starts with lic. iur. to separate names.
@@ -736,19 +627,10 @@ def ZH_Baurekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Op
         },
     }
 
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
+    valid_namespace(namespace, all_section_markers)
 
-    section_markers = all_section_markers[namespace['language']]
-    
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
-        # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
     paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
@@ -767,25 +649,17 @@ def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> 
         Language.DE: {
             # "header" has no markers!
             Section.FACTS: [r'^[\s]*betreffend(\s|$)', r'Sachverhalt:'],
-            Section.CONSIDERATIONS: [r'(?:A|a)us den Erwägungen ', r'Erwägungen:', r'^[\s]*Erwägungen[\s]*$', r'Das (Einzelgericht|Gericht) erwägt', r'Das (Einzelgericht|Gericht) zieht in (Erwägung|Betracht)'],
-            Section.RULINGS: [r'^[\s]*Es wird (erkannt|beschlossen|verfügt):', r'^[\s]*wird beschlossen:[\s]*$', r'Das (Einzelgericht|Gericht) (erkennt|beschliesst):', r'(Sodann|Demnach|Demgemäss) beschliesst das Gericht:'],
+            Section.CONSIDERATIONS: [r'(?:A|a)us den Erwägungen ', r'Erwägungen:', r'^[\s]*Erwägungen[\s]*$', r'Das (Einzelgericht|Gericht) erwägt', r'Das (Einzelgericht|Gericht) zieht in (Erwägung|Betracht)', r'hat in Erwägung gezogen:'],
+            Section.RULINGS: [r'^[\s]*Es wird (erkannt|beschlossen):', r'^[\s]*wird beschlossen:[\s]*$', r'Das (Einzelgericht|Gericht) (erkennt|beschliesst):', r'(Sodann|Demnach|Demgemäss) beschliesst das Gericht:'],
             Section.FOOTER: [
                 r'^[\s]*Zürich,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$)', r'OBERGERICHT DES KANTONS ZÜRICH']
         }
     }
 
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
+    valid_namespace(namespace, all_section_markers)
 
-    section_markers = all_section_markers[namespace['language']]
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
-        # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
     paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
@@ -810,19 +684,10 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
         }
     }
 
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
+    valid_namespace(namespace, all_section_markers)
 
-    section_markers = all_section_markers[namespace['language']]
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
-
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
-        # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
     # This should be the div closest to the content:
     content = decision.find("div", id="view:_id1:inputRichText1")
@@ -940,18 +805,10 @@ def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
         }
     }
 
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
+    valid_namespace(namespace, all_section_markers)
 
-    section_markers = all_section_markers[namespace['language']]
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
-        # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
     paragraphs = get_pdf_paragraphs(decision)
     return associate_sections(paragraphs, section_markers, namespace)
@@ -977,19 +834,10 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
         }
     }
 
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
+    valid_namespace(namespace, all_section_markers)
 
-    section_markers = all_section_markers[namespace['language']]
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
-
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
-        # section_markers[key] = clean_text(regexes) # maybe this would solve some problems because of more cleaning
 
     def get_paragraphs(soup):
         """
@@ -1040,12 +888,8 @@ def BE_BVD(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional
         Language.FR: re.compile(r'(.*?)(Faits\n\n.*?)(Considérants\n\n.*?)(Décision\n\n.*?)(Notification\n\n|A notifier:\n.*)', re.DOTALL)
     }
 
-    try:
-        regex = regexes[namespace['language']]
-    except KeyError:
-        message = f"This function is only implemented for the languages {list(regexes.keys())}."
-        raise ValueError(message)
-    
+    valid_namespace(namespace, regexes)
+    regex = regexes[namespace['language']]
     match = re.search(regex, decision)
     matches = []
 
@@ -1115,7 +959,7 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
       the summary of the considerations as well.
     """
 
-    markers = {
+    all_section_markers = {
         Language.DE: {
             # "header" has no markers!
             # "facts" are not present either in this court, leave them out
@@ -1139,18 +983,10 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
         }
     }
 
-    if namespace['language'] not in markers:
-        message = f"This function is only implemented for the languages {list(markers.keys())} so far."
-        raise ValueError(message)
-    
-    section_markers = markers[namespace['language']]
+    valid_namespace(namespace, all_section_markers)
 
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
 
     def get_paragraphs(soup):
         """
@@ -1196,7 +1032,7 @@ def CH_BPatG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Option
     """
     Remark: This court does not have a facts section, and some don't have a footer.
     """
-    markers = {
+    all_section_markers = {
         Language.DE: {
             # Section.FACTS: [], # no facts in this court
             Section.CONSIDERATIONS: [r'^(?:Das Bundespatentgericht|(?:Der|Das) Präsident|Die Gerichtsleitung|Das Gericht|Der (?:Einzelrichter|Instruktionsrichter))' \
@@ -1220,18 +1056,10 @@ def CH_BPatG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Option
         }
     }
 
-    if namespace['language'] not in markers:
-        message = f"This function is only implemented for the languages {list(markers.keys())}, not {namespace['language']}."
-        raise ValueError(message)
-    
-    section_markers = markers[namespace['language']]
+    valid_namespace(namespace, all_section_markers)
 
-    # combine multiple regex into one for each section due to performance reasons
-    section_markers = dict(map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
+    section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    # normalize strings to avoid problems with umlauts
-    for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
     
     if namespace['language'] == Language.DE:
         # remove the page numbers, they are not relevant for the decisions
