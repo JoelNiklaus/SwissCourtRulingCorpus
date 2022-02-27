@@ -129,8 +129,8 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.seed = 42
         self.minFeatureColLength = 100  # characters
-        self.debug_chunksize = 2e2
-        self.real_chunksize = 2e5
+        self.debug_chunksize = int(2e2)
+        self.real_chunksize = int(2e5)
 
         self.debug = False
         self.split_type = None  # to be overridden
@@ -223,8 +223,9 @@ class DatasetCreator(AbstractPreprocessor):
         origin_chamber = "lower_court::json#>>'{chamber}' AS origin_chamber"
         origin_date = "lower_court::json#>>'{date}' AS origin_date"
         origin_file_number = "lower_court::json#>>'{file_number}' AS origin_file_number"
-        columns = f"{feature_col}, {label_col}, extract(year from date) as year, chamber, " \
-                  f"{origin_canton}, {origin_court}, {origin_chamber}, {origin_date}, {origin_file_number}"
+        columns = f"file_number, extract(year from date) as year, chamber, " \
+                  f"{origin_canton}, {origin_court}, {origin_chamber}, {origin_date}, {origin_file_number}, " \
+                  f"{label_col}, {feature_col}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
         df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
