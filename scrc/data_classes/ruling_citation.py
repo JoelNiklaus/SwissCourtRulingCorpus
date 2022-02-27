@@ -18,9 +18,12 @@ class RulingCitation(Citation):
         if citation_str[0].isnumeric():  # 'BGE' is missing at the beginning
             citation_str = self.ruling_str + " " + citation_str  # prepend 'BGE '
         parts = citation_str.split(" ")
-        self.year = int(parts[1])
-        self.volume = parts[2]
-        self.page_number = int(parts[3])
+        try:
+            self.year = int(parts[1])
+            self.volume = parts[2]
+            self.page_number = int(parts[3])
+        except ValueError:
+            raise ValueError(f"The Citation String ({citation_str}) could not be parsed successfully.")
 
     def __str__(self):
         return f"{self.ruling_str} {self.year} {self.volume} {self.page_number}"
