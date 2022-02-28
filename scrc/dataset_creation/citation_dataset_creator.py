@@ -2,7 +2,11 @@ import configparser
 import inspect
 from collections import Counter
 
+from bs4 import BeautifulSoup
+
 from root import ROOT_DIR
+from scrc.data_classes.law_citation import LawCitation
+from scrc.data_classes.ruling_citation import RulingCitation
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import numpy as np
@@ -23,47 +27,195 @@ class CitationDatasetCreator(DatasetCreator):
 
         self.debug = False
         self.split_type = "date-stratified"
-        self.dataset_name = "citation_prediction"
+        self.dataset_name = "doc2doc_ir"
+        self.feature_cols = ['facts', 'considerations']
 
         self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
 
+        self.logger.info(f"Loading reference rulings")
+        self.available_bges = set()  # use set instead of list for faster lookup
+        rulings = pd.DataFrame()
+        for lang in self.languages:
+            # also for debugging we want the full list
+            cols = "language, canton, date, file_number, html_url, text"
+            df = next(self.select(self.get_engine(self.db_scrc), lang,
+                                  columns=cols, where="spider = 'CH_BGE'", chunksize=self.real_chunksize))
+            df.date = pd.to_datetime(df.date)
+            assert len(df.index) == len(df.file_number.unique())  # there should not be any duplicates
+            self.available_bges.update(df.file_number.tolist())
+            rulings = pd.concat([rulings, df], ignore_index=True)  # one rulings df for all languages
+
+        # TODO change paths where to save the dataset
+        rulings_path = ROOT_DIR / "scrc/dataset_creation/rulings.jsonl"
+        if not rulings_path.exists():
+            rulings.to_json(rulings_path, orient="records", lines=True, date_format="iso")
+
+        # get Art. from lexfind.jsonl
+        self.logger.info(f"Loading reference law articles")
+        laws = pd.read_json(ROOT_DIR / "scrc/dataset_creation/lexfind.jsonl", lines=True)
+        laws = laws[laws.canton.str.contains("ch")]  # only federal laws so far
+        laws = laws[laws.abbreviation.str.len() > 1]  # only keep the ones with an abbreviation
+        self.available_laws = set(laws.abbreviation.unique().tolist())
+
+        def extract_article_info(law):
+            arts = {"canton": [], "language": [], "sr_number": [], "abbreviation": [], "short": [], "title": [],
+                    "link": [], "text": [], }
+            bs = BeautifulSoup(law.html_content, "html.parser")
+            for art in bs.find_all("article"):
+                arts["canton"].append(law.canton)
+                arts["language"].append(law.language)
+                arts["sr_number"].append(law.sr_number)
+                arts["abbreviation"].append(law.abbreviation)
+                arts["short"].append(law.short)
+                arts["title"].append(law.title)
+
+                link = art.find(fragment=f"#{art['id']}")
+                if link:
+                    arts["link"].append(link['href'])
+                else:
+                    arts["link"].append(None)
+                text = art.find("div", {"class": "collapseable"})
+                if text:
+                    arts["text"].append(text.get_text())
+                else:
+                    arts["text"].append(None)
+            return pd.DataFrame(arts)
+
+        articles_path = ROOT_DIR / "scrc/dataset_creation/articles.jsonl"
+        if not articles_path.exists():
+            self.logger.info("Extracting individual articles from laws")
+            articles = pd.concat([extract_article_info(row) for _, row in laws.iterrows()], ignore_index=True)
+            articles.to_json(articles_path, orient="records", lines=True)
 
     def get_dataset(self, feature_col, lang, save_reports):
         df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', lang, save_reports)
 
-        this_function_name = inspect.currentframe().f_code.co_name
-        folder = self.create_dir(self.datasets_subdir, this_function_name)
+        # df['types'] = df.citations.apply(lambda x: np.unique([cit['type'] for cit in x['rulings']]))
+        # df = df[df.types.map(len) >= 1]  # we only want the decisions which actually cite something
+        # df = df.query('"bge" in types')  # ensure that we only have BGE citations
+
+        def get_ruling_citations(citations):
+            # get BGEs by file_number
+            cits = []
+            for citation in citations['rulings']:
+                cit = citation['text']
+                cit = ' '.join(cit.split())  # remove multiple whitespaces inside
+                try:
+                    ruling_cit = RulingCitation(cit)
+                except ValueError as ve:
+                    self.logger.warning(ve)
+                    continue
+                # only actually include citations that we can find in our corpus
+                if str(ruling_cit) in self.available_bges:
+                    cits.append(ruling_cit)
+            if cits:  # only return something if we actually have citations
+                return list(Counter(cits).items())
+
+        def get_law_citations(citations):
+            cits = []
+            for citation in citations['laws']:
+                cit = citation['text']
+                cit = ' '.join(cit.split())  # remove multiple whitespaces inside
+                try:
+                    law_cit = LawCitation(cit)
+                except ValueError as ve:
+                    self.logger.warning(ve)
+                    continue
+                # only actually include citations that we can find in our corpus
+                if law_cit.abbreviation in self.available_laws:
+                    cits.append(law_cit)
+            if cits:  # only return something if we actually have citations
+                return list(Counter(cits).items())
+
+        df['rulings'] = df.citations.apply(get_ruling_citations)
+        df['laws'] = df.citations.apply(get_law_citations)
+        df = df.dropna(subset=["rulings", "laws"], how="all")  # we cannot use the ones which have no citations
+
+        def compute_relevance_score(citation_tuple):
+            """
+            Computes a relevance score for the citation between 1 and 1
+                frequency: 70%
+                year: 30%
+            :return:
+            # Proxy für relevanz score:
+            #   - häufigkeit des Zitats in Erwägungen
+            #   - neuere Urteile sind relevanter (ältere Urteile sind evtl. überholt oder nicht mehr relevant)
+            #   Thomas schreibt mir seine Ideen bald
+            #   - BGE wichtiger als andere ==> nur BGEs nehmen
+            """
+            weights = {"frequency": 0.7, "year": 0.3}
+            assert sum(weights.values()) == 1
+
+            values = {"frequency": citation_tuple[1] / 10}
+            citation = citation_tuple[0]
+            if isinstance(citation, RulingCitation):
+                # 150 corresponds to the year 2024 which should give use enough leeway
+                values["year"] = citation.year / 150
+            else:
+                values["year"] = 0.5  # set it to middle importance for all law citations
+
+            # compute weighted sum
+            score = 0
+            for key in weights.keys():
+                score += weights[key] * values[key]
+
+            return round(min(score, 1), 2)  # cap it at 1 and round to 2 decimals
+
+        relevance_lambda = lambda cits: [(cit_tuple[0], compute_relevance_score(cit_tuple))
+                                         for cit_tuple in cits] if cits else None
+        df.rulings = df.rulings.apply(relevance_lambda)
+        df.laws = df.laws.apply(relevance_lambda)
+
+        df = df.drop(['citations'], axis=1)  # we don't need this anymore
+
+        # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
+
+        # usefulness of law articles still unclear.
+        # Approach of Lawyers:
+        # google
+        # get law articles
+        # get relevant case law
+        #
+        # what they want is:
+        # - from facts of a case get other cases
+        # - from law article get cases that cite this article ==> starting with newest case (lawyer can follow back)
+
+        # this_function_name = inspect.currentframe().f_code.co_name
+        folder = self.create_dir(self.datasets_subdir, self.dataset_name)
+
+        # TODO move this to the plot_custom function so that we can save it for all languages
 
         # calculate most common BGE citations
         most_common_rulings = self.get_most_common_citations(df, folder, 'rulings')
 
-        # list with only the most common laws
+        # calculate most common laws
         most_common_laws = self.get_most_common_citations(df, folder, 'laws')
 
+        #  IMPORTANT: we need to take care of the fact that the laws are named differently in each language but refer to the same law!
         law_abbr_by_lang = self.get_law_abbr_by_lang()
 
-        #  IMPORTANT: we need to take care of the fact that the laws are named differently in each language but refer to the same law!
-        def replace_citations(series, ref_mask_token="<ref>"):
-            # TODO think about splitting laws and rulings into two separate labels
-            labels = set()
+        def mask_citations(series, law_mask_token="<ref-law>", ruling_mask_token="<ref-ruling>",
+                           only_replace_most_common_citations=False):
+            """
+            Mask citations so that they don't help in finding the right document,
+            but it should only use the context
+            """
             for law in series.citations['laws']:
-                citation = law['text']
-                found_string_in_list = string_contains_one_of_list(citation, list(law_abbr_by_lang[lang].keys()))
-                if found_string_in_list:
-                    series.text = series.text.replace(citation, ref_mask_token)
-                    labels.add(law_abbr_by_lang['de'][found_string_in_list])
+                if only_replace_most_common_citations \
+                        and not string_contains_one_of_list(law['text'], list(law_abbr_by_lang[lang].keys())):
+                    continue
+                series[feature_col] = series[feature_col].replace(law['text'], law_mask_token)
             for ruling in series.citations['rulings']:
-                citation = ruling['text']
-                if string_contains_one_of_list(citation, most_common_rulings):
-                    series.text = series.text.replace(citation, ref_mask_token)
-                    labels.add(citation)
-            series['label'] = list(labels)
+                if only_replace_most_common_citations \
+                        and not string_contains_one_of_list(ruling['text'], most_common_rulings):
+                    continue
+                series[feature_col] = series[feature_col].replace(ruling['text'], ruling_mask_token)
             return series
 
-        df = df.apply(replace_citations, axis='columns')
-        df = df.rename(columns={"text": "text"})  # normalize column names
-        labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
-        return df, labels
+        df = df.apply(mask_citations, axis='columns')
+        df = df.rename(columns={feature_col: "text"})  # normalize column names
+        df['label'] = df.rulings  # the label is just the rulings for now
+        return df, self.available_bges
 
     def get_most_common_citations(self, df, folder, type, plot_n_most_common=10):
         """
@@ -111,4 +263,4 @@ if __name__ == '__main__':
     config = get_config()
 
     citation_dataset_creator = CitationDatasetCreator(config)
-    citation_dataset_creator.create_dataset()
+    citation_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)

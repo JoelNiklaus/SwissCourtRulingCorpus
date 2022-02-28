@@ -156,6 +156,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
+        # TODO not one dataset per feature col, but put all feature cols into the same dataset
         processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
@@ -223,7 +224,7 @@ class DatasetCreator(AbstractPreprocessor):
         origin_chamber = "lower_court::json#>>'{chamber}' AS origin_chamber"
         origin_date = "lower_court::json#>>'{date}' AS origin_date"
         origin_file_number = "lower_court::json#>>'{file_number}' AS origin_file_number"
-        columns = f"file_number, extract(year from date) as year, chamber, " \
+        columns = f"file_number, extract(year from date) as year, date, chamber, " \
                   f"{origin_canton}, {origin_court}, {origin_chamber}, {origin_date}, {origin_file_number}, " \
                   f"{label_col}, {feature_col}"
         where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
