@@ -130,9 +130,9 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
     
     save_to_db(df[['file_name', 'html_url', 'pdf_url', 'html_raw', 'pdf_raw']], 'file')
     
-    df.apply(add_ids_to_df_for_decision, 1)
+    df = df.apply(add_ids_to_df_for_decision, 1)
     save_to_db(df[['language_id', 'chamber_id', 'file_id', 'date', 'topic']], 'decision')
-    df.apply(save_the_file_numbers, 1)
+    df = df.apply(save_the_file_numbers, 1)
     
     
 def delete_stmt_decisions_with_df(df: pd.DataFrame) -> TextClause:

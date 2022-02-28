@@ -22,7 +22,7 @@ class LanguageIdentifier(AbstractPreprocessor):
         
         # Get language
         for df in df_iterator:
-            df.apply(self.get_lang ,axis="columns")
+            df = df.apply(self.get_lang ,axis="columns")
             # Save in db
             self.update(self.get_engine(), df, 'decision', 'language_id', self.output_dir)
             all_decision_ids.extend(df['decision_id'])
