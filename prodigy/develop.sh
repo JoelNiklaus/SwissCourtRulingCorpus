@@ -22,7 +22,7 @@ docker run -d \
   -e DB_USER=$DB_USER \
   -e DB_PASSWORD=$DB_PASSWORD \
   --mount type=bind,source="$(pwd)",target=/app \
-  prodigy_v1_nina:latest
+  prodigy:v1.0
 
 printf "Starting bash shell in development container...\nUse 'exit' to exit the shell."
 docker exec -it dev_"$USER"_prodigy bash

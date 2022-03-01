@@ -16,7 +16,7 @@ DB_PASSWORD=<your database password here>
 ```
 Place it under `./prodigy`
 2. If you are not in the docker group, request access from a maintainer to be able to run docker commands
-3. Just run `bash setup.sh` in the `/prodigy` folder. This builds the docker image, starts the container and prepares
+3. Just run `bash install.sh` in the `/prodigy` folder. This builds the docker image, starts the container and prepares
 everything.
 
 4. To run a task, use `run.sh` in the `/prodigy` folder. Pass it the desired parameters explained atop the file. It starts
@@ -29,7 +29,7 @@ To develop your task or add some changes to existing tasks (recipes), use the sc
 if not yet done, the base image has to exist. The develop script will start a development session using the files on the
 host machine, allowing for easy editing. Run your recipe directly within the development shell to test around.
 Don't forget to run `setup.sh` again when you are done, to apply your changes to the productive version of the application.
-For more details see the docs in the script `bash develop.sh`.
+For more details see the docs in the script `develop.sh`.
 
 ## Configuration
 If you would like to change configurations edit the file `prodigy.json` and then rebuild and restart the service
