@@ -43,7 +43,10 @@ def db_stream(language, spider):
   with psycopg2.connect(config) as connection:
     with connection.cursor() as cursor:
       cursor.execute(query, params)
+<<<<<<< HEAD
       #print(cursor.fetchone())
+=======
+>>>>>>> Added prodigy set up from @Skatinger to ./prodigy.
       while True:
         rows = cursor.fetchmany(1000)
         if not rows:
