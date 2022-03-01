@@ -1,0 +1,21 @@
+{
+  "port": 8080,
+  "host": "0.0.0.0",
+  "db": "postgresql",
+  "db_settings": {
+      "postgresql": {
+          "user": "prodigy",
+          "password": "ProdigyLog1n",
+          "host": "localhost",
+          "port": 5432,
+          "database": "scrc"
+      }
+  },
+  "feed_overlap": false,
+  "show_stats": true,
+  "theme": "dark",
+  "custom_theme": {
+    "cardMaxWidth": 1600,
+    "smallText": 18
+  }
+}
