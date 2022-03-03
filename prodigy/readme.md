@@ -29,7 +29,7 @@ To develop your task or add some changes to existing tasks (recipes), use the sc
 if not yet done, the base image has to exist. The develop script will start a development session using the files on the
 host machine, allowing for easy editing. Run your recipe directly within the development shell to test around.
 Don't forget to run `setup.sh` again when you are done, to apply your changes to the productive version of the application.
-For more details see the docs in the script `bash develop.sh`.
+For more details see the docs in the script `develop.sh`.
 
 ## Configuration
 If you would like to change configurations edit the file `prodigy.json` and then rebuild and restart the service
