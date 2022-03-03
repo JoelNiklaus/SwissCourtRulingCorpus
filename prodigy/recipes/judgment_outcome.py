@@ -44,9 +44,13 @@ def db_stream(language, spider):
     with connection.cursor() as cursor:
       cursor.execute(query, params)
 <<<<<<< HEAD
+<<<<<<< HEAD
       #print(cursor.fetchone())
 =======
 >>>>>>> Added prodigy set up from @Skatinger to ./prodigy.
+=======
+      print(cursor.fetchone())
+>>>>>>> Added some corrections to readme. Added line for logging in judgment_outcome.py. Changed example in run.sh. Changed name of the docker container in setup.sh.
       while True:
         rows = cursor.fetchmany(1000)
         if not rows:
