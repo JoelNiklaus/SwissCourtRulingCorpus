@@ -14,7 +14,7 @@ usage=$(cat <<- EOF
     ./run.sh task language spider_name
 
   Example:
-    ./run.sh judgment-outcome de BGer
+    ./run.sh judgment-outcome de CH_BE
 
   Consult /prodigy/README.md for more information.
 EOF
@@ -30,11 +30,11 @@ if [ -z "$task" ] || [ -z "$language" ] || [ -z "$spider_name" ]; then
   exit 1
 fi
 
-if [ "$(docker ps -q -f name=prodigy_v1)" ]; then
+if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
   case "$task" in
     "judgment-outcome")
       printf "${SUCCESS}Starting command in container, to stop use Ctrl+C.\n${NC}"
-      docker exec -it prodigy_v1 prodigy "$task" "$spider_name" "$language" -F ./recipes/judgment_outcome.py
+      docker exec -it prodigy_v1_nina prodigy "$task" "$spider_name" "$language" -F ./recipes/judgment_outcome.py
       ;;
     *)
       printf "${WARN}Unknown task '$task' given.\n\n${NC}${usage}\n"
@@ -42,5 +42,5 @@ if [ "$(docker ps -q -f name=prodigy_v1)" ]; then
       ;;
   esac
 else
-  printf "${WARN}No container with the name prodigy_v1 found.\n Use 'bash setup.sh to start it.'${NC}"
+  printf "${WARN}No container with the name prodigy_v1_nina found.\n Use 'bash setup.sh to start it.'${NC}"
 fi
