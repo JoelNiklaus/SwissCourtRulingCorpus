@@ -1,3 +1,2 @@
 .env
-./documentation/documentation.md
-recipes/test.py
+./documentation

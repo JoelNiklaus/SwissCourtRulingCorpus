@@ -14,7 +14,7 @@ usage=$(cat <<- EOF
     ./run.sh task language spider_name
 
   Example:
-    ./run.sh judgment-outcome de CH_BGer
+    ./run.sh judgment-outcome de CH_BE
 
   Consult /prodigy/README.md for more information.
 EOF
