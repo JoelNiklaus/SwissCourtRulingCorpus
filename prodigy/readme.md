@@ -16,7 +16,7 @@ DB_PASSWORD=<your database password here>
 ```
 Place it under `./prodigy`
 2. If you are not in the docker group, request access from a maintainer to be able to run docker commands
-3. Just run `bash install.sh` in the `/prodigy` folder. This builds the docker image, starts the container and prepares
+3. Just run `bash setup.sh` in the `/prodigy` folder. This builds the docker image, starts the container and prepares
 everything.
 
 4. To run a task, use `run.sh` in the `/prodigy` folder. Pass it the desired parameters explained atop the file. It starts
