@@ -91,7 +91,7 @@ all_judgment_markers = {
         Judgment.INADMISSIBLE: ['N\'entre pas en matière', 'irrecevable', 'n\'est pas entré',
                                 'pas pris en considération'],
         Judgment.WRITE_OFF: ['retrait', 'est radiée', 'sans objet', 'rayé', 'Raye'],
-        Judgment.UNIFICATION: ['unification'],
+        Judgment.UNIFICATION: [],
     },
     Language.IT: {
         Judgment.APPROVAL: ['accolt',  # accolt o/i/a/e
@@ -159,31 +159,6 @@ def discard_judgment(judgments: set):
             # if partial_dismissal is found, it will find dismissal as well
             judgments.discard(Judgment.DISMISSAL)
     return judgments
-
-def BS_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = get_judgments(rulings, namespace)
-
-    if not judgments:
-        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
-        raise ValueError(message)
-    elif len(judgments) > 1:
-        judgments = discard_judgment(judgments)
-
-    return [judgment.value for judgment in judgments]
 
 def BS_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     """
