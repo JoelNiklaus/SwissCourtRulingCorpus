@@ -15,8 +15,54 @@ import pandas as pd
 from scrc.utils.main_utils import get_config, string_contains_one_of_list
 from scrc.utils.term_definitions_converter import TermDefinitionsConverter
 
+"""
+BGE volumes
 
-class CitationDatasetCreator(DatasetCreator):
+Bände und Sachgebiete bis 1994 (Jahrgänge 111 bis 120):
+
+Ia Verfassungsrecht
+Ib Verwaltungsrecht und Internationales öffentliches Recht
+II Zivilrecht
+III Betreibungs- und Konkursrecht
+IV Strafrecht und Strafvollzug
+V Sozialversicherungsrecht
+
+Bände und Sachgebiete seit 1995 (Jahrgang 121):
+
+I Verfassungsrecht
+II Verwaltungsrecht und Internationales öffentliches Recht
+III Zivilrecht, Schuldbetreibungs- und Konkursrecht
+IV Strafrecht und Strafvollzug
+V Sozialversicherungsrecht
+"""
+
+"""
+Multiple possible tasks:
+Two collections: rulings and law articles
+- hard task: IR task with specific law article
+- easy task: IR task with only laws
+- multiple choice qa: instead of whole collection of rulings/laws: give 5 options, one relevant and 4 irrelevant
+
+Story: we want to solve hard task, but we might be very bad at it yet: propose easier tasks to make progress
+
+Experiments:
+are we better in different legal areas / regions etc.
+
+
+TODO:
+how long are the documents
+how many citations do the documents have (for both laws and rulings) ==> histogram
+distribution of the time difference between published document and cited document
+try to find out how multilingual this corpus is: how many times does a German decision cite an Italian ruling?
+
+find out which laws are cited most often: ask lawyers to classify laws into legal areas
+train legal area classifier: ==> classify BGEs into legal areas automatically
+
+Thomas fragen: werden verschiedene BGE Bände zitiert in einem Urteil?
+==> so we could make the collection of documents to retrieve smaller
+"""
+
+class Doc2DocIRDatasetCreator(DatasetCreator):
     """
     Creates a dataset for information retrieval with the citations serving as ground truth for relevance scores
     """
@@ -59,6 +105,7 @@ class CitationDatasetCreator(DatasetCreator):
             self.available_bges.update(df.file_number.tolist())
             rulings = pd.concat([rulings, df], ignore_index=True)  # one rulings df for all languages
 
+        self.logger.info(f"Found {len(self.available_bges)} rulings")
         rulings_path = self.create_dir(self.datasets_subdir, self.dataset_name) / "rulings.jsonl"
         if not rulings_path.exists():
             rulings.to_json(rulings_path, orient="records", lines=True, date_format="iso")
@@ -71,6 +118,7 @@ class CitationDatasetCreator(DatasetCreator):
         laws = laws[laws.abbreviation.str.len() > 1]  # only keep the ones with an abbreviation
         self.available_laws = set(laws.abbreviation.unique().tolist())
 
+        self.logger.info(f"Found {len(self.available_laws)} laws")
         articles_path = self.create_dir(self.datasets_subdir, self.dataset_name) / "articles.jsonl"
         if not articles_path.exists():
             self.logger.info("Extracting individual articles from laws")
@@ -123,7 +171,6 @@ class CitationDatasetCreator(DatasetCreator):
 
         # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
 
-        # this_function_name = inspect.currentframe().f_code.co_name
         folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
         # TODO move this to the plot_custom function so that we can save it for all languages
@@ -269,5 +316,5 @@ class CitationDatasetCreator(DatasetCreator):
 if __name__ == '__main__':
     config = get_config()
 
-    citation_dataset_creator = CitationDatasetCreator(config)
+    citation_dataset_creator = Doc2DocIRDatasetCreator(config)
     citation_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)

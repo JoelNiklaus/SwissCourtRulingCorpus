@@ -1,4 +1,12 @@
+from pathlib import Path
+from pprint import pprint
 from typing import Any, Optional
+
+import json
+
+import regex
+
+from root import ROOT_DIR
 
 """
 This file is used to extract citations from decisions sorted by spiders.
@@ -11,6 +19,34 @@ def XX_SPIDER(soup: Any, namespace: dict) -> Optional[dict]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
+
+def SH_OG(soup: Any, namespace: dict) -> Optional[dict]:
+    print(soup)
+
+    soup += """
+    dass der vorliegende Begründungsmangel offensichtlich ist, weshalb auf die Beschwerde in Anwendung von Art. 108 Abs. 1 lit. b BGG nicht einzutreten ist, 
+dass von der Erhebung von Gerichtskosten für das bundesgerichtliche Verfahren umständehalber abzusehen ist (Art. 66 Abs. 1 Satz 2 BGG), 
+dass in den Fällen des Art. 108 Abs. 1 BGG das vereinfachte Verfahren zum Zuge kommt und die Abteilungspräsidentin zuständig ist,  
+"""
+
+    def get_combined_regexes(regex_dict, language):
+        return regex.compile("|".join([entry["regex"] for entry in regex_dict[language] if entry["regex"]]))
+
+    language = 'de'
+    citation_regexes = json.loads((ROOT_DIR / 'citation_regexes.json').read_text())
+    pprint(citation_regexes)
+    print("BGE")
+    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['BGE'], language), soup):
+        print(match)
+    print("Bger")
+    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['Bger'], language), soup):
+        print(match)
+    print("law")
+    for match in regex.findall(get_combined_regexes(citation_regexes['law'], language), soup):
+        print(match)
+    exit()
+
+# TODO regexes überprüfen mit Zitierungen des Bundesgerichts
 
 def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
     """
