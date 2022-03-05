@@ -42,8 +42,6 @@ class PatternExtractor(AbstractExtractor):
             'finished': 'Finished pattern extraction',
             'start_spider': 'Started pattern extraction for spider',
             'finish_spider': 'Finished pattern extraction for spider',
-            'processing_one': 'Extracting sections from file',
-            'no_functions': 'Not extracting sections.'
         }
         self.processed_file_path = self.progress_dir / "pattern_extraction.txt"
 
