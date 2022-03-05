@@ -1,21 +1,14 @@
 
 from __future__ import annotations
-from http.client import OK
-from lib2to3.pgen2.pgen import DFAState
 from typing import TYPE_CHECKING, Union
 from pathlib import Path
-from unicodedata import category
-from unittest import skip
 import numpy as np
 import pandas as pd
+import sys
 import re
 from scrc.preprocessors.extractors.spider_specific.section_splitting_functions import prepare_section_markers
 
-from pip import main
 from scrc.enums.section import Section
-from scrc.utils.decorators import timer
-
-
 from pandas.core.frame import DataFrame
 
 import bs4
@@ -37,19 +30,18 @@ class PatternExtractor(AbstractExtractor):
         self.logger = get_logger(__name__)
         self.variations = [(r'^', r'\s\d\d$'),
                            (r'^', r'.$'), (r'^', r'\s$'), (r'^', r'\s.$')]
-        self.merged = []
         self.columns = ['keyword', 'totalcount', 'example']
-        self.dataArray = pd.DataFrame(columns=self.columns)
+        self.df = pd.DataFrame(columns=self.columns)
+        self.language = {}
+        self.total = 0
         self.counter = 0
         self.spider = ''
-        self.foundInstance = False
-        self.test = []
+        self.limit = 0
         self.logger_info = {
             'start': 'Started pattern extraction',
             'finished': 'Finished pattern extraction',
             'start_spider': 'Started pattern extraction for spider',
             'finish_spider': 'Finished pattern extraction for spider',
-            'saving': 'Saving chunk of recognized sections',
             'processing_one': 'Extracting sections from file',
             'no_functions': 'Not extracting sections.'
         }
@@ -72,6 +64,16 @@ class PatternExtractor(AbstractExtractor):
 
     def add_columns(self, engine: Engine):
         return None
+    
+    def start_progress(self, engine: Engine, spider: str, lang: str):
+        self.processed_amount = 0
+        self.total_to_process = self.coverage_get_total(engine, spider, lang)
+        if len(sys.argv) > 1:
+            if (int(sys.argv[1]) < 1000):
+                self.total_to_process = 1000
+            else: 
+                self.total_to_process = round(int(sys.argv[1]), -3)
+        self.logger.info(f"Total: {self.total_to_process}")
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
         """Processes one row of a raw df"""
@@ -81,7 +83,7 @@ class PatternExtractor(AbstractExtractor):
         namespace['language'] = Language(series['language'])
         data = self.get_required_data(series)
         assert data
-        self.analyse_short(self.call_processing_function(
+        self.analyze_structure(self.call_processing_function(
             series["spider"], data, namespace
         ), namespace)
 
@@ -89,37 +91,27 @@ class PatternExtractor(AbstractExtractor):
         self.logger.info(self.logger_info["start_spider"] + " " + spider)
         self.spider = spider
         for lang in self.languages:
-            where = self.get_database_selection_string(spider, lang)
-            # TODO make quick request to see if there are decisions at all: if not, skip lang so no confusing report is printed
             self.start_progress(engine, spider, lang)
-            # stream dfs from the db
+            where = self.get_database_selection_string(spider, lang)
             dfs = self.select(engine, lang, where=where,
                               chunksize=self.chunksize)
             for df in dfs:
+                if len(sys.argv) > 1:
+                    if self.counter >= self.total_to_process:
+                        break
+                if not self.language:
+                    self.total = self.total_to_process
+                    self.language = {'language': Language[lang.upper()]}
                 df.apply(self.process_one_df_row, axis="columns")
+        if len(sys.argv) > 2:
+            self.logger.info(f"Finished pattern extraction, applying regex now")
+            df: DataFrame = self.apply_regex(self.df)
+        self.logger.info(f"Finished regex application, assigning Sections now")
+        self.assign_section(self.df, self.language)
 
-    def analyse_regex(self, paragraphs: list):
-        self.counter += 1
-        newRow = [1] + [0] * len(self.variations)
-        listToAppend = []
-        # if paragraphs is not None:
-        for item in paragraphs:
-            if item is not None:
-                if len(item) < 45:
-                    foundInstance = self.iterate_variations(
-                        item, self.dataArray)
-                    if not foundInstance:
-                        listToAppend.append([item] + newRow)
-        dfTemp = pd.DataFrame(listToAppend, columns=self.columns)
-        self.dataArray = pd.concat(
-            [self.dataArray, dfTemp], ignore_index=True)
-        self.dataArray = self.dataArray.infer_objects()
-        if self.counter == 2000:
-            self.dropRows(self.dataArray)
-            self.dataArray.sort_values(
-                by=['totalCount'], ascending=False).to_csv(f'{self.spider}.csv')
 
-    def analyse_short(self, paragraphs: list, namespace: dict):
+
+    def analyze_structure(self, paragraphs: list, namespace: dict):
         url = namespace['pdf_url']
         if url == '':
             url = namespace['html_url']
@@ -128,20 +120,15 @@ class PatternExtractor(AbstractExtractor):
         noDuplicates = list(dict.fromkeys(paragraphs))
         for item in noDuplicates:
             if item is not None and (4 < len(item) < 45):
-                foundInstance = self.check_existance(item, self.dataArray)
+                foundInstance = self.check_existance(item, self.df)
                 if not foundInstance:
                     listToAppend.append([item, 1, url])
         dfTemp = pd.DataFrame(listToAppend, columns=self.columns)
-        self.dataArray = pd.concat(
-            [self.dataArray, dfTemp], ignore_index=True
-        )
+        self.df = pd.concat(
+            [self.df, dfTemp], ignore_index=True)
+        if self.counter % 500 == 0:
+            self.logger.info(self.get_progress_string(self.counter, self.total_to_process, "Pattern extraction"))
 
-        if self.counter % 100 == 0:
-            print(self.counter)
-  
-        if self.counter == self.total_to_process:
-            df: DataFrame = self.searchTable(self.dataArray)
-            self.assignSection(df, namespace)
 
     def check_existance(self, item: str, dataArray: DataFrame):
         indices = np.where(
@@ -149,61 +136,48 @@ class PatternExtractor(AbstractExtractor):
         if indices[0].size > 0:
             dataArray.at[indices[0][0], 'totalcount'] += 1
             if indices[0].size > 1:
-                self.mergeRows(indices[0], dataArray)
+                self.merge_rows(indices[0], dataArray)
             return True
         return False
     
-    def mergeRows(self, indices, dataArray: DataFrame):
+    def merge_rows(self, indices, df: DataFrame):
         for index in indices[1:]:
-            dataArray.at[indices[0],
-                         'totalcount'] += dataArray.at[index, 'totalcount']
-        dataArray.drop(indices[1:], inplace=True)
-        dataArray.reset_index(drop=True, inplace=True)
+            df.at[indices[0],
+                         'totalcount'] += df.at[index, 'totalcount']
+        df.drop(indices[1:], inplace=True)
+        df.reset_index(drop=True, inplace=True)
 
-    def apply_regex(self, paragraph: str, pattern):
+    def get_pattern(self, paragraph: str, pattern):
         sentence = re.escape(paragraph)
         wildcard = pattern[0] + sentence + pattern[1]
         return wildcard
     
-    def findSimilar(self, dataArray: DataFrame):
-        indexList = np.array(dataArray['keyword'].tolist())
-        skipIndex = []
-        for index, keyword in enumerate(indexList):
-            for idx, element in enumerate(self.variations):
-                if idx not in skipIndex:
-                    pattern = self.apply_regex(keyword, element)
-                    instance = [i for i, item in enumerate(
-                        indexList) if re.search(pattern, item) and item != keyword]
-                    if instance:
-                        print(index, len(indexList))
-                        dataArray = self.searchTable(index ,dataArray, instance, self.variations[idx])
-                        skipIndex += instance
-        return dataArray
-    
-    def searchTable(self, dataArray: DataFrame):
-        s = pd.Series(dataArray['keyword'])
+    def apply_regex(self, df: DataFrame):
+        s = pd.Series(df['keyword'])
         condition = True
         startingIndex = 0
         while(condition):
             sliced = s.iloc[startingIndex:]
+            if startingIndex % 500 == 0:    
+                self.logger.info(self.get_progress_string(startingIndex, s.size, "Regex application"))
             if len(sliced) == 0:
-                return dataArray
+                return df
             for index, value in sliced.items():
                 startingIndex +=1
                 foundInstance = False
                 for idx, element in enumerate(self.variations):
-                    pattern = self.apply_regex(value, element)
+                    pattern = self.get_pattern(value, element)
                     instances = s.str.match(pattern)
                     indexes = instances[instances].index
                     if len(indexes > 0):
                         foundInstance = True
-                        dataArray = self.newSearch(dataArray, index, indexes, self.variations[idx])
-                        s = pd.Series(dataArray['keyword'])
+                        df = self.find_matches(df, index, indexes, self.variations[idx])
+                        s = pd.Series(df['keyword'])
                 if foundInstance:
                     break
-        return dataArray
+        return df
     
-    def newSearch(self, df: DataFrame, currentIdx, indexes, currentPattern):
+    def find_matches(self, df: DataFrame, currentIdx: int, indexes: list, currentPattern):
         if not (str(currentPattern) in df.columns):
             df[str(currentPattern)] = 0
         for index in indexes:
@@ -212,47 +186,9 @@ class PatternExtractor(AbstractExtractor):
             df.at[currentIdx, str(currentPattern)] += amount
             df.drop(index, inplace=True)
         return df
-            
-    def iterate_variations(self, item: str, df: DataFrame):
-        foundInstance = False
-        indexList = df['keyword'].tolist()
-        for idx, element in enumerate(self.variations):
-            pattern = self.apply_regex(item, element)
-            instance = [i for i, item in enumerate(
-                indexList) if re.search(pattern, item)]
-            if instance:
-                foundInstance = True
-                if len(instance) > 1:
-                    self.searchTable(element,
-                        df,
-                        instance, indexList, idx, foundInstance)
-                else:
-                    df.at[instance[0], element] += 1
-                    df.at[instance[0], 'totalCount'] += 1
-        return foundInstance
-    
 
-    def temp(self, idx, df: DataFrame, indexes: list, currentPattern):
-        if not (str(currentPattern) in df.columns):
-            df[str(currentPattern)] = 0
-        for index in indexes:
-            if index in df.index:
-                amount = df.at[index, 'totalcount']
-                if idx not in df.index:
-                    print("why")
-                df.at[idx, 'totalcount'] += amount
-                df.at[idx, str(currentPattern)] += amount
-                df.drop(index, inplace=True)
-        # selectedRows: DataFrame = dataArray.loc[indexes, 'totalcount']
-        # subset = selectedRows.sum(axis=0, skipna=True)
-        # dataArray.loc[idx, 'totalcount'] += subset
-        # dataArray.loc[idx, str(currentPattern)] += subset
-        
-        df.to_csv(self.getPath(self.spider))
-        return df
     
-    def assignSection(self, df: DataFrame, namespace):
-    
+    def assign_section(self, df: DataFrame, namespace):
         all_section_markers = {
             Language.FR: {
                 Section.FACTS: [r'[F,f]ait', 'droit'],
@@ -275,6 +211,8 @@ class PatternExtractor(AbstractExtractor):
             dfs[key] = pd.DataFrame([], columns=df.columns)
         df.reset_index(inplace=True)
         for index, element in enumerate(df['keyword'].tolist()):
+            if index % 500 == 0:
+                self.logger.info(self.get_progress_string(index, df['keyword'].size, "Section assignment"))
             foundAssigntment = False
             for key in section_markers:
                 if re.search(section_markers[key], element):
@@ -282,22 +220,38 @@ class PatternExtractor(AbstractExtractor):
                      foundAssigntment = True
             if not foundAssigntment:
                 dfs['unknown'] = dfs['unknown'].append(df.loc[index], ignore_index=True)
-        self.dfToCsv(dfs)
+        self.df_to_csv(self.calculate_coverage(dfs))
+        
+    def get_progress_string(self, progress: int, total: int, name: str):
+        return f"{name}: {progress} of {total} processed"
+        
+    def calculate_coverage(self, dfs):
+        for key in dfs:
+            if key == 'unknown':
+                dfs[key] = self.drop_rows(dfs[key])
+            dfs[key]['coverage'] = 0
+            dfs[key]['coverage'] = dfs[key].apply(self.get_percentage, axis = 1)
+            dfs[key].drop(columns=['index'], inplace=True)
+        return dfs
+
+    def get_percentage(self, s):
+        return s.at['totalcount'] / self.total * 100
              
-    def dfToCsv(self, dfs):
-        with pd.ExcelWriter(self.getPath(self.spider)) as writer:
+    def df_to_csv(self, dfs):
+        with pd.ExcelWriter(self.get_path(self.spider)) as writer:
           for key in dfs:
               dfs[key].sort_values(
-              by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key))
+              by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key), index=False)
 
-    def dropRows(self, dataArray: DataFrame):
-        dataArray.drop(
-            dataArray[dataArray.totalcount < 2].index, inplace=True)
-        dataArray.reset_index(drop=True, inplace=True)
+    def drop_rows(self, df: DataFrame):
+        df.drop(
+            df[df.totalcount < 2].index, inplace=True) 
+        df.reset_index(drop=True, inplace=True)
+        return df
 
-    def getPath(self, spider: str):
+    def get_path(self, spider: str):
         filepath = Path(
-            f'data/patterns/{spider}.csv')
+            f'data/patterns/{spider}.xlsx')
         filepath.parent.mkdir(parents=True, exist_ok=True)
         return filepath
 
