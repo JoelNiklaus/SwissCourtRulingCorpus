@@ -24,6 +24,21 @@ if TYPE_CHECKING:
 
 
 class PatternExtractor(AbstractExtractor):
+    
+    """
+    Extracts and counts paragraphs/keywords commonly used across a court. The output can be found in ./data/patterns
+    To extract the pattern from a court a function must be implemented in paragraph_extraction.py which simply returns the paragraphs.
+    To start the pattern of a court remove the court from pattern_etraction.txt and run the module 
+    with two arguments:
+    First argument is to limit the amount of cases to analyse. Set it to 0 if it should search through all of them.
+    Second argument should either be 0 or 1. If set to 0 (or anything other than 1) 
+    it will NOT go through the extra step executing applying_regex function which makes whole progress alot more time consuming. (Recommended for big courts)
+    The applying_regex step will go through all the patterns which have been found, apply self.variations and look for potential matches.
+    Example:
+    python -m scrc.preprocessors.extractors.pattern_extractor 0 0
+    if you don't care about runtime:
+    python -m scrc.preprocessors.extractors.pattern_extractor 0 1
+    """
 
     def __init__(self, config: dict):
         super().__init__(config, function_name="pattern_extracting_functions", col_name='')
@@ -66,7 +81,7 @@ class PatternExtractor(AbstractExtractor):
     def start_progress(self, engine: Engine, spider: str, lang: str):
         self.processed_amount = 0
         self.total_to_process = self.coverage_get_total(engine, spider, lang)
-        if len(sys.argv) > 1:
+        if sys.argv[1] != "0":
             if (int(sys.argv[1]) < 1000):
                 self.total_to_process = 1000
             else: 
@@ -75,8 +90,6 @@ class PatternExtractor(AbstractExtractor):
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
         """Processes one row of a raw df"""
-        self.logger.debug(
-            f"{self.logger_info['processing_one']} {series['file_name']}")
         namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
         namespace['language'] = Language(series['language'])
         data = self.get_required_data(series)
@@ -94,14 +107,13 @@ class PatternExtractor(AbstractExtractor):
             dfs = self.select(engine, lang, where=where,
                               chunksize=self.chunksize)
             for df in dfs:
-                if len(sys.argv) > 1:
-                    if self.counter >= self.total_to_process:
-                        break
+                if self.counter >= self.total_to_process:
+                    break
                 if not self.language:
                     self.total = self.total_to_process
                     self.language = {'language': Language[lang.upper()]}
                 df.apply(self.process_one_df_row, axis="columns")
-        if len(sys.argv) > 2:
+        if sys.argv[2] == "1":
             self.logger.info(f"Finished pattern extraction, applying regex now")
             df: DataFrame = self.apply_regex(self.df)
         self.logger.info(f"Finished regex application, assigning Sections now")
@@ -209,7 +221,7 @@ class PatternExtractor(AbstractExtractor):
             dfs[key] = pd.DataFrame([], columns=df.columns)
         df.reset_index(inplace=True)
         for index, element in enumerate(df['keyword'].tolist()):
-            if index % 500 == 0:
+            if index % 100 == 0:
                 self.logger.info(self.get_progress_string(index, df['keyword'].size, "Section assignment"))
             foundAssigntment = False
             for key in section_markers:
