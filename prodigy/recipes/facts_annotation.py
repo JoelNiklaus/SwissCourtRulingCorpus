@@ -9,70 +9,119 @@ import psycopg2
 from psycopg2 import sql
 from typing import List, Optional
 import os
-from prodigy.components.db import connect
-# prodigy facts-annotation de "" test -F recipes/facts_annotation.py
-ports ={"de_1":11001,"de_2":11002,"de_3":11003, "fr_1": 12000, "it_1": 13000 }
+
+# prodigy facts-annotation de -F recipes/facts_annotation.py
+
 ## Docs
 #
 # This recipe is used to load facts, considerations, rulings and judgment directly from the scrc database configured in the environment variables.
 # The recipe serves the data to the prodigy app, allowing to annotate the facts by considering the consideration and judgment.
+#
+# Basic SQL Query:
+# SELECT id,facts,considerations,rulings,judgements FROM de
+# WHERE NOT (facts like '' OR considerations like '' OR rulings like '' OR judgements IS NULL);
+
+
+# a generator which returns records from the database, using batched fetching
+# format is for the `choice` view of the prodigy app
+def db_stream(lng):
+  # scrc database connection configuration string
+  config = "dbname=scrc user={} password={} host=localhost port=5432".format(os.environ["DB_USER"], os.environ["DB_PASSWORD"])
+
+  # prodigy database connection configuration string, to fetch processed ids
+  # TODO:
+  # - remove hardcoded login credentials
+  # - find the ids which have been labeled already
+  # - check which records have already been labeled
+  # last two are easier done once the annotations are direclty fed to the scrc database, allowing for a fast query
+  # instead of parsing all the stored data from prodigy
+  latest_id = 0
+  ids_done = []
+
+
+  # postgres is much faster parsing VALUES() to relations than using a NOT IN query
+  # use sql.Identifier and parameters to prevent sql injections
+  # SELECT id,facts,considerations,rulings,judgements FROM de
+  # WHERE NOT (facts like '' OR considerations like '' OR rulings like '' OR judgements IS NULL);
+  '''
+  query = sql.SQL("SELECT id,facts,considerations,rulings,judgements " \
+          "FROM {}" \
+          "WHERE NOT (facts like '' OR considerations like '' OR rulings like '' OR judgements IS NULL) " \
+          "AND spider like spider "        
+          "AND id > %s ").format(sql.Identifier(language))
+  '''
+  query = sql.SQL("SELECT id,facts " \
+                  "FROM de " \
+                  "WHERE facts NOT like '' AND spider like 'CH_BGer'"
+                  "AND id > %s ").format(sql.Identifier(lng))
+  params = (latest_id,)
+  # if any judgments have been labeled already, filter them out
+  if len(ids_done) > 0:
+    ids_done = ", ".join(["({})".format(id) for id in ids_done]) # format for sql query
+    query += " AND id NOT IN (VALUES(%s);"
+    params += (ids_done,)
+  
+  # TODO: ensure the connection is closed and reopened on every generator call in case problems with the connection arise
+  with psycopg2.connect(config) as connection:
+    with connection.cursor() as cursor:
+      cursor.execute(query, params)
+      while True:
+        rows = cursor.fetchmany(1000)
+        if not rows:
+          break
+        for row in rows:
+          idx, facts = row
+          res = {"id": idx, "text": facts}
+          res = json.dumps(res)
+
+          if len(res) > 0:
+            yield res
 
 # helper function for recipe command line input
 def split_string(string):
   return string.split(",")
 
+  def update(examples):
+    # This function is triggered when Prodigy receives annotations
+    print(f"Received {len(examples)} annotations!")
+
+
 # the recipe itself, for info on how to use it, see the prodigy docs
 @prodigy.recipe(
   "facts-annotation",
-  language=("The language to use for the recipe", 'positional', None, str),
-  annotator=("The annotator of the set", 'positional', None, str),
-  test_mode=("Running in test mode",'positional', None, str )
+  language=("The language to use for the recipe", 'positional', None, str)
 )
 
 # function called by the @prodigy-recipe definition
-def facts_annotation(language:str,annotator:str,test_mode:str ):
+def facts_annotation(language:str):
   # Load the spaCy model for tokenization.
   # might have to run "python -m spacy download de_core_news_sm" @Todo
-  # Have to load french and italian model
-  nlp = spacy.load("{}_core_news_sm".format(language))
+  nlp = spacy.load("de_core_news_sm")
   # define labels for annotation
   labels = ["Supports judgment","Opposes verdict"]
 
-  if annotator != "" and test_mode != "test" :
-    dataset = "annotations_{}_{}".format(language,annotator)
-    port = ports["{}_{}".format(language,annotator)]
-    stream = JSONL("./datasets/annotation_input_set_{}.jsonl".format(language))
-  else:
-    dataset = "annotations_{}_test".format(language)
-    port = 14000
-    stream = JSONL("./datasets/annotation_input_set_{}_ex.jsonl".format(language))
-
+  dataset = "annotations_"+language
 
   # define stream (generator)
-
+  stream = JSONL(db_stream(language))
 
   # Tokenize the incoming examples and add a "tokens" property to each
   # example. Also handles pre-defined selected spans. Tokenization allows
   # faster highlighting, because the selection can "snap" to token boundaries.
   # If `use_chars` is True, tokens are split into individual characters, which enables
   # character based selection as opposed to default token based selection.
+
   stream = add_tokens(nlp, stream, use_chars=None)
+
+
+
+
   return {
-    "dataset": dataset ,# Name of dataset_scrc to save annotations
-    "view_id": "blocks",
+    "dataset": dataset ,# Name of dataset to save annotations
+    "view_id": "spans_manual",
     "stream": stream,
-    "config": {
-      "port": port,
-      "blocks": [
-        {"view_id": "html",
-         "html_template": "<p style='float:left'>{{file_number}}</p>"},
-        {"view_id": "html", "html_template": "<h1 style='float:left'>{{header}} – Judgment: {{judgment}}</h2>"},
-        {"view_id": "html",
-         "html_template": "<h2 style='float:left'>Facts</h2><a style='float:right' href='{{link}}'>Got to the Court Ruling</a>"},
-        {"view_id": "spans_manual", "lang": nlp.lang, "labels": labels},
-        {"view_id": "text_input","field_label":"Annotator comment on this ruling", "field_placeholder": "Type here...","field_rows": 3},
-      ]
-    },
-
+    "config": {  # Additional config settings, mostly for app UI
+      "lang": nlp.lang,
+      "labels": labels,  # Selectable label options
     }
-
+  }
