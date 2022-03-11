@@ -37,7 +37,7 @@ class Cleaner(AbstractExtractor):
     """
 
     def __init__(self, config: dict):
-        super().__init__(config, function_name='processing_functions', col_name='text', col_type='text')
+        super().__init__(config, function_name='cleaning_functions', col_name='text', col_type='text')
         self.cleaning_regexes = self.load_cleaning_regexes(config['files']['cleaning_regexes'])
         self.processed_file_path = self.data_dir / "spiders_cleaned.txt"
 

@@ -2,6 +2,8 @@ from typing import Any, Optional
 
 from scrc.enums.citation_type import CitationType
 
+
+
 """
 This file is used to extract citations from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!

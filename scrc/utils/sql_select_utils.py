@@ -87,7 +87,8 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         series['language_id'] = -1
         chamber_id = pd.read_sql(f"SELECT chamber_id FROM chamber WHERE chamber_string = '{series['chamber']}'", engine.connect())['chamber_id']
         if len(chamber_id) == 0:
-            raise ValueError(f"The chamber {series['chamber']} was not found in the database. Add it with the respective court and spider")
+            print(f"The chamber {series['chamber']} was not found in the database. Add it with the respective court and spider")
+            series['chamber_id'] = -1
         else:
             series['chamber_id'] = chamber_id[0]
             
@@ -97,17 +98,17 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         
     def save_the_file_numbers(series: pd.DataFrame) -> pd.DataFrame:
         series['decision_id'] = pd.read_sql(f"SELECT decision_id FROM decision WHERE file_id = '{series['file_id']}'", engine.connect())["decision_id"][0]
-        with engine.connect as conn:
+        with engine.connect() as conn:
              t = Table('file_number', MetaData(), autoload_with=engine)
              # Delete and reinsert as no upsert command is available
              stmt = t.delete().where(delete_stmt_decisions_with_df(series))
              conn.execute(stmt)
         series['decision_id'] = pd.read_sql(f"SELECT decision_id FROM decision WHERE file_id = '{series['file_id']}'", engine.connect())["decision_id"][0]
         series['text'] = series['file_number']
-        save_to_db([['decision_id', 'text']], 'file_number')
+        save_to_db(series[['decision_id', 'text']], 'file_number')
         if ('file_number_additional' in series and series['file_number_additional'] is not None and len(series['file_number_additional'])>0):
             series['text'] = series['file_number_additional']
-            save_to_db([['decision_id', 'text']], 'file_number')
+            save_to_db(series[['decision_id', 'text']], 'file_number')
         return series
         
     # Delete old decision and file entries
@@ -136,7 +137,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
     
     
 def delete_stmt_decisions_with_df(df: pd.DataFrame) -> TextClause:
-    decision_id_list = ','.join(["'" + str(item)+"'" for item in df['decision_id'].tolist()])
+    decision_id_list = ','.join(["'" + str(item)+"'" for item in df['decision_id'].values.tolist()])
     return text(f"decision_id in ({decision_id_list})")
 
 def join(table_name: str, join_field: str = 'decision_id', join_table: str = 'd') -> str:

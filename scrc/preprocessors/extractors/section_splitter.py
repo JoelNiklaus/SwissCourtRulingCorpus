@@ -30,7 +30,7 @@ class SectionSplitter(AbstractExtractor):
     Splits the raw html into sections which can later separately be used. This represents the section splitting task.
     """
 
-    def __init__(self, config: dict, run_tokenizer: bool):
+    def __init__(self, config: dict, run_tokenizer: Optional[bool] = False):
         super().__init__(config, function_name='section_splitting_functions', col_name='sections')
         self.logger = get_logger(__name__)
         self.logger_info = {

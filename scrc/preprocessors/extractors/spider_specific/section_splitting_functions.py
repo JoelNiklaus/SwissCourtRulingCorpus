@@ -203,15 +203,14 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
         paragraphs_by_section[current_section].append(paragraph)
     if current_section != Section.FOOTER:
         # change the message depending on whether there's a url
-        if namespace['html_url']:
+        if namespace.get('html_url'):
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
                   f"Here you have the url to the decision: {namespace['html_url']}"
         elif 'pdf_url' in namespace and namespace['pdf_url']:
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
                   f"Here is the url to the decision: {namespace['pdf_url']}"
         else:
-            message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
-                  f"Here is the date of the decision: {namespace['date']}"
+            message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! "
         get_logger(__name__).warning(message)
     return paragraphs_by_section
 

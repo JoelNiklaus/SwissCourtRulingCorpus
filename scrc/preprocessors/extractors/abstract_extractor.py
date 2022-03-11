@@ -58,8 +58,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         self.logger.info(self.logger_info["start"])
         if self.ignore_cache:
            self.processed_file_path.unlink()
-        if decision_ids is not None:
-            self.decision_ids = decision_ids
+        self.decision_ids = decision_ids
         spider_list, message = self.get_processed_spiders()
         self.logger.info(message)
 
@@ -114,6 +113,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         if 'html_url' in series:
             namespace['html_url'] = series.get('html_url')
         namespace['language'] = Language(series['language'])
+        namespace['id'] = series['decision_id']
         data = self.get_required_data(series)
         assert data
         series[self.col_name] = self.call_processing_function(
