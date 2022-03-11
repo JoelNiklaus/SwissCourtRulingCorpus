@@ -1,4 +1,4 @@
-# Biweekly progress Report 1 (14.03.22)
+# Biweekly progress Report 1 (08.03.22)
 ## What did you work on the last two weeks?
 ### Prodigy
 - Setting up prodigy on sandbox
@@ -25,7 +25,7 @@
 - I'm still quite unsure on how I should compose my dataset. Currently I'm getting the facts (and the ruling, judgments etc.) with this query:
 ```sql
 SELECT facts FROM de
-WHERE NOT (facts like '' ) AND spider like 'CH_BGer' 
+WHERE NOT (facts like '' ) AND spider like 'CH_BGer'
 ```
 Now I have different questions to get a more accurate result:
 - We talked about a balanced set: So 50% approval and dismissal, which are definded in the judgment column, correct? 
@@ -33,6 +33,6 @@ Now I have different questions to get a more accurate result:
 - Only choose cases from validation and test set ==> How do I know which is which in the scrc?
 - Only select judgments where the model has high certainty and is right ==> Where do i see this?
 - On the legal area, we talked about penal law which others (aka where was the model second best)? And how do I find these cases in the DB? (Do you have a list of spiders or a certain column where this is defined (I searched the DB and did not find a good answer)?
-- Take easy cases aka short cases so should we make a facts limit? 
+- Take easy cases aka short cases so should we make a facts limit?
   - How about 300 word  /1500-1600 character? (halbe/drei viertel Seite)
-- Where to dump the results, which column which table? de-> facts? 
+- Where to dump the results, which column which table? de-> facts?
