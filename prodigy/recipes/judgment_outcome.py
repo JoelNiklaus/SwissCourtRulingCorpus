@@ -46,6 +46,7 @@ def db_stream(language, spider):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       #print(cursor.fetchone())
 =======
 >>>>>>> Added prodigy set up from @Skatinger to ./prodigy.
@@ -54,6 +55,9 @@ def db_stream(language, spider):
 >>>>>>> Added some corrections to readme. Added line for logging in judgment_outcome.py. Changed example in run.sh. Changed name of the docker container in setup.sh.
 =======
 >>>>>>> Added prodigy set up from @Skatinger to ./prodigy.
+=======
+      #print(cursor.fetchone())
+>>>>>>> Updating Sanbox
       while True:
         rows = cursor.fetchmany(1000)
         if not rows:
