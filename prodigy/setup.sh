@@ -25,7 +25,7 @@ if [ "$(docker ps -q -f name=prodigy_v1)" ]; then
   if [[ $REPLY =~ ^[Yy]$ ]]
   then
       echo "Removing container..."
-      docker rm -f prodigy_v1_nina
+      docker rm -f prodigy_v1
       echo "Building image..."
       docker build -t prodigy:v1.0 .
   else
