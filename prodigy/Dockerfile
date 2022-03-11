@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install vim -y
 RUN pip install --upgrade pip \
     && pip install --trusted-host pypi.python.org -r requirements.txt
 
-RUN python -m spacy download de_core_news_sm
 COPY wheel/* ./wheel/
 
 RUN pip install prodigy -f ./wheel/
