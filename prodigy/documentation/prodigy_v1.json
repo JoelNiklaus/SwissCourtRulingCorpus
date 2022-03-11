@@ -1,13 +1,17 @@
 {
   "port": 18080,
   "host": "fdn-sandbox3.inf.unibe.ch",
+  "db": "postgresql",
   "theme": "dark",
-  "db": "sqlite",
   "db_settings": {
-    "sqlite": {
-      "name": "annotations.db",
-      "path": "annotations/"
-    }},
+      "postgresql": {
+          "user": "prodigy",
+          "password": "ProdigyLog1n",
+          "host": "localhost",
+          "port": 5432,
+          "database": "scrc"
+      }
+  },
   "feed_overlap": false,
   "show_stats": true,
   "custom_theme": {

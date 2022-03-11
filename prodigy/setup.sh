@@ -15,6 +15,7 @@ else
 fi
 
 # if the container already exists, remove it
+<<comment
 if [ "$(docker ps -q -f name=prodigy_v1)" ]; then
   printf "${WARN}A container with the name prodigy_v1 already exists. To use a newer image it has to be removed.\n"
   read -p "Do you want to remove it and use the new image? [y/N]" -n 1 -r
@@ -32,14 +33,14 @@ if [ "$(docker ps -q -f name=prodigy_v1)" ]; then
       exit 1
   fi
 fi
-
+comment
 echo "Starting container in idle mode..."
 
 docker run -d \
-  --name prodigy_v1 \
+  --name prodigy_v1_nina \
   --network="host" \
   -e DB_USER=$DB_USER \
   -e DB_PASSWORD=$DB_PASSWORD \
-  prodigy:v1.0
+  prodigy_v1_nina:latest
 
 printf "${SUCCESS}Setup finished, use 'bash run.sh' to start the server.${NC}\n\n\n"
