@@ -58,5 +58,8 @@ class LawCitation(Citation):
             return self.article == other.article and self.law == other.law
         return False
 
+    def __ne__(self, other) -> bool:
+        return not self.__eq__(other)
+
     def __hash__(self):
         return hash(tuple(sorted(self.__dict__.items())))
