@@ -115,8 +115,10 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         laws = pd.read_json(self.corpora_subdir / "lexfind.jsonl", lines=True)
         laws = laws[laws.canton.str.contains("ch")]  # only federal laws so far
         laws = laws[laws.abbreviation.str.len() > 1]  # only keep the ones with an abbreviation
-        self.available_laws = set(laws.abbreviation.unique().tolist())
 
+        self.law_abbrs = laws[["language", "abbreviation", "sr_number"]]
+
+        self.available_laws = set(laws.abbreviation.unique().tolist())
         self.logger.info(f"Found {len(self.available_laws)} laws")
         articles_path = self.create_dir(self.datasets_subdir, self.dataset_name) / "articles.jsonl"
         # This can take quite a long time
@@ -158,17 +160,23 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         # df = df[df.types.map(len) >= 1]  # we only want the decisions which actually cite something
         # df = df.query('"bge" in types')  # ensure that we only have BGE citations
 
-        df['rulings'] = df.citations.apply(self.get_ruling_citations)
-        df['laws'] = df.citations.apply(self.get_law_citations)
+        df['rulings'] = df.citations.apply(self.get_ruling_citations, lang=lang)
+        df['laws'] = df.citations.apply(self.get_law_citations, lang=lang)
         df = df.dropna(subset=["rulings", "laws"], how="all")  # we cannot use the ones which have no citations
 
-        self.logger("Computing relevance scores for documents in collection")
+        self.logger.info("Computing relevance scores for documents in collection")
         relevance_lambda = lambda cits: [(cit_tuple[0], self.compute_relevance_score(cit_tuple))
                                          for cit_tuple in cits] if cits else None
         df.rulings = df.rulings.apply(relevance_lambda)
         df.laws = df.laws.apply(relevance_lambda)
 
         df = df.drop(['citations'], axis=1)  # we don't need this anymore
+
+        query_path = self.create_dir(self.datasets_subdir, self.dataset_name) / "queries.jsonl"
+        self.logger(f"Saving queries to {query_path}")
+        df.to_json(query_path, lines=True)
+
+        exit()
 
         # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
 
@@ -181,7 +189,6 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
 
         # calculate most common laws
         most_common_laws = self.get_most_common_citations(df, folder, 'laws')
-
 
         def mask_citations(series, law_mask_token="<ref-law>", ruling_mask_token="<ref-ruling>",
                            only_replace_most_common_citations=False):
@@ -206,14 +213,14 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         df['label'] = df.rulings  # the label is just the rulings for now
         return df, self.available_bges
 
-    def get_ruling_citations(self, citations):
+    def get_ruling_citations(self, citations, lang):
         # get BGEs by file_number
         cits = []
         for citation in citations['rulings']:
             cit = citation['text']
             cit = ' '.join(cit.split())  # remove multiple whitespaces inside
             try:
-                ruling_cit = RulingCitation(cit)
+                ruling_cit = RulingCitation(cit, lang)
             except ValueError as ve:
                 self.logger.warning(ve)
                 continue
@@ -223,19 +230,17 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         if cits:  # only return something if we actually have citations
             return list(Counter(cits).items())
 
-    def get_law_citations(self, citations):
+    def get_law_citations(self, citations, lang):
         cits = []
         for citation in citations['laws']:
             cit = citation['text']
             cit = ' '.join(cit.split())  # remove multiple whitespaces inside
             try:
-                law_cit = LawCitation(cit)
+                law_cit = LawCitation(cit, self.law_abbrs, lang)
             except ValueError as ve:
                 self.logger.warning(ve)
                 continue
-            # only actually include citations that we can find in our corpus
-            if law_cit.abbreviation in self.available_laws:
-                cits.append(law_cit)
+            cits.append(law_cit)
         if cits:  # only return something if we actually have citations
             return list(Counter(cits).items())
 
