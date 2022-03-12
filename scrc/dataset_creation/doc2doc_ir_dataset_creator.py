@@ -242,15 +242,19 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
     @staticmethod
     def compute_relevance_score(citation_tuple):
         """
-        Computes a relevance score for the citation between 1 and 1
-            frequency: 70%
-            year: 30%
+        Computes a relevance score for the citation between 0 and 1
+        Algorithm:
+        1. frequency of citation in the considerations ==> main question
+        2. if same number of occurrences: inverse frequency of citation in corpus ==> most specific citation
+        3. maybe consider criticality score from Ronja
+        TODO implement this algorithm
         :return:
         # Proxy für relevanz score:
-        #   - häufigkeit des Zitats in Erwägungen
-        #   - neuere Urteile sind relevanter (ältere Urteile sind evtl. überholt oder nicht mehr relevant)
-        #   Thomas schreibt mir seine Ideen bald
+        #   - tf für zitierungen: häufigkeit des Zitats in Erwägungen
+        #   - idf für zitierungen: wenn Zitat im Korpus häufig vorkommt hat es tiefe Relevanz ==> neuere BGEs kommen weniger häufig vor und sind somit wichtiger
+        #   - neuere Urteile sind relevanter (ältere Urteile sind evtl. überholt oder nicht mehr relevant), aber es hängt von der Frage ab (pro rechtlicher Frage wäre das neuere BGE relevanter)
         #   - BGE wichtiger als andere ==> nur BGEs nehmen
+        Future work: investigate IR per legal question
         """
         weights = {"frequency": 0.7, "year": 0.3}
         assert sum(weights.values()) == 1
