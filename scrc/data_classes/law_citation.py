@@ -1,11 +1,15 @@
 from scrc.data_classes.citation import Citation
+from scrc.data_classes.law import Law
+from scrc.utils.law_util_singleton import LawUtilSingleton
+
+law_util = LawUtilSingleton()
 
 
 class LawCitation(Citation):
     article: str  # not an int because it can also be sth like 7a
     paragraph: int = None  # optional
     numeral: int = None  # optional
-    abbreviation: str
+    law: Law
 
     def __init__(self, citation_str, language="de"):
         self.language = language
@@ -21,6 +25,7 @@ class LawCitation(Citation):
             self.article_str = "art."
             self.paragraph_str = "al."
             self.numeral_str = "cpv."
+        # sometimes there is a difference between § and the article_str, but we disregard it for simplicity
         citation_str = citation_str.replace("§", self.article_str)
         # quick hacky fix
         if citation_str.startswith(self.article_str[:-1]) and citation_str[3] != ".":
@@ -34,8 +39,9 @@ class LawCitation(Citation):
         if len(parts) < 3:  # either an article number or the abbreviation is missing
             raise ValueError(f"The Citation String ({citation_str}) consists of less than 3 parts.")
         self.article = parts[1]  # should be the second part after "Art."
-        self.abbreviation = parts[-1]  # should be the last part
-        # TODO we can extend this to also extract optional paragraphs or numerals
+        abbreviation = parts[-1]  # should be the last part
+        self.law = law_util.get_law_by_abbreviation(abbreviation)
+        # TODO we could extend this to also extract optional paragraphs or numerals
 
     def __str__(self):
         str_repr = f"{self.article_str} {self.article}"
@@ -43,13 +49,13 @@ class LawCitation(Citation):
             str_repr += f" {self.paragraph_str} {self.paragraph}"
         if self.numeral:
             str_repr += f" {self.numeral_str} {self.numeral}"
-        str_repr += f" {self.abbreviation}"
+        str_repr += f" {self.law}"
         return str_repr
 
     def __eq__(self, other):
         """Overrides the default implementation"""
         if isinstance(other, LawCitation):
-            return self.article == other.article and self.abbreviation == other.abbreviation
+            return self.article == other.article and self.law == other.law
         return False
 
     def __hash__(self):

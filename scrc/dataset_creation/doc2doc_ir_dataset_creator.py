@@ -4,7 +4,6 @@ from collections import Counter
 
 from bs4 import BeautifulSoup
 
-from root import ROOT_DIR
 from scrc.data_classes.law_citation import LawCitation
 from scrc.data_classes.ruling_citation import RulingCitation
 from scrc.dataset_creation.dataset_creator import DatasetCreator
@@ -48,7 +47,6 @@ Story: we want to solve hard task, but we might be very bad at it yet: propose e
 Experiments:
 are we better in different legal areas / regions etc.
 
-
 TODO:
 how long are the documents
 how many citations do the documents have (for both laws and rulings) ==> histogram
@@ -56,11 +54,12 @@ distribution of the time difference between published document and cited documen
 try to find out how multilingual this corpus is: how many times does a German decision cite an Italian ruling?
 
 find out which laws are cited most often: ask lawyers to classify laws into legal areas
-train legal area classifier: ==> classify BGEs into legal areas automatically
+train legal area classifier: ==> classify BGEs into legal areas automatically (Dominik)
 
-Thomas fragen: werden verschiedene BGE Bände zitiert in einem Urteil?
-==> so we could make the collection of documents to retrieve smaller
+Frage an Thomas: werden verschiedene BGE Bände zitiert in einem Urteil?
+Antwort: Ja
 """
+
 
 class Doc2DocIRDatasetCreator(DatasetCreator):
     """
@@ -81,7 +80,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-        self.debug = False
+        self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "doc2doc_ir"
         self.feature_cols = ['facts', 'considerations']
@@ -120,6 +119,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
 
         self.logger.info(f"Found {len(self.available_laws)} laws")
         articles_path = self.create_dir(self.datasets_subdir, self.dataset_name) / "articles.jsonl"
+        # This can take quite a long time
         if not articles_path.exists():
             self.logger.info("Extracting individual articles from laws")
             articles = pd.concat([self.extract_article_info(row) for _, row in laws.iterrows()], ignore_index=True)
@@ -162,6 +162,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         df['laws'] = df.citations.apply(self.get_law_citations)
         df = df.dropna(subset=["rulings", "laws"], how="all")  # we cannot use the ones which have no citations
 
+        self.logger("Computing relevance scores for documents in collection")
         relevance_lambda = lambda cits: [(cit_tuple[0], self.compute_relevance_score(cit_tuple))
                                          for cit_tuple in cits] if cits else None
         df.rulings = df.rulings.apply(relevance_lambda)
@@ -181,8 +182,6 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         # calculate most common laws
         most_common_laws = self.get_most_common_citations(df, folder, 'laws')
 
-        #  IMPORTANT: we need to take care of the fact that the laws are named differently in each language but refer to the same law!
-        law_abbr_by_lang = self.get_law_abbr_by_lang()
 
         def mask_citations(series, law_mask_token="<ref-law>", ruling_mask_token="<ref-ruling>",
                            only_replace_most_common_citations=False):
@@ -298,19 +297,6 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         ax.get_figure().savefig(folder / f'most_common_{type}_citations.png', bbox_inches="tight")
 
         return list(dict(most_common_with_frequency).keys())
-
-    def get_law_abbr_by_lang(self):
-        term_definitions = TermDefinitionsConverter().extract_term_definitions()
-        law_abbr_by_lang = {lang: dict() for lang in self.languages}
-
-        for definition in term_definitions:
-            for lang in definition['languages']:
-                if lang in self.languages:
-                    for entry in definition['languages'][lang]:
-                        if entry['type'] == 'ab':  # ab stands for abbreviation
-                            # append the string of the abbreviation as key and the id as value
-                            law_abbr_by_lang[lang][entry['text']] = definition['id']
-        return law_abbr_by_lang
 
 
 if __name__ == '__main__':
