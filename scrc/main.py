@@ -81,7 +81,7 @@ def create_specialized_datasets(config):
 def construct_base_dataset(config):   
     
     
-    """ scraper = Scraper(config)
+    scraper = Scraper(config)
     new_files = scraper.download_subfolders(base_url + "docs/")
     
     # TODO: Decide whether it should really go after file list from scraper or with the old technique
@@ -94,8 +94,7 @@ def construct_base_dataset(config):
     
     cleaner = Cleaner(config)
     cleaner.clean(decision_ids)
- """   
-    decision_ids = None
+ 
     
     section_splitter = SectionSplitter(config, False)
     section_splitter.start(decision_ids)
