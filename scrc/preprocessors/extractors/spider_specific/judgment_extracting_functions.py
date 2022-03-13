@@ -157,6 +157,70 @@ def BS_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
 
     return judgments
 
+  
+def UR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+    
+    # Rather than extend and update the global markers, for this spider, specific markers are defined.
+    all_judgment_markers = {
+        Language.DE: {
+            Judgment.APPROVAL: [r'Gutheissung der Beschwerde', r'Bejahung der Beschwerdelegimitation'],
+            Judgment.PARTIAL_APPROVAL: [r'Teilweise Gutheissung der Beschwerde'],
+            Judgment.DISMISSAL: [r'Abweisung der Beschwerde', 
+                                r'Der Anzeige wird keine Folge gegeben', 
+                                r'Verneinung der Beschwerdelegimitation', 
+                                r'Abweisung der Verwaltungsgerichtsbeschwerde', 
+                                r'Abweisung der [Vv]erwaltungsrechtlichen Klage',
+                                r'Abweisung des Gesuches um Wiederherstellung der Frist',
+                                r'In concreto Abweisung der Berufung der Dienstbarkeitsbelasteten'],
+            Judgment.WRITE_OFF: [r'Abschreibung der Beschwerde vom Geschäftsprotokoll ']
+        }
+    }
+
+    # In canton UR, de only
+    if namespace['language'] != Language.DE:
+        raise ValueError(f'This function is only implemented for {Language.DE} so far.')
+
+    def getJudgments(text: str, judgment_markers, debug=False) -> Optional[List[Judgment]]:
+        """
+        Get the judgment outcomes based on a regex dictionary for a given section string.
+        :param text:               the text string of the section, usually Section.RULINGS
+        :param judgment_markers:   the regex dicttionary for the different judgment outcomes
+        :param debug:              if set to True, prints debug output to console
+        :return:                   the list of judgment outcomes
+        """
+        
+        judgments = []
+        for lang in judgment_markers:
+            for judg in judgment_markers[lang]:
+                for reg in (judgment_markers[lang])[judg]:
+                    matches = re.finditer(reg, text, re.MULTILINE)
+                    for num, match in enumerate(matches, start=1):
+                        from_, to_, match_text  = match.start(), match.end(), match.group()
+                        judgments.append(judg)
+                        if debug:
+                            print(f'{judg} ("{match.group()}") at {to_/len(text):.1%} of the section.')
+                        
+        return judgments
+    
+    # find all judgments in the rulings
+    judgments = getJudgments(rulings, all_section_markers)
+    
+    # validate
+    if len(judgments) > 1:
+        message = f"For the decision {namespace['html_url']} several rulings where found from the rulings: {rulings}"
+        raise ValueError(message)
+    if len(judgments) == 0:
+        message = f"For the decision {namespace['html_url']} no main ruling was found from the rulings: {rulings}"
+        raise ValueError(message)
+
+    return judgments
+    
 
 def CH_BGer(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     """
@@ -285,6 +349,7 @@ def search_rulings(rulings: str, start: str, end: str):
 # This needs special care
 # def CH_BGE(rulings: str, namespace: dict) -> Optional[List[str]]:
 #    return CH_BGer(rulings, namespace)
+
 
 def prepare_judgment_markers(all_judgment_markers: dict, namespace: dict) -> dict: 
     judgment_markers = all_judgment_markers[namespace['language']]

@@ -1,6 +1,7 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import re
 import json
+from scrc.enums.title import Title
 from scrc.data_classes.legal_counsel import LegalCounsel
 from scrc.data_classes.procedural_participation import ProceduralParticipation
 from scrc.data_classes.proceedings_party import ProceedingsParty
@@ -94,6 +95,7 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
             pos = re.search(current_regex, text)
             if pos:
                 lawyer = LegalCounsel(name = "")
+
                 if not namespace['language'] == Language.IT:
                     lawyer.gender = gender
                 name_match = re.search(lawyer_name[namespace['language']], text[pos.span()[1]:])
@@ -177,7 +179,7 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
 
     header_parts = re.split('|'.join(second_party_start_regex), header)
     if len(header_parts) < 2:
-        raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url']}")
+        raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url'] or namespace['pdf_url']}")
     party = ProceduralParticipation()
     plaintiff_representation = add_representation(header_parts[0])
     defendant_representation = add_representation(header_parts[1])
@@ -306,6 +308,10 @@ def ZH_Verwaltungsgericht(sections: Dict[Section, str], namespace: dict) -> Opti
 
 
 def get_regex():
+    """
+    Returns various regexes used for different spiders.
+    """
+    
     information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen'
     second_party_start_regex = [
         r'gegen',
@@ -323,7 +329,7 @@ def get_regex():
         Gender.UNKNOWN: [r'RA']
     }
     lawyer_name = {
-        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[\w\séäöü\.]*?(?=(,)|($)| Gegen| und)'
+        Language.DE: r'((Dr\.\s)|(Prof\.\s))*[A-Za-zÀ-ž0-9\s\.\-\_\']*?(?=(,)|($)| Gegen| und)'
     }
 
     representation_start = '|'.join(representation_start)
@@ -356,6 +362,34 @@ def get_participation_from_header(header: str, information_start_regex: dict, na
         header = header[:end_pos.span()[0]]
     return header
 
+def search_titles(text: str) -> Tuple[list, str]:
+    """
+    Search for academic titles in a string.
+    :param text:    the string to search
+    :return:        a list of titles, and the rest of the text without the titles
+    """
+    titles = []
+    # et is not a title but used to combine different titles
+    text = text.replace(' et ', ' ')
+
+    def find_titles(title, enum_title, str):
+        if title.lower() in str.lower():
+            titles.append(enum_title)
+            str = re.sub(title, '', str, flags=re.IGNORECASE)
+        return str
+
+    # check if any value of the enum Title is in the text
+    for t in Title:
+        text = find_titles(t.value, t, text)
+
+    # also check alternative spellings
+    text = find_titles('jur.', Title.IUR, text)
+    text = find_titles('LLM', Title.LLM, text)
+    text = find_titles('LL. M.', Title.LLM, text)
+
+    text.strip()
+    return titles, text
+    
 
 def search_lawyers(text: str, lawyer_representation: dict, lawyer_name: dict, namespace: dict) -> List[LegalCounsel]:
     """
@@ -376,11 +410,19 @@ def search_lawyers(text: str, lawyer_representation: dict, lawyer_name: dict, na
             if not namespace['language'] == Language.IT:
                 lawyer.gender = gender
             name_match = re.search(lawyer_name[namespace['language']], text[pos.span()[1]:])
-            if name_match and not text[pos.span()[1]] == ',':
-                lawyer.name = name_match.group()
+            if name_match and name_match.end() > name_match.start() and not text[pos.span()[1]] == ',':
+                titles, name = search_titles(name_match.group())
+                lawyer.titles = titles if titles else None
+                lawyer.name = name
             else:
                 name_match = re.search(lawyer_name[namespace['language']], text[:pos.span()[0]])
-                lawyer.name = name_match.group() if name_match else None
+                if name_match:
+                    titles, name = search_titles(name_match.group())
+                    lawyer.titles = titles if titles else None
+                    lawyer.name = name
+                else: 
+                    lawyer.name = None
+                # lawyer.name = name_match.group() if name_match else None
             lawyer.name = lawyer.name.strip()
             lawyer.legal_type = LegalType.NATURAL_PERSON
             lawyers.append(lawyer)
@@ -402,6 +444,11 @@ def add_representation(text: str, representation_start: dict, lawyer_representat
     start_positions = tuple(re.finditer(representation_start, text))
     if not start_positions:
         return []
+    
+    # If a string like 'vertreten durch [..' is encountered, it can be assumed that the representation has been redacted, and searching for a representation could lead to false positive.
+    if re.search(r'vertreten durch \[[\s]*\.\.', text):
+        return []
+
 
     for match_index in range(len(start_positions)):
         start_pos = start_positions[match_index].span()[1]
@@ -415,7 +462,7 @@ def add_representation(text: str, representation_start: dict, lawyer_representat
             representations.extend(lawyers)
             continue
 
-        name_match = re.search(r'[A-Z][\w\s\.\-\']*(?=\b)', current_text)
+        name_match = re.search(r'[A-Z][A-Za-zÀ-ž0-9\s\.\-\_\'\&]*(?=\b)', current_text)
         if name_match:
             name = name_match.group()
             if name.startswith('Me'):
@@ -427,7 +474,7 @@ def add_representation(text: str, representation_start: dict, lawyer_representat
                 lawyer.gender = Gender.UNKNOWN
             representations.append(lawyer)
             continue
-        name_match = re.search(r'[A-Z][\w\s\.\-\']*', current_text)
+        name_match = re.search(r'[A-Z][A-Za-zÀ-ž0-9\s\.\-\_\'\&]*', current_text)
         if name_match:
             name = name_match.group()
             lawyer = LegalCounsel(name.strip(), legal_type=LegalType.LEGAL_ENTITY)
@@ -496,7 +543,7 @@ def get_procedural_participation(header: str, namespace: dict, second_party_star
     """
     header_parts = re.split('|'.join(second_party_start_regex), header)
     if len(header_parts) < 2:
-        raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url']}")
+        raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url'] or namespace['pdf_url']}")
     party = ProceduralParticipation()
     plaintiff_representation = add_representation(header_parts[0], representation_start, lawyer_representation, lawyer_name, namespace)
     defendant_representation = add_representation(header_parts[1], representation_start, lawyer_representation, lawyer_name, namespace)

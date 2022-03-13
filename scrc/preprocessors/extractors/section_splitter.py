@@ -125,15 +125,17 @@ class SectionSplitter(AbstractExtractor):
         query = f"SELECT count({name}) FROM {lang} WHERE {self.get_database_selection_string(spider, lang)} AND {name} <> ''"
         return pd.read_sql(query, engine.connect())['count'][0]
 
-    """log_coverage for users without database write privileges, parses results from json logs
-       allows to print coverage half way through with the coverage for the parsed chunks still being valid"""
+    
     def log_coverage_from_json(self, engine: Engine, spider: str, lang: str, batch_info: dict) -> None:
+        """ log_coverage for users without database write privileges, parses results from json logs
+       allows to print coverage half way through with the coverage for the parsed chunks still being valid"""
         
         if self.total_to_process == 0:
             # no entries to process
             return
         
         path = Path.joinpath(self.output_dir, os.getlogin(), spider, lang, batch_info['uuid'])
+
         
         # summary: all collected elements and the count of found sections, initialized to zero
         summary = { 'total_collected': 0 }
@@ -142,6 +144,8 @@ class SectionSplitter(AbstractExtractor):
         
         # retrieve all chunks iteratively to limit memory usage
         for chunk in range(batch_info['chunknumber']):
+            if not (path/f"{chunk}.json").exists():
+                continue
             df_chunk = pd.read_json(str(path / f"{chunk}.json"))
             summary['total_collected'] += df_chunk.shape[0]
             for section in Section:
@@ -214,7 +218,7 @@ class SectionSplitter(AbstractExtractor):
         Override method to handle section data and paragraph data individually
         # TODO consider removing the overriding function altogether with new db
         self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
-        namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
+        namespace = series[['date', 'html_url', 'pdf_url', 'court', 'id']].to_dict()
         namespace['language'] = Language(series['language'])
         data = self.get_required_data(series)
         assert data
