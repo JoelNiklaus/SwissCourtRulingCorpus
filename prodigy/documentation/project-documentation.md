@@ -126,7 +126,7 @@ To run a task, use `run.sh` in the `/prodigy` folder. Pass it the desired parame
 your task as a webserver. Access it at http://fdn-sandbox3.inf.unibe.ch:8080/. Login with the credentials configured in the Dockerfile ("admin": "password")
 If your changes don't seem to have an impact you might want to rebuild the image via
 ```shell
-build -t prodigy_v1_nina .
+docker build -t prodigy_v1_nina .
 ```
 ### Workflow
 - If you change something in a recipe and want to test it use ``bash develop.sh`` and then the appropriate ``prodigy``command.
