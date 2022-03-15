@@ -4,7 +4,7 @@ from psycopg2 import sql
 import sys
 import os
 
-sys.path.append('../')
+sys.path.append('../../')
 from scrc.utils.main_utils import get_legal_area
 sys.path.pop()
 
@@ -68,8 +68,8 @@ def db_stream(language:str)->list:
 
     # prodigy database connection configuration string, to fetch processed ids
 
-    query = sql.SQL("SELECT id, chamber, date, facts, considerations, rulings, judgements "\
-        "FROM {} WHERE (date between '2015-01-01' AND '2020-12-31')"\
+    query = sql.SQL("SELECT id, chamber, date, html_url, pdf_url, facts, considerations, rulings, judgements "\
+        "FROM {} WHERE (date between '2015-01-01' AND '2020-12-31') "\
         "AND NOT (judgements @> '[\"inadmissible\"]' OR judgements @> '[\"partial_approval\"]' "\
         " OR judgements @> '[\"partial_dismissal\"]'OR judgements@> '[\"write_off\"]'"\
         "OR judgements @> '[\"unification\"]')"\
@@ -88,8 +88,13 @@ def db_stream(language:str)->list:
                 if not rows:
                     break
                 for row in rows:
-                    idx, chamber, date, facts, considerations, rulings, judgements  = row
-                    res = {"id": idx, "text": facts, "legal_area": get_legal_area(chamber), "date": int(date.year), "considerations": considerations, "ruling":rulings, "judgment":judgements }
+                    idx, chamber, date, html_url, pdf_url, facts, considerations, rulings, judgements  = row
+                    if str(html_url) != "" :
+                        link = html_url
+                    if str(pdf_url) !="":
+                        link = pdf_url
+                    res = {"id": idx, "text": facts, "legal_area": get_legal_area(chamber), "date": int(date.year), "link":str(link), "considerations": considerations, "ruling":rulings, "judgment":judgements }
+                    link =""
                     if len(res["judgment"]) == 1 and res["legal_area"] in LEGAL_AREAS:
                         unfiltered_dataset.append(res)
 
@@ -116,6 +121,9 @@ if __name__ == '__main__':
             print(usage)
     except AssertionError:
         print(usage)
+
+
+
 
 
 
