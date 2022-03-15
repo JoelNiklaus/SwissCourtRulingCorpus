@@ -9,29 +9,13 @@ import psycopg2
 from psycopg2 import sql
 from typing import List, Optional
 import os
-
+from prodigy.components.db import connect
 # prodigy facts-annotation de -F recipes/facts_annotation.py
 
 ## Docs
 #
 # This recipe is used to load facts, considerations, rulings and judgment directly from the scrc database configured in the environment variables.
 # The recipe serves the data to the prodigy app, allowing to annotate the facts by considering the consideration and judgment.
-
-import ujson
-from pathlib import Path
-
-def read_jsonl(file_path):
-    """Read a .jsonl file and yield its contents line by line.
-    file_path (unicode / Path): The file path.
-    YIELDS: The loaded JSON contents of each line.
-    """
-    with Path(file_path).open('r', encoding='utf8') as f:
-        for line in f:
-            try:  # hack to handle broken jsonl
-                yield ujson.loads(line.strip())
-            except ValueError:
-                continue
-
 
 # helper function for recipe command line input
 def split_string(string):
@@ -51,10 +35,11 @@ def facts_annotation(language:str):
   # define labels for annotation
   labels = ["Supports judgment","Opposes verdict"]
 
+
   dataset = "annotations_"+language
 
   # define stream (generator)
-  stream = JSONL("datasets/annotation_input_set_"+language+".jsonl")
+  stream = JSONL("./datasets/annotation_input_set_"+language+".jsonl")
 
   # Tokenize the incoming examples and add a "tokens" property to each
   # example. Also handles pre-defined selected spans. Tokenization allows
