@@ -6,7 +6,7 @@
   "db_settings": {
     "sqlite": {
       "name": "annotations.db",
-      "path": "annotations/"
+      "path": "./annotations"
     }},
   "feed_overlap": false,
   "show_stats": true,
