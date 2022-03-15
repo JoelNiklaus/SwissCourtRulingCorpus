@@ -18,6 +18,9 @@
 - Trying to display the metadata (ruling, judgments) for the law students annotation (we are only displaying the facts section for now)
 - Reading more on topic
 ## What are your current struggles/problems?
-
+- Some cases may not be that good because we chose shortest first
+- Should we also annotate considerations, because some section splitting was no good
+- Lösung mit kommentarfeld und dann diese ids einzeln entfernen?
+- Run prodigy in background
 ## What could we do to help you overcome them?
 - Where to dump the results, which column which table? de-> facts?
