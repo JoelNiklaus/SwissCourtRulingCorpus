@@ -16,7 +16,7 @@ class LegalCounsel(Person):
             return False
         return self.legal_type == other.legal_type and self.name == other.name and self.gender == other.gender
 
-    def __neq__(self, other) -> bool:
+    def __ne__(self, other) -> bool:
         return not self.__eq__(other)
 
     def __hash__(self) -> int:
