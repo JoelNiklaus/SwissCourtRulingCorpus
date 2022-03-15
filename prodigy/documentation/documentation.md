@@ -135,8 +135,6 @@ build -t prodigy_v1_nina .
 - Commit from local disk via PyCharm Github Tool
 
 ## ToDos
-- Please refrence https://docs.google.com/spreadsheets/d/16as87DkqozifgGYGFfWNR7o0Un1rd2jBqSYz6C-9eq0/edit#gid=0
-a list will be added here.
 - [] For now the results are dumped into annotations.db, find way to dump them in the scrc db
 - [] Get the correct cases which are not yet annotated and fulfill all the requirements discussed above
 
