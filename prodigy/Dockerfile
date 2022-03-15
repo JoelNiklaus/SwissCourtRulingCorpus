@@ -13,8 +13,11 @@ COPY wheel/* ./wheel/
 RUN pip install prodigy -f ./wheel/
 RUN rm -rf ./wheel/*
 
+RUN python -m spacy download de_core_news_sm
 COPY prodigy.json .
 COPY recipes ./recipes/
+COPY datasets ./datasets/
+COPY annotations ./annotations/
 
 ENV PRODIGY_HOME /app
 ENV PRODIGY_LOGGING "verbose"
