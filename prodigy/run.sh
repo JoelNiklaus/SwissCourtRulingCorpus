@@ -10,10 +10,10 @@ usage=$(cat <<- EOF
     - language:    the language to use for the server, e.g. 'de'
 
   Usage:
-    ./run.sh task language
+    -bash run.sh task language
 
   Example:
-    ./run.sh facts-annotation de
+    - bash run.sh facts-annotation de
 
   Consult /prodigy/README.md for more information.
 EOF
@@ -32,7 +32,7 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
   case "$task" in
     "facts-annotation")
       printf "${SUCCESS}Starting command in container, to stop use Ctrl+C.\n${NC}"
-      docker exec -it prodigy_v1_nina prodigy "$task" "$language" -F ./recipes/facts_annotation.py
+      docker exec -it -d prodigy_v1_nina prodigy "$task" "$language" -F ./recipes/facts_annotation.py
       ;;
     *)
       printf "${WARN}Unknown task '$task' given.\n\n${NC}${usage}\n"

@@ -111,10 +111,14 @@ for entire annotations with both law students ==> calculate inter annotator agre
 
 ## Docker for Dummies
 
-Check if container `prodigy_v1_nina` is running:
+Check if container `prodigy_v1_nina` is exists:
 ```shell
 docker container ls -a
 ``
+Check which container is running:
+```shell
+docker container ls
+```
 Run the following command to remove Docker container:
 ```shell
 docker stop <Container_ID>
@@ -137,5 +141,7 @@ build -t prodigy_v1_nina .
 ## ToDos
 - [] For now the results are dumped into annotations.db, find way to dump them in the scrc db
 - [] Get the correct cases which are not yet annotated and fulfill all the requirements discussed above
+- [] Remove hardcoded credentials for prodigy access
+
 
 

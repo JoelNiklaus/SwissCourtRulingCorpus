@@ -1,0 +1,1 @@
+- Prodigy is run in the background and if started can be accessed on port 18080
