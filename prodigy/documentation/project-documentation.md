@@ -142,6 +142,8 @@ docker build -t prodigy_v1_nina .
 - [] For now the results are dumped into annotations.db, find way to dump them in the scrc db
 - [] Get the correct cases which are not yet annotated and fulfill all the requirements discussed above
 - [] Remove hardcoded credentials for prodigy access
+- Write DB entry error to adrian
+- Pull request for joel
 
 
 
