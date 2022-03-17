@@ -21,6 +21,8 @@ COPY annotations ./annotations/
 
 ENV PRODIGY_HOME /app
 ENV PRODIGY_LOGGING "verbose"
+ENV PRODIGY_BASIC_AUTH_USER "admin"
+ENV PRODIGY_BASIC_AUTH_PASS "password"
 
 EXPOSE 8080/tcp
 
