@@ -79,7 +79,7 @@ def db_stream(language: str) -> list:
                     " OR judgements @> '[\"partial_dismissal\"]'OR judgements@> '[\"write_off\"]'" \
                     "OR judgements @> '[\"unification\"]')" \
                     "AND NOT (judgements @>'null')" \
-                    "AND NOT (CHAR_LENGTH(facts)=0)" \
+                    "AND (CHAR_LENGTH(facts)>200)" \
                     "AND NOT (CHAR_LENGTH(rulings)=0 )" \
                     "AND NOT (CHAR_LENGTH(considerations)=0)" \
                     "AND (chamber IS NOT NULL)" \
