@@ -90,7 +90,7 @@ On scrc you can select all spiders using the SQL query ``SELECT DISTINCT spider 
         - 3 Languages (DE, FR, IT)
         - We choose 3 law areas
         - 2 outcomes (approval, dismissal)
-        - 7 years, we take the same amount of cases from each year, if we distribute the cases from 2015 - 2021 (=> 7 year)
+        - 6 years, we take the same amount of cases from each year, if we distribute the cases from 2015 - 2021 (=> 7 year)
     ==> One ruling per dimensions 3 (language) * 3 (law area) * 2 (outcome) * 6 (year) * 1 (number of rulings) = 108 cases
 - Not all legal areas: penal law and other law area where model was second best (social law), maybe also include civil law ==> Which areas
 - On the legal area, we talked about penal law which others (aka where was the model second best)? And how do I find these cases in the DB? (Do you have a list of spiders or a certain column where this is defined (I searched the DB and did not find a good answer)?
@@ -111,10 +111,14 @@ for entire annotations with both law students ==> calculate inter annotator agre
 
 ## Docker for Dummies
 
-Check if container `prodigy_v1_nina` is running:
+Check if container `prodigy_v1_nina` is exists:
 ```shell
 docker container ls -a
 ``
+Check which container is running:
+```shell
+docker container ls
+```
 Run the following command to remove Docker container:
 ```shell
 docker stop <Container_ID>
@@ -126,7 +130,7 @@ To run a task, use `run.sh` in the `/prodigy` folder. Pass it the desired parame
 your task as a webserver. Access it at http://fdn-sandbox3.inf.unibe.ch:8080/. Login with the credentials configured in the Dockerfile ("admin": "password")
 If your changes don't seem to have an impact you might want to rebuild the image via
 ```shell
-build -t prodigy_v1_nina .
+docker build -t prodigy_v1_nina .
 ```
 ### Workflow
 - If you change something in a recipe and want to test it use ``bash develop.sh`` and then the appropriate ``prodigy``command.
@@ -135,9 +139,11 @@ build -t prodigy_v1_nina .
 - Commit from local disk via PyCharm Github Tool
 
 ## ToDos
-- Please refrence https://docs.google.com/spreadsheets/d/16as87DkqozifgGYGFfWNR7o0Un1rd2jBqSYz6C-9eq0/edit#gid=0
-a list will be added here.
 - [] For now the results are dumped into annotations.db, find way to dump them in the scrc db
 - [] Get the correct cases which are not yet annotated and fulfill all the requirements discussed above
+- [] Remove hardcoded credentials for prodigy access
+- Write DB entry error to adrian
+- Pull request for joel
+
 
 
