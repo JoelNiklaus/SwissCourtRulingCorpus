@@ -54,13 +54,13 @@ def facts_annotation(language:str):
     "stream": stream,
     "config": {
       "blocks": [
-        {"view_id": "html", "html": "<h2 style='float:left'>Facts</h2><a style='float:right' href='{{link}}'>Got to the Court Ruling</strong>"},
+        {"view_id": "html", "html_template": "<h2 style='float:left'>Facts</h2><a style='float:right' href='{{link}}'>Got to the Court Ruling</a>"},
         {"view_id": "spans_manual", "lang": nlp.lang, "labels": labels},
         {"view_id": "html", "html_template": "<h2 style='float:left'>Considerations</h2>"},
         {"view_id": "html", "html_template":"<p style='hyphens: auto;   text-align: justify'>{{considerations}}</>"},
         {"view_id": "html", "html_template":"<h2 style='float:left'>Ruling</h2><br>"},
-        {"view_id": "html", "html_template":"<p style='hyphens: auto;   text-align: justify'>{{ruling}}</p>"}
-        # Explain your decision field? {"view_id": "text_input", "field_rows": 3},
+        {"view_id": "html", "html_template":"<p style='hyphens: auto;   text-align: justify'>{{ruling}}</p>"},
+        {"view_id": "text_input","field_label":"Annotator comment on this ruling", "field_placeholder": "Type here...","field_rows": 3},
       ]
     }
   }
