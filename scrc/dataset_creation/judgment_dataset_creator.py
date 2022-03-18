@@ -10,7 +10,7 @@ from scrc.utils.main_utils import get_config
 
 class JudgmentDatasetCreator(DatasetCreator):
     """
-    Creates a dataset with the facts or considerations as input and the judgments as labels
+    Creates a dataset_scrc with the facts or considerations as input and the judgments as labels
     """
 
     def __init__(self, config: dict):
@@ -31,7 +31,7 @@ class JudgmentDatasetCreator(DatasetCreator):
     def get_dataset(self, feature_col, lang, save_reports):
         df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'judgments', lang, save_reports)
 
-        # Delete cases with "Nach Einsicht" from the dataset because they are mostly inadmissible or otherwise dismissal
+        # Delete cases with "Nach Einsicht" from the dataset_scrc because they are mostly inadmissible or otherwise dismissal
         # => too easily learnable for the model (because of spurious correlation)
         if self.with_inadmissible:
             df = df[~df[feature_col].str.startswith('Nach Einsicht')]

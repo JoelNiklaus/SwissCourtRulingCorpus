@@ -49,7 +49,7 @@ def facts_annotation(language:str):
   stream = add_tokens(nlp, stream, use_chars=None)
 
   return {
-    "dataset": dataset ,# Name of dataset to save annotations
+    "dataset_scrc": dataset ,# Name of dataset_scrc to save annotations
     "view_id": "blocks",
     "stream": stream,
     "config": {

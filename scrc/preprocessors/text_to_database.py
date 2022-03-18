@@ -61,7 +61,7 @@ class TextToDatabase(AbstractPreprocessor):
         self.logger = get_logger(__name__)
 
     def build_dataset(self) -> None:
-        """ Builds the dataset for all the spiders """
+        """ Builds the dataset_scrc for all the spiders """
         self.logger.info("Started extracting text and metadata from court rulings files")
 
         processed_file_path = self.progress_dir / "spiders_extracted.txt"
@@ -107,9 +107,9 @@ class TextToDatabase(AbstractPreprocessor):
                 conn.execute(f"CREATE INDEX IF NOT EXISTS {lang}_{index} ON {lang}({index})")
 
     def build_spider_dataset(self, spider: str) -> None:
-        """ Builds a dataset for a spider """
+        """ Builds a dataset_scrc for a spider """
         spider_dir = self.spiders_dir / spider
-        self.logger.info(f"Building spider dataset for {spider}")
+        self.logger.info(f"Building spider dataset_scrc for {spider}")
         spider_dict_list = self.build_spider_dict_list(spider_dir)
 
         self.logger.info("Building pandas DataFrame from list of dicts")
