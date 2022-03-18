@@ -65,7 +65,7 @@ Antwort: Ja
 
 class Doc2DocIRDatasetCreator(DatasetCreator):
     """
-    Creates a dataset for information retrieval with the citations serving as ground truth for relevance scores
+    Creates a dataset_scrc for information retrieval with the citations serving as ground truth for relevance scores
     """
 
     # usefulness of law articles still unclear.

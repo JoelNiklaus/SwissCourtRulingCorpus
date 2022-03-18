@@ -31,7 +31,7 @@ def write_JSONL(filename: str, data: list):
 
 # Filters dictionary list using unique tuple as condition
 # Asserts a list length smaller than 36
-# Asserts uniqueness of dataset entries
+# Asserts uniqueness of dataset_scrc entries
 # Returns filtered list
 def filter_dataset(data: list) -> list:
     tuple_list = []
@@ -108,8 +108,8 @@ def db_stream(language: str) -> list:
 
 
 if __name__ == '__main__':
-    usage = "Arguments:\n - language: the language you want to extract the dataset from, e.g. the relation de. " \
-            "Type -all to create dataset for all the possible languages. \n " \
+    usage = "Arguments:\n - language: the language you want to extract the dataset_scrc from, e.g. the relation de. " \
+            "Type -all to create dataset_scrc for all the possible languages. \n " \
             "Usage:\n python datasetCreation.py language\n" \
             "Example:\n python datasetCreation.py de"
     try:
