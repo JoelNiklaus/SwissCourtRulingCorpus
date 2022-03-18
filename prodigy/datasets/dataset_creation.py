@@ -1,12 +1,11 @@
+import os
+import sys
 import json
 import psycopg2
 from psycopg2 import sql
-import sys
-import os
 
 sys.path.append('../../')
 from scrc.utils.main_utils import get_legal_area
-
 sys.path.pop()
 
 # Load environment variable from .env
