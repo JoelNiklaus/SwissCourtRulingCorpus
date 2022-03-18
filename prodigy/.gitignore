@@ -1,6 +1,4 @@
 .env
-documentation/project-documentation.md
-documentation/prodigy_v1.json
-documentation/judgment_outcome.py
+documentation
 wheel
 datasets/*.jsonl
