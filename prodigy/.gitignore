@@ -2,3 +2,5 @@
 documentation
 wheel
 datasets/*.jsonl
+datasets/dataset_scrc
+datasets/sjp
