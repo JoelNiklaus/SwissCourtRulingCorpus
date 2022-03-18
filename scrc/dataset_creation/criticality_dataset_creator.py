@@ -16,7 +16,7 @@ from scrc.utils.main_utils import get_config
 
 class CriticalityDatasetCreator(DatasetCreator):
     """
-    Creates a dataset with the text as input and whether it reaches the supreme court or not as labels
+    Creates a dataset_scrc with the text as input and whether it reaches the supreme court or not as labels
     """
 
     def __init__(self, config: dict):
