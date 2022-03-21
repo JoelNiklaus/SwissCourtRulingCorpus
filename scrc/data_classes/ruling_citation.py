@@ -34,5 +34,8 @@ class RulingCitation(Citation):
             return self.year == other.year and self.volume == other.volume and self.page_number == other.page_number
         return False
 
+    def __ne__(self, other) -> bool:
+        return not self.__eq__(other)
+
     def __hash__(self):
         return hash(tuple(sorted(self.__dict__.items())))

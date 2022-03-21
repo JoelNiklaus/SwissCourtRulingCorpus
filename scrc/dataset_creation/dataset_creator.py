@@ -161,6 +161,8 @@ class DatasetCreator(AbstractPreprocessor):
         datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
 
+        # TODO put all languages into the same dataset
+
         if datasets:
             lang_splits = {lang: dict() for lang in self.languages}
             for feature_col in datasets:
