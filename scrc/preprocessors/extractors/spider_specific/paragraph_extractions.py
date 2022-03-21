@@ -16,6 +16,17 @@ def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     return get_pdf_paragraphs(decision)
 
 
+def NE_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    divs = decision.find_all(
+        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
+    return get_paragraphs(divs)
+
+
+def CH_BGE(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    divs = decision.find_all("div", class_="content")
+    return get_paragraphs(divs)
+
+
 def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     divs = decision.find_all(
         "div", class_=['WordSection1', 'Section1', 'WordSection2'])
@@ -54,12 +65,13 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
         "div", class_=['WordSection1', 'Section1', 'WordSection2'])
     return get_paragraphs(divs)
 
+
 def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     return get_pdf_paragraphs(decision)
 
+
 def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     return get_pdf_paragraphs(decision)
-
 
 
 def get_pdf_paragraphs(soup: str) -> list:
