@@ -108,35 +108,45 @@ def string_contains_one_of_list(string: str, lst: list):
 
 
 def int_to_roman(num: int) -> str:
-    """
+    """https://www.w3resource.com/python-exercises/class-exercises/python-class-exercise-1.php
     Converts an integer to a roman numeral string
     :param num: the input number
-    :return:    the output roman numeral string
-    """
-    roman = OrderedDict()
-    roman[1000] = "M"
-    roman[900] = "CM"
-    roman[500] = "D"
-    roman[400] = "CD"
-    roman[100] = "C"
-    roman[90] = "XC"
-    roman[50] = "L"
-    roman[40] = "XL"
-    roman[10] = "X"
-    roman[9] = "IX"
-    roman[5] = "V"
-    roman[4] = "IV"
-    roman[1] = "I"
+    :return:    the output roman numeral string"""
+    lookup = [
+        (1000, 'M'),
+        (900, 'CM'),
+        (500, 'D'),
+        (400, 'CD'),
+        (100, 'C'),
+        (90, 'XC'),
+        (50, 'L'),
+        (40, 'XL'),
+        (10, 'X'),
+        (9, 'IX'),
+        (5, 'V'),
+        (4, 'IV'),
+        (1, 'I'),
+    ]
+    res = ''
+    for (n, roman) in lookup:
+        (d, num) = divmod(num, n)
+        res += roman * d
+    return res
 
-    def roman_num(num):
-        for r in roman.keys():
-            x, y = divmod(num, r)
-            yield roman[r] * x
-            num -= (r * x)
-            if num <= 0:
-                break
 
-    return "".join([a for a in roman_num(num)])
+def roman_to_int(s: str) -> int:
+    """https://www.w3resource.com/python-exercises/class-exercises/python-class-exercise-2.php
+    Converts a roman numeral string to an integer
+    :param num: the input roman numeral string
+    :return:    the output number"""
+    rom_val = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
+    int_val = 0
+    for i in range(len(s)):
+        if i > 0 and rom_val[s[i]] > rom_val[s[i - 1]]:
+            int_val += rom_val[s[i]] - 2 * rom_val[s[i - 1]]
+        else:
+            int_val += rom_val[s[i]]
+    return int_val
 
 
 # according to BFS: https://en.wikipedia.org/wiki/Subdivisions_of_Switzerland
