@@ -52,6 +52,7 @@ class AbstractPreprocessor:
         self.spiders_dir = self.create_dir(self.data_dir, config['dir']['spiders_subdir'])
         self.spacy_subdir = self.create_dir(self.data_dir, config['dir']['spacy_subdir'])
         self.datasets_subdir = self.create_dir(self.data_dir, config['dir']['datasets_subdir'])
+        self.tmp_subdir = self.create_dir(self.data_dir, config['dir']['tmp_subdir'])
 
         self.corpora_subdir = self.create_dir(self.data_dir, config['dir']['corpora_subdir'])
         self.slc_subdir = self.create_dir(self.corpora_subdir, config['dir']['slc_subdir'])
