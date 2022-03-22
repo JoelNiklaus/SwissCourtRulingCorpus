@@ -13,11 +13,6 @@ else
     echo "No .env file found. Please create one containing DB_USERNAME and DB_PASSWORD."
     exit 1
 fi
-echo "Stopping and removing container prodigy_v1_nina "
-docker stop prodigy_v1_nina
-docker rm prodigy_v1_nina
-echo "Building image"
-docker build -t prodigy_v1_nina .
 echo "Starting container in idle mode..."
 docker run -d \
   --name prodigy_v1_nina \
