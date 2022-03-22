@@ -1,3 +1,5 @@
+from operator import attrgetter
+
 from scrc.data_classes.citation import Citation
 from scrc.data_classes.law import Law
 from scrc.utils.law_util_singleton import LawUtilSingleton
@@ -11,7 +13,10 @@ class LawCitation(Citation):
     numeral: int = None  # optional
     law: Law
 
-    def __init__(self, citation_str, law_abbrs, language="de"):
+    # compare first by law, then by article, then by paragraph and finally by numeral
+    comparison_attributes = attrgetter("law", "article", "paragraph", "numeral")
+
+    def __init__(self, citation_str, language, law_abbrs):
         self.language = language
         if language == "de":
             self.article_str = "Art."
@@ -62,6 +67,18 @@ class LawCitation(Citation):
             str_repr += f" {self.numeral_str} {self.numeral}"
         str_repr += f" {self.law}"
         return str_repr
+
+    def __lt__(self, other):
+        return self.comparison_attributes(self) < self.comparison_attributes(other)
+
+    def __le__(self, other):
+        return self.comparison_attributes(self) <= self.comparison_attributes(other)
+
+    def __gt__(self, other):
+        return self.comparison_attributes(self) > self.comparison_attributes(other)
+
+    def __ge__(self, other):
+        return self.comparison_attributes(self) >= self.comparison_attributes(other)
 
     def __eq__(self, other):
         """Overrides the default implementation"""

@@ -1,8 +1,10 @@
-import configparser
-import inspect
+import itertools
 from collections import Counter
 
 from bs4 import BeautifulSoup
+
+from sklearn.feature_extraction.text import TfidfTransformer
+from tqdm import tqdm
 
 from scrc.data_classes.law_citation import LawCitation
 from scrc.data_classes.ruling_citation import RulingCitation
@@ -10,9 +12,9 @@ from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import numpy as np
 import pandas as pd
+from pandarallel import pandarallel
 
 from scrc.utils.main_utils import get_config, string_contains_one_of_list
-from scrc.utils.term_definitions_converter import TermDefinitionsConverter
 
 """
 BGE volumes
@@ -85,10 +87,18 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         self.dataset_name = "doc2doc_ir"
         self.feature_cols = ['facts', 'considerations']
 
+        self.dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
+        if self.debug:
+            # make sure that we don't overwrite progress in the real directory
+            self.dataset_folder = self.create_dir(self.tmp_subdir, self.dataset_name)
+
         self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
 
         self.load_rulings()
         self.load_law_articles()
+
+        pandarallel.initialize(progress_bar=True)
+        tqdm.pandas()
 
     def load_rulings(self):
         self.logger.info(f"Loading reference rulings")
@@ -115,8 +125,10 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         laws = pd.read_json(self.corpora_subdir / "lexfind.jsonl", lines=True)
         laws = laws[laws.canton.str.contains("ch")]  # only federal laws so far
         laws = laws[laws.abbreviation.str.len() > 1]  # only keep the ones with an abbreviation
+        laws.abbreviation = laws.abbreviation.str.strip()
 
         self.law_abbrs = laws[["language", "abbreviation", "sr_number"]]
+        print(self.law_abbrs.abbreviation.tolist())
 
         self.available_laws = set(laws.abbreviation.unique().tolist())
         self.logger.info(f"Found {len(self.available_laws)} laws")
@@ -160,35 +172,18 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         # df = df[df.types.map(len) >= 1]  # we only want the decisions which actually cite something
         # df = df.query('"bge" in types')  # ensure that we only have BGE citations
 
-        df['rulings'] = df.citations.apply(self.get_ruling_citations, lang=lang)
-        df['laws'] = df.citations.apply(self.get_law_citations, lang=lang)
-        df = df.dropna(subset=["rulings", "laws"], how="all")  # we cannot use the ones which have no citations
+        # df = df.dropna(subset=["rulings", "laws"], how="all")  # we cannot use the ones which have no citations
 
-        self.logger.info("Computing relevance scores for documents in collection")
-        relevance_lambda = lambda cits: [(cit_tuple[0], self.compute_relevance_score(cit_tuple))
-                                         for cit_tuple in cits] if cits else None
-        df.rulings = df.rulings.apply(relevance_lambda)
-        df.laws = df.laws.apply(relevance_lambda)
+        self.process_citation_type("rulings", df, lang)
+        self.process_citation_type("laws", df, lang)
 
         df = df.drop(['citations'], axis=1)  # we don't need this anymore
-
-        query_path = self.create_dir(self.datasets_subdir, self.dataset_name) / "queries.jsonl"
-        self.logger(f"Saving queries to {query_path}")
-        df.to_json(query_path, lines=True)
 
         exit()
 
         # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
 
-        folder = self.create_dir(self.datasets_subdir, self.dataset_name)
-
         # TODO move this to the plot_custom function so that we can save it for all languages
-
-        # calculate most common BGE citations
-        most_common_rulings = self.get_most_common_citations(df, folder, 'rulings')
-
-        # calculate most common laws
-        most_common_laws = self.get_most_common_citations(df, folder, 'laws')
 
         def mask_citations(series, law_mask_token="<ref-law>", ruling_mask_token="<ref-ruling>",
                            only_replace_most_common_citations=False):
@@ -213,46 +208,96 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         df['label'] = df.rulings  # the label is just the rulings for now
         return df, self.available_bges
 
-    def get_ruling_citations(self, citations, lang):
-        # get BGEs by file_number
-        cits = []
-        for citation in citations['rulings']:
-            cit = citation['text']
-            cit = ' '.join(cit.split())  # remove multiple whitespaces inside
-            try:
-                ruling_cit = RulingCitation(cit, lang)
-            except ValueError as ve:
-                self.logger.warning(ve)
-                continue
-            # only actually include citations that we can find in our corpus
-            if str(ruling_cit) in self.available_bges:
-                cits.append(ruling_cit)
-        if cits:  # only return something if we actually have citations
-            return list(Counter(cits).items())
+    def process_citation_type(self, cit_type, df, lang):
 
-    def get_law_citations(self, citations, lang):
+        self.logger.info(f"Processing the {cit_type} citations.")
+        df[cit_type] = df.citations.parallel_apply(self.get_citations, type=cit_type, lang=lang)
+
+        # reset the index so that we don't get out of bounds errors
+        type_df = df.dropna(subset=[cit_type]).reset_index(drop=True)
+
+        self.logger.info(f"Building the term-frequency matrix.")
+        corpus = type_df[cit_type].tolist()
+        vocabulary = sorted(list(set(itertools.chain(*corpus))))
+        type_df[f"counter"] = type_df[cit_type].apply(lambda x: dict(Counter(x)))
+        tf = self.build_tf_matrix(corpus, vocabulary, type_df)
+
+        self.logger.info(f"Calculating the inverse document frequency scores.")
+        tf_idf = TfidfTransformer().fit_transform(tf)
+
+        self.logger.info("Computing relevance scores for documents in collection")
+        # x.name retrieves the row index
+        relevance_lambda = lambda x: {cit: self.compute_relevance_score(cit, tf_idf[x.name, vocabulary.index(cit)])
+                                      for cit, _ in x[f"counter"].items()}
+        type_df[f"relevances"] = type_df.parallel_apply(relevance_lambda, axis=1)
+
+        self.logger.info("Saving graphs about the dataset.")
+        type_corpus_frequencies = dict(Counter(itertools.chain(*type_df[cit_type].tolist())))
+        self.save_citations(type_corpus_frequencies, cit_type)
+
+        type_path = self.create_dir(self.dataset_folder, cit_type)
+        query_path = type_path / "queries.jsonl"
+        self.logger.info(f"Saving queries to {query_path}")
+        type_df.to_json(query_path, orient="records", lines=True)
+        return df
+
+    def build_tf_matrix(self, corpus, vocabulary, type_df):
+        # build term frequency matrix
+        tf = np.zeros((len(corpus), len(vocabulary)))  # term frequencies: number of documents x number of citations
+
+        def fill_tf_matrix(x):
+            for cit, count in x[f"counter"].items():
+                tf[x.name, vocabulary.index(cit)] = count
+
+        type_df.progress_apply(fill_tf_matrix, axis=1)
+
+        # TODO can be deleted
+        # for doc_index, counter in tqdm(type_counter.iteritems(), total=len(corpus)):
+        #    for cit, count in counter.items():
+        #        cit_index = vocabulary.index(cit)
+        #        tf[doc_index][cit_index] = count
+        return tf
+
+    def save_citations(self, citation_frequencies: dict, name: str, top_n=25):
+        figure_path = self.dataset_folder / f"{name}_citations.png"
+        csv_path = self.dataset_folder / f"{name}_citations.csv"
+
+        citations = pd.DataFrame.from_dict(citation_frequencies, orient="index", columns=["frequency"])
+        citations = citations.sort_values(by=['frequency'], ascending=False)
+        citations.to_csv(csv_path)
+
+        ax = citations[:top_n].plot.bar(use_index=True, y='frequency', rot=90)
+        ax.get_figure().savefig(figure_path, bbox_inches="tight")
+
+    def get_citations(self, citations, type, lang):
         cits = []
-        for citation in citations['laws']:
+        for citation in citations[type]:
             cit = citation['text']
             cit = ' '.join(cit.split())  # remove multiple whitespaces inside
             try:
-                law_cit = LawCitation(cit, self.law_abbrs, lang)
+                if type == "rulings":
+                    type_cit = RulingCitation(cit, lang)
+                elif type == "laws":
+                    type_cit = LawCitation(cit, lang, self.law_abbrs)
+                else:
+                    raise ValueError("type must be either 'rulings' or 'laws'")
             except ValueError as ve:
-                self.logger.warning(ve)
+                self.logger.debug(ve)
                 continue
-            cits.append(law_cit)
+            # only actually include ruling citations that we can find in our corpus
+            if type == "laws" or (type == "rulings" and str(type_cit) in self.available_bges):
+                cits.append(type_cit)
         if cits:  # only return something if we actually have citations
-            return list(Counter(cits).items())
+            return cits
 
     @staticmethod
-    def compute_relevance_score(citation_tuple):
+    def compute_relevance_score(cit, tf_idf_score):
         """
         Computes a relevance score for the citation between 0 and 1
         Algorithm:
-        1. frequency of citation in the considerations ==> main question
-        2. if same number of occurrences: inverse frequency of citation in corpus ==> most specific citation
-        3. maybe consider criticality score from Ronja
-        TODO implement this algorithm
+        1. tf_idf score for citation: frequency of citation in the considerations (==> main question) *
+         inverse frequency of citation in corpus (over all splits for code simplicity) (==> most specific citation)
+        2. maybe consider criticality score from Ronja
         :return:
         # Proxy für relevanz score:
         #   - tf für zitierungen: häufigkeit des Zitats in Erwägungen
@@ -261,51 +306,8 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         #   - BGE wichtiger als andere ==> nur BGEs nehmen
         Future work: investigate IR per legal question
         """
-        weights = {"frequency": 0.7, "year": 0.3}
-        assert sum(weights.values()) == 1
-
-        values = {"frequency": citation_tuple[1] / 10}
-        citation = citation_tuple[0]
-        if isinstance(citation, RulingCitation):
-            # 150 corresponds to the year 2024 which should give use enough leeway
-            values["year"] = citation.year / 150
-        else:
-            values["year"] = 0.5  # set it to middle importance for all law citations
-
-        # compute weighted sum
-        score = 0
-        for key in weights.keys():
-            score += weights[key] * values[key]
-
-        return round(min(score, 1), 2)  # cap it at 1 and round to 2 decimals
-
-    def get_most_common_citations(self, df, folder, type, plot_n_most_common=10):
-        """
-        Retrieves the most common citations of a given type (rulings/laws).
-        Additionally plots the plot_n_most_common most common citations
-        :param df:
-        :param folder:
-        :param type:
-        :return:
-        """
-        valid_types = ['rulings', 'laws']
-        if type not in valid_types:
-            raise ValueError(f"Please supply a valid citation type from {valid_types}")
-        type_citations = []
-        for citations in df.citations:
-            for type_citation in citations[type]:
-                type_citations.append(type_citation['text'])
-        most_common_with_frequency = Counter(type_citations).most_common(self.num_ruling_citations)
-
-        # Plot the 10 most common citations
-        # remove BGG articles because they are obvious
-        most_common_interesting = [(k, v) for k, v in most_common_with_frequency if 'BGG' not in k]
-        ruling_citations = pd.DataFrame.from_records(most_common_interesting[:plot_n_most_common],
-                                                     columns=['citation', 'frequency'])
-        ax = ruling_citations.plot.bar(x='citation', y='frequency', rot=90)
-        ax.get_figure().savefig(folder / f'most_common_{type}_citations.png', bbox_inches="tight")
-
-        return list(dict(most_common_with_frequency).keys())
+        # TODO add Ronja's criticality score
+        return tf_idf_score
 
 
 if __name__ == '__main__':
