@@ -10,8 +10,8 @@ from psycopg2 import sql
 from typing import List, Optional
 import os
 from prodigy.components.db import connect
-# prodigy facts-annotation de -F recipes/facts_annotation.py
-
+# prodigy facts-annotation de 1 -F recipes/facts_annotation.py
+ports ={"de_1":11000,"de_2":11500, "fr": 12000, "it": 13000 }
 ## Docs
 #
 # This recipe is used to load facts, considerations, rulings and judgment directly from the scrc database configured in the environment variables.
@@ -24,22 +24,30 @@ def split_string(string):
 # the recipe itself, for info on how to use it, see the prodigy docs
 @prodigy.recipe(
   "facts-annotation",
-  language=("The language to use for the recipe", 'positional', None, str)
+  language=("The language to use for the recipe", 'positional', None, str),
+  annotator=("The annotator of set", 'positional', None, str)
 )
 
 # function called by the @prodigy-recipe definition
-def facts_annotation(language:str):
+def facts_annotation(language:str,annotator:str ):
   # Load the spaCy model for tokenization.
   # might have to run "python -m spacy download de_core_news_sm" @Todo
-  nlp = spacy.load("de_core_news_sm")
+  # Have to load french and italian model
+  nlp = spacy.load("{}_core_news_sm".format(language))
   # define labels for annotation
   labels = ["Supports judgment","Opposes verdict"]
 
 
-  dataset = "annotations_"+language
+  if annotator != "":
+    dataset = "annotations_{}_{}".format(language,annotator)
+    port = ports["{}_{}".format(language,annotator)]
+  else:
+    dataset = "annotations_{}".format(language)
+    port = ports[language]
+
 
   # define stream (generator)
-  stream = JSONL("./datasets/annotation_input_set_"+language+".jsonl")
+  stream = JSONL("./datasets/annotation_input_set_{}.jsonl".format(language))
 
   # Tokenize the incoming examples and add a "tokens" property to each
   # example. Also handles pre-defined selected spans. Tokenization allows
@@ -49,10 +57,11 @@ def facts_annotation(language:str):
   stream = add_tokens(nlp, stream, use_chars=None)
 
   return {
-    "dataset_scrc": dataset ,# Name of dataset_scrc to save annotations
+    "dataset": dataset ,# Name of dataset_scrc to save annotations
     "view_id": "blocks",
     "stream": stream,
     "config": {
+      "port": port,
       "blocks": [
         {"view_id": "html", "html_template": "<h2 style='float:left'>Facts</h2><a style='float:right' href='{{link}}'>Got to the Court Ruling</a>"},
         {"view_id": "spans_manual", "lang": nlp.lang, "labels": labels},
@@ -62,5 +71,7 @@ def facts_annotation(language:str):
         {"view_id": "html", "html_template":"<p style='hyphens: auto;   text-align: justify'>{{ruling}}</p>"},
         {"view_id": "text_input","field_label":"Annotator comment on this ruling", "field_placeholder": "Type here...","field_rows": 3},
       ]
+    },
+
     }
-  }
+
