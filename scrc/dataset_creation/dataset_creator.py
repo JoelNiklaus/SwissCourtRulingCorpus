@@ -229,7 +229,7 @@ class DatasetCreator(AbstractPreprocessor):
         columns = f"file_number, extract(year from date) as year, date, chamber, " \
                   f"{origin_canton}, {origin_court}, {origin_chamber}, {origin_date}, {origin_file_number}, " \
                   f"{label_col}, {feature_col}"
-        where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
+        where = f"spider = 'CH_BGer' AND {feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
         df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
                               chunksize=self.get_chunksize()))

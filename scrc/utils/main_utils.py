@@ -185,7 +185,8 @@ def get_legal_area(chamber: str):
     if chamber is None:
         return None
     if not chamber.startswith('CH_BGer_'):
-        raise ValueError("So far this method is only implemented for the Federal Supreme Court")
+        raise ValueError(f"So far this method is only implemented for the Federal Supreme Court (CH_BGer). "
+                         f"You supplied the chamber {chamber}")
 
     for legal_area, chambers in legal_areas.items():
         if chamber in chambers:
