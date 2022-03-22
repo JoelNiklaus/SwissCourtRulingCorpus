@@ -14,6 +14,9 @@ RUN pip install prodigy -f ./wheel/
 RUN rm -rf ./wheel/*
 
 RUN python -m spacy download de_core_news_sm
+RUN python -m spacy download fr_core_news_sm
+RUN python -m spacy download it_core_news_sm
+
 COPY prodigy.json .
 COPY recipes ./recipes/
 COPY datasets ./datasets/
@@ -21,9 +24,10 @@ COPY annotations ./annotations/
 
 ENV PRODIGY_HOME /app
 ENV PRODIGY_LOGGING "verbose"
-ENV PRODIGY_BASIC_AUTH_USER "admin"
-ENV PRODIGY_BASIC_AUTH_PASS "password"
-
+ARG user
+ENV PRODIGY_BASIC_AUTH_USER=$user
+ARG password
+ENV PRODIGY_BASIC_AUTH_PASS=$password
 EXPOSE 8080/tcp
 
 CMD tail -f /dev/null
