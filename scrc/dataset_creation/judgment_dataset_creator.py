@@ -1,6 +1,3 @@
-import configparser
-
-from root import ROOT_DIR
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import numpy as np
@@ -39,15 +36,12 @@ class JudgmentDatasetCreator(DatasetCreator):
 
         df = df.dropna(subset=['judgments'])
         df = convert_to_binary_judgments(df, self.with_partials, self.with_write_off, self.with_unification,
-                                     self.with_inadmissible, self.make_single_label)
+                                         self.with_inadmissible, self.make_single_label)
         df = df.dropna(subset=['judgments'])  # drop empty labels introduced by cleaning before
 
         df = df.rename(columns={feature_col: "text", "judgments": "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
-
-
-
 
 
 if __name__ == '__main__':

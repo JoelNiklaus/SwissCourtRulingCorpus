@@ -240,7 +240,7 @@ class DatasetCreator(AbstractPreprocessor):
         table_string, field_string = select_paragraphs_with_decision_and_meta_data()
         # TODO spider testing
         where_string = ""
-        df = retrieve_from_cache_if_exists(self.data_dir / '.cache' / 'dataset_creator.csv')
+        df = retrieve_from_cache_if_exists(self.data_dir / '.cache' / f'{self.dataset_name}.csv')
         if df.empty or True: 
             self.logger.info("Retrieving the data from the database")
             df = next(self.select(engine, table_string, field_string, where_string, order_by='year', chunksize=self.get_chunksize()))
