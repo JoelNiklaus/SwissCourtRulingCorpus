@@ -18,7 +18,8 @@ from scrc.utils.log_utils import get_logger
 import json
 from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache
 
-from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, select_paragraphs_with_decision_and_meta_data
+from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, \
+    select_paragraphs_with_decision_and_meta_data
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -231,21 +232,22 @@ class DatasetCreator(AbstractPreprocessor):
                   f"{label_col}, {feature_col}"
         where = f"spider = 'CH_BGer' AND {feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
-        
+
         ###
         # Check if feature col or label col got renamed and in which table they now are, then use the new syntax:
         # SELECT select_fields_from_table(['lower_court.canton_id as origin_canton', 'lower_court.court_id as origin_court', ...], 'lower_court'), feature_col, label_col FROM join_tables_on_decision(['lower_court', <TABLE NEEDED FOR FEATURE COLUMN AND LABEL>])
         ###
-        
+
         table_string, field_string = select_paragraphs_with_decision_and_meta_data()
         # TODO spider testing
         where_string = ""
-        df = retrieve_from_cache_if_exists(self.data_dir / '.cache' / f'{self.dataset_name}.csv')
-        if df.empty or True: 
+        cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}.csv'
+        df = retrieve_from_cache_if_exists(cache_dir)
+        if df.empty or True:
             self.logger.info("Retrieving the data from the database")
-            df = next(self.select(engine, table_string, field_string, where_string, order_by='year', chunksize=self.get_chunksize()))
-            self.logger.info("Writing the data to a cachefile")
-            save_df_to_cache(df, self.data_dir / '.cache' / 'dataset_creator.csv')
+            df = next(self.select(engine, table_string, field_string, where_string, order_by='year',
+                                  chunksize=self.get_chunksize()))
+            save_df_to_cache(df, cache_dir)
         print(df)
         exit()
         df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
@@ -253,7 +255,6 @@ class DatasetCreator(AbstractPreprocessor):
         df = self.clean_df(df, feature_col)
         df['legal_area'] = df.chamber.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
-
 
         self.logger.info("Finished loading the data from the database")
 

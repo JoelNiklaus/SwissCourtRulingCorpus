@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 import re
 import unicodedata
-from collections import OrderedDict
 import configparser
 from os.path import exists
 from root import ROOT_DIR
@@ -194,6 +193,7 @@ def get_legal_area(chamber: str):
             return legal_area
     raise ValueError(f"Please provide a valid chamber name. Could not find {chamber} in {legal_areas}")
 
+
 def get_config() -> configparser.ConfigParser:
     """Returns the parsed `config.ini` / `rootconfig.ini` files"""
     config = configparser.ConfigParser()
@@ -202,13 +202,17 @@ def get_config() -> configparser.ConfigParser:
         config.read(ROOT_DIR / 'rootconfig.ini')  # this stops working when the script is called from the src directory!
     return config
 
-def save_df_to_cache(df: pd.DataFrame, path: Path):
+
+def save_df_to_cache(df: pd.DataFrame, path: Path, chunksize=1000):
+    logger.info(f"Writing data to cache at {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(path, index = False, chunksize = 1000)
-    
-    
+    df.to_csv(path, index=False, chunksize=chunksize)
+
+
 def retrieve_from_cache_if_exists(path: Path):
     if path.exists():
-        return pd.read_csv(path, index_col = False)
-    else: return pd.DataFrame([])
-    
+        logger.info(f"Loading data from cache at {path}")
+        return pd.read_csv(path, index_col=False)
+    # TODO maybe it is clearer if we just return False here?
+    else:
+        return pd.DataFrame([])

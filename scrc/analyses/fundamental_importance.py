@@ -77,7 +77,6 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
         engine = self.get_engine(self.db_scrc)
         # if cached just load it from there
         if not overwrite_cache:
-            self.logger.info(f"Loading data from cache at {cache_file}")
             df = retrieve_from_cache_if_exists(cache_file)
             if not df.empty:
                 return df
@@ -98,7 +97,6 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
             columns = "language, chamber, date, html_url, paragraphs, text"
             df = df.append(next(self.select(engine, lang, columns=columns, where=where, chunksize=20000)))
 
-        self.logger.info(f"Saving data to cache at {cache_file}")
         save_df_to_cache(df, cache_file)
         return df
 
