@@ -44,6 +44,7 @@ class AbstractPreprocessor:
     def __init__(self, config: dict):
         self.languages = json.loads(config['general']['languages'])
         self.chunksize = int(config['general']['chunksize'])
+        self.ignore_cache = config['general']['ignore_cache'].lower() == 'true'
 
         self.data_dir = self.create_dir(ROOT_DIR, config['dir']['data_dir'])
         self.progress_dir = self.create_dir(self.data_dir, config['dir']['progress_dir'])

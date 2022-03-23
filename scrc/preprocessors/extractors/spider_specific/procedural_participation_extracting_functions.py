@@ -94,7 +94,8 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
         for (gender, current_regex) in lawyer_representation.items():
             pos = re.search(current_regex, text)
             if pos:
-                lawyer = LegalCounsel(name="")
+                lawyer = LegalCounsel(name = "")
+
                 if not namespace['language'] == Language.IT:
                     lawyer.gender = gender
                 name_match = re.search(lawyer_name[namespace['language']], text[pos.span()[1]:])
@@ -146,7 +147,7 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
         return representations
 
     def get_party(text: str) -> List[ProceedingsParty]:
-        current_person = ProceedingsParty()
+        current_person = ProceedingsParty(name = "")
         result: List[ProceedingsParty] = []
         try:
             current_person.name = re.search(r'[A-Z1-9].*?(?=(,)|(.$)| Beschwerde)', text).group().strip()

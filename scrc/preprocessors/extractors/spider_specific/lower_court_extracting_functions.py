@@ -4,6 +4,7 @@ import re
 import unicodedata
 import json
 import pandas as pd
+from scrc.enums.language import Language
 from scrc.utils.main_utils import clean_text
 
 """
@@ -23,10 +24,6 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
-    supported_languages = ['de', 'fr', 'it']
-    if namespace['language'] not in supported_languages:
-        message = f"This function is only implemented for the languages {supported_languages} so far."
-        raise ValueError(message)
 
     information_start_regex = r'Vorinstanz|Beschwerden?\sgegen|gegen\sden\s(Entscheid|Beschluss)|gegen\sdas\sUrteil|Gegenstand|Instance précédente|recours|révision de|ricorso|ricorrente|rettifica'
 

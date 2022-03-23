@@ -28,7 +28,7 @@ class Scraper(AbstractPreprocessor):
         """
         Download entire subfolders recursively
         :param url:
-        :return:
+        :return: list of paths of new downloaded files
         """
         self.logger.info(f"Started downloading from {url}")
         r = requests.get(url)  # get starting page
@@ -36,19 +36,16 @@ class Scraper(AbstractPreprocessor):
         links = data.find_all("a")  # find all links
 
         included_links = [Path(link["href"]) for link in links if not self.link_is_excluded(link.text)]
-        self.logger.info(f"Found {len(included_links)} links in total")
+        self.logger.info(f"Found {len(included_links)} spiders/folders in total")
 
-        already_downloaded_links = [Path(spider).stem for spider in glob.glob(f"{str(self.spiders_dir)}/*")]
-        self.logger.info(f"Found {len(already_downloaded_links)} links already downloaded: {already_downloaded_links}")
-
-        link_already_downloaded = lambda link: any(downloaded in str(link) for downloaded in already_downloaded_links)
-        links_still_to_download = [link for link in included_links if not link_already_downloaded(link)]
-        self.logger.info(f"Found {len(links_still_to_download)} links still to download")
-
-        for link in links_still_to_download:
-            self.download_files(link)
+        all_new_files: list[Path] = []
+        for link in included_links:
+            new_files = self.download_files(link)
+            all_new_files.extend(new_files)
 
         self.logger.info(f"Finished downloading from {url}")
+        
+        return all_new_files
 
     def link_is_excluded(self, link_text: str):
         """ Exclude links other than the folders to the courts """
@@ -74,17 +71,28 @@ class Scraper(AbstractPreprocessor):
         links = data.find_all("a")  # find all links
         included_links = [Path(link["href"]) for link in links if Path(link["href"]).suffix in supported_suffixes]
         self.logger.info(f"Found {len(included_links)} links")
+        
+        if not self.ignore_cache:
+            already_downloaded_links = [Path(spider).stem for spider in glob.glob(f"{str(self.spiders_dir)}/{sub_folder.stem}/*")]
+            self.logger.info(f"{len(already_downloaded_links)} of {len(included_links)} are already downloaded")
+            
+            links_still_to_download = [link for link in included_links if not link.stem in already_downloaded_links]
+        else:
+            links_still_to_download = included_links
+        
+        self.logger.info(f"Downloading {len(links_still_to_download)} links")
 
         # process each court in its own process to speed up this creation by a lot!
         # in case that the server has not enough capacity (we are encounterring 'Connection reset by peer')
         # => decrease number of processes
-        process_map(self.download_file_from_url, included_links, max_workers=8, chunksize=100)
+        process_map(self.download_file_from_url, links_still_to_download, max_workers=8, chunksize=100)
 
         # for link in tqdm(included_links):
         #    self.download_file_from_url(link)
 
         self.logger.info(f"Finished downloading from {sub_folder} ...")
-
+        return links_still_to_download
+    
     def download_file_from_url(self, url):
         """download the file from a link and save it"""
         # can lead to problems inside multiprocessing
