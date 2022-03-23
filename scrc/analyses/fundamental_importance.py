@@ -187,7 +187,7 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
 
     def contains_negation_fundamental_importance(self, df):
         # TODO bessere negation detection einbauen: https://spacy.io/universe/project/negspacy, https://drive.google.com/drive/folders/1md-_WBrg9x2Kp4g6jNExLJrEt5HBGL23
-        all_negations = json.load((self.analysis_dir / 'negations.json').read_text())
+        all_negations = json.load((ROOT_DIR / 'legal_info' / 'negations.json').read_text())
         lang = df.language
         negations = all_negations[lang]["words"]
         if self.negation_detection_type == 'simple':

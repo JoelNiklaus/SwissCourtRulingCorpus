@@ -324,7 +324,7 @@ INSERT INTO court(canton_id, court_string) VALUES
 /**
     import json
 
-    with open('court_chambers_extended.json') as f:
+    with open('legal_info/court_chambers_extended.json') as f:
         data = json.load(f)
 
     all_spider = set()
