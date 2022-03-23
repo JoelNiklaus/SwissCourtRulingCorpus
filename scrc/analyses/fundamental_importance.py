@@ -11,8 +11,8 @@ from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import pandas as pd
 # TODO make abstract data base service or something to separate concerns better
-from scrc.utils.main_utils import get_config, string_contains_one_of_list, get_legal_area
 
+from scrc.utils.main_utils import get_config, retrieve_from_cache_if_exists, save_df_to_cache, string_contains_one_of_list
 import plotly.express as px
 
 """
@@ -73,12 +73,14 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
 
     def retrieve_data(self, type, overwrite_cache):
         cache_file = self.analysis_dir / 'fundamental_importance.csv'
+
         engine = self.get_engine(self.db_scrc)
         # if cached just load it from there
-        if cache_file.exists() and not overwrite_cache:
+        if not overwrite_cache:
             self.logger.info(f"Loading data from cache at {cache_file}")
-            df = pd.read_csv(cache_file)
-            return df
+            df = retrieve_from_cache_if_exists(cache_file)
+            if not df.empty:
+                return df
 
         # otherwise query it from the database
         df = pd.DataFrame()
@@ -97,7 +99,7 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
             df = df.append(next(self.select(engine, lang, columns=columns, where=where, chunksize=20000)))
 
         self.logger.info(f"Saving data to cache at {cache_file}")
-        df.to_csv(cache_file, index=False)  # save cache file for next time
+        save_df_to_cache(df, cache_file)
         return df
 
     def analyze(self, type, overwrite_cache=False):

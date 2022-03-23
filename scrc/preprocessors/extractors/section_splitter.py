@@ -3,11 +3,15 @@ import configparser
 from datetime import datetime
 import os
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING, Union
+from typing import Dict, List, Optional, TYPE_CHECKING, Tuple, Union
 
 import bs4
 import pandas as pd
 import uuid
+from sqlalchemy.sql.expression import text
+
+from sqlalchemy.sql.schema import MetaData, Table
+
 
 from scrc.enums.language import Language
 from scrc.enums.section import Section
@@ -15,6 +19,7 @@ from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
+from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, where_decisionid_in_list, where_string_spider
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -25,8 +30,8 @@ class SectionSplitter(AbstractExtractor):
     Splits the raw html into sections which can later separately be used. This represents the section splitting task.
     """
 
-    def __init__(self, config: dict):
-        super().__init__(config, function_name='section_splitting_functions', col_name='')
+    def __init__(self, config: dict, run_tokenizer: Optional[bool] = False):
+        super().__init__(config, function_name='section_splitting_functions', col_name='sections')
         self.logger = get_logger(__name__)
         self.logger_info = {
             'start': 'Started section splitting',
@@ -37,6 +42,15 @@ class SectionSplitter(AbstractExtractor):
             'processing_one': 'Splitting sections from file',
             'no_functions': 'Not splitting into sections.'
         }
+        self.run_tokenizer = run_tokenizer
+        if self.run_tokenizer: 
+            # spacy_tokenizer, bert_tokenizer = tokenizers['de']
+            self.tokenizers: dict[Language, Tuple[any, any]] = {
+                Language.DE: self.get_tokenizers('de'),
+                Language.FR: self.get_tokenizers('fr'),
+                Language.IT: self.get_tokenizers('it'),
+            }
+        
         self.processed_file_path = self.progress_dir / "spiders_section_split.txt"
 
     def get_required_data(self, series: pd.DataFrame) -> Union[bs4.BeautifulSoup, str, None]:
@@ -50,17 +64,63 @@ class SectionSplitter(AbstractExtractor):
             return pdf_raw
         return None
 
-    def get_database_selection_string(self, spider: str, lang: str) -> str:
+    def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-        return f"spider='{spider}'"
-
-    def add_columns(self, engine: Engine) -> None:
-        """Override method to add more than one column"""
-        for lang in self.languages:
-            for section in Section:  # add empty section columns
-                self.add_column(engine, lang, col_name=section.value, data_type='text')
-            self.add_column(engine, lang, col_name='paragraphs', data_type='jsonb')
-
+        only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
+        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}", f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
+    
+    def run_tokenizer(self, df: pd.DataFrame):
+        # only calculate this if we save the reports because it takes a long time
+        # TODO precompute this in previous step after section splitting for each section
+        # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
+        spacy_tokenizer, bert_tokenizer = self.tokenizers.get(df['language'][0])
+        
+        result = {}
+        
+        for idx, row in df.iterrows():
+            row['sections'][Section.FULLTEXT] = '\n\n'.join(['\n'.join(row['sections'][section]) for section in row['sections'] if len(row['sections']) > 0])
+            for k in row['sections'].keys():
+                
+                self.logger.debug("Started tokenizing with spacy")
+                result[k]['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df['sections'][k], batch_size=100)]
+                self.logger.debug("Started tokenizing with bert")
+                result[k]['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df['sections'][k].tolist()).input_ids]
+                
+        return result
+    
+    def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
+        if self.run_tokenizer:
+            tokens = self.run_tokenizer(df)
+        
+        for idx, row in df.iterrows():
+            with engine.connect() as conn:
+                t = Table('section', MetaData(), autoload_with=engine)
+                t_paragraph = Table('paragraph', MetaData(), autoload_with=engine)
+                t_num_tokens = Table('num_tokens', MetaData(), autoload_with=engine)
+                
+                # Delete and reinsert as no upsert command is available. This pattern is used multiple times in this method
+                stmt = t.delete().returning(text('section_id')).where(delete_stmt_decisions_with_df(df))
+                section_ids_result = conn.execute(stmt).all()
+                section_ids = [i['section_id'] for i in section_ids_result]
+                stmt = t_paragraph.delete().where(delete_stmt_decisions_with_df(df))
+                conn.execute(stmt)
+                stmt = t_num_tokens.delete().where(text(f"section_id in ({section_ids})"))
+                conn.execute(stmt)
+                for k in row['sections'].keys():
+                    section_type_id = k.value
+                    # insert section
+                    stmt = t.insert().returning(text("section_id")).values([{"decision_id": str(row['decision_id']), "section_type_id": section_type_id, "section_text": row['sections'][k]}])
+                    section_id = conn.execute(stmt).fetchone()['section_id']
+                    
+                    # Add num tokens
+                    stmt = t_num_tokens.insert().values([{'section_id': str(section_id), 'num_tokes_spacy': tokens[k]['num_tokens_spacy'], 'num_tokens_bert': tokens[k]['num_tokens_bert']}])                    
+                    conn.execute(stmt)
+                    
+                    # Add a all paragraphs
+                    for paragraph in row['sections'][k]:
+                        stmt = t_paragraph.insert().values([{'section_id': str(section_id), "decision_id": str(row['decision_id']), 'paragraph_text': paragraph, 'first_level': None, 'second_level': None, 'third_level': None}])
+                        conn.execute(stmt)
+        
     def read_column(self, engine: Engine, spider: str, name: str, lang: str) -> pd.DataFrame:
         query = f"SELECT count({name}) FROM {lang} WHERE {self.get_database_selection_string(spider, lang)} AND {name} <> ''"
         return pd.read_sql(query, engine.connect())['count'][0]
@@ -127,7 +187,7 @@ class SectionSplitter(AbstractExtractor):
                 f"({section_amount / self.total_to_process:.2%}) "
             )
 
-    def process_one_spider(self, engine: Engine, spider: str):
+    """  def process_one_spider(self, engine: Engine, spider: str):
         self.logger.info(self.logger_info['start_spider'] + ' ' + spider)
 
         for lang in self.languages:
@@ -140,8 +200,8 @@ class SectionSplitter(AbstractExtractor):
             log_dir = Path.joinpath(self.output_dir, os.getlogin(), spider, lang, batchinfo['uuid'])
             for df in dfs:
                 df = df.apply(self.process_one_df_row, axis='columns')
-                filename = f"{batchinfo['chunknumber']}.json"
-                self.update(engine, df, lang, [section.value for section in Section] + ['paragraphs'], log_dir, filename)
+                self.save_data_to_database(df)
+                self.update(engine, df, lang, [section.value for section in Section] + ['paragraphs'], self.output_dir)
                 self.log_progress(self.chunksize)
                 batchinfo['chunknumber'] += 1
                 self.log_coverage_from_json(engine, spider, lang, batchinfo)
@@ -151,10 +211,11 @@ class SectionSplitter(AbstractExtractor):
             else:
                 self.log_coverage_from_json(engine, spider, lang, batchinfo)
 
-        self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
+        self.logger.info(f"{self.logger_info['finish_spider']} {spider}") 
+    """
 
-    def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
-        """Override method to handle section data and paragraph data individually"""
+    """  def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
+        Override method to handle section data and paragraph data individually
         # TODO consider removing the overriding function altogether with new db
         self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
         namespace = series[['date', 'html_url', 'pdf_url', 'court', 'id']].to_dict()
@@ -169,7 +230,7 @@ class SectionSplitter(AbstractExtractor):
         except TypeError as e:
             self.logger.error(f"While processing decision {series['html_url']} caught exception {e}")
         return series
-
+    """
 
 if __name__ == '__main__':
     config = get_config()

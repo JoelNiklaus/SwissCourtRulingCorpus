@@ -106,7 +106,7 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
                 continue
             else:
                 text = text.split()[-1]
-                president, _ = match_person_to_database(CourtPerson(text), last_gender)
+                president, _ = match_person_to_database(CourtPerson(text, last_gender, current_role), last_gender)
                 besetzung.president = president
         has_role_in_string = False
         matched_gender_regex = False
@@ -137,6 +137,8 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
                         person = prepare_french_name_and_find_gender(name)
                         gender = person.gender or gender
                         person.court_role = current_role
+                    else:
+                        person = CourtPerson(name=name, court_role=current_role)
                     matched_person, _ = match_person_to_database(person, gender)
                     if current_role == CourtRole.JUDGE:
                         besetzung.judges.append(matched_person)
@@ -148,11 +150,11 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
                     matched_gender_regex = True
                     break
         if not has_role_in_string:  # Current string has no role regex match
-            if current_role not in besetzung:
-                besetzung[current_role] = []
             if namespace['language'] == Language.FR:
                 person = prepare_french_name_and_find_gender(text)
                 last_gender = person.gender or last_gender
+            else:
+                person = CourtPerson(text, last_gender, current_role)
             name_match = re.search(
                 r'[A-Z][A-Za-z\-éèäöü\s]*(?= Urteil)|[A-Z][A-Za-z\-éèäöü\s]*(?= )|[A-Z][A-Za-z\-éèäöü\s]*', person.name)
             if not name_match:
@@ -487,7 +489,7 @@ def get_skip_strings() -> dict:
 
 
 def match_person_to_database(person: CourtPerson, current_gender: Gender) -> Tuple[CourtPerson, bool]:
-    """"Matches a name of a given role to a person from personal_information.json"""
+    """"Matches a name of a given role to a person from personal_information.json if found it adds the party and selects more accurate CourtRole"""
     personal_information_database = json.loads(Path("personal_information.json").read_text())
 
     results = []
@@ -498,9 +500,9 @@ def match_person_to_database(person: CourtPerson, current_gender: Gender) -> Tup
         initial = next((x for x in split_name if len(x) == 1), None)
         split_name = list(filter(lambda x: len(x) > 1, split_name))
     if person.court_role.value in personal_information_database:
-        for subcategory in personal_information_database[person.court_role]:
-            for cat_id in personal_information_database[person.court_role][subcategory]:
-                for db_person in personal_information_database[person.court_role][subcategory][cat_id]:
+        for subcategory in personal_information_database[person.court_role.value]:
+            for cat_id in personal_information_database[person.court_role.value][subcategory]:
+                for db_person in personal_information_database[person.court_role.value][subcategory][cat_id]:
                     if set(split_name).issubset(set(db_person['name'].split())):
                         if not initial or re.search(rf'\s{initial.upper()}\w*', db_person['name']):
                             person.name = db_person['name']

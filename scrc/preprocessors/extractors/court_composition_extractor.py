@@ -1,9 +1,15 @@
 from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 
+import pandas as pd
+from sqlalchemy.engine.base import Engine
+from sqlalchemy.sql.expression import text
+from sqlalchemy.sql.schema import MetaData, Table
+
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.enums.section import Section
 from scrc.utils.main_utils import get_config
+from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, join_file_on_decision, where_decisionid_in_list, where_string_spider
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
@@ -33,9 +39,54 @@ class CourtCompositionExtractor(AbstractExtractor):
 
     def get_required_data(self, series: DataFrame) -> Any:
         """Returns the data required by the processing functions"""
-        return {Section.HEADER: series['header'], Section.FACTS: series['facts'],
-                Section.CONSIDERATIONS: series['considerations'], Section.RULINGS: series['rulings'],
+        return {Section.HEADER: series['header'],
                 Section.FOOTER: series['footer']}
+        
+    def select_df(self, engine: str, spider: str) -> str:
+        """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
+        only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
+        section_self_join = 'LEFT JOIN section footersection on headersection.decision_id = footersection.decision_id and footersection.section_type_id = 6' # Joining the footer on to the same row as the header so each decision goes through the erxtractor only once per decision
+        return self.select(engine, f"section headersection {join_decision_and_language_on_parameter('decision_id', 'headersection.decision_id')} {join_file_on_decision()} {section_self_join}", f"headersection.decision_id, headersection.section_text as header, footersection.section_text as footer,'{spider}' as spider, iso_code as language, html_url", where=f"headersection.section_type_id = 1 AND headersection.decision_id IN {where_string_spider('decision_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
+    
+    def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
+        for idx, row in df.iterrows():
+            with engine.connect() as conn:
+                t_person = Table('person', MetaData(), autoload_with=conn)
+                t_jud_person = Table('judicial_person', MetaData(), autoload_with=conn)
+                
+                # Delete person
+                # Delete and reinsert as no upsert command is available
+                stmt = t_jud_person.delete().where(delete_stmt_decisions_with_df(df))
+                conn.execute(stmt)
+                
+                court_composition = row['court_composition']
+                president = court_composition['president']
+                
+                # create president person
+                stmt = t_person.insert().returning(text("person_id")).values([{"name": president['name'], "is_natural_person": True, "gender": president['gender']}])
+                person_id = conn.execute(stmt).fetchone()['person_id']
+                stmt = t_jud_person.insert.values([{"decision_id": str(row['decision_id']), "person_id": person_id, "judicial_person_type_id": 1, "isPresident": True}])
+                conn.execute(stmt)
+                
+                # create all judges
+                for judge in court_composition.get('judges'):
+                    if judge == president:
+                        continue
+                    stmt = t_person.insert().returning(text("person_id")).values([{"name": judge['name'], "is_natural_person": True, "gender": judge['gender']}])
+                    person_id = conn.execute(stmt).fetchone()['person_id']
+                    stmt = t_jud_person.insert().values([{"decision_id": str(row['decision_id']), "person_id": person_id, "judicial_person_type_id": 1, "isPresident": False}])
+                    conn.execute(stmt)
+                    
+                # create all clerks
+                for clerk in court_composition.get('clerks'):
+                    stmt = t_person.insert().returning(text("person_id")).values([{"name": clerk['name'], "is_natural_person": True, "gender": clerk['gender']}])
+                    person_id = conn.execute(stmt).fetchone()['person_id']
+                    stmt = t_jud_person.insert().values([{"decision_id": str(row['decision_id']), "person_id": person_id, "judicial_person_type_id": 2, "isPresident": False}])
+                    conn.execute(stmt)
+        with engine.connect() as conn:
+            stmt = t_person.delete().where(text(f"NOT EXISTS (SELECT FROM judicial_person jp WHERE jp.person_id = person.person_id UNION SELECT FROM party WHERE party.person_id = person.person_id)"))
+            conn.execute(stmt)
+                
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing. 
