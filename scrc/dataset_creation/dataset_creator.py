@@ -443,6 +443,8 @@ class DatasetCreator(AbstractPreprocessor):
         """
         split_folder = self.create_dir(folder, f'reports/{split}')
 
+        self.plot_custom(df, split_folder)
+
         barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
         for attribute in barplot_attributes:
             self.plot_barplot_attribute(df, split_folder, attribute)
@@ -596,3 +598,7 @@ class DatasetCreator(AbstractPreprocessor):
         test = test.compute(scheduler='processes')
 
         return train, val, test
+
+    @abc.abstractmethod
+    def plot_custom(self, df, split_folder):
+        raise NotImplementedError("This method should be implemented in the subclass.")
