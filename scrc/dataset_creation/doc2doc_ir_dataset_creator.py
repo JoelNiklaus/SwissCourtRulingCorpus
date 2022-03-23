@@ -115,7 +115,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
             rulings = pd.concat([rulings, df], ignore_index=True)  # one rulings df for all languages
 
         self.logger.info(f"Found {len(self.available_bges)} rulings")
-        rulings_path = self.create_dir(self.datasets_subdir, self.dataset_name) / "rulings.jsonl"
+        rulings_path = self.dataset_folder / "rulings.jsonl"
         if not rulings_path.exists():
             rulings.to_json(rulings_path, orient="records", lines=True, date_format="iso")
 
@@ -123,26 +123,29 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         # get Art. from lexfind.jsonl
         self.logger.info(f"Loading reference law articles")
         laws = pd.read_json(self.corpora_subdir / "lexfind.jsonl", lines=True)
+        # TODO change this, as soon as we include other courts
         laws = laws[laws.canton.str.contains("ch")]  # only federal laws so far
         laws = laws[laws.abbreviation.str.len() > 1]  # only keep the ones with an abbreviation
         laws.abbreviation = laws.abbreviation.str.strip()
 
         self.law_abbrs = laws[["language", "abbreviation", "sr_number"]]
-        print(self.law_abbrs.abbreviation.tolist())
+        self.logger.info(self.law_abbrs.abbreviation.tolist())
 
+        # TODO think about if we need to combine the laws in the different languages to one single law with representations in different languages
         self.available_laws = set(laws.abbreviation.unique().tolist())
         self.logger.info(f"Found {len(self.available_laws)} laws")
-        articles_path = self.create_dir(self.datasets_subdir, self.dataset_name) / "articles.jsonl"
+        laws_path = self.dataset_folder / "laws.jsonl"
         # This can take quite a long time
-        if not articles_path.exists():
+        if not laws_path.exists():
             self.logger.info("Extracting individual articles from laws")
             articles = pd.concat([self.extract_article_info(row) for _, row in laws.iterrows()], ignore_index=True)
-            articles.to_json(articles_path, orient="records", lines=True)
+            articles.to_json(laws_path, orient="records", lines=True)
 
     @staticmethod
     def extract_article_info(law):
         """Extracts the information for the individual articles from a given law"""
-        arts = {"canton": [], "language": [], "sr_number": [], "abbreviation": [], "short": [], "title": [],
+        arts = {"canton": [], "language": [], "sr_number": [], "abbreviation": [], "article": [], "short": [],
+                "title": [],
                 "link": [], "text": [], }
         bs = BeautifulSoup(law.html_content, "html.parser")
         for art in bs.find_all("article"):
@@ -152,6 +155,9 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
             arts["abbreviation"].append(law.abbreviation)
             arts["short"].append(law.short)
             arts["title"].append(law.title)
+
+            article_number = art['id'].split("_")[1]
+            arts["article"].append(article_number)
 
             link = art.find(fragment=f"#{art['id']}")
             if link:
@@ -172,55 +178,56 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         # df = df[df.types.map(len) >= 1]  # we only want the decisions which actually cite something
         # df = df.query('"bge" in types')  # ensure that we only have BGE citations
 
-        # df = df.dropna(subset=["rulings", "laws"], how="all")  # we cannot use the ones which have no citations
+        df = self.process_citation_type("rulings", df, lang)
+        df = self.process_citation_type("laws", df, lang)
 
-        self.process_citation_type("rulings", df, lang)
-        self.process_citation_type("laws", df, lang)
+        df = df.apply(self.mask_citations, feature_col=feature_col, axis='columns')
 
-        df = df.drop(['citations'], axis=1)  # we don't need this anymore
+        # we don't need this anymore
+        df = df.drop(['citations', 'counter', 'rulings', 'laws'], axis=1)
+
+        # TODO don't save here, give this back to the dataset_creator
+        query_path = self.dataset_folder / "queries.jsonl"
+        self.logger.info(f"Saving queries to {query_path}")
+        df.to_json(query_path, orient="records", lines=True)
+
+        # TODO check that the law keys match from the articles.jsonl file
 
         exit()
 
         # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
 
-        # TODO move this to the plot_custom function so that we can save it for all languages
 
-        def mask_citations(series, law_mask_token="<ref-law>", ruling_mask_token="<ref-ruling>",
-                           only_replace_most_common_citations=False):
-            """
-            Mask citations so that they don't help in finding the right document,
-            but it should only use the context
-            """
-            for law in series.citations['laws']:
-                if only_replace_most_common_citations \
-                        and not string_contains_one_of_list(law['text'], list(law_abbr_by_lang[lang].keys())):
-                    continue
-                series[feature_col] = series[feature_col].replace(law['text'], law_mask_token)
-            for ruling in series.citations['rulings']:
-                if only_replace_most_common_citations \
-                        and not string_contains_one_of_list(ruling['text'], most_common_rulings):
-                    continue
-                series[feature_col] = series[feature_col].replace(ruling['text'], ruling_mask_token)
-            return series
-
-        df = df.apply(mask_citations, axis='columns')
         df = df.rename(columns={feature_col: "text"})  # normalize column names
         df['label'] = df.rulings  # the label is just the rulings for now
         return df, self.available_bges
 
-    def process_citation_type(self, cit_type, df, lang):
+    @staticmethod
+    def mask_citations(series, feature_col, law_mask_token="<ref-law>", ruling_mask_token="<ref-ruling>"):
+        """
+        Mask citations so that they don't help in finding the right document,
+        but it should only use the context
+        """
+        for law in series.citations['laws']:
+            series[feature_col] = series[feature_col].replace(law['text'], law_mask_token)
+        for ruling in series.citations['rulings']:
+            series[feature_col] = series[feature_col].replace(ruling['text'], ruling_mask_token)
+        return series
 
+    def process_citation_type(self, cit_type, df, lang):
         self.logger.info(f"Processing the {cit_type} citations.")
         df[cit_type] = df.citations.parallel_apply(self.get_citations, type=cit_type, lang=lang)
 
+        # we cannot use the ones which have no citations
+        # because we drop everything we lose some data, but it is easier, because we know that all the entries have both laws citations and rulings citations
         # reset the index so that we don't get out of bounds errors
-        type_df = df.dropna(subset=[cit_type]).reset_index(drop=True)
+        df = df.dropna(subset=[cit_type]).reset_index(drop=True)
 
         self.logger.info(f"Building the term-frequency matrix.")
-        corpus = type_df[cit_type].tolist()
+        corpus = df[cit_type].tolist()
         vocabulary = sorted(list(set(itertools.chain(*corpus))))
-        type_df[f"counter"] = type_df[cit_type].apply(lambda x: dict(Counter(x)))
-        tf = self.build_tf_matrix(corpus, vocabulary, type_df)
+        df[f"counter"] = df[cit_type].apply(lambda x: dict(Counter(x)))
+        tf = self.build_tf_matrix(corpus, vocabulary, df)
 
         self.logger.info(f"Calculating the inverse document frequency scores.")
         tf_idf = TfidfTransformer().fit_transform(tf)
@@ -229,19 +236,16 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         # x.name retrieves the row index
         relevance_lambda = lambda x: {cit: self.compute_relevance_score(cit, tf_idf[x.name, vocabulary.index(cit)])
                                       for cit, _ in x[f"counter"].items()}
-        type_df[f"relevances"] = type_df.parallel_apply(relevance_lambda, axis=1)
+        df[f"{cit_type}_relevances"] = df.parallel_apply(relevance_lambda, axis=1)
 
+        # TODO move this to the plot_custom function so that we can save it for all languages
         self.logger.info("Saving graphs about the dataset.")
-        type_corpus_frequencies = dict(Counter(itertools.chain(*type_df[cit_type].tolist())))
+        type_corpus_frequencies = dict(Counter(itertools.chain(*df[cit_type].tolist())))
         self.save_citations(type_corpus_frequencies, cit_type)
-
-        type_path = self.create_dir(self.dataset_folder, cit_type)
-        query_path = type_path / "queries.jsonl"
-        self.logger.info(f"Saving queries to {query_path}")
-        type_df.to_json(query_path, orient="records", lines=True)
         return df
 
-    def build_tf_matrix(self, corpus, vocabulary, type_df):
+    @staticmethod
+    def build_tf_matrix(corpus, vocabulary, type_df):
         # build term frequency matrix
         tf = np.zeros((len(corpus), len(vocabulary)))  # term frequencies: number of documents x number of citations
 
