@@ -203,12 +203,12 @@ the [procedural_participation_extracting_functions.py](scrc/preprocessors/extrac
 
 #### Court Chambers
 
-The [court_chambers.csv](SwissCourtRulingCorpus/legal_info/court_chambers.csv) file encloses information about how the spiders are
+The [court_chambers.csv](legal_info/court_chambers.csv) file encloses information about how the spiders are
 broken down into courts. You can improve and simplify your task by dividing the decisions by courts, as you would be
 working with a lower amount of decisions within the same court.
 
 When implementing your spider, you can invoke the court chambers from
-the [court_chambers.json](SwissCourtRulingCorpus/legal_info/court_chambers.json) file into your code.
+the [court_chambers.json](legal_info/court_chambers.json) file into your code.
 
 In order to retrieve the courts from the database, you have to make use of the namespace['court'], along with a few if
 statements. Whenever we encounter a certain court, we would like to execute these particular regular expressions and
