@@ -4,7 +4,7 @@ import math
 from collections import Counter
 from pathlib import Path
 from typing import Union
-
+import ast
 import seaborn as sns
 import plotly.express as px
 import matplotlib.pyplot as plt
@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
+from scrc.enums.section import Section
 
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
@@ -19,7 +20,7 @@ import json
 from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache
 
 from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, \
-    select_paragraphs_with_decision_and_meta_data
+    select_paragraphs_with_decision_and_meta_data, where_string_spider
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -221,47 +222,38 @@ class DatasetCreator(AbstractPreprocessor):
                     out_file.write(json.dumps(record) + '\n')
 
     def get_df(self, engine, feature_col, label_col, lang, save_reports):
-        self.logger.info("Started loading the data")
-        origin_canton = "lower_court::json#>>'{canton}' AS origin_canton"
-        origin_court = "lower_court::json#>>'{court}' AS origin_court"
-        origin_chamber = "lower_court::json#>>'{chamber}' AS origin_chamber"
-        origin_date = "lower_court::json#>>'{date}' AS origin_date"
-        origin_file_number = "lower_court::json#>>'{file_number}' AS origin_file_number"
-        columns = f"file_number, extract(year from date) as year, date, chamber, " \
-                  f"{origin_canton}, {origin_court}, {origin_chamber}, {origin_date}, {origin_file_number}, " \
-                  f"{label_col}, {feature_col}"
-        where = f"spider = 'CH_BGer' AND {feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
-        order_by = "year"
-
-        ###
-        # Check if feature col or label col got renamed and in which table they now are, then use the new syntax:
-        # SELECT select_fields_from_table(['lower_court.canton_id as origin_canton', 'lower_court.court_id as origin_court', ...], 'lower_court'), feature_col, label_col FROM join_tables_on_decision(['lower_court', <TABLE NEEDED FOR FEATURE COLUMN AND LABEL>])
-        ###
+       
 
         table_string, field_string = select_paragraphs_with_decision_and_meta_data()
         # TODO spider testing
-        where_string = ""
-        cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}.csv'
+        where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
+        cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
         df = retrieve_from_cache_if_exists(cache_dir)
-        if df.empty or True:
+        if df.empty:
             self.logger.info("Retrieving the data from the database")
             df = next(self.select(engine, table_string, field_string, where_string, order_by='year',
                                   chunksize=self.get_chunksize()))
             save_df_to_cache(df, cache_dir)
-        print(df)
-        exit()
-        df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
-                              chunksize=self.get_chunksize()))
+        
         df = self.clean_df(df, feature_col)
-        df['legal_area'] = df.chamber.apply(get_legal_area)
+        df['legal_area'] = df.chamber_id.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
 
         self.logger.info("Finished loading the data from the database")
 
         return df
+    
 
     def clean_df(self, df, column):
         # replace empty and whitespace strings with nan so that they can be removed
+        sections = df['sections']
+        def filter_column(column_data):
+            if not isinstance(column_data, str): return np.nan
+            column_data = ast.literal_eval(column_data)
+            for section in column_data:
+                if section['name'] == column:
+                    return section['section_text']
+        df[column] = sections.map(filter_column)
         df[column] = df[column].replace(r'^\s+$', np.nan, regex=True)
         df[column] = df[column].replace('', np.nan)
         df = df.dropna(subset=[column])  # drop null values not recognized by sql where clause

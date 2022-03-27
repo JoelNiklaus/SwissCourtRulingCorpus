@@ -273,14 +273,14 @@ def convert_to_binary_judgments(df, with_partials=False, with_write_off=False, w
 
 # according to BFS: https://en.wikipedia.org/wiki/Subdivisions_of_Switzerland
 regions = {
-    "Eastern_Switzerland": ["SG", "TG", "AI", "AR", "GL", "SH", "GR"],
-    "Zürich": ["ZH"],
-    "Central_Switzerland": ["UR", "SZ", "OW", "NW", "LU", "ZG"],
-    "Northwestern_Switzerland": ["BS", "BL", "AG"],
-    "Espace_Mittelland": ["BE", "SO", "FR", "NE", "JU"],
-    "Région lémanique": ["GE", "VD", "VS"],
-    "Ticino": ["TI"],
-    "Federation": ["CH"],  # this is a hack to map CH to a region too
+    "Eastern_Switzerland": [17, 22, 3, 4, 10, 18, 11],
+    "Zürich": [27],
+    "Central_Switzerland": [23, 20, 16, 15, 13, 26],
+    "Northwestern_Switzerland": [7, 6, 2],
+    "Espace_Mittelland": [5, 19, 8, 14, 12],
+    "Région lémanique": [9, 24, 25],
+    "Ticino": [21],
+    "Federation": [1],  # this is a hack to map CH to a region too
 }
 
 
@@ -294,19 +294,19 @@ def get_region(canton: str):
 
 
 legal_areas = {
-    "public_law": ['CH_BGer_001', 'CH_BGer_002'],
-    "civil_law": ['CH_BGer_004', 'CH_BGer_005'],
-    "penal_law": ['CH_BGer_006', 'CH_BGer_011', 'CH_BGer_013'],
-    "social_law": ['CH_BGer_008', 'CH_BGer_009'],
-    "insurance_law": ['CH_BGer_016'],
-    "other": ['CH_BGer_010', 'CH_BGer_012', 'CH_BGer_014', 'CH_BGer_015', 'CH_BGer_999'],
+    "public_law": [90, 91],
+    "civil_law": [92, 93],
+    "penal_law": [94, 99],
+    "social_law": [95, 96],
+    "insurance_law": [102],
+    "other": [97, 98, 100, 101, 103],
 }
 
 
-def get_legal_area(chamber: str):
+def get_legal_area(chamber: int):
     if chamber is None:
         return None
-    if not chamber.startswith('CH_BGer_'):
+    if not chamber >= 90 and chamber <= 103:
         raise ValueError("So far this method is only implemented for the Federal Supreme Court")
 
     for legal_area, chambers in legal_areas.items():
