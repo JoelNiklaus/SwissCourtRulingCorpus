@@ -1,9 +1,8 @@
 from pathlib import Path
 from pprint import pprint
 from typing import Any, Optional
-
+from scrc.enums.citation_type import CitationType
 import json
-
 import regex
 
 from root import ROOT_DIR
@@ -33,7 +32,7 @@ dass in den Fällen des Art. 108 Abs. 1 BGG das vereinfachte Verfahren zum Zuge 
         return regex.compile("|".join([entry["regex"] for entry in regex_dict[language] if entry["regex"]]))
 
     language = 'de'
-    citation_regexes = json.loads((ROOT_DIR / 'citation_regexes.json').read_text())
+    citation_regexes = json.loads((ROOT_DIR / 'legal_info' / 'citation_regexes.json').read_text())
     pprint(citation_regexes)
     print("BGE")
     for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['BGE'], language), soup):
@@ -67,7 +66,7 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
         if bge.string:  # make sure it is not empty or None
             rulings.append({"type": "bge", "url": bge['href'], "text": bge.string})
 
-    return {"laws": laws, "rulings": rulings}
+    return {CitationType.LAW: laws, CitationType.RULING: rulings}
 
 # This needs special care
 # def CH_BGE(soup: Any, namespace: dict) -> Optional[dict]:

@@ -1,0 +1,451 @@
+{
+  "metadata": {
+    "original_document_url": "https://docs.google.com/document/d/13RK8ptQYhMioDrhziYe8osZ1to4deRnzQPmeHG8q39s/edit?usp=sharing"
+  },
+  "law_areas": {
+    "1": {
+      "de": "Zivilrecht",
+      "fr": "Droit Civil",
+      "it": "Diritti Civili",
+      "law_areas": {
+        "1": {
+          "de": "Sachenrecht",
+          "fr": "Droit réel",
+          "it": "Diritti reali",
+          "law_areas": {
+            "1": {
+              "de": "Pfandrechte",
+              "fr": "Hypothèque",
+              "it": "Ipotecta"
+            },
+            "2": {
+              "de": "Dienstbarkeiten",
+              "fr": "Servitude",
+              "it": "Servitù"
+            },
+            "3": {
+              "de": "Grundlasten",
+              "fr": "Charges foncières",
+              "it": "Oneri fondiari"
+            },
+            "4": {
+              "de": "Besitz",
+              "fr": "Possession",
+              "it": "Possesso"
+            }
+          }
+        },
+        "2": {
+          "de": "Erbrecht",
+          "fr": "Successions",
+          "it": "Diritto Successorio"
+        },
+        "3": {
+          "de": "Familienrecht",
+          "fr": "Droit de la famille",
+          "it": "Diritto di famiglia",
+          "law_areas": {
+            "1": {
+              "de": "Kindesrecht",
+              "fr": "Droit de la filiation",
+              "it": "Diritto della filiazione"
+            },
+            "2": {
+              "de": "Ehe- und Scheidungsrecht",
+              "fr": "Droit des époux et droit du divorce",
+              "it": "Diritto matrimoniale e diritto del divorzio"
+            }
+          }
+        },
+        "4": {
+          "de": "Personenrecht",
+          "fr": "Droit des personnes",
+          "it": "Diritto delle persone",
+          "law_areas": {
+            "1": {
+              "de": "Erwachsenenschutzrecht",
+              "fr": "Droit de la protection de l'adulte",
+              "it": "Diritto di protezione degli adulti"
+            }
+          }
+        },
+        "5": {
+          "de": "Vereins- und Stiftungsrecht",
+          "fr": "Droit des associations et des fondations",
+          "it": "Diritto delle associazioni e delle fondazioni"
+        },
+        "6": {
+          "de": "Uebriges Obligationenrecht",
+          "fr": "Droit des obligations",
+          "it": "Diritto delle obbligazioni",
+          "law_areas": {
+            "1": {
+              "de": "allg. Vertragsrecht",
+              "fr": "Droit des contrats",
+              "it": "Diritto contrattuale"
+            },
+            "2": {
+              "de": "Kaufrecht",
+              "fr": "Droit de la vente",
+              "it": "Diritto della compera e vendita"
+            },
+            "3": {
+              "de": "Buergschafsrecht",
+              "fr": "Droit du cautionnement",
+              "it": "Diritto della fideiussione"
+            },
+            "4": {
+              "de": "Versicherungsvertragsrecht",
+              "fr": "Droit du contrat d’assurance",
+              "it": "Diritto del contratto d’assicurazione"
+            },
+            "5": {
+              "de": "Haftpflichtrecht",
+              "fr": "Droit de la responsabilité civile",
+              "it": "Diritto della responsabilità civile"
+            }
+          }
+        },
+        "7": {
+          "de": "Miet- und Pachtrecht",
+          "fr": "Droit du bail à loyer et du bail à ferme",
+          "it": "Diritto della locazione et dell'affitto"
+        },
+        "8": {
+          "de": "Arbeitsvertragsrecht",
+          "fr": "Droit du contrat de travail",
+          "it": "Diritto del contratto di lavoro"
+        },
+        "9": {
+          "de": "Auftrags- und Werkvertragsrecht",
+          "fr": "Droit du mandat et du contrat d'entreprise",
+          "it": "Diritto del mandato e del contratto di appalto"
+        },
+        "10": {
+          "de": "Gesellschaftsrecht",
+          "fr": "Droit des sociétés",
+          "it": "Diritto della Società",
+          "law_areas": {
+            "1": {
+              "de": "Aktienrecht",
+              "fr": "Droit des sociétés anonymes",
+              "it": "Diritto delle società per azioni"
+            },
+            "2": {
+              "de": "Revisionsrecht",
+              "fr": "Droit de la révision",
+              "it": "Diritto di revisione"
+            },
+            "3": {
+              "de": "Wertpapierrecht",
+              "fr": "Droit de papiersvaleurs",
+              "it": "Diritto delle cartevalori"
+            }
+          }
+        },
+        "11": {
+          "de": "Immaterialgueterrecht",
+          "fr": "Droit de la propriété intellectuelle",
+          "it": "Diritto della proprietà intellettuale",
+          "law_areas": {
+            "1": {
+              "de": "Urheberrecht",
+              "fr": "Droit droit d’auteur",
+              "it": "Diritto d’autore"
+            },
+            "2": {
+              "de": "Designrecht",
+              "fr": "Droit de la protection des designs",
+              "it": "Diritto di protezione del design"
+            },
+            "3": {
+              "de": "Markenrecht",
+              "fr": "Droit de la protection des marques",
+              "it": "Diritto di protezione dei marchi"
+            },
+            "4": {
+              "de": "Patentrecht",
+              "fr": "Droit des brevets",
+              "it": "Diritto dei brevetti"
+            }
+          }
+        },
+        "12": {
+          "de": "Wettbewerbs- und Kartellrecht",
+          "fr": "Droit de la concurrence et des cartels",
+          "it": "Diritto della concorrenza et dei cartelli"
+        },
+        "13": {
+          "de": "Internationales Privatrecht",
+          "fr": "Droit privé international",
+          "it": "Diritto privato internazionale",
+          "law_areas": {
+            "1": {
+              "de": "Staatsvertragsrecht",
+              "fr": "Droit des traités des États",
+              "it": "Diritto del trattato di Stato"
+            },
+            "2": {
+              "de": "Internationales Zivilprozessrecht",
+              "fr": "Droit de la procédure civile internationale",
+              "it": "Diritto di procedura civile internazionale"
+            }
+          }
+        },
+        "14": {
+          "de": "Zivilprozessrecht",
+          "fr": "Droit de procédure civile",
+          "it": "Diritto di procedura civile"
+        },
+        "15": {
+          "de": "Schuldbetreibungs- und Konkursrecht",
+          "fr": "Droit de poursuite pour dettes et faillite",
+          "it": "Diritto del esecuzione e fallimento"
+        }
+      }
+    },
+    "2": {
+      "de": "Oeffentliches Recht",
+      "fr": "Droit public",
+      "it": "Diritto pubblico",
+      "law_areas": {
+        "1": {
+          "de": "Allg. Staats- und Verwaltungsrecht",
+          "fr": "Droit constitutionnel et administratif",
+          "it": "Diritto costituzionale e amministrativo",
+          "law_areas": {
+            "1": {
+              "de": "Grundrechte",
+              "fr": "Droits fondamentaux",
+              "it": "Diritti fondamentali"
+            },
+            "2": {
+              "de": "Datenschutzrecht",
+              "fr": "Droit de la protection des données",
+              "it": "Diritto di protezione dei dati"
+            },
+            "3": {
+              "de": "Submissionsrecht",
+              "fr": "Droit sur les marchés publics",
+              "it": "Diritto sugli appalti pubblici"
+            },
+            "4": {
+              "de": "Recht der reglementierten Berufe",
+              "fr": "Droit des professions réglementées",
+              "it": "Diritto delle professioni regolamentate"
+            },
+            "5": {
+              "de": "Luftfahrtrecht",
+              "fr": "Droit sur l’aviation",
+              "it": "Diritto sulla navigazione aerea"
+            },
+            "6": {
+              "de": "Strafvollzugsrecht",
+              "fr": "Droit pénitentiaire",
+              "it": "Diritto penitenziario"
+            },
+            "7": {
+              "de": "Polizeirecht",
+              "fr": "Droit sur la police",
+              "it": "Diritto di polizia"
+            },
+            "8": {
+              "de": "Sozialhilferecht",
+              "fr": "Droit de l'aide sociale",
+              "it": "Diritto sociale"
+            },
+            "9": {
+              "de": "Opferhilferecht",
+              "fr": "Droit sur l’aide aux victimes d’infractions",
+              "it": "Diritto concernente l’aiuto alle vittime di reati"
+            }
+          }
+        },
+        "2": {
+          "de": "Oeffentliches Arbeits- und Dienstrecht",
+          "fr": "Droit du travail publique et de la fonction publique",
+          "it": "Diritto del lavoro pubblico e sulla funzione pubblica"
+        },
+        "3": {
+          "de": "Oeffentliches Bau-, Raumplanungs- und Umweltrecht",
+          "fr": "Droit de la construction et sur l’aménagement du territoire et de l'environnement",
+          "it": "Diritto di costruzione e sulla pianificazione del territorio e ambientale"
+        },
+        "4": {
+          "de": "sonstiges Abgabenrecht",
+          "fr": "Droit fiscal",
+          "it": "Diritto tributario"
+        },
+        "5": {
+          "de": "Steuerrecht",
+          "fr": "Droit fiscal",
+          "it": "Diritto fiscale"
+        },
+        "6": {
+          "de": "Enteignungsrecht",
+          "fr": "Droit sur l’expropriation",
+          "it": "Diritto sull’espropriazione"
+        },
+        "7": {
+          "de": "Staatshaftungsrecht",
+          "fr": "Droit de la responsabilité de la Confédération",
+          "it": "Diritto della responsabilità della Confederazione"
+        },
+        "8": {
+          "de": "Auslaender- und Asylrecht",
+          "fr": "Droit d'asile et des étrangers",
+          "it": "Diritto d'asilo e degli stranieri"
+        },
+        "9": {
+          "de": "Finanzmarktrecht",
+          "fr": "Droit sur la surveillance des marchés financiers",
+          "it": "Diritto sulla vigilanza dei mercati finanziari",
+          "law_areas": {
+            "1": {
+              "de": "Boersen- und du marché des capitaux",
+              "fr": "Droit de la bourse et",
+              "it": "Diritto borsistico et sul mercato dei capitali"
+            },
+            "2": {
+              "de": "Bankenrecht",
+              "fr": "Droit sur les banques",
+              "it": "Diritto sulle banche"
+            }
+          }
+        },
+        "10": {
+          "de": "Internationales Recht",
+          "fr": "Droit international",
+          "it": "Diritto internazionale",
+          "law_areas": {
+            "1": {
+              "de": "Voelkerrecht",
+              "fr": "Droit international public",
+              "it": "Diritto internazionale pubblico"
+            },
+            "2": {
+              "de": "Seerecht",
+              "fr": "Droit de la mer",
+              "it": "Diritto del mare"
+            }
+          }
+        },
+        "11": {
+          "de": "Politische Rechte",
+          "fr": "Droits politiques",
+          "it": "Diritti politici"
+        },
+        "12": {
+          "de": "Oeffentliches Verfahrensrecht",
+          "fr": "Droit procédural public",
+          "it": "Diritto processuale pubblico"
+        }
+      }
+    },
+    "3": {
+      "de": "Strafrecht",
+      "fr": "Droit pénale",
+      "it": "Diritto penale",
+      "law_areas": {
+        "1": {
+          "de": "Materielles Strafrecht",
+          "fr": "Droit pénale",
+          "it": "Diritto penale",
+          "law_areas": {
+            "1": {
+              "de": "StGB Allgemeiner Teil",
+              "fr": "CP Dispositions générales",
+              "it": "CP Disposizioni generali"
+            },
+            "2": {
+              "de": "StGB Besonderer Teil",
+              "fr": "CP Dispositions spéciales",
+              "it": "CP Disposizioni speciali"
+            },
+            "3": {
+              "de": "Jugendstrafrecht",
+              "fr": "Droit pénal des mineurs",
+              "it": "Diritto penale minorile"
+            },
+            "4": {
+              "de": "Massnahmenrecht",
+              "fr": "Droit des mesures",
+              "it": "Diritto delle misure"
+            },
+            "5": {
+              "de": "Nebenstrafrecht",
+              "fr": "Droit pénal accessoire",
+              "it": "Diritto penale accessorio"
+            }
+          },
+          "2": {
+            "de": "Strafprozessrecht",
+            "fr": "Droit de procédure pénale",
+            "it": "Diritto di processuale penale",
+            "law_areas": {
+              "1": {
+                "de": "Jugendstrafprozessrecht",
+                "fr": "Droit de la procédure pénale applicable aux mineurs",
+                "it": "Diritto di processuale penale minorile"
+              }
+            }
+          }
+        },
+        "4": {
+          "de": "Sozialversicherungsrecht",
+          "fr": "Droit des assurances sociales",
+          "it": "Diritto di sicurezza sociale",
+          "law_areas": {
+            "1": {
+              "de": "ATSG & Sozialversicherungsrecht",
+              "fr": "LPGA et droit des assurances sociales",
+              "it": "LPGA et diritto di sicurezza sociale"
+            },
+            "2": {
+              "de": "Materielles Sozialversicherungsrecht",
+              "fr": "Droit des assurances sociales",
+              "it": "Diritto di sicurezza sociale",
+              "law_areas": {
+                "1": {
+                  "de": "Alters- und Hinterlassenenversicherung",
+                  "fr": "Assurance-vieillesse et survivants",
+                  "it": "Assicurazione vecchiaia e superstiti"
+                },
+                "2": {
+                  "de": "Arbeitslosenversicherung",
+                  "fr": "Assurance-chômage",
+                  "it": "Assicurazione contro la disoccupazione"
+                },
+                "3": {
+                  "de": "Krankenversicherung",
+                  "fr": "Assurance-maladie",
+                  "it": "Assicurazione malattie"
+                },
+                "4": {
+                  "de": "Unvallversicherung",
+                  "fr": "Assurance-accidents",
+                  "it": "Assicurazione infortuni"
+                },
+                "5": {
+                  "de": "Invalidenversicherung",
+                  "fr": "Assurance-invalidité",
+                  "it": "Assicurazione invalidità"
+                },
+                "6": {
+                  "de": "Berufliche Vorsorge",
+                  "fr": "Prévoyance professionnelle",
+                  "it": "Previdenza professionale"
+                },
+                "7": {
+                  "de": "Uebriges Sozialversicherungsrecht",
+                  "fr": "Autre droit des assurances sociales",
+                  "it": "Altro diritto di sicurezza sociale"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

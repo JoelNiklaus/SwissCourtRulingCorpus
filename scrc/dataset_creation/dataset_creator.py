@@ -16,8 +16,10 @@ import pandas as pd
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
+from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache
 
-from scrc.utils.main_utils import get_legal_area, legal_areas, get_region
+from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, \
+    select_paragraphs_with_decision_and_meta_data
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -132,7 +134,6 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = int(2e2)
         self.real_chunksize = int(2e5)
 
-        self.debug = False
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
         self.feature_cols = ["text"]  # to be overridden
@@ -220,7 +221,7 @@ class DatasetCreator(AbstractPreprocessor):
                     out_file.write(json.dumps(record) + '\n')
 
     def get_df(self, engine, feature_col, label_col, lang, save_reports):
-        self.logger.info("Started loading the data from the database")
+        self.logger.info("Started loading the data")
         origin_canton = "lower_court::json#>>'{canton}' AS origin_canton"
         origin_court = "lower_court::json#>>'{court}' AS origin_court"
         origin_chamber = "lower_court::json#>>'{chamber}' AS origin_chamber"
@@ -229,22 +230,31 @@ class DatasetCreator(AbstractPreprocessor):
         columns = f"file_number, extract(year from date) as year, date, chamber, " \
                   f"{origin_canton}, {origin_court}, {origin_chamber}, {origin_date}, {origin_file_number}, " \
                   f"{label_col}, {feature_col}"
-        where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
+        where = f"spider = 'CH_BGer' AND {feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
         order_by = "year"
+
+        ###
+        # Check if feature col or label col got renamed and in which table they now are, then use the new syntax:
+        # SELECT select_fields_from_table(['lower_court.canton_id as origin_canton', 'lower_court.court_id as origin_court', ...], 'lower_court'), feature_col, label_col FROM join_tables_on_decision(['lower_court', <TABLE NEEDED FOR FEATURE COLUMN AND LABEL>])
+        ###
+
+        table_string, field_string = select_paragraphs_with_decision_and_meta_data()
+        # TODO spider testing
+        where_string = ""
+        cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}.csv'
+        df = retrieve_from_cache_if_exists(cache_dir)
+        if df.empty or True:
+            self.logger.info("Retrieving the data from the database")
+            df = next(self.select(engine, table_string, field_string, where_string, order_by='year',
+                                  chunksize=self.get_chunksize()))
+            save_df_to_cache(df, cache_dir)
+        print(df)
+        exit()
         df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
                               chunksize=self.get_chunksize()))
         df = self.clean_df(df, feature_col)
         df['legal_area'] = df.chamber.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
-
-        if save_reports:  # only calculate this if we save the reports because it takes a long time
-            # TODO precompute this in previous step after section splitting for each section
-            # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
-            spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
-            self.logger.debug("Started tokenizing with spacy")
-            df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
-            self.logger.debug("Started tokenizing with bert")
-            df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
 
         self.logger.info("Finished loading the data from the database")
 
@@ -443,6 +453,8 @@ class DatasetCreator(AbstractPreprocessor):
         """
         split_folder = self.create_dir(folder, f'reports/{split}')
 
+        self.plot_custom(df, split_folder)
+
         barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
         for attribute in barplot_attributes:
             self.plot_barplot_attribute(df, split_folder, attribute)
@@ -596,3 +608,7 @@ class DatasetCreator(AbstractPreprocessor):
         test = test.compute(scheduler='processes')
 
         return train, val, test
+
+    @abc.abstractmethod
+    def plot_custom(self, df, split_folder):
+        raise NotImplementedError("This method should be implemented in the subclass.")

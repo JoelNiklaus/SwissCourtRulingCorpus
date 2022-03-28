@@ -1,0 +1,389 @@
+canton_key,canton_name,court_key,court_name,chamber_key,chamber_name
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_001,I. öffentlich-rechtliche Abteilung
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_002,II. öffentlich-rechtliche Abteilung
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_004,I. zivilrechtliche Abteilung
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_005,II. zivilrechtliche Abteilung
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_006,Strafrechtliche Abteilung
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_008,I. sozialrechtliche Abteilung
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_009,II. sozialrechtliche Abteilung
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_010,Schuldbetreibungs- und Konkurskammer (bis 2006)
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_012,Anklagekammer (bis 2004)      
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_013,Bundesstrafgericht (bis 2004)
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_014,Ausserordentlicher Kassationhof (bis 2004)
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_015,Verwaltungskommission
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_016,Eidgenössisches Versicherungsgericht
+CH,Eidgenossenschaft,CH_BGer,Bundesgericht,CH_BGer_999,sonstiges
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_001,Band I
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_002,Band Ia
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_003,Band Ib
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_004,Band II
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_005,Band III
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_006,Band IV
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_007,Band V
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_008,Band VI
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_009,Band VII
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_010,Band VIII
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_011,Band IX
+CH,Eidgenossenschaft,CH_BGE,Bundesgericht (BGE),CH_BGE_999,sonstiges
+CH,Eidgenossenschaft,CH_BVGE,Bundesverwaltungsgericht,CH_BVGE_001,
+CH,Eidgenossenschaft,CH_PATG,Bundespatentgericht,CH_PATG_001,
+CH,Eidgenossenschaft,CH_BSTG,Bundesstrafgericht,CH_BSTG_001,
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_001,Staatssekretariat für Bildung und Forschung
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_002,Eidgenössisches Justiz- und Polizeidepartement (EJPD)
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_003,"Bundesamt für Justiz, BJ"
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_004,"BK, Sektion Recht"
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_005,Eidgenössischen Finanzdepartement (EFD)
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_006,"EDA, Direktion für Völkerrecht (DV)"
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_007,ETH-Beschwerdekommission
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_008,Bundesrat
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_009,"Rekurskommission Eidg. Departement für Verteidigung, Bevölkerungsschutz und Sport"
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_010,"Unabhängige Beschwerdeinstanz für Radio und Fernsehen, UBI"
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_011,Rekurskommission INUM
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_012,Eidgenössische Personalrekurskommission
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_013,Europäischer Gerichtshof für Menschenrechte
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_014,Datenschutzkommission
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_015,Steuerrekurskommission
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_016,Zollrekurskommission
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_017,Rekurskommission für das öffentliche Beschaffungswesen
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_018,Eidgenössische Rekurskommission für Heilmittel
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_019,Schweizerische Asylrekurskommission
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_020,Rekurskommission für die Staatshaftung
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_021,Comité des Nations Unies contre la torture
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_022,Rekuskommission des Bundesgerichts
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_023,Rekurskommission für Zivilschutzangelegenheiten
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_024,Alkoholrekurskommission
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_025,Eidgenössische Rekurskommission für Forschungsförderung
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_026,Eidgenössische Rekurskommission für medizinische Aus- und Weiterbildung
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_027,Kantonale Justizbehörden
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_028,Rekurskommission Eidgenössisches Volkswirtschaftsdepartement
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_029,Eidgenössische Rekurskommission für die Unfallversicherung
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_030,"Rekurskommission UVEK (des Eidgenössischen Departements für Umwelt, Verkehr, Energie und Kommunikation)"
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_031,Schweizerische Asylrekurskommission (ARK)
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_032,Eidgenössische Kommunikationskommission ComCom
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_033,Kontrollstelle für die Bekämpfung der Geldwäscherei
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_034,Schweizerische Bundesanwaltschaft (BA)
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_035,Nationalrat
+CH,Eidgenossenschaft,CH_VB,Verwaltungspraxis der Bundesbehörden (1987-2017),CH_VB_999,sonstige Behörden
+CH,Eidgenossenschaft,CH_WBK,Wettbewerbskommission,CH_WBK_001,
+CH,Eidgenossenschaft,CH_EDÖB,Eidgenössischer Datenschutz- und Öffentlichkeitsbeauftragter,CH_EDÖB_001,
+CH,Eidgenossenschaft,CH_XX,unbekanntes Gericht,CH_XX_001,
+AG,Aargau,AG_OG,Obergericht,AG_OG_001,Zivilkammern
+AG,Aargau,AG_OG,Obergericht,AG_OG_002,Strafkammern
+AG,Aargau,AG_OG,Obergericht,AG_OG_009,Versicherungsgericht
+AG,Aargau,AG_OG,Obergericht,AG_OG_010,Handelsgericht
+AG,Aargau,AG_OG,Obergericht,AG_OG_011,Verwaltungsgericht
+AG,Aargau,AG_OG,Obergericht,AG_OG_999,Sonstige Abteilung
+AG,Aargau,AG_AK,Anwaltskommission,AG_AK_001,
+AG,Aargau,AG_LWRK,Landwirtschaftliche Rekurskommission,AG_LWRK_001,
+AG,Aargau,AG_SVWG,Spezialverwaltungsgericht,AG_SVWG_001,
+AG,Aargau,AG_VB,Verwaltungsbehörden,AG_VB_001,
+AG,Aargau,AG_VB,Verwaltungsbehörden,AG_VB_002,
+AG,Aargau,AG_VB,Verwaltungsbehörden,AG_VB_999,andere
+AG,Aargau,AG_PRG,Personalrekursgericht,AG_PRG_001,
+AG,Aargau,AG_RGAR,Rekursgericht im Ausländerrecht,AG_RGAR_001,
+AG,Aargau,AG_SKBG,Schätzungskommission nach Baugesetz,AG_SKBG_001,
+AG,Aargau,AG_SRG,Steuerrekursgericht,AG_SRG_001,
+AG,Aargau,AG_OSB,Oberschätzungsbehörde nach Versicherungsgesetz,AG_OSB_001,
+AG,Aargau,AG_OGA,Obergericht (AGVE),AG_OGA_001,Verwaltungsgericht
+AG,Aargau,AG_OGA,Obergericht (AGVE),AG_OGA_002,Handelsgericht
+AG,Aargau,AG_OGA,Obergericht (AGVE),AG_OGA_003,Versicherungsgericht
+AG,Aargau,AG_OGA,Obergericht (AGVE),AG_OGA_004,Justizgericht
+AG,Aargau,AG_OGA,Obergericht (AGVE),AG_OGA_005,Zivilkammern
+AG,Aargau,AG_OGA,Obergericht (AGVE),AG_OGA_006,Kammer für Kindes- und Erwachsenenschutz
+AG,Aargau,AG_OGA,Obergericht (AGVE),AG_OGA_999,Sonstige Abteilung
+AG,Aargau,AG_XX,unbekanntes Gericht,AG_XX_001,
+AI,Appenzell Innerrhoden,AI_BZG,Bezirksgericht,AI_BZG_001,
+AI,Appenzell Innerrhoden,AI_KG,Kantonsgericht,AI_KG_001,
+AI,Appenzell Innerrhoden,AI_XX,Sammelwerk,AI_XX_001,
+AR,Appenzell Ausserrhoden,AR_OG,Obergericht,AR_OG_001,1. Abteilung
+AR,Appenzell Ausserrhoden,AR_OG,Obergericht,AR_OG_002,2. Abteilung
+AR,Appenzell Ausserrhoden,AR_OG,Obergericht,AR_OG_003,3. Abteilung
+AR,Appenzell Ausserrhoden,AR_OG,Obergericht,AR_OG_004,4. Abteilung
+AR,Appenzell Ausserrhoden,AR_OG,Obergericht,AR_OG_005,5. Abteilung
+AR,Appenzell Ausserrhoden,AR_OG,Obergericht,AR_OG_006,Aufsichtsbehörde für Schuldbetreibung und Konkurs
+AR,Appenzell Ausserrhoden,AR_OG,Obergericht,AR_OG_007,Anwaltsaufsichtskommission
+AR,Appenzell Ausserrhoden,AR_OG,Obergericht,AR_OG_008,Einzelrichter
+AR,Appenzell Ausserrhoden,AR_OG,Obergericht,AR_OG_999,Sonstiges
+AR,Appenzell Ausserrhoden,AR_KG,Kantonsgericht,AR_KG_001,1. Abteilung
+AR,Appenzell Ausserrhoden,AR_KG,Kantonsgericht,AR_KG_002,2. Abteilung
+AR,Appenzell Ausserrhoden,AR_KG,Kantonsgericht,AR_KG_003,3. Abteilung
+AR,Appenzell Ausserrhoden,AR_KG,Kantonsgericht,AR_KG_004,Einzelrichter
+AR,Appenzell Ausserrhoden,AR_KG,Kantonsgericht,AR_KG_005,Sammlung ARGVP
+AR,Appenzell Ausserrhoden,AR_KG,Kantonsgericht,AR_KG_999,sonstiges
+AR,Appenzell Ausserrhoden,AR_VB,Verwaltungsbehörden,AR_VB_001,
+AR,Appenzell Ausserrhoden,AR_SRK,Steuerrekurskommission,AR_SRK_001,Steuerrekurskommission
+AR,Appenzell Ausserrhoden,AR_RR,Regierungsrat,AR_RR_001,Regierungsrat
+AR,Appenzell Ausserrhoden,AR_XX,unbekanntes Gericht,AR_XX_001,
+BE,Bern,BE_OG,Obergericht,BE_OG_001,Zivilkammern
+BE,Bern,BE_OG,Obergericht,BE_OG_002,Handelsgericht
+BE,Bern,BE_OG,Obergericht,BE_OG_003,Kindes- und Erwachsenenschutzgericht
+BE,Bern,BE_OG,Obergericht,BE_OG_005,Strafkammern
+BE,Bern,BE_OG,Obergericht,BE_OG_007,Aufsichtsbehörde in Betreibungs- und Konkurssachen
+BE,Bern,BE_OG,Obergericht,BE_OG_008,Beschwerdekammer in Strafsachen
+BE,Bern,BE_OG,Obergericht,BE_OG_999,Sonstige Kammern
+BE,Bern,BE_AK,Kantonale Anwaltsaufsichtsbehörde,BE_AK_001,
+BE,Bern,BE_VG,Verwaltungsgericht,BE_VG_001,
+BE,Bern,BE_SRK,Steuerrekurskommission,BE_SRK_001,
+BE,Bern,BE_VB,Verwaltungsbehörden,BE_VB_001,Bau- und Verkehrsdirektion
+BE,Bern,BE_VB,Verwaltungsbehörden,BE_VB_002,Bildungs- und Kulturdirektion
+BE,Bern,BE_VB,Verwaltungsbehörden,BE_VB_003,"Gesundheits-, Sozial und Integrationsdirektion"
+BE,Bern,BE_VB,Verwaltungsbehörden,BE_VB_004,"Direktion für Inneres und Justiz, Grundbuchrecht i.e.S."
+BE,Bern,BE_VB,Verwaltungsbehörden,BE_VB_005,"Direktion für Inneres und Justiz, Grundbuchgebühren"
+BE,Bern,BE_VB,Verwaltungsbehörden,BE_VB_006,"Direktion für Inneres und Justiz, Handänderungssteuern"
+BE,Bern,BE_VB,Verwaltungsbehörden,BE_VB_999,andere
+BE,Bern,BE_NAB,Aufsichtsbehörde Notariat,BE_NAB_001,Administrativentscheide
+BE,Bern,BE_NAB,Aufsichtsbehörde Notariat,BE_NAB_002,Moderationsentscheide
+BE,Bern,BE_NAB,Aufsichtsbehörde Notariat,BE_NAB_003,Disziplinarentscheide
+BE,Bern,BE_NAB,Aufsichtsbehörde Notariat,BE_NAB_999,andere
+BE,Bern,BE_XX,unbekanntes Gericht,BE_XX_001,
+BL,Basel-Land,BL_KG,Kantonsgericht,BL_KG_001,
+BL,Basel-Land,BL_SG,Steuergericht,BL_SG_001,
+BL,Basel-Land,BL_EG,Enteignungsgericht,BL_EG_001,
+BL,Basel-Land,BL_ZMG,Zwangsmassnahmengericht,BL_ZMG_001,
+BL,Basel-Land,BL_XX,unbekanntes Gericht,BL_XX_001,
+BS,Basel-Stadt,BS_APG,Appellationsgericht,BS_APG_001,
+BS,Basel-Stadt,BS_SVG,Sozialversicherungsgericht,BS_SVG_001,
+BS,Basel-Stadt,BS_XX,unbekanntes Gericht,BS_XX_001,
+FR,Freiburg,FR_TC,Kantonsgericht,FR_TC_001,Zivilappellationshöfe
+FR,Freiburg,FR_TC,Kantonsgericht,FR_TC_003,Schuldbetreibungs- und Konkurskammer
+FR,Freiburg,FR_TC,Kantonsgericht,FR_TC_004,Kindes- und Erwachsenenschutzhof
+FR,Freiburg,FR_TC,Kantonsgericht,FR_TC_005,Strafkammer
+FR,Freiburg,FR_TC,Kantonsgericht,FR_TC_006,Strafappellationshof
+FR,Freiburg,FR_TC,Kantonsgericht,FR_TC_007,Verwaltungsgerichtshöfe
+FR,Freiburg,FR_TC,Kantonsgericht,FR_TC_010,Steuergerichtshof
+FR,Freiburg,FR_TC,Kantonsgericht,FR_TC_011,Sozialversicherungsgerichtshöfe
+FR,Freiburg,FR_TC,Kantonsgericht,FR_TC_012,Moderationshof
+FR,Freiburg,FR_TC,Kantonsgericht,FR_TC_999,Sonstiger Gerichtshöfe
+FR,Freiburg,FR_TAMA,Schiedsgericht in Sachen Kranken- und Unfallversicherung,FR_TAMA_001,
+FR,Freiburg,FR_XX,unbekanntes Gericht,FR_XX_001,
+GE,Genf,GE_CAPJ,Court d'appel du pouvoir judiciaire,GE_CAPJ_001,
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_001,Chambre civile
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_002,Chambre civile (Sommaires)
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_003,Chambre des prud'hommes
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_004,Chambre des baux et loyers
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_005,Assistance Juridique
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_006,Chambre de surveillance
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_007,Chambre de surveillance en matière de poursuite et faillites
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_008,Commission de taxation des honoraires d'avocats
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_009,Chambre pénale d'appel et de révision
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_010,Chambre pénale
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_011,Chambre pénale de recours
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_012,Chambre d'accusation
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_013,Chambre administrative
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_014,Chambre des assurances sociales
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_015,Chambre constitutionnelle
+GE,Genf,GE_CJ,Cour de Justice (Cour civile),GE_CJ_999,andere
+GE,Genf,GE_TP,Tribunal pénal,GE_TP_001,
+GE,Genf,GE_TAPI,Tribunal administratif de première instance en matière fiscale,GE_TAPI_001,
+GE,Genf,GE_XX,unbekanntes Gericht,GE_XX_001,
+GL,Glarus,GL_OG,Obergericht,GL_OG_001,
+GL,Glarus,GL_VG,Verwaltungsgericht,GL_VG_001,
+GL,Glarus,GL_KG,Kantonsgericht,GL_KG_001,Strafkammern
+GL,Glarus,GL_KG,Kantonsgericht,GL_KG_002,Zivilkammern
+GL,Glarus,GL_KG,Kantonsgericht,GL_KG_999,andere
+GL,Glarus,GL_XX,sonstige Gerichte,GL_XX_999,Sonstige Kammern
+GR,Graubünden,GR_KG,Kantonsgericht,GR_KG_001,Praxis des Kantonsgerichts
+GR,Graubünden,GR_KG,Kantonsgericht,GR_KG_002,Einzelrichter
+GR,Graubünden,GR_KG,Kantonsgericht,GR_KG_003,Schuldbetreibungs- und Konkurskammer
+GR,Graubünden,GR_KG,Kantonsgericht,GR_KG_004,I. Strafkammer
+GR,Graubünden,GR_KG,Kantonsgericht,GR_KG_005,II. Strafkammer
+GR,Graubünden,GR_KG,Kantonsgericht,GR_KG_006,I. Zivilkammer
+GR,Graubünden,GR_KG,Kantonsgericht,GR_KG_007,II. Zivilkammer
+GR,Graubünden,GR_KG,Kantonsgericht,GR_KG_010,Justizaufsichtskammer
+GR,Graubünden,GR_KG,Kantonsgericht,GR_KG_012,Schuldbetreibungs- und Konkurskammer
+GR,Graubünden,GR_KG,Kantonsgericht,GR_KG_999,Sonstige Kammern
+GR,Graubünden,GR_VG,Verwaltungsgericht,GR_VG_001,1. Kammer
+GR,Graubünden,GR_VG,Verwaltungsgericht,GR_VG_002,2. Kammer
+GR,Graubünden,GR_VG,Verwaltungsgericht,GR_VG_003,3. Kammer
+GR,Graubünden,GR_VG,Verwaltungsgericht,GR_VG_004,4. Kammer
+GR,Graubünden,GR_VG,Verwaltungsgericht,GR_VG_005,5. Kammer
+GR,Graubünden,GR_VG,Verwaltungsgericht,GR_VG_006,Praxis des Verwaltungsgerichts (PVG)
+GR,Graubünden,GR_VG,Verwaltungsgericht,GR_VG_999,andere
+GR,Graubünden,GR_XX,unbekanntes Gericht,GR_XX_001,
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_001,Juge unique
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_002,Cour civile
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_003,Cour pénale
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_004,Chambre pénale des recours
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_005,Cour administrative
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_006,Chambre des assurances
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_007,Cour des poursuites et faillites
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_008,Tribunal arbitral
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_009,Affaires contentieuses
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_010,Cour constitutionnelle
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_011,Affaires civiles
+JU,Jura,JU_TC,Tribunal Cantonal,JU_TC_999,Autres Cours
+JU,Jura,JU_TPI,Tribunal de première instance,JU_TPI_006,Tribunal pénal
+JU,Jura,JU_TPI,Tribunal de première instance,JU_TPI_007,Juge administratif
+JU,Jura,JU_TPI,Tribunal de première instance,JU_TPI_999,andere
+JU,Jura,JU_XX,unbekanntes Gericht,JU_XX_001,
+LU,Luzern,LU_BZG,Erstinstanzliche Gerichte,LU_BZG_001,
+LU,Luzern,LU_KG,Kantonsgericht,LU_KG_001,1. Abteilung
+LU,Luzern,LU_KG,Kantonsgericht,LU_KG_002,2. Abteilung
+LU,Luzern,LU_KG,Kantonsgericht,LU_KG_003,3. Abteilung
+LU,Luzern,LU_KG,Kantonsgericht,LU_KG_004,4. Abteilung
+LU,Luzern,LU_KG,Kantonsgericht,LU_KG_005,5. Abteilung
+LU,Luzern,LU_KG,Kantonsgericht,LU_KG_999,sonstige
+LU,Luzern,LU_RR,Regierungsrat,LU_RR_001,
+LU,Luzern,LU_JSD,Justiz- und Sicherheitsdepartement,LU_JSD_001,
+LU,Luzern,LU_BKD,Bildungs- und Kulturdepartement,LU_BKD_001,
+LU,Luzern,LU_GSD,Gesundheits- und Sozialdepartement,LU_GSD_001,
+LU,Luzern,LU_RSH,Regierungsstatthalter,LU_RSH_001,
+LU,Luzern,LU_AUK,Aufsichtsbehörden und Kommissionen,LU_AUK_001,
+LU,Luzern,LU_XX,unbekanntes Gericht,LU_XX_001,
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_001,"Cour Civile, Cour civile au sens strict"
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_002,"Cour Civile, Cour d'appel"
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_003,Cour de cassation pénale
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_004,"Cour Civile, Autorité de recours en matière civile"
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_005,Cour de cassation civile
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_006,"Cour Civile, Chambre des affaires arbitrales"
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_007,Cour des mesures de protection de l'enfant et de l'adulte
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_008,Autorité de recours en matière pénale
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_009,Cour pénale
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_010,Chambre d'accusation
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_011,Cour d'assises
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_012,Cour de droit public
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_013,Tribunal administratif
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_014,"Tribunal arbitral (selon les articles 89 LAMal, 27bis LAI, 57 LAA et 27 LAM)"
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_015,Hors rôle
+NE,Neuenburg,NE_TC,Tribunal Cantonal,NE_TC_999,Autres
+NE,Neuenburg,NE_TR,Tribunaux régional - Civil,NE_TR_001,
+NE,Neuenburg,NE_TR,Tribunaux régional - Civil,NE_TR_002,
+NE,Neuenburg,NE_TR,Tribunaux régional - Civil,NE_TR_999,andere
+NE,Neuenburg,NE_ARA,"Autorité de recours des avocates, des avocats et du notariat",NE_ARA_001,
+NE,Neuenburg,NE_ASL,Autorité de surveillance LP,NE_ASL_001,
+NE,Neuenburg,NE_ASS,Autorité supérieure de surveillance LP,NE_ASS_001,
+NE,Neuenburg,NE_ATS,Autorité tutélaire de surveillance,NE_ATS_001,
+NE,Neuenburg,NE_CA,Autorité de surveillance des avocats,NE_CA_001,
+NE,Neuenburg,NE_CN,Autorité de surveillance du notariat,NE_CN_001,
+NE,Neuenburg,NE_XX,unbekanntes Gericht,NE_XX_001,
+NW,Nidwalden,NW_OG,Gerichte,NW_OG_001,
+NW,Nidwalden,NW_XX,unbekanntes Gericht,NW_XX_001,
+OW,Obwalden,OW_VG,Verwaltungs- und Verwaltungsgerichtsentscheide (VVGE),OW_VG_001,
+OW,Obwalden,OW_OG,Amtsbericht über die Rechtspflege (AbR),OW_OG_001,
+OW,Obwalden,OW_VB,Gerichts- und Verwaltungsentscheide (OGVE),OW_VB_001,
+OW,Obwalden,OW_XX,Sonstiges,OW_XX_001,
+SG,St.Gallen,SG_KG,Kantonsgericht,SG_KG_001,Strafkammer und Anklagekammer
+SG,St.Gallen,SG_KG,Kantonsgericht,SG_KG_002,Zivilkammern (inkl. Einzelrichter)
+SG,St.Gallen,SG_KG,Kantonsgericht,SG_KG_999,Sonstiges
+SG,St.Gallen,SG_KG,Kantonsgericht,SG_KG_003,Anwaltskammer
+SG,St.Gallen,SG_HG,Handelsgericht,SG_HG_001,
+SG,St.Gallen,SG_ABSK,Kantonale Aufsichtsbehörde für Schuldbetreibung und Konkurs,SG_ABSK_001,
+SG,St.Gallen,SG_VWEK,Verwaltungsrekurskommission,SG_VWEK_001,
+SG,St.Gallen,SG_VSG,Versicherungsgericht,SG_VSG_001,
+SG,St.Gallen,SG_VG,Verwaltungsgericht,SG_VG_001,
+SG,St.Gallen,SG_KGN,Kantonsgericht,SG_KGN_001,
+SG,St.Gallen,SG_KGN,Kantonsgericht,SG_KGN_999,
+SG,St.Gallen,SG_VGN,Verwaltungsgericht,SG_VGN_001,
+SG,St.Gallen,SG_VB,Verwaltungsbehörden,SG_VB_001,Baudepartement
+SG,St.Gallen,SG_VB,Verwaltungsbehörden,SG_VB_002,etc
+SG,St.Gallen,SG_VB,Verwaltungsbehörden,SG_VB_999,andere
+SG,St.Gallen,SG_XX,unbekanntes Gericht,SG_XX_001,
+SH,Schaffhausen,SH_OG,Obergericht,SH_OG_001,
+SH,Schaffhausen,SH_XX,unbekanntes Gericht,SH_XX_001,
+SO,Solothurn,SO_OG,Obergericht,SO_OG_001,Anklagekammer
+SO,Solothurn,SO_OG,Obergericht,SO_OG_002,Beschwerdekammer
+SO,Solothurn,SO_OG,Obergericht,SO_OG_003,Jugendgerichtskammer
+SO,Solothurn,SO_OG,Obergericht,SO_OG_004,Zivilkammer
+SO,Solothurn,SO_OG,Obergericht,SO_OG_005,Schuldbetreibungs- und Konkurskammer
+SO,Solothurn,SO_OG,Obergericht,SO_OG_006,Strafkammer
+SO,Solothurn,SO_OG,Obergericht,SO_OG_999,Sonstiges
+SO,Solothurn,SO_VSG,Versicherungsgericht,SO_VSG_001,
+SO,Solothurn,SO_VG,Verwaltungsgericht,SO_VG_001,
+SO,Solothurn,SO_SK,Schätzungskommission,SO_SK_001,
+SO,Solothurn,SO_STG,Steuergericht,SO_STG_001,
+SO,Solothurn,SO_XX,unbekanntes Gericht,SO_XX_001,
+SZ,Schwyz,SZ_KG,Kantonsgericht,SZ_KG_001,1. Zivilkammer
+SZ,Schwyz,SZ_KG,Kantonsgericht,SZ_KG_002,2. Zivilkammer
+SZ,Schwyz,SZ_KG,Kantonsgericht,SZ_KG_003,Strafkammer
+SZ,Schwyz,SZ_KG,Kantonsgericht,SZ_KG_004,Beschwerdekammer
+SZ,Schwyz,SZ_KG,Kantonsgericht,SZ_KG_999,Sonstiges
+SZ,Schwyz,SZ_XX,unbekanntes Gericht,SZ_XX_001,
+TI,Tessin,TI_PP,Il Presidente della Pretura Penale,TI_PP_001,
+TI,Tessin,TI_TCA,Tribunale cantonale amministrativo,TI_TCA_001,
+TI,Tessin,TI_TCAS,Tribunale cantonale delle assicurazioni,TI_TCAS_001,
+TI,Tessin,TI_CATI,Camera di diritto tributario,TI_CATI_001,
+TI,Tessin,TI_TE,Tribunale di espropriazione,TI_TE_001,
+TI,Tessin,TI_TRAC,Tribunale di appello diritto civile,TI_TRAC_001,La prima Camera civile
+TI,Tessin,TI_TRAC,Tribunale di appello diritto civile,TI_TRAC_002,La seconda Camera civile
+TI,Tessin,TI_TRAC,Tribunale di appello diritto civile,TI_TRAC_003,La terza Camera civile
+TI,Tessin,TI_TRAC,Tribunale di appello diritto civile,TI_TRAC_004,La Camera civile dei reclami
+TI,Tessin,TI_TRAC,Tribunale di appello diritto civile,TI_TRAC_005,La Camera di cassazione civile
+TI,Tessin,TI_TRAC,Tribunale di appello diritto civile,TI_TRAC_006,La Camera di esecuzione e fallimenti
+TI,Tessin,TI_TRAC,Tribunale di appello diritto civile,TI_TRAC_007,Il presidenta della Camera di protezione
+TI,Tessin,TI_TRAC,Tribunale di appello diritto civile,TI_TRAC_999,andere
+TI,Tessin,TI_TRAP,Tribunale di appello diritto penale,TI_TRAP_001,La Corte di cassazione e di revisione penale
+TI,Tessin,TI_TRAP,Tribunale di appello diritto penale,TI_TRAP_002,La Corte dei reclami penali
+TI,Tessin,TI_TRAP,Tribunale di appello diritto penale,TI_TRAP_999,andere
+TI,Tessin,TI_TPC,Tribunale penale cantonale,TI_TPC_001,
+TI,Tessin,TI_CARP,Corte di appello e di revisione penale,TI_CARP_001,
+TI,Tessin,TI_GPC,Ufficio del giudice dei provvedimenti coercitivi,TI_GPC_001,
+TI,Tessin,TI_TRPI,Tribunale della pianificazione,TI_TRPI_001,
+TI,Tessin,TI_CRP,Camera dei ricorsi penali,TI_CRP_001,
+TI,Tessin,TI_GIAR,Il Giudice dell'istruzione e dell'arresto,TI_GIAR_001,
+TI,Tessin,TI_XX,Diversi,TI_XX_999,
+TG,Thurgau,TG_OG,Obergericht,TG_OG_001,Rechenschaftsbericht
+TG,Thurgau,TG_XX,unbekanntes Gericht,TG_XX_001,
+UR,Uri,UR_REB,"Rechenschaftsbericht über die Rechtspflege
+",UR_REB_001,
+UR,Uri,UR_XX,unbekanntes Gericht,UR_XX_001,
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_001,Cour administrative
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_002,Cour d'appel civile
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_003,Cour d'appel pénale
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_004,Cour des assurances sociales
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_005,Chambre des avocats
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_006,Cour de cassation pénale
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_007,Cour civile
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_008,Chambre des curatelles
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_009,Cour des poursuites et faillites
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_010,Chambre des recours civile
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_013,Chambre des recours pénale
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_014,Chambre des révisions civiles et pénales - Révision civile
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_015,Chambre des révisions civiles et pénales - Révision pénale
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_016,Commission de revision pénale
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_017,Chambre des tutelles
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_018,Président du Tribunal cantonal
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_019,Tribunal d'accusation
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_020,Tribunal arbitral
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_030,Cour constitutionnelle
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_031,Cour de droit administratif et public
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_032,Chambre des recours civile
+VD,Waadtland,VD_TC,Tribunal cantonal,VD_TC_999,Autres
+VD,Waadtland,VD_TPHA,Tribunal de Prud'hommes de l'Administration cantonale,VD_TPHA_001,
+VD,Waadtland,VD_SR,Conseil d'État,VD_SR_001,
+VD,Waadtland,VD_TN,Tribunal neutre,VD_TN_001,
+VD,Waadtland,VD_XX,unbekanntes Gericht,VD_XX_001,
+VS,Wallis,VS_BZG,Bezirksgericht,VS_BZG_001,Brig
+VS,Wallis,VS_BZG,Bezirksgericht,VS_BZG_002,Leuk
+VS,Wallis,VS_BZG,Bezirksgericht,VS_BZG_003,Visp
+VS,Wallis,VS_BZG,Bezirksgericht,VS_BZG_004,Siders
+VS,Wallis,VS_BZG,Bezirksgericht,VS_BZG_005,Sitten
+VS,Wallis,VS_BZG,Bezirksgericht,VS_BZG_006,Entremont
+VS,Wallis,VS_BZG,Bezirksgericht,VS_BZG_007,Hérens et Conthey
+VS,Wallis,VS_BZG,Bezirksgericht,VS_BZG_008,Martigny und St. Maurice
+VS,Wallis,VS_BZG,Bezirksgericht,VS_BZG_009,Monthey
+VS,Wallis,VS_BZG,Bezirksgericht,VS_BZG_999,andere
+VS,Wallis,VS_AG,Arbeitsgericht,VS_AG_001,
+VS,Wallis,VS_SRK,Kantonale Steuerrekurskommission,VS_SRK_001,
+VS,Wallis,VS_TC,Kantonsgericht,VS_TC_001,
+VS,Wallis,VS_XX,Sonstiges,VS_XX_001,
+ZG,Zug,ZG_VG,Verwaltungsgericht,ZG_VG_001,Sozialversicherungsrechtliche Kammer
+ZG,Zug,ZG_VG,Verwaltungsgericht,ZG_VG_002,Abgaberechtliche Kammer
+ZG,Zug,ZG_VG,Verwaltungsgericht,ZG_VG_003,Fürsorgerechtliche Kammer
+ZG,Zug,ZG_VG,Verwaltungsgericht,ZG_VG_004,Vergabekammer
+ZG,Zug,ZG_VG,Verwaltungsgericht,ZG_VG_999,sonstige Kammern
+ZG,Zug,ZG_XX,unbekanntes Gericht,ZG_XX_001,
+ZH,Zürich,ZH_BK,Bezirksgerichte,ZH_BK_004,Mietgericht
+ZH,Zürich,ZH_OG,Obergericht,ZH_OG_001,Zivilkammern
+ZH,Zürich,ZH_OG,Obergericht,ZH_OG_002,Strafkammern
+ZH,Zürich,ZH_OG,Obergericht,ZH_OG_003,Zwangsmassnahmengericht
+ZH,Zürich,ZH_OG,Obergericht,ZH_OG_004,Verwaltungskommission
+ZH,Zürich,ZH_OG,Obergericht,ZH_OG_005,Aufsichtskommission über die Anwältinnen und Anwälte
+ZH,Zürich,ZH_OG,Obergericht,ZH_OG_999,Weitere Kammern
+ZH,Zürich,ZH_KSG,Kassationsgericht,ZH_KSG_001,
+ZH,Zürich,ZH_HG,Handelsgericht,ZH_HG_001,
+ZH,Zürich,ZH_SOBE,Andere Behörden und Gerichte,ZH_SOBE_001,
+ZH,Zürich,ZH_VG,Verwaltungsgericht,ZH_VG_001,
+ZH,Zürich,ZH_SRK,Steuerrekursgericht,ZH_SRK_001,
+ZH,Zürich,ZH_BRK,Baurekursgericht,ZH_BRK_001,
+ZH,Zürich,ZH_SVG,Sozialverischerungsgericht,ZH_SVG_001,
+ZH,Zürich,ZH_XX,unbekanntes Gericht,ZH_XX_001,

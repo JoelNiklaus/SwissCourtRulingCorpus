@@ -44,6 +44,7 @@ class AbstractPreprocessor:
     def __init__(self, config: dict):
         self.languages = json.loads(config['general']['languages'])
         self.chunksize = int(config['general']['chunksize'])
+        self.ignore_cache = config['general']['ignore_cache'].lower() == 'true'
 
         self.data_dir = self.create_dir(ROOT_DIR, config['dir']['data_dir'])
         self.progress_dir = self.create_dir(self.data_dir, config['dir']['progress_dir'])
@@ -52,6 +53,7 @@ class AbstractPreprocessor:
         self.spiders_dir = self.create_dir(self.data_dir, config['dir']['spiders_subdir'])
         self.spacy_subdir = self.create_dir(self.data_dir, config['dir']['spacy_subdir'])
         self.datasets_subdir = self.create_dir(self.data_dir, config['dir']['datasets_subdir'])
+        self.tmp_subdir = self.create_dir(self.data_dir, config['dir']['tmp_subdir'])
 
         self.corpora_subdir = self.create_dir(self.data_dir, config['dir']['corpora_subdir'])
         self.slc_subdir = self.create_dir(self.corpora_subdir, config['dir']['slc_subdir'])

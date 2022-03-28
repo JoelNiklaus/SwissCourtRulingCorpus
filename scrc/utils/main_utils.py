@@ -1,7 +1,7 @@
 import json
+from pathlib import Path
 import re
 import unicodedata
-from collections import OrderedDict
 import configparser
 from os.path import exists
 from root import ROOT_DIR
@@ -108,35 +108,45 @@ def string_contains_one_of_list(string: str, lst: list):
 
 
 def int_to_roman(num: int) -> str:
-    """
+    """https://www.w3resource.com/python-exercises/class-exercises/python-class-exercise-1.php
     Converts an integer to a roman numeral string
     :param num: the input number
-    :return:    the output roman numeral string
-    """
-    roman = OrderedDict()
-    roman[1000] = "M"
-    roman[900] = "CM"
-    roman[500] = "D"
-    roman[400] = "CD"
-    roman[100] = "C"
-    roman[90] = "XC"
-    roman[50] = "L"
-    roman[40] = "XL"
-    roman[10] = "X"
-    roman[9] = "IX"
-    roman[5] = "V"
-    roman[4] = "IV"
-    roman[1] = "I"
+    :return:    the output roman numeral string"""
+    lookup = [
+        (1000, 'M'),
+        (900, 'CM'),
+        (500, 'D'),
+        (400, 'CD'),
+        (100, 'C'),
+        (90, 'XC'),
+        (50, 'L'),
+        (40, 'XL'),
+        (10, 'X'),
+        (9, 'IX'),
+        (5, 'V'),
+        (4, 'IV'),
+        (1, 'I'),
+    ]
+    res = ''
+    for (n, roman) in lookup:
+        (d, num) = divmod(num, n)
+        res += roman * d
+    return res
 
-    def roman_num(num):
-        for r in roman.keys():
-            x, y = divmod(num, r)
-            yield roman[r] * x
-            num -= (r * x)
-            if num <= 0:
-                break
 
-    return "".join([a for a in roman_num(num)])
+def roman_to_int(s: str) -> int:
+    """https://www.w3resource.com/python-exercises/class-exercises/python-class-exercise-2.php
+    Converts a roman numeral string to an integer
+    :param num: the input roman numeral string
+    :return:    the output number"""
+    rom_val = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
+    int_val = 0
+    for i in range(len(s)):
+        if i > 0 and rom_val[s[i]] > rom_val[s[i - 1]]:
+            int_val += rom_val[s[i]] - 2 * rom_val[s[i - 1]]
+        else:
+            int_val += rom_val[s[i]]
+    return int_val
 
 
 # according to BFS: https://en.wikipedia.org/wiki/Subdivisions_of_Switzerland
@@ -175,7 +185,8 @@ def get_legal_area(chamber: str):
     if chamber is None:
         return None
     if not chamber.startswith('CH_BGer_'):
-        raise ValueError("So far this method is only implemented for the Federal Supreme Court")
+        raise ValueError(f"So far this method is only implemented for the Federal Supreme Court (CH_BGer). "
+                         f"You supplied the chamber {chamber}")
 
     for legal_area, chambers in legal_areas.items():
         if chamber in chambers:
@@ -190,3 +201,18 @@ def get_config() -> configparser.ConfigParser:
     if exists(ROOT_DIR / 'rootconfig.ini'):
         config.read(ROOT_DIR / 'rootconfig.ini')  # this stops working when the script is called from the src directory!
     return config
+
+
+def save_df_to_cache(df: pd.DataFrame, path: Path, chunksize=1000):
+    logger.info(f"Writing data to cache at {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False, chunksize=chunksize)
+
+
+def retrieve_from_cache_if_exists(path: Path):
+    if path.exists():
+        logger.info(f"Loading data from cache at {path}")
+        return pd.read_csv(path, index_col=False)
+    # TODO maybe it is clearer if we just return False here?
+    else:
+        return pd.DataFrame([])

@@ -612,7 +612,7 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
     paragraphs_by_section = {section: [] for section in sections}
 
     # assert that for every passed section a section_marker is present, the header is included by default
-    assert set(sections) == set(section_markers.keys()).union(set([Section.HEADER])), \
+    assert set(sections) == set(section_markers.keys()).union(set([Section.HEADER, Section.FULLTEXT])), \
         f"Missing section marker: {set(sections) - set(section_markers.keys()).union(set([Section.HEADER]))}"
     current_section = Section.HEADER
     for paragraph in paragraphs:
@@ -624,15 +624,14 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
     if current_section != Section.FOOTER and False:
 
         # change the message depending on whether there's a url
-        if namespace['html_url']:
+        if namespace.get('html_url'):
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
                 f"Here you have the url to the decision: {namespace['html_url']}"
         elif 'pdf_url' in namespace and namespace['pdf_url']:
             message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
                 f"Here is the url to the decision: {namespace['pdf_url']}"
         else:
-            message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
-                f"Here is the date of the decision: {namespace['date']}"
+            message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! "
         get_logger(__name__).warning(message)
     return paragraphs_by_section
 

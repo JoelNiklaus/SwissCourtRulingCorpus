@@ -9,7 +9,7 @@ from scrc.utils.log_utils import get_logger
 
 
 class TermDefinitionsConverter:
-    base_dir = ROOT_DIR / 'term_definitions'
+    base_dir = ROOT_DIR / 'legal_info' / 'term_definitions'
     languages = ['de', 'fr', 'it', 'rm', 'en', 'es']
 
     def __init__(self, ):
