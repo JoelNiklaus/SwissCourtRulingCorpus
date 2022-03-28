@@ -1,37 +1,28 @@
 import os
 import sys
 import json
-
+import re
 import pandas
 import pandas as pd
 import psycopg2
 from psycopg2 import sql
 
-'''
-sys.path.append('../../')
-from scrc.utils.main_utils import get_legal_area
-sys.path.pop()
-'''
 # Load environment variable from .env
 from dotenv import load_dotenv
-
 load_dotenv()
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 LEGAL_AREAS = ["penal_law", "social_law", "civil_law"]
+LANGUAGES = ["de", "fr", "it"]
 # One ruling per 3 legal areas 2 outcomes and 6 years
 NUMBER_OF_RULINGS_PER_LANGUAGE = 3 * 2 * 6
 
 PATH_TO_PREDICTIONS = r"sjp/finetune/xlm-roberta-base-hierarchical/de,fr,it,en/"
 PATH_TO_DATASET_SCRC = r"dataset_scrc/"
-
 PREDICTIONS_TEST_PATHS =["3/de/predictions_test.csv", "3/fr/predictions_test.csv", "3/it/predictions_test.csv"] # Random seed 3 has highest macro F1-score
 
-
-LANGUAGES = ["de", "fr", "it"]
-
-# Writes a JSONL file from dictionary list
+# Writes a JSONL file from dictionary list.
 def write_JSONL(filename: str, data: list):
     with open(filename, 'w') as outfile:
         for entry in data:
@@ -39,12 +30,18 @@ def write_JSONL(filename: str, data: list):
             outfile.write('\n')
     print("Successfully saved file " + filename)
 
+# Reads CSV file sets index to "id" and returns a DataFrame.
 def read_csv(filepath:str) -> pandas.DataFrame:
     df = pd.read_csv(filepath)
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
     df = df.set_index("id")
     return df
 
+# Joins to dataframes according to their ids.
+# Drops rows of False prediction (except in italian dataset).
+# Drops duplicated, redundant and Nan columns.
+# Checks legal area.
+# returns joined DataFrame.
 def join_dataframes(df_1: pandas.DataFrame, df_2: pandas.DataFrame, lang:str) -> pandas.DataFrame:
     df = df_1.join(df_2, lsuffix='_caller', rsuffix='_other')
     if lang != LANGUAGES[2]:
@@ -54,9 +51,12 @@ def join_dataframes(df_1: pandas.DataFrame, df_2: pandas.DataFrame, lang:str) ->
     df = df[df["legal_area"].isin(LEGAL_AREAS)]
     df["text"] = df["text"].str.replace('\"\"', '\"')
     df = df.dropna()
-
     return df
 
+
+# Asserts uniqueness of dataset entries
+# Checks if every year has a complete set of 6 rulings
+# Asserts a list length smaller than NUMBER_OF_RULINGS_PER_LANGUAGE
 def validate_filtering(tuple_list: list,filtered_list: list):
     i = 0
     incomplete_set_years = []
@@ -83,8 +83,6 @@ def validate_filtering(tuple_list: list,filtered_list: list):
                     print(t)
 
 # Filters dictionary list using unique tuple as condition
-# Asserts a list length smaller than 36
-# Asserts uniqueness of dataset entries
 # Returns filtered list
 def filter_dataset(data: list) -> list:
     tuples = set()
@@ -98,10 +96,19 @@ def filter_dataset(data: list) -> list:
     validate_filtering(sorted(tuples),filtered_dataset)
     return filtered_dataset
 
+def header_preprocessing(h:str, pattern:str):
+    print(h)
+    result = re.search(pattern,h)
+    if result is not None:
+        return result.group(0)
+    else:
+        return h
+
 
 # Connects to scrc database, executes sql query and uses batched fetching to returns results.
 # Query results are ordered by size of the facts (shortest facts first).
-# Preprocesses results by adding the corresponding legal area and filtering out double judgments.
+# Matches results with entries from test_val_set
+# Preprocesses matched results by adding the corresponding legal area and judgment.
 # Returns filtered records from the database as list.
 def db_stream(language: str) -> list:
     unfiltered_dataset = []
@@ -109,16 +116,17 @@ def db_stream(language: str) -> list:
     test_set = read_csv(PATH_TO_DATASET_SCRC+language+"/test.csv")
     val_set = read_csv(PATH_TO_DATASET_SCRC+language+"/val.csv")
     test_val_set = pd.concat([join_dataframes(prediction_test, test_set, language),join_dataframes(PREDICTIONS_EVAL, val_set,language)])
-
     # scrc database connection configuration string
     config = "dbname=scrc user={} password={} host=localhost port=5432".format(DB_USER, DB_PASSWORD)
+    patters = {"de": "[u|U]rteil \w+ \d+?.? \w+ \d{4}", "fr": "[a|A]rrêt \w+ \d+?.? \w+ \d{4}",
+               "it": "[s|S]entenza \w+ \d+?.? \w+ \d{4}"}
 
     # prodigy database connection configuration string, to fetch processed ids
 
-    query = sql.SQL("SELECT id, date, html_url, pdf_url, facts, considerations, rulings " \
+    query = sql.SQL("SELECT id, date, html_url, pdf_url, header, facts, considerations, rulings " \
                     "FROM {} WHERE (date between '2015-01-01' AND '2020-12-31') " \
-                    "AND (CHAR_LENGTH(facts)>500)" \
-                    "AND NOT (CHAR_LENGTH(rulings)=0 )" \
+                    "AND (CHAR_LENGTH(facts)>450)" \
+                    "AND NOT (CHAR_LENGTH(considerations)=0 )" \
                     "AND NOT (CHAR_LENGTH(rulings)=0)"\
                     "ORDER BY CHAR_LENGTH(facts)").format(sql.Identifier(language))
 
@@ -130,7 +138,7 @@ def db_stream(language: str) -> list:
                 if not rows:
                     break
                 for row in rows:
-                    idx, date, html_url, pdf_url, facts, considerations, rulings= row
+                    idx, date, html_url, pdf_url, header, facts, considerations, rulings= row
                     if str(html_url) != "":
                         link = html_url
                     if str(pdf_url) != "":
@@ -140,20 +148,19 @@ def db_stream(language: str) -> list:
                            "text": facts,
                            "year": int(date.year),
                            "link": str(link),
+                           "header": header_preprocessing(header,patters[language]),
                            "considerations": considerations,
                            "ruling": rulings}
 
                     if res["text"] in set(test_val_set["text"]):
                         res["legal_area"] = list(test_val_set.loc[test_val_set["text"] == res["text"]]["legal_area"])[0]
                         res["judgment"] = list(test_val_set.loc[test_val_set["text"] == res["text"]]["label_caller"])[0]
-                        res["confidence"] = list(test_val_set.loc[test_val_set["text"] == res["text"]]["confidence"])[0]
                         res["id_csv"] = list(test_val_set.loc[test_val_set["text"] == res["text"]].index)[0]
                         res["is_correct"] = list(test_val_set.loc[test_val_set["text"] == res["text"]]["is_correct"])[0]
 
                         unfiltered_dataset.append(res)
 
             print(len(unfiltered_dataset))
-            unfiltered_dataset = sorted(unfiltered_dataset, key=lambda x: x["confidence"], reverse=True)
             return filter_dataset(unfiltered_dataset)
 
 
