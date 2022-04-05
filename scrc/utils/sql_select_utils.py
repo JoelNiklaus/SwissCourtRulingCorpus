@@ -6,6 +6,8 @@ from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.schema import MetaData, Table
 from transformers.file_utils import add_code_sample_docstrings
+from scrc.enums.cantons import Canton
+from scrc.enums.chamber import Chamber
 
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 
@@ -273,14 +275,14 @@ def convert_to_binary_judgments(df, with_partials=False, with_write_off=False, w
 
 # according to BFS: https://en.wikipedia.org/wiki/Subdivisions_of_Switzerland
 regions = {
-    "Eastern_Switzerland": [17, 22, 3, 4, 10, 18, 11],
-    "Zürich": [27],
-    "Central_Switzerland": [23, 20, 16, 15, 13, 26],
-    "Northwestern_Switzerland": [7, 6, 2],
-    "Espace_Mittelland": [5, 19, 8, 14, 12],
-    "Région lémanique": [9, 24, 25],
-    "Ticino": [21],
-    "Federation": [1],  # this is a hack to map CH to a region too
+    "Eastern_Switzerland": [Canton.SG, Canton.TG, Canton.AI, Canton.AR, Canton.GL, Canton.SH, Canton.GR],
+    "Zürich": [Canton.ZH],
+    "Central_Switzerland": [Canton.UR, Canton.SZ, Canton.OW, Canton.NW, Canton.LU, Canton.ZG],
+    "Northwestern_Switzerland": [Canton.BS, Canton.BL, Canton.AG],
+    "Espace_Mittelland": [Canton.BE, Canton.SO, Canton.FR, Canton.NE, Canton.JU],
+    "Région lémanique": [Canton.GE, Canton.VD, Canton.VS],
+    "Ticino": [Canton.TI],
+    "Federation": [Canton.CH],  # this is a hack to map CH to a region too
 }
 
 
@@ -294,12 +296,12 @@ def get_region(canton: str):
 
 
 legal_areas = {
-    "public_law": [90, 91],
-    "civil_law": [92, 93],
-    "penal_law": [94, 99],
-    "social_law": [95, 96],
-    "insurance_law": [102],
-    "other": [97, 98, 100, 101, 103],
+    "public_law": [Chamber.CH_BGer_001, Chamber.CH_BGer_002],
+    "civil_law": [Chamber.CH_BGer_004, Chamber.CH_BGer_005],
+    "penal_law": [Chamber.CH_BGer_006, Chamber.CH_BGer_013],
+    "social_law": [Chamber.CH_BGer_008, Chamber.CH_BGer_009],
+    "insurance_law": [Chamber.CH_BGer_016],
+    "other": [Chamber.CH_BGer_010, Chamber.CH_BGer_012, Chamber.CH_BGer_014, Chamber.CH_BGer_015, Chamber.CH_BGer_999],
 }
 
 
