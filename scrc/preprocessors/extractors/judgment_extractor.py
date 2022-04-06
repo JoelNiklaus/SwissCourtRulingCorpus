@@ -1,5 +1,8 @@
 from __future__ import annotations
 import configparser
+import datetime
+import os
+from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
 import pandas as pd
@@ -7,6 +10,7 @@ from sqlalchemy.engine.base import Engine
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.schema import MetaData, Table
 from scrc.enums.judgment import Judgment
+from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
@@ -50,7 +54,14 @@ class JudgmentExtractor(AbstractExtractor):
         return self.select(engine, f"section {join_decision_and_language_on_parameter('decision_id', 'section.decision_id')} {join_file_on_decision()}", f"section.decision_id, section_text, '{spider}' as spider, iso_code as language, html_url", where=f"section.section_type_id = 5 AND section.decision_id IN {where_string_spider('decision_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
-        
+        if not AbstractPreprocessor._check_write_privilege(engine):
+            path = ''
+            AbstractPreprocessor.create_dir(self.output_dir, os.getlogin())
+            path = Path.joinpath(self.output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
+            
+            with path.open("a") as f:
+                df.to_json(f)
+            return
         for idx, row in df.iterrows():
             with engine.connect() as conn:
                 t = Table('judgment_map', MetaData(), autoload_with=engine)

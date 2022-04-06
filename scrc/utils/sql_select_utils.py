@@ -6,6 +6,8 @@ from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.schema import MetaData, Table
 from transformers.file_utils import add_code_sample_docstrings
+from scrc.enums.cantons import Canton
+from scrc.enums.chamber import Chamber
 
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 
@@ -273,14 +275,14 @@ def convert_to_binary_judgments(df, with_partials=False, with_write_off=False, w
 
 # according to BFS: https://en.wikipedia.org/wiki/Subdivisions_of_Switzerland
 regions = {
-    "Eastern_Switzerland": ["SG", "TG", "AI", "AR", "GL", "SH", "GR"],
-    "Zürich": ["ZH"],
-    "Central_Switzerland": ["UR", "SZ", "OW", "NW", "LU", "ZG"],
-    "Northwestern_Switzerland": ["BS", "BL", "AG"],
-    "Espace_Mittelland": ["BE", "SO", "FR", "NE", "JU"],
-    "Région lémanique": ["GE", "VD", "VS"],
-    "Ticino": ["TI"],
-    "Federation": ["CH"],  # this is a hack to map CH to a region too
+    "Eastern_Switzerland": [Canton.SG, Canton.TG, Canton.AI, Canton.AR, Canton.GL, Canton.SH, Canton.GR],
+    "Zürich": [Canton.ZH],
+    "Central_Switzerland": [Canton.UR, Canton.SZ, Canton.OW, Canton.NW, Canton.LU, Canton.ZG],
+    "Northwestern_Switzerland": [Canton.BS, Canton.BL, Canton.AG],
+    "Espace_Mittelland": [Canton.BE, Canton.SO, Canton.FR, Canton.NE, Canton.JU],
+    "Région lémanique": [Canton.GE, Canton.VD, Canton.VS],
+    "Ticino": [Canton.TI],
+    "Federation": [Canton.CH],  # this is a hack to map CH to a region too
 }
 
 
@@ -294,19 +296,19 @@ def get_region(canton: str):
 
 
 legal_areas = {
-    "public_law": ['CH_BGer_001', 'CH_BGer_002'],
-    "civil_law": ['CH_BGer_004', 'CH_BGer_005'],
-    "penal_law": ['CH_BGer_006', 'CH_BGer_011', 'CH_BGer_013'],
-    "social_law": ['CH_BGer_008', 'CH_BGer_009'],
-    "insurance_law": ['CH_BGer_016'],
-    "other": ['CH_BGer_010', 'CH_BGer_012', 'CH_BGer_014', 'CH_BGer_015', 'CH_BGer_999'],
+    "public_law": [Chamber.CH_BGer_001, Chamber.CH_BGer_002],
+    "civil_law": [Chamber.CH_BGer_004, Chamber.CH_BGer_005],
+    "penal_law": [Chamber.CH_BGer_006, Chamber.CH_BGer_013],
+    "social_law": [Chamber.CH_BGer_008, Chamber.CH_BGer_009],
+    "insurance_law": [Chamber.CH_BGer_016],
+    "other": [Chamber.CH_BGer_010, Chamber.CH_BGer_012, Chamber.CH_BGer_014, Chamber.CH_BGer_015, Chamber.CH_BGer_999],
 }
 
 
-def get_legal_area(chamber: str):
+def get_legal_area(chamber: int):
     if chamber is None:
         return None
-    if not chamber.startswith('CH_BGer_'):
+    if not chamber >= 90 and chamber <= 103:
         raise ValueError("So far this method is only implemented for the Federal Supreme Court")
 
     for legal_area, chambers in legal_areas.items():
