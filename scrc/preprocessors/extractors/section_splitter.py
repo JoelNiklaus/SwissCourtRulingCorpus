@@ -15,6 +15,7 @@ from sqlalchemy.sql.schema import MetaData, Table
 
 from scrc.enums.language import Language
 from scrc.enums.section import Section
+from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
@@ -89,6 +90,16 @@ class SectionSplitter(AbstractExtractor):
         return result
     
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
+        
+        if not AbstractPreprocessor._check_write_privilege(engine):
+            path = ''
+            AbstractPreprocessor.create_dir(self.output_dir, os.getlogin())
+            path = Path.joinpath(self.output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
+            
+            with path.open("a") as f:
+                df.to_json(f)
+            return
+        
         if self.run_tokenizer:
             tokens = self.run_tokenizer(df)
         
