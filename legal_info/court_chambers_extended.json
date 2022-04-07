@@ -311,7 +311,7 @@
             "fr": "DFJP, D\u00e9partement f\u00e9d\u00e9ral de justice et police",
             "it": "Dipartimento federale di giustizia e polizia DFGP",
             "Rechtsgebiete": [
-              "2.1","2.8","2.10"    
+              "2.1","2.8","2.10"
             ]
           },
           "CH_VB_003": {
@@ -872,7 +872,7 @@
             "fr": "Verwaltungsgericht",
             "it": "Verwaltungsgericht",
             "Rechtsgebiete": [
-              "1.5","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12""
+              "1.5","2.1","2.2","2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12"
             ]
           },
           "AG_OGA_002": {
@@ -3456,7 +3456,7 @@
             "fr": "La Camera di esecuzione e fallimenti",
             "it": "La Camera di esecuzione e fallimenti",
             "Rechtsgebiete": [
-              "1.14""1.15"
+              "1.14", "1.15"
             ]
           },
           "TI_TRAC_007": {
