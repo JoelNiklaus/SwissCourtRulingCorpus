@@ -21,7 +21,7 @@ everything.
 
 4. To run a task, use `run.sh` in the `/prodigy` folder. Pass it the desired parameters explained atop the file. It starts
 your task as a webserver. Access it
-at http://fdn-sandbox3.inf.unibe.ch:8080/. Login with the credentials configured in the Dockerfile ("admin": "password")
+at _http://fdn-sandbox3.inf.unibe.ch:18080/_. Login with the credentials configured in the Dockerfile ("admin": "password")
 
 
 ## Development
@@ -37,7 +37,7 @@ by following the steps in **Setup & Usage** or test around in the development en
 
 config everything in prodigy.json:
 - database connection
-- host: use 0.0.0.0 if deployed in docker container, otherwise localhost (except if db is remote)
+- host: use _fdn-sandbox3.inf.unibe.ch_ if deployed in docker container, otherwise localhost (except if db is remote)
 
 ## Custom Usage
 To create your own module write a recipe as explained in the prodi.gy docs, or extend one of theirs. Use the `develop.sh` script
