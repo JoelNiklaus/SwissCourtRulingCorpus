@@ -29,7 +29,7 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
   case "$task" in
     "facts-annotation")
       printf "${SUCCESS}Starting command in container, to stop use Ctrl+C.\n${NC}"
-      docker exec -it -d prodigy_v1_nina prodigy "$task" de 1 "" -F ./recipes/facts_annotation.py
+      docker exec -it  -d prodigy_v1_nina prodigy "$task" de 1 "" -F ./recipes/facts_annotation.py
       docker exec -it -d prodigy_v1_nina prodigy "$task" de 2 "" -F ./recipes/facts_annotation.py
       docker exec -it -d prodigy_v1_nina prodigy "$task" de 3 "" -F ./recipes/facts_annotation.py
       docker exec -it -d prodigy_v1_nina prodigy "$task" fr 1 "" -F ./recipes/facts_annotation.py
