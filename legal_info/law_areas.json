@@ -390,58 +390,58 @@
               }
             }
           }
+        }
+      }
+    },
+    "4": {
+      "de": "Sozialversicherungsrecht",
+      "fr": "Droit des assurances sociales",
+      "it": "Diritto di sicurezza sociale",
+      "law_areas": {
+        "1": {
+          "de": "ATSG & Sozialversicherungsrecht",
+          "fr": "LPGA et droit des assurances sociales",
+          "it": "LPGA et diritto di sicurezza sociale"
         },
-        "4": {
-          "de": "Sozialversicherungsrecht",
+        "2": {
+          "de": "Materielles Sozialversicherungsrecht",
           "fr": "Droit des assurances sociales",
           "it": "Diritto di sicurezza sociale",
           "law_areas": {
             "1": {
-              "de": "ATSG & Sozialversicherungsrecht",
-              "fr": "LPGA et droit des assurances sociales",
-              "it": "LPGA et diritto di sicurezza sociale"
+              "de": "Alters- und Hinterlassenenversicherung",
+              "fr": "Assurance-vieillesse et survivants",
+              "it": "Assicurazione vecchiaia e superstiti"
             },
             "2": {
-              "de": "Materielles Sozialversicherungsrecht",
-              "fr": "Droit des assurances sociales",
-              "it": "Diritto di sicurezza sociale",
-              "law_areas": {
-                "1": {
-                  "de": "Alters- und Hinterlassenenversicherung",
-                  "fr": "Assurance-vieillesse et survivants",
-                  "it": "Assicurazione vecchiaia e superstiti"
-                },
-                "2": {
-                  "de": "Arbeitslosenversicherung",
-                  "fr": "Assurance-chômage",
-                  "it": "Assicurazione contro la disoccupazione"
-                },
-                "3": {
-                  "de": "Krankenversicherung",
-                  "fr": "Assurance-maladie",
-                  "it": "Assicurazione malattie"
-                },
-                "4": {
-                  "de": "Unvallversicherung",
-                  "fr": "Assurance-accidents",
-                  "it": "Assicurazione infortuni"
-                },
-                "5": {
-                  "de": "Invalidenversicherung",
-                  "fr": "Assurance-invalidité",
-                  "it": "Assicurazione invalidità"
-                },
-                "6": {
-                  "de": "Berufliche Vorsorge",
-                  "fr": "Prévoyance professionnelle",
-                  "it": "Previdenza professionale"
-                },
-                "7": {
-                  "de": "Uebriges Sozialversicherungsrecht",
-                  "fr": "Autre droit des assurances sociales",
-                  "it": "Altro diritto di sicurezza sociale"
-                }
-              }
+              "de": "Arbeitslosenversicherung",
+              "fr": "Assurance-chômage",
+              "it": "Assicurazione contro la disoccupazione"
+            },
+            "3": {
+              "de": "Krankenversicherung",
+              "fr": "Assurance-maladie",
+              "it": "Assicurazione malattie"
+            },
+            "4": {
+              "de": "Unvallversicherung",
+              "fr": "Assurance-accidents",
+              "it": "Assicurazione infortuni"
+            },
+            "5": {
+              "de": "Invalidenversicherung",
+              "fr": "Assurance-invalidité",
+              "it": "Assicurazione invalidità"
+            },
+            "6": {
+              "de": "Berufliche Vorsorge",
+              "fr": "Prévoyance professionnelle",
+              "it": "Previdenza professionale"
+            },
+            "7": {
+              "de": "Uebriges Sozialversicherungsrecht",
+              "fr": "Autre droit des assurances sociales",
+              "it": "Altro diritto di sicurezza sociale"
             }
           }
         }
