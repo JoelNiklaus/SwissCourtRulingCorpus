@@ -38,15 +38,18 @@ def facts_annotation(language:str,annotator:str,test_mode:str ):
   # define labels for annotation
   labels = ["Supports judgment","Opposes verdict"]
 
-  if annotator != "" and test_mode != "t" :
+  if annotator != "" and test_mode != "test" :
     dataset = "annotations_{}_{}".format(language,annotator)
     port = ports["{}_{}".format(language,annotator)]
+    stream = JSONL("./datasets/annotation_input_set_{}.jsonl".format(language))
   else:
     dataset = "annotations_{}_test".format(language)
     port = 14000
+    stream = JSONL("./datasets/annotation_input_set_{}_ex.jsonl".format(language))
+
 
   # define stream (generator)
-  stream = JSONL("./datasets/annotation_input_set_{}.jsonl".format(language))
+
 
   # Tokenize the incoming examples and add a "tokens" property to each
   # example. Also handles pre-defined selected spans. Tokenization allows
@@ -61,14 +64,12 @@ def facts_annotation(language:str,annotator:str,test_mode:str ):
     "config": {
       "port": port,
       "blocks": [
-        {"view_id": "html", "html_template": "<h1 style='float:left'> {{header}} – Judgment: {{judgment}}</h2>"},
+        {"view_id": "html",
+         "html_template": "<p style='float:left'>{{file_number}}</p>"},
+        {"view_id": "html", "html_template": "<h1 style='float:left'>{{header}} – Judgment: {{judgment}}</h2>"},
         {"view_id": "html",
          "html_template": "<h2 style='float:left'>Facts</h2><a style='float:right' href='{{link}}'>Got to the Court Ruling</a>"},
         {"view_id": "spans_manual", "lang": nlp.lang, "labels": labels},
-        {"view_id": "html", "html_template": "<h2 style='float:left'>Considerations</h2>"},
-        {"view_id": "html", "html_template":"<p style='text-justify: auto;  text-align: justify;'>{{considerations}}</>"},
-        {"view_id": "html", "html_template":"<h2 style='float:left'>Ruling</h2><br>"},
-        {"view_id": "html", "html_template":"<p style='hyphens: auto;text-align: justify'>{{ruling}}</p>"},
         {"view_id": "text_input","field_label":"Annotator comment on this ruling", "field_placeholder": "Type here...","field_rows": 3},
       ]
     },
