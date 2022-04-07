@@ -4,4 +4,4 @@ wheel
 datasets/*.jsonl
 datasets/dataset_scrc
 datasets/sjp
-annotation/
+annotations/
