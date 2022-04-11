@@ -36,7 +36,7 @@ def facts_annotation(language:str,annotator:str,test_mode:str ):
   # Have to load french and italian model
   nlp = spacy.load("{}_core_news_sm".format(language))
   # define labels for annotation
-  labels = ["Supports judgment","Opposes verdict"]
+  labels = ["Supports judgment","Opposes judgment"]
 
   if annotator != "" and test_mode != "test" :
     dataset = "annotations_{}_{}".format(language,annotator)
