@@ -1,18 +1,21 @@
 import configparser
 import json
 import re
-from typing import Optional, Any
+from typing import List, Optional, Any
 
 import bs4
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
+from sqlalchemy.engine.base import Engine
+from sqlalchemy.sql.expression import insert
 
 from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import clean_text, get_config
+from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, join_decision_on_parameter, where_decisionid_in_list, where_string_spider
 
 # TODO Adrian passt so an, dass der AbstractExtractor gebraucht werden kann als Superklasse
 class Cleaner(AbstractExtractor):
@@ -34,7 +37,7 @@ class Cleaner(AbstractExtractor):
     """
 
     def __init__(self, config: dict):
-        super().__init__(config, function_name='processing_functions', col_name='text', col_type='text')
+        super().__init__(config, function_name='cleaning_functions', col_name='text', col_type='text')
         self.cleaning_regexes = self.load_cleaning_regexes(config['files']['cleaning_regexes'])
         self.processed_file_path = self.data_dir / "spiders_cleaned.txt"
 
@@ -55,17 +58,22 @@ class Cleaner(AbstractExtractor):
             cleaning_regexes = json.load(f)
         return cleaning_regexes
 
-    def clean(self):
+    def clean(self, decision_ids: Optional[List] = None):
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
         self.logger.info("Started cleaning raw court rulings")
-
         processed_file_path = self.progress_dir / "spiders_cleaned.txt"
+
+        if self.ignore_cache:
+            processed_file_path.unlink()
+        if decision_ids is not None:
+            self.decision_ids = decision_ids
         spider_list, message = self.compute_remaining_spiders(processed_file_path)
         self.logger.info(message)
 
-    def get_database_selection_string(self, spider: str, lang: str) -> str:
+    def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-        return f"spider='{spider}'"
+        only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
+        return self.select(engine, f"file {join_decision_on_parameter('file_id', 'file.file_id')}", 'decision_id,file_id,html_raw,pdf_raw', where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
 
     def get_required_data(self, series: pd.DataFrame) -> Any:
         return series['spider']
@@ -75,24 +83,26 @@ class Cleaner(AbstractExtractor):
         e.g. data is required to be present for analysis"""
         return True
     
+    def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
+        df['section_type_id'] = 1
+        self.update(engine, df, 'section', ['decision_id', 'section_type_id', 'section_text'], self.output_dir)
 
     def process_one_spider(self, engine, spider):
         """Cleans one spider csv file"""
         self.logger.info(f"Started cleaning {spider}")
 
-        for lang in self.languages:
-            where = self.get_database_selection_string(spider, lang)
-            self.start_progress(engine, spider, lang)
-            dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)  # stream dfs from the db
-            for df in dfs:
-                # according to docs you should aim for a partition size of 100MB
-                ddf = dd.from_pandas(df, npartitions=self.num_cpus)
-                ddf = ddf.apply(self.process_one_df_row, axis='columns', meta=ddf)  # apply cleaning function to each row
-                with ProgressBar():
-                    df = ddf.compute(scheduler='processes')
-                self.update(engine, df, lang, [self.col_name], self.output_dir)
-                self.log_progress(self.chunksize)
-            self.log_coverage(engine, spider, lang)
+            
+        self.start_progress(engine, spider, engine)
+        dfs = self.select_df(engine, spider)  # stream dfs from the db
+        for df in dfs:
+            # according to docs you should aim for a partition size of 100MB
+            ddf = dd.from_pandas(df, npartitions=self.num_cpus)
+            ddf = ddf.apply(self.process_one_df_row, axis='columns', meta=ddf)  # apply cleaning function to each row
+            with ProgressBar():
+                df = ddf.compute(scheduler='processes')
+            self.save_data_to_database(df, engine)
+        #    self.log_progress(self.chunksize)
+        #self.log_coverage(engine, spider, lang)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
     def process_one_df_row(self, series):
@@ -100,7 +110,7 @@ class Cleaner(AbstractExtractor):
         self.logger.debug(
             f"{self.logger_info['processing_one']} {series['file_name']}")
         namespace = series[
-            ['file_number', 'file_number_additional', 'date', 'language', 'pdf_url', 'html_url']].to_dict()
+            ['file_id', 'pdf_url', 'html_url']].to_dict()
         spider = self.get_required_data(series)
 
         html_clean, pdf_clean = '', ''
@@ -120,7 +130,7 @@ class Cleaner(AbstractExtractor):
         series['text'] = np.where(html_clean != '', html_clean, pdf_clean)
         if series['text'] == '':
             # series['text'] = np.nan  # set to nan, so that it can be removed afterwards
-            self.logger.warning(f"No raw text available for court decision {series['file_number']}")
+            self.logger.warning(f"No raw text available for court decision {series['file_id']}")
 
         series.text = str(series.text)  # otherwise we get an error when we want to save it into the db
 
