@@ -8,6 +8,10 @@ from scrc.utils.main_utils import get_config
 
 
 class BuildingViolationsAnalysis(AbstractPreprocessor):
+    """
+    First decision: 2000-05-04
+    Last decision: 2021-08-11
+    """
 
     def __init__(self, config: dict):
         super().__init__(config)
@@ -75,6 +79,14 @@ class BuildingViolationsAnalysis(AbstractPreprocessor):
                             'non-ARE is defendant']
         summary_df['approval_percentage'] = round(100 * summary_df.approvals / summary_df.total, 2)
         print(summary_df)
+
+        # Save dfs to files, so that we also have them later
+        analysis_dir = self.create_dir(ROOT_DIR, 'analyses/building_violations')
+        ARE_is_plaintiff.to_csv(analysis_dir / 'ARE_is_plaintiff.csv', index=False)
+        ARE_is_defendant.to_csv(analysis_dir / 'ARE_is_defendant.csv', index=False)
+        non_ARE_is_plaintiff.to_csv(analysis_dir / 'non_ARE_is_plaintiff.csv', index=False)
+        non_ARE_is_defendant.to_csv(analysis_dir / 'non_ARE_is_defendant.csv', index=False)
+        summary_df.to_csv(analysis_dir / 'summary_df.csv', index=False)
 
     def filter_parties(self, df, is_ARE_plaintiff=True):
         parties_number = '0' if is_ARE_plaintiff else '1'
