@@ -70,7 +70,7 @@ def facts_annotation(language:str,annotator:str,test_mode:str ):
         {"view_id": "html",
          "html_template": "<h2 style='float:left'>Facts</h2><a style='float:right' href='{{link}}'>Got to the Court Ruling</a>"},
         {"view_id": "spans_manual", "lang": nlp.lang, "labels": labels},
-        {"view_id": "text_input","field_label":"Annotator comment on this ruling", "field_placeholder": "Type here...","field_rows": 3},
+        {"view_id": "text_input","field_label":"Annotator comment on this ruling", "field_placeholder": "Type here...","field_rows": 5},
       ]
     },
 
