@@ -68,7 +68,7 @@ class SectionSplitter(AbstractExtractor):
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
-        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}", f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
+        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')} LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id ", f"decision_id, iso_code as language, html_raw, pdf_raw, html_url, pdf_url, '{spider}' as spider, court_id", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
     
     def run_tokenizer(self, df: pd.DataFrame):
         # only calculate this if we save the reports because it takes a long time
@@ -115,8 +115,10 @@ class SectionSplitter(AbstractExtractor):
                 section_ids = [i['section_id'] for i in section_ids_result]
                 stmt = t_paragraph.delete().where(delete_stmt_decisions_with_df(df))
                 conn.execute(stmt)
-                stmt = t_num_tokens.delete().where(text(f"section_id in ({section_ids})"))
-                conn.execute(stmt)
+                if len(section_ids)>0:
+                    section_ids_string = ','.join(["'" + str(item)+"'" for item in section_ids])
+                    stmt = t_num_tokens.delete().where(text(f"section_id in ({section_ids_string})"))
+                    conn.execute(stmt)
                 for k in row['sections'].keys():
                     section_type_id = k.value
                     # insert section
@@ -124,8 +126,9 @@ class SectionSplitter(AbstractExtractor):
                     section_id = conn.execute(stmt).fetchone()['section_id']
                     
                     # Add num tokens
-                    stmt = t_num_tokens.insert().values([{'section_id': str(section_id), 'num_tokes_spacy': tokens[k]['num_tokens_spacy'], 'num_tokens_bert': tokens[k]['num_tokens_bert']}])                    
-                    conn.execute(stmt)
+                    if self.run_tokenizer:
+                        stmt = t_num_tokens.insert().values([{'section_id': str(section_id), 'num_tokes_spacy': tokens[k]['num_tokens_spacy'], 'num_tokens_bert': tokens[k]['num_tokens_bert']}])                    
+                        conn.execute(stmt)
                     
                     # Add a all paragraphs
                     for paragraph in row['sections'][k]:

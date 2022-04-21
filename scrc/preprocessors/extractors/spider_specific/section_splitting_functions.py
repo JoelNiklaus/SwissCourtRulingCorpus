@@ -241,13 +241,13 @@ def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     else:
         message = f"({namespace['id']}): We got stuck at court {namespace['court']}. Please check! "
 
-    if namespace['html_url']:
+    if 'html_url' in namespace and namespace['html_url']:
         valid_namespace(namespace, all_section_markers)
         section_markers = prepare_section_markers(
             all_section_markers, namespace)
         divs = decision.findAll("div", {'id': 'content-content'})
         paragraphs = get_paragraphs(divs)
-    elif namespace['pdf_url']:
+    elif 'pdf_url' in namespace and namespace['pdf_url']:
         if namespace['language'] not in all_section_markers:
             message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
             raise ValueError(message)

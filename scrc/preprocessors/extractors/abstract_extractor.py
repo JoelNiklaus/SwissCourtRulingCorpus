@@ -2,8 +2,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Set, TYPE_CHECKING, Tuple
 import pandas as pd
-
 from root import ROOT_DIR
+from scrc.enums.court import Court
+
 from scrc.enums.language import Language
 from scrc.utils.log_utils import get_logger
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
@@ -99,8 +100,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         for df in dfs:
             df = df.apply(self.process_one_df_row, axis="columns")
             self.save_data_to_database(df, engine)
-            # self.update(engine, df, lang, [self.col_name], self.output_dir)
-            #self.log_progress(self.chunksize)
+            self.log_progress(self.chunksize)
 
         #self.log_coverage(engine, spider)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
@@ -111,9 +111,14 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         #namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
         namespace = dict()
         if 'html_url' in series:
-            namespace['html_url'] = series.get('html_url')
+            namespace['html_url'] = series.get('html_url').strip()
+        if 'pdf_url' in series:
+            namespace['pdf_url'] = series.get('pdf_url').strip()
         namespace['language'] = Language(series['language'])
         namespace['id'] = series['decision_id']
+        
+        if 'court_id' in series:
+            namespace['court'] = Court(series['court_id']).name
         data = self.get_required_data(series)
         assert data
         series[self.col_name] = self.call_processing_function(
@@ -130,7 +135,10 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
             # invoke function with data and namespace
             return extracting_functions(data, namespace)
         except ValueError as e:
+            # ToDo: info: using default, if it does not work then warning
+            # Try block für default spider
             self.logger.warning(e)
+            
             # just ignore the error for now. It would need much more rules to prevent this.
             return None
 
