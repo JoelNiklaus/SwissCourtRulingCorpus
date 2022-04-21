@@ -104,6 +104,8 @@ class SectionSplitter(AbstractExtractor):
             tokens = self.run_tokenizer(df)
         
         for idx, row in df.iterrows():
+            if idx % 50 == 0:
+                self.logger.info(f'Saving decision {idx+1} from chunk')
             with engine.connect() as conn:
                 t = Table('section', MetaData(), autoload_with=engine)
                 t_paragraph = Table('paragraph', MetaData(), autoload_with=engine)
