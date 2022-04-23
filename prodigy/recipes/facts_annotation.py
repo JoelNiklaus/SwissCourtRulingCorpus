@@ -10,8 +10,8 @@ from psycopg2 import sql
 from typing import List, Optional
 import os
 from prodigy.components.db import connect
-# prodigy facts-annotation de "" test -F recipes/facts_annotation.py
-ports ={"de_1":11001,"de_2":11002,"de_3":11003, "fr_1": 12000, "it_1": 13000 }
+ports ={"de":11000,"fr": 12000, "it": 13000, "test":14000}
+
 ## Docs
 #
 # This recipe is used to load facts, considerations, rulings and judgment directly from the scrc database configured in the environment variables.
@@ -24,31 +24,25 @@ def split_string(string):
 # the recipe itself, for info on how to use it, see the prodigy docs
 @prodigy.recipe(
   "facts-annotation",
-  language=("The language to use for the recipe", 'positional', None, str),
-  annotator=("The annotator of the set", 'positional', None, str),
-  test_mode=("Running in test mode",'positional', None, str )
+  language=("The language to use for the recipe. Type test for test mode", 'positional', None, str),
 )
 
 # function called by the @prodigy-recipe definition
-def facts_annotation(language:str,annotator:str,test_mode:str ):
-  # Load the spaCy model for tokenization.
-  # might have to run "python -m spacy download de_core_news_sm" @Todo
-  # Have to load french and italian model
-  nlp = spacy.load("{}_core_news_sm".format(language))
+def facts_annotation(language:str ):
   # define labels for annotation
   labels = ["Supports judgment","Opposes judgment"]
 
-  if annotator != "" and test_mode != "test" :
-    dataset = "annotations_{}_{}".format(language,annotator)
-    port = ports["{}_{}".format(language,annotator)]
+
+  if language != "test":
+    # Load the spaCy model for tokenization.
+    nlp = spacy.load("{}_core_news_sm".format(language))
     stream = JSONL("./datasets/annotation_input_set_{}.jsonl".format(language))
   else:
-    dataset = "annotations_{}_test".format(language)
-    port = 14000
-    stream = JSONL("./datasets/annotation_input_set_{}_ex.jsonl".format(language))
+    nlp = spacy.load("de_core_news_sm")
+    stream = JSONL("./datasets/annotation_input_set_de_ex.jsonl")
 
-
-  # define stream (generator)
+  dataset = "annotations_{}".format(language)
+  port = ports[language]
 
 
   # Tokenize the incoming examples and add a "tokens" property to each
