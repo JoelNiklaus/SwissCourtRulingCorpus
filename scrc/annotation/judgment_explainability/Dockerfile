@@ -20,8 +20,8 @@ RUN python -m spacy download it_core_news_sm
 
 # Copy relevant directories
 COPY prodigy.json .
-COPY recipes ./recipes/
-COPY datasets ./datasets/
+COPY ../recipes ./recipes/
+COPY ../datasets ./datasets/
 COPY annotations ./annotations/
 
 # Credentials from .env file
