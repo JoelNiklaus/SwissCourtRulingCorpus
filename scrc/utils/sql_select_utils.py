@@ -159,6 +159,8 @@ def map_join(map_field: str, new_map_field_name: str, table: str, fill: Optional
     
 def join_tables_on_decision(tables: List[str]) -> str:
     """Usage SELECT <FIELDS YOU WANT, PREFIXED WITH TABLENAME> FROM f"join_tables_on_decision(['TABLE_1', 'TABLE_2'])"
+    
+    More tables can mean exponentially longer execution times (especially the first time a query gets executed as it is not cached then)
 
     Args:
         tables (List[str]): [description]
@@ -197,6 +199,12 @@ def join_tables_on_decision(tables: List[str]) -> str:
     if ('paragraph' in tables):
         join_string += map_join('paragraph_id', 'paragraphs', 'paragraph', fill = {'table_name': 'section', 'field_name': 'paragraph_text, section_type_id, paragraph.section_id', 'join_field':'section_id'})
     
+    if ('party' in tables):
+        join_string += map_join('party_id', 'parties', 'party', fill = {'table_name': 'person', 'field_name': 'name, is_natural_person, gender, party_type_id', 'join_field':'person_id'})
+    
+    if ('judicial_person' in tables):
+        join_string += map_join('person_id', 'judicial_people', 'judicial_person', fill = {'table_name': 'person', 'field_name': 'name, is_natural_person, gender, is_president, judicial_person_type_id', 'join_field':'person_id'})
+        
     return join_string
 
 def select_paragraphs_with_decision_and_meta_data() -> Tuple[str, str]:
