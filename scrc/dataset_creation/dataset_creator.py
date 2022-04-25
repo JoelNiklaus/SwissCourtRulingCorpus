@@ -4,7 +4,7 @@ import math
 from collections import Counter
 from pathlib import Path
 from typing import Union
-import ast
+
 import seaborn as sns
 import plotly.express as px
 import matplotlib.pyplot as plt
@@ -12,15 +12,12 @@ import matplotlib.pyplot as plt
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
-from scrc.enums.section import Section
 
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
-from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache
 
-from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, \
-    select_paragraphs_with_decision_and_meta_data, where_string_spider
+from scrc.utils.main_utils import get_legal_area, legal_areas, get_region
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -122,7 +119,7 @@ class DatasetCreator(AbstractPreprocessor):
     TODO look at this project for easy data reports: https://pandas-profiling.github.io/pandas-profiling/docs/master/rtd/pages/introduction.html
     TODO alternative for project above: https://dataprep.ai/
     Retrieves the data and preprocesses it for subdatasets of SCRC.
-    Also creates the necessary files for a kaggle dataset_scrc and a huggingface dataset_scrc.
+    Also creates the necessary files for a kaggle dataset and a huggingface dataset.
     """
 
     def __init__(self, config: dict):
@@ -135,6 +132,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = int(2e2)
         self.real_chunksize = int(2e5)
 
+        self.debug = False
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
         self.feature_cols = ["text"]  # to be overridden
@@ -222,38 +220,38 @@ class DatasetCreator(AbstractPreprocessor):
                     out_file.write(json.dumps(record) + '\n')
 
     def get_df(self, engine, feature_col, label_col, lang, save_reports):
-       
-
-        table_string, field_string = select_paragraphs_with_decision_and_meta_data()
-        # TODO spider testing
-        where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
-        cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
-        df = retrieve_from_cache_if_exists(cache_dir)
-        if df.empty:
-            self.logger.info("Retrieving the data from the database")
-            df = next(self.select(engine, table_string, field_string, where_string, order_by='year',
-                                  chunksize=self.get_chunksize()))
-            save_df_to_cache(df, cache_dir)
-        
+        self.logger.info("Started loading the data from the database")
+        origin_canton = "lower_court::json#>>'{canton}' AS origin_canton"
+        origin_court = "lower_court::json#>>'{court}' AS origin_court"
+        origin_chamber = "lower_court::json#>>'{chamber}' AS origin_chamber"
+        origin_date = "lower_court::json#>>'{date}' AS origin_date"
+        origin_file_number = "lower_court::json#>>'{file_number}' AS origin_file_number"
+        columns = f"file_number, extract(year from date) as year, date, chamber, " \
+                  f"{origin_canton}, {origin_court}, {origin_chamber}, {origin_date}, {origin_file_number}, " \
+                  f"{label_col}, {feature_col}"
+        where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
+        order_by = "year"
+        df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
+                              chunksize=self.get_chunksize()))
         df = self.clean_df(df, feature_col)
-        df['legal_area'] = df.chamber_id.apply(get_legal_area)
+        df['legal_area'] = df.chamber.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
+
+        if save_reports:  # only calculate this if we save the reports because it takes a long time
+            # TODO precompute this in previous step after section splitting for each section
+            # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
+            spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
+            self.logger.debug("Started tokenizing with spacy")
+            df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
+            self.logger.debug("Started tokenizing with bert")
+            df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
 
         self.logger.info("Finished loading the data from the database")
 
         return df
-    
 
     def clean_df(self, df, column):
         # replace empty and whitespace strings with nan so that they can be removed
-        sections = df['sections']
-        def filter_column(column_data):
-            if not isinstance(column_data, str): return np.nan
-            column_data = ast.literal_eval(column_data)
-            for section in column_data:
-                if section['name'] == column:
-                    return section['section_text']
-        df[column] = sections.map(filter_column)
         df[column] = df[column].replace(r'^\s+$', np.nan, regex=True)
         df[column] = df[column].replace('', np.nan)
         df = df.dropna(subset=[column])  # drop null values not recognized by sql where clause
@@ -445,8 +443,6 @@ class DatasetCreator(AbstractPreprocessor):
         """
         split_folder = self.create_dir(folder, f'reports/{split}')
 
-        self.plot_custom(df, split_folder)
-
         barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
         for attribute in barplot_attributes:
             self.plot_barplot_attribute(df, split_folder, attribute)
@@ -600,7 +596,3 @@ class DatasetCreator(AbstractPreprocessor):
         test = test.compute(scheduler='processes')
 
         return train, val, test
-
-    @abc.abstractmethod
-    def plot_custom(self, df, split_folder):
-        raise NotImplementedError("This method should be implemented in the subclass.")

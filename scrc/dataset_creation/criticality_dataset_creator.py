@@ -1,3 +1,6 @@
+import configparser
+
+from root import ROOT_DIR
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import pandas as pd
@@ -13,7 +16,7 @@ from scrc.utils.main_utils import get_config
 
 class CriticalityDatasetCreator(DatasetCreator):
     """
-    Creates a dataset_scrc with the text as input and whether it reaches the supreme court or not as labels
+    Creates a dataset with the text as input and whether it reaches the supreme court or not as labels
     """
 
     def __init__(self, config: dict):
@@ -24,9 +27,9 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         # TODO wait for section splitting in other courts for facts and considerations to be enabled
-        self.feature_cols = ['full_text']  # ['facts', 'considerations', 'text']
+        self.feature_cols = ['text']  # ['facts', 'considerations', 'text']
 
-    def get_dataset(self, feature_col, lang, save_reports):
+    def get_dataset(self, feature_col, lang):
         engine = self.get_engine(self.db_scrc)
 
         origin_chambers, supreme_court_df = self.query_supreme_court(engine, lang)
