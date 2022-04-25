@@ -4,7 +4,7 @@ import math
 from collections import Counter
 from pathlib import Path
 from typing import Union
-
+import ast
 import seaborn as sns
 import plotly.express as px
 import matplotlib.pyplot as plt
@@ -12,12 +12,15 @@ import matplotlib.pyplot as plt
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
+from scrc.enums.section import Section
 
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
+from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache
 
-from scrc.utils.main_utils import get_legal_area, legal_areas, get_region
+from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, \
+    select_paragraphs_with_decision_and_meta_data, where_string_spider
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -132,7 +135,6 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = int(2e2)
         self.real_chunksize = int(2e5)
 
-        self.debug = False
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
         self.feature_cols = ["text"]  # to be overridden
@@ -143,42 +145,42 @@ class DatasetCreator(AbstractPreprocessor):
 
     def get_chunksize(self):
         if self.debug:
-            return int(self.debug_chunksize)  # run on smaller dataset_scrc for testing
+            return int(self.debug_chunksize)  # run on smaller dataset for testing
         else:
             return int(self.real_chunksize)
 
     def create_dataset(self, sub_datasets=False, kaggle=False, huggingface=False, save_reports=False):
         """
-        Retrieves the respective function named by the dataset_scrc and executes it to get the df for that dataset_scrc.
+        Retrieves the respective function named by the dataset and executes it to get the df for that dataset.
         :return:
         """
-        self.logger.info(f"Creating {self.dataset_name} dataset_scrc")
+        self.logger.info(f"Creating {self.dataset_name} dataset")
 
         dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
-        # TODO not one dataset_scrc per feature col, but put all feature cols into the same dataset_scrc
+        # TODO not one dataset per feature col, but put all feature cols into the same dataset
         processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
 
-        # TODO put all languages into the same dataset_scrc
+        # TODO put all languages into the same dataset
 
         if datasets:
             lang_splits = {lang: dict() for lang in self.languages}
             for feature_col in datasets:
-                self.logger.info(f"Processing dataset_scrc feature col {feature_col}")
+                self.logger.info(f"Processing dataset feature col {feature_col}")
                 feature_col_folder = self.create_dir(dataset_folder, feature_col)
                 for lang in self.languages:
                     self.logger.info(f"Processing language {lang}")
                     lang_folder = self.create_dir(feature_col_folder, lang)
                     df, labels = self.get_dataset(feature_col, lang, save_reports)
-                    df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset_scrc to make sampling easier
+                    df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset to make sampling easier
                     splits = self.save_dataset(df, labels, lang_folder, self.split_type,
                                                sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
                     lang_splits[lang] = splits
 
                 if huggingface:
-                    self.logger.info("Generating huggingface dataset_scrc")
+                    self.logger.info("Generating huggingface dataset")
                     self.save_huggingface_dataset(lang_splits, feature_col_folder)
 
                 self.mark_as_processed(processed_file_path, feature_col)
@@ -220,38 +222,38 @@ class DatasetCreator(AbstractPreprocessor):
                     out_file.write(json.dumps(record) + '\n')
 
     def get_df(self, engine, feature_col, label_col, lang, save_reports):
-        self.logger.info("Started loading the data from the database")
-        origin_canton = "lower_court::json#>>'{canton}' AS origin_canton"
-        origin_court = "lower_court::json#>>'{court}' AS origin_court"
-        origin_chamber = "lower_court::json#>>'{chamber}' AS origin_chamber"
-        origin_date = "lower_court::json#>>'{date}' AS origin_date"
-        origin_file_number = "lower_court::json#>>'{file_number}' AS origin_file_number"
-        columns = f"file_number, extract(year from date) as year, date, chamber, " \
-                  f"{origin_canton}, {origin_court}, {origin_chamber}, {origin_date}, {origin_file_number}, " \
-                  f"{label_col}, {feature_col}"
-        where = f"{feature_col} IS NOT NULL AND {feature_col} != '' AND {label_col} IS NOT NULL"
-        order_by = "year"
-        df = next(self.select(engine, lang, columns=columns, where=where, order_by=order_by,
-                              chunksize=self.get_chunksize()))
-        df = self.clean_df(df, feature_col)
-        df['legal_area'] = df.chamber.apply(get_legal_area)
-        df['origin_region'] = df.origin_canton.apply(get_region)
+       
 
-        if save_reports:  # only calculate this if we save the reports because it takes a long time
-            # TODO precompute this in previous step after section splitting for each section
-            # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
-            spacy_tokenizer, bert_tokenizer = self.get_tokenizers(lang)
-            self.logger.debug("Started tokenizing with spacy")
-            df['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[feature_col], batch_size=100)]
-            self.logger.debug("Started tokenizing with bert")
-            df['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(df[feature_col].tolist()).input_ids]
+        table_string, field_string = select_paragraphs_with_decision_and_meta_data()
+        # TODO spider testing
+        where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
+        cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
+        df = retrieve_from_cache_if_exists(cache_dir)
+        if df.empty:
+            self.logger.info("Retrieving the data from the database")
+            df = next(self.select(engine, table_string, field_string, where_string, order_by='year',
+                                  chunksize=self.get_chunksize()))
+            save_df_to_cache(df, cache_dir)
+        
+        df = self.clean_df(df, feature_col)
+        df['legal_area'] = df.chamber_id.apply(get_legal_area)
+        df['origin_region'] = df.origin_canton.apply(get_region)
 
         self.logger.info("Finished loading the data from the database")
 
         return df
+    
 
     def clean_df(self, df, column):
         # replace empty and whitespace strings with nan so that they can be removed
+        sections = df['sections']
+        def filter_column(column_data):
+            if not isinstance(column_data, str): return np.nan
+            column_data = ast.literal_eval(column_data)
+            for section in column_data:
+                if section['name'] == column:
+                    return section['section_text']
+        df[column] = sections.map(filter_column)
         df[column] = df[column].replace(r'^\s+$', np.nan, regex=True)
         df[column] = df[column].replace('', np.nan)
         df = df.dropna(subset=[column])  # drop null values not recognized by sql where clause
@@ -270,14 +272,14 @@ class DatasetCreator(AbstractPreprocessor):
                      split_type="date-stratified", split=(0.7, 0.1, 0.2),
                      sub_datasets=False, kaggle=False, save_reports=False):
         """
-        creates all the files necessary for a kaggle dataset_scrc from a given df
+        creates all the files necessary for a kaggle dataset from a given df
         :param df:          needs to contain the columns text and label
         :param labels:      all the labels
         :param folder:      where to save the files
         :param split_type:  "date-stratified" or "random"
         :param split:       how to split the data into train, val and test set: needs to sum up to 1
-        :param sub_datasets:whether or not to create the special sub dataset_scrc for testing of biases
-        :param kaggle:      whether or not to create the special kaggle dataset_scrc
+        :param sub_datasets:whether or not to create the special sub dataset for testing of biases
+        :param kaggle:      whether or not to create the special kaggle dataset
         :param save_reports:whether or not to compute and save reports
         :return:
         """
@@ -289,7 +291,7 @@ class DatasetCreator(AbstractPreprocessor):
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
             sub_datasets_dir = self.create_dir(folder, 'sub_datasets')
             for category, sub_dataset_category in sub_datasets_dict.items():
-                self.logger.info(f"Processing sub dataset_scrc category {category}")
+                self.logger.info(f"Processing sub dataset category {category}")
                 category_dir = self.create_dir(sub_datasets_dir, category)
                 for sub_dataset, sub_dataset_splits in sub_dataset_category.items():
                     sub_dataset_dir = self.create_dir(category_dir, sub_dataset)
@@ -301,7 +303,7 @@ class DatasetCreator(AbstractPreprocessor):
             kaggle_dir = self.create_dir(folder, 'kaggle')
             self.save_splits(kaggle_splits, labels, kaggle_dir, save_reports=save_reports)
 
-        self.logger.info(f"Saved dataset_scrc files to {folder}")
+        self.logger.info(f"Saved dataset files to {folder}")
         return splits
 
     def prepare_kaggle_splits(self, splits):
@@ -382,7 +384,7 @@ class DatasetCreator(AbstractPreprocessor):
             'origin_region': dict(), 'origin_canton': dict(), 'origin_court': dict(), 'origin_chamber': dict(),
         }
 
-        self.logger.info(f"Processing sub dataset_scrc input_length")
+        self.logger.info(f"Processing sub dataset input_length")
         boundaries = [0, 512, 1024, 2048, 4096, 8192]
         for i in range(len(boundaries) - 1):
             lower, higher = boundaries[i] + 1, boundaries[i + 1]
@@ -390,41 +392,41 @@ class DatasetCreator(AbstractPreprocessor):
             for split_name, split_df in splits.items():
                 sub_dataset[split_name] = split_df[split_df.num_tokens_bert.between(lower, higher)]
 
-        self.logger.info(f"Processing sub dataset_scrc year")
+        self.logger.info(f"Processing sub dataset year")
         if split_type == "date-stratified":
             for year in range(2017, 2020 + 1):
                 sub_dataset = sub_datasets_dict['year'][str(year)] = dict()
                 for split_name, split_df in splits.items():
                     sub_dataset[split_name] = split_df[split_df.year == year]
 
-        self.logger.info(f"Processing sub dataset_scrc legal_area")
+        self.logger.info(f"Processing sub dataset legal_area")
         for legal_area in legal_areas.keys():
             sub_dataset = sub_datasets_dict['legal_area'][legal_area] = dict()
             for split_name, split_df in splits.items():
                 sub_dataset[split_name] = split_df[split_df.legal_area.str.contains(legal_area)]
 
-        self.logger.info(f"Processing sub dataset_scrc origin_region")
+        self.logger.info(f"Processing sub dataset origin_region")
         for region in splits['all'].origin_region.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_region'][region] = dict()
             for split_name, split_df in splits.items():
                 region_df = split_df.dropna(subset=['origin_region'])
                 sub_dataset[split_name] = region_df[region_df.origin_region.str.contains(region)]
 
-        self.logger.info(f"Processing sub dataset_scrc origin_canton")
+        self.logger.info(f"Processing sub dataset origin_canton")
         for canton in splits['all'].origin_canton.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_canton'][canton] = dict()
             for split_name, split_df in splits.items():
                 canton_df = split_df.dropna(subset=['origin_canton'])
                 sub_dataset[split_name] = canton_df[canton_df.origin_canton.str.contains(canton)]
 
-        self.logger.info(f"Processing sub dataset_scrc origin_court")
+        self.logger.info(f"Processing sub dataset origin_court")
         for court in splits['all'].origin_court.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_court'][court] = dict()
             for split_name, split_df in splits.items():
                 court_df = split_df.dropna(subset=['origin_court'])
                 sub_dataset[split_name] = court_df[court_df.origin_court.str.contains(court)]
 
-        self.logger.info(f"Processing sub dataset_scrc origin_chamber")
+        self.logger.info(f"Processing sub dataset origin_chamber")
         for chamber in splits['all'].origin_chamber.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_chamber'][chamber] = dict()
             for split_name, split_df in splits.items():
@@ -435,13 +437,15 @@ class DatasetCreator(AbstractPreprocessor):
 
     def save_report(self, folder, split, df):
         """
-        Saves statistics about the dataset_scrc in the form of csv tables and png graphs.
+        Saves statistics about the dataset in the form of csv tables and png graphs.
         :param folder:  the base folder to save the report to
         :param split:   the name of the split
-        :param df:      the df containing the dataset_scrc
+        :param df:      the df containing the dataset
         :return:
         """
         split_folder = self.create_dir(folder, f'reports/{split}')
+
+        self.plot_custom(df, split_folder)
 
         barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
         for attribute in barplot_attributes:
@@ -596,3 +600,7 @@ class DatasetCreator(AbstractPreprocessor):
         test = test.compute(scheduler='processes')
 
         return train, val, test
+
+    @abc.abstractmethod
+    def plot_custom(self, df, split_folder):
+        raise NotImplementedError("This method should be implemented in the subclass.")

@@ -1,6 +1,3 @@
-import configparser
-
-from root import ROOT_DIR
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import pandas as pd
@@ -27,9 +24,9 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         # TODO wait for section splitting in other courts for facts and considerations to be enabled
-        self.feature_cols = ['text']  # ['facts', 'considerations', 'text']
+        self.feature_cols = ['full_text']  # ['facts', 'considerations', 'text']
 
-    def get_dataset(self, feature_col, lang):
+    def get_dataset(self, feature_col, lang, save_reports):
         engine = self.get_engine(self.db_scrc)
 
         origin_chambers, supreme_court_df = self.query_supreme_court(engine, lang)
