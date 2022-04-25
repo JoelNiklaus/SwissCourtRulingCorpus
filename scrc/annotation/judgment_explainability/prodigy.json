@@ -1,0 +1,17 @@
+{
+  "host": "fdn-sandbox3.inf.unibe.ch",
+  "theme": "dark",
+  "db": "sqlite",
+  "db_settings": {
+    "sqlite": {
+      "name": "annotations.db",
+      "path": "./annotations"
+    }},
+  "feed_overlap": false,
+  "show_stats": true,
+  "custom_theme": {
+    "cardMaxWidth": 1600,
+    "smallText": 18
+  },
+  "global_css": ".prodigy-text-input {color: #e5c07b}"
+}
