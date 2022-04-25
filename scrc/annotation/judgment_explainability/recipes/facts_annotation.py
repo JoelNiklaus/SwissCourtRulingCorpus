@@ -30,7 +30,7 @@ def split_string(string):
 # function called by the @prodigy-recipe definition
 def facts_annotation(language:str ):
   # define labels for annotation
-  labels = ["Supports judgment","Opposes judgment"]
+  labels = ["Supports judgment","Opposes judgment", "Lower court"]
 
 
   if language != "test":
@@ -62,7 +62,7 @@ def facts_annotation(language:str ):
          "html_template": "<p style='float:left'>{{file_number}}</p>"},
         {"view_id": "html", "html_template": "<h1 style='float:left'>{{header}} – Judgment: {{judgment}}</h2>"},
         {"view_id": "html",
-         "html_template": "<h2 style='float:left'>Facts</h2><a style='float:right' href='{{link}}'>Got to the Court Ruling</a>"},
+         "html_template": "<h2 style='float:left'>Facts</h2><a style='float:right' href='{{link}}' target='_blank'>Go to the court ruling</a>"},
         {"view_id": "spans_manual", "lang": nlp.lang, "labels": labels},
         {"view_id": "text_input","field_label":"Annotator comment on this ruling", "field_placeholder": "Type here...","field_rows": 5},
       ]
