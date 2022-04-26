@@ -6,7 +6,7 @@
 # Do not use this to actually run the server as it might corrupt a running operation.
 
 # To develop the facts_annotation task please the following command
-# prodigy facts-annotation de "" test -F recipes/facts_annotation.py
+# prodigy facts-annotation test -F recipes/facts_annotation.py
 # This runs the prodigy task on the test port, uses a test set as input and saves the annotation as a test set.
 # Please do not run the recipe in the productive mode because the datasets are currently being annotated by the legal experts.
 
