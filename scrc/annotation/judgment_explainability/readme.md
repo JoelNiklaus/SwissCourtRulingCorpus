@@ -1,6 +1,6 @@
 # README
 This project is part of my Bachelor Thesis __Explainability Annotations for Legal Judgment Prediction in Switzerland__.
-It sets up prodigy based on [this initial setup](https://github.com/JoelNiklaus/SwissCourtRulingCorpus/pull/52) created by @Skatinger. 
+It sets up prodigy using Docker and is an adaption of the `judgment_outcome` task. 
 It contains the [facts_annotation recipe](recipes/facts_annotation.py), which allows to annotate the facts of a ruling using a span_manual task. 
 The datasets for each language (de, fr, it) where created with the [dataset_creation script](datasets/dataset_creation.py).
 
@@ -27,7 +27,7 @@ Currently, the set up the db is the following:
 ```
 3. Create the input datasets using the [dataset_creation script](datasets/dataset_creation.py). 
 4. If you are not in the docker group, request access from a maintainer to be able to run docker commands.
-5. Run `bash setup.sh` in the `/prodigy` folder. This builds the docker image, starts the container and prepares
+5. Run `bash setup.sh` in the `/judgement_explainability` folder. This builds the docker image, starts the container and prepares
 everything.
 6. To run the task, use `run.sh` in the `/prodigy` folder. Pass it the desired parameters explained atop the file. It starts
 your task as a webserver. Login with the credentials specified in the ``.env`` file.
