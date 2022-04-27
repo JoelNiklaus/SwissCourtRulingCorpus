@@ -7,7 +7,7 @@
       "name": "annotations.db",
       "path": "./annotations"
     }},
-  "feed_overlap": false,
+  "feed_overlap": true,
   "show_stats": true,
   "custom_theme": {
     "cardMaxWidth": 1600,
