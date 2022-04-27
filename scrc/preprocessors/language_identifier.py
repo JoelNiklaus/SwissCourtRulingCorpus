@@ -7,7 +7,7 @@ from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
 
 class LanguageIdentifier(AbstractPreprocessor):
-    """ This class cannot run in a parallel fashion as it will trow a PicklingError due to the LanguageIdentificationSingleton """
+    """ This class cannot run in a parallel fashion as it will throw a PicklingError due to the LanguageIdentificationSingleton """
     def __init__(self, config: dict):
         super().__init__(config)
         self.lang_id = LanguageIdentificationSingleton()

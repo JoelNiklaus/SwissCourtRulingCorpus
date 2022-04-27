@@ -1,3 +1,4 @@
+from logging import exception
 import unicodedata
 from typing import Optional, List, Dict, Union
 
@@ -241,13 +242,13 @@ def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     else:
         message = f"({namespace['id']}): We got stuck at court {namespace['court']}. Please check! "
 
-    if namespace['html_url']:
+    if 'html_url' in namespace and namespace['html_url']:
         valid_namespace(namespace, all_section_markers)
         section_markers = prepare_section_markers(
             all_section_markers, namespace)
         divs = decision.findAll("div", {'id': 'content-content'})
         paragraphs = get_paragraphs(divs)
-    elif namespace['pdf_url']:
+    elif 'pdf_url' in namespace and namespace['pdf_url']:
         if namespace['language'] not in all_section_markers:
             message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
             raise ValueError(message)
@@ -609,11 +610,7 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
     :param namespace:       dict of namespace
     :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
     """
-    paragraphs_by_section = {section: [] for section in sections}
-
-    # assert that for every passed section a section_marker is present, the header is included by default
-    assert set(sections) == set(section_markers.keys()).union(set([Section.HEADER, Section.FULLTEXT])), \
-        f"Missing section marker: {set(sections) - set(section_markers.keys()).union(set([Section.HEADER]))}"
+    paragraphs_by_section = { section: [] for section in sections }
     current_section = Section.HEADER
     for paragraph in paragraphs:
         # update the current section if it changed
@@ -621,18 +618,20 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
             current_section, paragraph, section_markers, sections)
         # add paragraph to the list of paragraphs
         paragraphs_by_section[current_section].append(paragraph)
-    if current_section != Section.FOOTER and False:
-
-        # change the message depending on whether there's a url
-        if namespace.get('html_url'):
-            message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
-                f"Here you have the url to the decision: {namespace['html_url']}"
-        elif 'pdf_url' in namespace and namespace['pdf_url']:
-            message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
-                f"Here is the url to the decision: {namespace['pdf_url']}"
-        else:
-            message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! "
-        get_logger(__name__).warning(message)
+        
+    if current_section != Section.FOOTER:
+        exceptions = ['ZH_Steuerrekurs'] # Has no footer
+        if not namespace['court'] in exceptions:
+            # change the message depending on whether there's a url
+            if namespace.get('html_url'):
+                message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
+                    f"Here you have the url to the decision: {namespace['html_url']}"
+            elif 'pdf_url' in namespace and namespace['pdf_url']:
+                message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
+                    f"Here is the url to the decision: {namespace['pdf_url']}"
+            else:
+                message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! "
+            get_logger(__name__).warning(message)
     return paragraphs_by_section
 
 

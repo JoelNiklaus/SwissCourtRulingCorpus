@@ -31,7 +31,7 @@ class SectionSplitter(AbstractExtractor):
     Splits the raw html into sections which can later separately be used. This represents the section splitting task.
     """
 
-    def __init__(self, config: dict, run_tokenizer: Optional[bool] = False):
+    def __init__(self, config: dict):
         super().__init__(config, function_name='section_splitting_functions', col_name='sections')
         self.logger = get_logger(__name__)
         self.logger_info = {
@@ -43,14 +43,13 @@ class SectionSplitter(AbstractExtractor):
             'processing_one': 'Splitting sections from file',
             'no_functions': 'Not splitting into sections.'
         }
-        self.run_tokenizer = run_tokenizer
-        if self.run_tokenizer: 
+        
             # spacy_tokenizer, bert_tokenizer = tokenizers['de']
-            self.tokenizers: dict[Language, Tuple[any, any]] = {
-                Language.DE: self.get_tokenizers('de'),
-                Language.FR: self.get_tokenizers('fr'),
-                Language.IT: self.get_tokenizers('it'),
-            }
+        self.tokenizers: dict[Language, Tuple[any, any]] = {
+            Language.DE: self.get_tokenizers('de'),
+            Language.FR: self.get_tokenizers('fr'),
+            Language.IT: self.get_tokenizers('it'),
+        }
         
         self.processed_file_path = self.progress_dir / "spiders_section_split.txt"
 
@@ -68,7 +67,7 @@ class SectionSplitter(AbstractExtractor):
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
-        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}", f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
+        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')} LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id ", f"decision_id, iso_code as language, html_raw, pdf_raw, html_url, pdf_url, '{spider}' as spider, court_id", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
     
     def run_tokenizer(self, df: pd.DataFrame):
         # only calculate this if we save the reports because it takes a long time
@@ -100,10 +99,12 @@ class SectionSplitter(AbstractExtractor):
                 df.to_json(f)
             return
         
-        if self.run_tokenizer:
-            tokens = self.run_tokenizer(df)
+        
+        tokens = self.run_tokenizer(df)
         
         for idx, row in df.iterrows():
+            if idx % 50 == 0:
+                self.logger.info(f'Saving decision {idx+1} from chunk')
             with engine.connect() as conn:
                 t = Table('section', MetaData(), autoload_with=engine)
                 t_paragraph = Table('paragraph', MetaData(), autoload_with=engine)
@@ -115,8 +116,10 @@ class SectionSplitter(AbstractExtractor):
                 section_ids = [i['section_id'] for i in section_ids_result]
                 stmt = t_paragraph.delete().where(delete_stmt_decisions_with_df(df))
                 conn.execute(stmt)
-                stmt = t_num_tokens.delete().where(text(f"section_id in ({section_ids})"))
-                conn.execute(stmt)
+                if len(section_ids)>0:
+                    section_ids_string = ','.join(["'" + str(item)+"'" for item in section_ids])
+                    stmt = t_num_tokens.delete().where(text(f"section_id in ({section_ids_string})"))
+                    conn.execute(stmt)
                 for k in row['sections'].keys():
                     section_type_id = k.value
                     # insert section

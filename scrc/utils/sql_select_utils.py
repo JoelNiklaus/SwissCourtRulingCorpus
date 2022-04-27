@@ -82,6 +82,9 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             Column('pdf_raw', String),
     """
     def save_to_db(df: pd.DataFrame, table: str):
+        if not isinstance(df, pd.DataFrame): # If the returned df is not a DataFrame but a Series, then convert it into a dataframe and Transpose it tt correct the variable. (Not needed for most courts, but edge case needs it)
+            df = df.to_frame()
+            df = df.T
         df.to_sql(table, engine, if_exists="append", index=False)
         
     def add_ids_to_df_for_decision(series: pd.DataFrame) -> pd.DataFrame:
@@ -90,7 +93,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         chamber_id = pd.read_sql(f"SELECT chamber_id FROM chamber WHERE chamber_string = '{series['chamber']}'", engine.connect())['chamber_id']
         if len(chamber_id) == 0:
             print(f"The chamber {series['chamber']} was not found in the database. Add it with the respective court and spider")
-            series['chamber_id'] = -1
+            raise ValueError
         else:
             series['chamber_id'] = chamber_id[0]
             
@@ -112,6 +115,9 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             series['text'] = series['file_number_additional']
             save_to_db(series[['decision_id', 'text']], 'file_number')
         return series
+    
+    if df.empty:
+        return
         
     # Delete old decision and file entries
     with engine.connect() as conn: 
@@ -139,7 +145,10 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
     
     
 def delete_stmt_decisions_with_df(df: pd.DataFrame) -> TextClause:
-    decision_id_list = ','.join(["'" + str(item)+"'" for item in df['decision_id'].values.tolist()])
+    if df.ndim == 1:
+        decision_id_list = f"'{df['decision_id']}'"
+    else:
+        decision_id_list = ','.join(["'" + str(item)+"'" for item in df['decision_id'].values.tolist()])
     return text(f"decision_id in ({decision_id_list})")
 
 def join(table_name: str, join_field: str = 'decision_id', join_table: str = 'd') -> str:
@@ -159,6 +168,8 @@ def map_join(map_field: str, new_map_field_name: str, table: str, fill: Optional
     
 def join_tables_on_decision(tables: List[str]) -> str:
     """Usage SELECT <FIELDS YOU WANT, PREFIXED WITH TABLENAME> FROM f"join_tables_on_decision(['TABLE_1', 'TABLE_2'])"
+    
+    More tables can mean exponentially longer execution times (especially the first time a query gets executed as it is not cached then)
 
     Args:
         tables (List[str]): [description]
@@ -197,6 +208,12 @@ def join_tables_on_decision(tables: List[str]) -> str:
     if ('paragraph' in tables):
         join_string += map_join('paragraph_id', 'paragraphs', 'paragraph', fill = {'table_name': 'section', 'field_name': 'paragraph_text, section_type_id, paragraph.section_id', 'join_field':'section_id'})
     
+    if ('party' in tables):
+        join_string += map_join('party_id', 'parties', 'party', fill = {'table_name': 'person', 'field_name': 'name, is_natural_person, gender, party_type_id', 'join_field':'person_id'})
+    
+    if ('judicial_person' in tables):
+        join_string += map_join('person_id', 'judicial_people', 'judicial_person', fill = {'table_name': 'person', 'field_name': 'name, is_natural_person, gender, is_president, judicial_person_type_id', 'join_field':'person_id'})
+        
     return join_string
 
 def select_paragraphs_with_decision_and_meta_data() -> Tuple[str, str]:

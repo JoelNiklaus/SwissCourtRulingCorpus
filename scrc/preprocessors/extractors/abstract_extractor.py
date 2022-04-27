@@ -2,8 +2,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Set, TYPE_CHECKING, Tuple
 import pandas as pd
-
 from root import ROOT_DIR
+from scrc.enums.court import Court
+
 from scrc.enums.language import Language
 from scrc.utils.log_utils import get_logger
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
@@ -79,16 +80,18 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     """
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
-            if hasattr(self.processing_functions, spider):
+            try:
+                if not hasattr(self.processing_functions, spider):
+                    self.logger.debug(f"Using default function for {spider}")
                 self.process_one_spider(engine, spider)
-            else:
-                self.logger.debug(
-                    f"There are no special functions for spider {spider}. "
-                    f"{self.logger_info['no_functions']}"
-                )
-            self.mark_as_processed(self.processed_file_path, spider)
+                self.mark_as_processed(self.processed_file_path, spider)
+            except Exception as e:
+                self.logger.exception(
+                    f"There are no special functions for spider {spider} and the default spider does not work. "
+                    f"{self.logger_info['no_functions']}")
+            
 
-    def process_one_spider(self, engine: Engine, spider: str):
+    def process_one_spider(self, engine: Engine, spider: str, use_default_spider = False):
         self.logger.info(self.logger_info["start_spider"] + " " + spider)
 
         dfs = self.select_df(engine, spider)
@@ -99,21 +102,22 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         for df in dfs:
             df = df.apply(self.process_one_df_row, axis="columns")
             self.save_data_to_database(df, engine)
-            # self.update(engine, df, lang, [self.col_name], self.output_dir)
-            #self.log_progress(self.chunksize)
+            self.log_progress(self.chunksize)
 
-        #self.log_coverage(engine, spider)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
         """Processes one row of a raw df"""
-        #self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
-        #namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
         namespace = dict()
         if 'html_url' in series:
-            namespace['html_url'] = series.get('html_url')
+            namespace['html_url'] = series.get('html_url').strip()
+        if 'pdf_url' in series:
+            namespace['pdf_url'] = series.get('pdf_url').strip()
         namespace['language'] = Language(series['language'])
         namespace['id'] = series['decision_id']
+        
+        if 'court_id' in series:
+            namespace['court'] = Court(series['court_id']).name
         data = self.get_required_data(series)
         assert data
         series[self.col_name] = self.call_processing_function(
@@ -125,12 +129,15 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         """Calls the processing function (named by the spider) and passes the data and the namespace as arguments."""
         if not self.check_condition_before_process(spider, data, namespace):
             return None
-        extracting_functions = getattr(self.processing_functions, spider)
         try:
+            extracting_functions = getattr(self.processing_functions, spider, getattr(self.processing_functions, 'XX_SPIDER'))
             # invoke function with data and namespace
             return extracting_functions(data, namespace)
         except ValueError as e:
+            # ToDo: info: using default, if it does not work then warning
+            # Try block für default spider
             self.logger.warning(e)
+            
             # just ignore the error for now. It would need much more rules to prevent this.
             return None
 

@@ -4,6 +4,7 @@ import json
 from json import JSONDecodeError
 from pathlib import Path
 from typing import List, Optional
+import numpy as np
 import pandas as pd
 import bs4
 import requests
@@ -22,9 +23,6 @@ os.environ['TIKA_LOG_PATH'] = str(AbstractPreprocessor.create_dir(Path(os.getcwd
 tika.initVM()
 
 from tika import parser
-
-# TODO look at this if db is slow: https://dba.stackexchange.com/questions/151300/improve-update-performance-on-big-table/151316
-
 
 # TODO if we need to extract data from html with difficult structure such as tables consider using: https://pypi.org/project/inscriptis/
 
@@ -87,8 +85,11 @@ class TextToDatabase(AbstractPreprocessor):
         df = pd.DataFrame(spider_dict_list)
 
         self.logger.info(f"Saving data to db")
-        
-        save_from_text_to_database(self.get_engine('scrc'), df)
+        list_df = np.array_split(df, int(len(df)/self.chunksize)+1)
+        for idx, df_chunk in enumerate(list_df):
+            save_from_text_to_database(self.get_engine('scrc'), df_chunk)
+            if len(list_df) > 1:
+                self.logger.info(f"Saved chunk {idx+1}/{len(list_df)}")
         return spider_dict_list
 
     def build_spider_dict_list(self, spider_dir: Path, spider: str) -> list:
