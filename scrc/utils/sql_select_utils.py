@@ -82,7 +82,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             Column('pdf_raw', String),
     """
     def save_to_db(df: pd.DataFrame, table: str):
-        if not isinstance(df, pd.DataFrame):
+        if not isinstance(df, pd.DataFrame): # If the returned df is not a DataFrame but a Series, then convert it into a dataframe and Transpose it tt correct the variable. (Not needed for most courts, but edge case needs it)
             df = df.to_frame()
             df = df.T
         df.to_sql(table, engine, if_exists="append", index=False)

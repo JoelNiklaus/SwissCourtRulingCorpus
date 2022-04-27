@@ -85,7 +85,7 @@ class TextToDatabase(AbstractPreprocessor):
         df = pd.DataFrame(spider_dict_list)
 
         self.logger.info(f"Saving data to db")
-        list_df = np.array_split(df, int(len(df)/500)+1)
+        list_df = np.array_split(df, int(len(df)/self.chunksize)+1)
         for idx, df_chunk in enumerate(list_df):
             save_from_text_to_database(self.get_engine('scrc'), df_chunk)
             if len(list_df) > 1:
