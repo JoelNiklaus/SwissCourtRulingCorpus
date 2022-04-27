@@ -5,8 +5,6 @@
 import json
 from pathlib import Path
 
-
-
 INSERT_STMT_PLACEHOLDER = 'INSERT INTO %s VALUES \n\t%s;'
 
 LANGUAGES = ['de', 'fr', 'it', 'en']
