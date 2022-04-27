@@ -257,7 +257,7 @@ class AbstractPreprocessor:
             sleep(2)  # sleep(2) is required to allow measurement of the garbage collector
 
     def get_tokenizers(self, lang):
-        os.environ['TOKENIZERS_PARALLELISM'] = "True"
+        #os.environ['TOKENIZERS_PARALLELISM'] = "True"
         if lang == 'de':
             spacy = German()
             bert = "deepset/gbert-base"

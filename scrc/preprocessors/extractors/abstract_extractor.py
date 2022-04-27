@@ -80,16 +80,18 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     """
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
-            if hasattr(self.processing_functions, spider):
+            try:
+                if not hasattr(self.processing_functions, spider):
+                    self.logger.debug(f"Using default function for {spider}")
                 self.process_one_spider(engine, spider)
-            else:
-                self.logger.debug(
-                    f"There are no special functions for spider {spider}. "
-                    f"{self.logger_info['no_functions']}"
-                )
-            self.mark_as_processed(self.processed_file_path, spider)
+                self.mark_as_processed(self.processed_file_path, spider)
+            except Exception as e:
+                self.logger.exception(
+                    f"There are no special functions for spider {spider} and the default spider does not work. "
+                    f"{self.logger_info['no_functions']}")
+            
 
-    def process_one_spider(self, engine: Engine, spider: str):
+    def process_one_spider(self, engine: Engine, spider: str, use_default_spider = False):
         self.logger.info(self.logger_info["start_spider"] + " " + spider)
 
         dfs = self.select_df(engine, spider)
@@ -102,13 +104,10 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
             self.save_data_to_database(df, engine)
             self.log_progress(self.chunksize)
 
-        #self.log_coverage(engine, spider)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
         """Processes one row of a raw df"""
-        #self.logger.debug(f"{self.logger_info['processing_one']} {series['file_name']}")
-        #namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
         namespace = dict()
         if 'html_url' in series:
             namespace['html_url'] = series.get('html_url').strip()
@@ -130,8 +129,8 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         """Calls the processing function (named by the spider) and passes the data and the namespace as arguments."""
         if not self.check_condition_before_process(spider, data, namespace):
             return None
-        extracting_functions = getattr(self.processing_functions, spider)
         try:
+            extracting_functions = getattr(self.processing_functions, spider, getattr(self.processing_functions, 'XX_SPIDER'))
             # invoke function with data and namespace
             return extracting_functions(data, namespace)
         except ValueError as e:

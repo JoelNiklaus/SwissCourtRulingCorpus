@@ -4,6 +4,7 @@ import json
 from json import JSONDecodeError
 from pathlib import Path
 from typing import List, Optional
+import numpy as np
 import pandas as pd
 import bs4
 import requests
@@ -84,8 +85,11 @@ class TextToDatabase(AbstractPreprocessor):
         df = pd.DataFrame(spider_dict_list)
 
         self.logger.info(f"Saving data to db")
-        
-        save_from_text_to_database(self.get_engine('scrc'), df)
+        list_df = np.array_split(df, int(len(df)/500)+1)
+        for idx, df_chunk in enumerate(list_df):
+            save_from_text_to_database(self.get_engine('scrc'), df_chunk)
+            if len(list_df) > 1:
+                self.logger.info(f"Saved chunk {idx+1}/{len(list_df)}")
         return spider_dict_list
 
     def build_spider_dict_list(self, spider_dir: Path, spider: str) -> list:

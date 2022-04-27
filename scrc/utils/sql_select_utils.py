@@ -93,7 +93,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         chamber_id = pd.read_sql(f"SELECT chamber_id FROM chamber WHERE chamber_string = '{series['chamber']}'", engine.connect())['chamber_id']
         if len(chamber_id) == 0:
             print(f"The chamber {series['chamber']} was not found in the database. Add it with the respective court and spider")
-            series['chamber_id'] = -1
+            raise ValueError
         else:
             series['chamber_id'] = chamber_id[0]
             
