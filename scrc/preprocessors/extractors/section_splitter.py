@@ -127,9 +127,8 @@ class SectionSplitter(AbstractExtractor):
                     section_id = conn.execute(stmt).fetchone()['section_id']
                     
                     # Add num tokens
-                    if self.run_tokenizer:
-                        stmt = t_num_tokens.insert().values([{'section_id': str(section_id), 'num_tokes_spacy': tokens[k]['num_tokens_spacy'], 'num_tokens_bert': tokens[k]['num_tokens_bert']}])                    
-                        conn.execute(stmt)
+                    stmt = t_num_tokens.insert().values([{'section_id': str(section_id), 'num_tokes_spacy': tokens[k]['num_tokens_spacy'], 'num_tokens_bert': tokens[k]['num_tokens_bert']}])                    
+                    conn.execute(stmt)
                     
                     # Add a all paragraphs
                     for paragraph in row['sections'][k]:

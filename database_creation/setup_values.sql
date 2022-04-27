@@ -321,29 +321,6 @@ INSERT INTO court(canton_id, court_string) VALUES
     ((SELECT canton_id FROM canton WHERE short_code = 'ZH'), 'ZH_XX')
 ;
 
-<<<<<<< HEAD
-/**
-    import json
-
-    with open('legal_info/court_chambers_extended.json') as f:
-        data = json.load(f)
-
-    all_spider = set()
-    def per_language(lang, canton):
-        
-        gerichte = data[canton]['gerichte']
-        for gericht in gerichte:
-            court_name = data[canton]['gerichte'][gericht][lang].replace("'", "''")
-            all_spider.add(f"\t((SELECT court_id FROM court WHERE court_string = '{gericht}'), (SELECT language_id FROM language WHERE iso_code = '{lang}'), '{court_name}')")
-
-    for lang in ['de', 'fr', 'it']:
-        for canton in data:
-            per_language(lang, canton)
-
-    print(',\n'.join(sorted(all_spider)))
-*/
-=======
->>>>>>> Add setup values creation functions
 INSERT INTO court_name(court_id, "language_id", "name") VALUES 
         ((SELECT court_id FROM court WHERE court_string = 'AG_AK'), (SELECT language_id FROM language WHERE iso_code = 'de'), 'Anwaltskommission'),
         ((SELECT court_id FROM court WHERE court_string = 'AG_AK'), (SELECT language_id FROM language WHERE iso_code = 'fr'), 'Anwaltskommission'),
