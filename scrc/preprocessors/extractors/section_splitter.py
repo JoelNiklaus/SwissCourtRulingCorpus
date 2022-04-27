@@ -31,7 +31,7 @@ class SectionSplitter(AbstractExtractor):
     Splits the raw html into sections which can later separately be used. This represents the section splitting task.
     """
 
-    def __init__(self, config: dict, run_tokenizer: Optional[bool] = False):
+    def __init__(self, config: dict):
         super().__init__(config, function_name='section_splitting_functions', col_name='sections')
         self.logger = get_logger(__name__)
         self.logger_info = {
@@ -43,14 +43,13 @@ class SectionSplitter(AbstractExtractor):
             'processing_one': 'Splitting sections from file',
             'no_functions': 'Not splitting into sections.'
         }
-        self.run_tokenizer = run_tokenizer
-        if self.run_tokenizer: 
+        
             # spacy_tokenizer, bert_tokenizer = tokenizers['de']
-            self.tokenizers: dict[Language, Tuple[any, any]] = {
-                Language.DE: self.get_tokenizers('de'),
-                Language.FR: self.get_tokenizers('fr'),
-                Language.IT: self.get_tokenizers('it'),
-            }
+        self.tokenizers: dict[Language, Tuple[any, any]] = {
+            Language.DE: self.get_tokenizers('de'),
+            Language.FR: self.get_tokenizers('fr'),
+            Language.IT: self.get_tokenizers('it'),
+        }
         
         self.processed_file_path = self.progress_dir / "spiders_section_split.txt"
 
@@ -100,8 +99,8 @@ class SectionSplitter(AbstractExtractor):
                 df.to_json(f)
             return
         
-        if self.run_tokenizer:
-            tokens = self.run_tokenizer(df)
+        
+        tokens = self.run_tokenizer(df)
         
         for idx, row in df.iterrows():
             if idx % 50 == 0:
@@ -128,9 +127,8 @@ class SectionSplitter(AbstractExtractor):
                     section_id = conn.execute(stmt).fetchone()['section_id']
                     
                     # Add num tokens
-                    if self.run_tokenizer:
-                        stmt = t_num_tokens.insert().values([{'section_id': str(section_id), 'num_tokes_spacy': tokens[k]['num_tokens_spacy'], 'num_tokens_bert': tokens[k]['num_tokens_bert']}])                    
-                        conn.execute(stmt)
+                    stmt = t_num_tokens.insert().values([{'section_id': str(section_id), 'num_tokes_spacy': tokens[k]['num_tokens_spacy'], 'num_tokens_bert': tokens[k]['num_tokens_bert']}])                    
+                    conn.execute(stmt)
                     
                     # Add a all paragraphs
                     for paragraph in row['sections'][k]:

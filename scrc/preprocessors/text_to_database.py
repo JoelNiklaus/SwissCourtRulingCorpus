@@ -23,9 +23,6 @@ tika.initVM()
 
 from tika import parser
 
-# TODO look at this if db is slow: https://dba.stackexchange.com/questions/151300/improve-update-performance-on-big-table/151316
-
-
 # TODO if we need to extract data from html with difficult structure such as tables consider using: https://pypi.org/project/inscriptis/
 
 # the keys used in the court dataframes

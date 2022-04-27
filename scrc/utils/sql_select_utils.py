@@ -82,6 +82,9 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             Column('pdf_raw', String),
     """
     def save_to_db(df: pd.DataFrame, table: str):
+        if not isinstance(df, pd.DataFrame):
+            df = df.to_frame()
+            df = df.T
         df.to_sql(table, engine, if_exists="append", index=False)
         
     def add_ids_to_df_for_decision(series: pd.DataFrame) -> pd.DataFrame:
@@ -112,6 +115,9 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             series['text'] = series['file_number_additional']
             save_to_db(series[['decision_id', 'text']], 'file_number')
         return series
+    
+    if df.empty:
+        return
         
     # Delete old decision and file entries
     with engine.connect() as conn: 
@@ -139,7 +145,10 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
     
     
 def delete_stmt_decisions_with_df(df: pd.DataFrame) -> TextClause:
-    decision_id_list = ','.join(["'" + str(item)+"'" for item in df['decision_id'].values.tolist()])
+    if df.ndim == 1:
+        decision_id_list = f"'{df['decision_id']}'"
+    else:
+        decision_id_list = ','.join(["'" + str(item)+"'" for item in df['decision_id'].values.tolist()])
     return text(f"decision_id in ({decision_id_list})")
 
 def join(table_name: str, join_field: str = 'decision_id', join_table: str = 'd') -> str:
