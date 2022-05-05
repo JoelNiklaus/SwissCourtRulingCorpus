@@ -15,35 +15,31 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 
 
 def XX_SPIDER(soup: Any, namespace: dict) -> Optional[dict]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-    pass
-
-
-def SH_OG(soup: Any, namespace: dict) -> Optional[dict]:
-    print(soup)
-
-    soup += """
-    dass der vorliegende Begründungsmangel offensichtlich ist, weshalb auf die Beschwerde in Anwendung von Art. 108 Abs. 1 lit. b BGG nicht einzutreten ist, 
-dass von der Erhebung von Gerichtskosten für das bundesgerichtliche Verfahren umständehalber abzusehen ist (Art. 66 Abs. 1 Satz 2 BGG), 
-dass in den Fällen des Art. 108 Abs. 1 BGG das vereinfachte Verfahren zum Zuge kommt und die Abteilungspräsidentin zuständig ist,  
-"""
-
     def get_combined_regexes(regex_dict, language):
         return regex.compile("|".join([entry["regex"] for entry in regex_dict[language] if entry["regex"]]))
-
-    language = 'de'
+    
+    
     citation_regexes = json.loads((ROOT_DIR / 'legal_info' / 'citation_regexes.json').read_text())
     pprint(citation_regexes)
+    rulings = []
+    laws = []
     print("BGE")
-    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['BGE'], language), soup):
+    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['BGE'], namespace['language']), soup):
+        rulings.append(match.group(0))
         print(match)
     print("Bger")
-    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['Bger'], language), soup):
+    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['Bger'], namespace['language']), soup):
+        rulings.append(match.group(0))
         print(match)
     print("law")
-    for match in regex.findall(get_combined_regexes(citation_regexes['law'], language), soup):
+    for match in regex.findall(get_combined_regexes(citation_regexes['law'], namespace['language']), soup):
+        laws.append(match.group(0))
         print(match)
+    print({CitationType.LAW: laws, CitationType.RULING: rulings})
     exit()
+
+
+
 
 # TODO regexes überprüfen mit Zitierungen des Bundesgerichts
 
@@ -66,6 +62,8 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
         if bge.string:  # make sure it is not empty or None
             rulings.append({"type": "bge", "url": bge['href'], "text": bge.string})
 
+    print({CitationType.LAW: laws, CitationType.RULING: rulings})
+    exit()
     return {CitationType.LAW: laws, CitationType.RULING: rulings}
 
 # This needs special care
