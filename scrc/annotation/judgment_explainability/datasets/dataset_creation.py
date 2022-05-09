@@ -36,6 +36,18 @@ def write_JSONL(filename: str, data: list):
             outfile.write('\n')
     print("Successfully saved file " + filename)
 
+# Reads JSONL file and returns a dataframe
+def read_JSONL(filename: str)-> pd.DataFrame:
+    with open(filename, "r") as json_file:
+        json_list = list(json_file)
+    a_list = []
+    for json_str in json_list:
+        result = json.loads(json_str)
+        a_list.append(result)
+        assert isinstance(result, dict)
+
+    return pd.DataFrame.from_records(a_list)
+
 # Reads CSV file sets index to "id" and returns a DataFrame.
 def read_csv(filepath:str) -> pandas.DataFrame:
     df = pd.read_csv(filepath)
