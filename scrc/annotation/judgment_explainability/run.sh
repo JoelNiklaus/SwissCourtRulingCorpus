@@ -9,13 +9,13 @@ NC="\033[0m"
 # define usage help
 usage=$(cat <<- EOF
   Arguments:
-    - task:        type of task (facts-annotation, inspect-facts-annotation)
+    - task:        type of task (facts-annotation, inspect-facts-annotation, review, db-out, drop, stats)
   Usage:
     -bash run.sh task
   Example:
     - bash run.sh facts-annotation
 
-  Consult /prodigy/readme.md for more information.
+  Consult readme.md for more information.
 EOF
 )
 
@@ -30,37 +30,46 @@ fi
 if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
   case "$task" in
     "facts-annotation")
-      docker exec -it -d prodigy_v1_nina prodigy "$task" de -F ./recipes/facts_annotation.py
-      docker exec -it -d prodigy_v1_nina prodigy "$task" fr -F ./recipes/facts_annotation.py
-      docker exec -it -d prodigy_v1_nina prodigy "$task" it -F ./recipes/facts_annotation.py
+    for VARIABLE in de fr it
+      do
+        docker exec -it -d prodigy_v1_nina prodigy "$task" $VARIABLE -F ./recipes/facts_annotation.py
+      done
       printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
       ;;
 
 
     "inspect-facts-annotation")
-    docker exec -it -d prodigy_v1_nina prodigy "$task" de angela -F ./recipes/inspect_facts_annotation.py
-    docker exec -it -d prodigy_v1_nina prodigy "$task" de lynn -F ./recipes/inspect_facts_annotation.py
-    docker exec -it -d prodigy_v1_nina prodigy "$task" de thomas -F ./recipes/inspect_facts_annotation.py
+    for VARIABLE in angela lynn thomas
+      do
+        docker exec -it -d prodigy_v1_nina prodigy "$task" de $VARIABLE -F ./recipes/inspect_facts_annotation.py
+      done
     printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
     ;;
 
   "review")
-  docker exec -it prodigy_v1_nina prodigy "$task" gold_annotations_de annotations_de-angela,annotations_de-lynn,annotations_de-thomas -l "Supports judgment","Opposes judgment","Lower court" -v spans_manual --auto-accept
-  ;;
-  "db-out")
-   docker exec prodigy_v1_nina prodigy "$task" annotations_de > ./annotations/annotations_de.jsonl
-   docker exec prodigy_v1_nina prodigy "$task" annotations_de-angela > ./annotations/annotations_de-angela.jsonl
-   docker exec prodigy_v1_nina prodigy "$task" annotations_de-lynn > ./annotations/annotations_de-lynn.jsonl
-   docker exec prodigy_v1_nina prodigy "$task" annotations_de-thomas > ./annotations/annotations_de-thomas.jsonl
+    docker exec -it -d prodigy_v1_nina prodigy "$task" gold_annotations_de annotations_de-angela,annotations_de-lynn,annotations_de-thomas -l "Supports judgment","Opposes judgment","Lower court" -v spans_manual --auto-accept
+    printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
     ;;
 
+  "db-out")
+  for VARIABLE in annotations_de annotations_de-angela annotations_de-lynn annotations_de-thomas
+    do
+      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./annotations/$VARIABLE.jsonl
+    done
+   ;;
+  "drop")
+  for VARIABLE in annotations_de-nina annotations_de-ninaa annotations_de_review-nina gold_annotations_de-nina mark-test
+    do
+      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE
+    done
+   ;;
+
   "stats")
-  docker exec prodigy_v1_nina prodigy "$task" annotations_de-angela
-  docker exec prodigy_v1_nina prodigy "$task" annotations_de-lynn
-  docker exec prodigy_v1_nina prodigy "$task" annotations_de-thomas
+  for VARIABLE in annotations_de-angela annotations_de-lynn annotations_de-thomas
+    do
+      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE
+    done
   ;;
-
-
 
     *)
       printf "${WARN}Unknown task '$task' given.\n\n${NC}${usage}\n"
