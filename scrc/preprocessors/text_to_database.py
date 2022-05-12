@@ -53,7 +53,7 @@ class TextToDatabase(AbstractPreprocessor):
             "pdf_raw",
         ]
         self.logger = get_logger(__name__)
-        self.new_files_only = self.ignore_cache
+        self.new_files_only = not self.ignore_cache
 
     def build_dataset(self) -> None:
         """ Builds the dataset for all the spiders """
