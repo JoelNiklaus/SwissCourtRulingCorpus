@@ -12,7 +12,7 @@
         },
         {
           "regex": "(BGE \\d{1,3}) +([IaV]{1,3}) +(\\d{1,3} E\\.)\\s+(\\d{1,2}(\\w{1,2})?\\sund\\s[\\d\\w]{1,4})",
-          "comment": "BGE 126 I 81 E. 5aa und b"
+          "example": "BGE 126 I 81 E. 5aa und b"
         },
         {
           "regex": "(BGE \\d{1,3}) +([IaV]{1,3}) +(\\d{1,3} S\\. \\d{1,3})+( [f]{1,2}\\.)?",
@@ -25,11 +25,11 @@
           "example": "ATF 345 I 234"
         },
         {
-          "regex": "(ATF \\d{1,3}) +([IaV]{1,3}) +(\\d{1,3} consid\\.) +(\\d{1,2}(\\.\\d{1,2}(\\.\\d{1,2}|)|))",
+          "regex": "(ATF \\d{1,3}) +([IaV]{1,3}) +(\\d{1,3} consid\\.)\\s*(\\d{1,2}(\\.\\d{1,2}(\\.\\d{1,2}|)|))",
           "example": "ATF 345 I 234 consid. 4.2.3"
         },
         {
-          "regex": "(ATF \\d{1,3}) +([IaV]{1,3}) +(\\d{1,3} p\\. \\d{1,3})",
+          "regex": "(ATF \\d{1,3}) +([IaV]{1,3}) +(\\d{1,3} p\\.\\s?\\d{1,3})",
           "example": "ATF 123 I 342 p. 345"
         }
       ],
@@ -43,7 +43,7 @@
           "example": "DTF 345 I 234 consid. 4.2.3"
         },
         {
-          "regex": "(DTF \\d{1,3}) +([IaV]{1,3}) +(\\d{1,3} p\\. \\d{1,3})",
+          "regex": "(DTF \\d{1,3}) +([IaV]{1,3}) +(\\d{1,3} p\\.\\s?\\d{1,3})",
           "example": "DTF 123 I 342 p. 345"
         }
       ]
@@ -51,23 +51,23 @@
     "Bger": {
       "de": [
         {
-          "regex": "(\\d\\D\\_\\d{1,3}\\/\\d{4}) +(vom \\d{1,2}\\.) +(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) +(\\d{4} E\\.) +(\\d{1,2}(\\w{1,2})?(\\.\\d{1,2}(\\.\\d{1,2}|)|))+( [f]{1,2}\\.)?",
+          "regex": "(\\d\\D\\_\\d{1,3}\\/\\d{4}) +(vom \\d{1,2}\\.)\\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) +(\\d{4} E\\.) +(\\d{1,2}(\\w{1,2})?(\\.\\d{1,2}(\\.\\d{1,2}|)|))+( [f]{1,2}\\.)?",
           "example": "4A_456/2021 vom 19. Januar 2021 E. 1.2"
         },
         {
-          "regex": "(\\d\\D\\_\\d{1,3}\\/\\d{4}) +(vom \\d{1,2}\\.) +(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) +(\\d{4} E\\.) +(\\d{1,2}(\\w{1,2})?(\\.\\d{1,2}(\\.\\d{1,2}|)|))+( [f]{1,2}\\.)?,?\\s)+(und)\\s\\d{1,2}",
-          "comment": "4A_456/2021 vom 19. Januar 2021 E. 1.2, 1.3 und 3"
+          "regex": "(\\d\\D\\_\\d{1,3}\\/\\d{4}) +(vom \\d{1,2}\\.)\\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) +(\\d{4} E\\.) +(\\d{1,2}(\\w{1,2})?(\\.\\d{1,2}(\\.\\d{1,2}|)|))+( [f]{1,2}\\.)?,?\\s)+(und)\\s\\d{1,2}",
+          "example": "4A_456/2021 vom 19. Januar 2021 E. 1.2, 1.3 und 3"
         }
       ],
       "fr": [
         {
-          "regex": "(\\d\\D\\_\\d{1,3}\\/\\d{4}) +(du \\d{1,2}) +(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre) +(\\d{4} consid\\.) +(\\d{1,2}(\\.\\d{1,2}(\\.\\d{1,2}|)|))",
+          "regex": "(\\d\\D\\_\\d{1,3}\\/\\d{4}) +(du \\d{1,2})\\s*(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre) +(\\d{4} consid\\.) +(\\d{1,2}(\\.\\d{1,2}(\\.\\d{1,2}|)|))",
           "example": "4A_456/2021 du 19 janvier 2021 consid. 1.2"
         }
       ],
       "it": [
         {
-          "regex": "(\\d\\D\\_\\d{1,3}\\/\\d{4}) +(del \\d{1,2}) +(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|diecembre) +(\\d{4} consid\\.) +(\\d{1,2}(\\.\\d{1,2}(\\.\\d{1,2}|)|))",
+          "regex": "(\\d\\D\\_\\d{1,3}\\/\\d{4}) +(del \\d{1,2})\\s*(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|diecembre) +(\\d{4} consid\\.) +(\\d{1,2}(\\.\\d{1,2}(\\.\\d{1,2}|)|))",
           "example": "4A_456/2021 del 19 gennaio 2021 consid. 1.2"
         }
       ]
@@ -85,27 +85,27 @@
       },
       {
         "regex": "(Art\\. \\d{1,4}) +(Abs\\.|Ziff\\.) +(\\d{1,2})[, ]+(Abs\\.|Ziff\\.)? +(\\d{1,2}) +(((lit\\. \\w|Bst\\. \\w|und \\d{1,2}) +\\w{2,5})|(\\w{2,5}))",
-        "comment": "Art. 72 Abs. 1, 75 und 90 GESETZ"
+        "example": "Art. 72 Abs. 1, 75 und 90 GESETZ"
       },
       {
         "regex": "(Art\\. \\d{1,4}) +(Abs\\. |Ziff\\. |)+(\\d{1,2} |)+((lit\\. \\w|Bst\\. \\w) |)+(i\\.V\\.m\\.)+ (Art\\. \\d{1,4}) +(Abs\\. |Ziff\\. |)+(\\d{1,2} |)+((lit\\. \\w|Bst\\. \\w) |)+(\\w{2,5})",
-        "comment": "Art. 100 Abs. 1 i.V.m. Art. 46 GESETZ, Art. 100 i.V.m. Art. 26 GESETZ"
+        "example": "Art. 100 Abs. 1 i.V.m. Art. 46 GESETZ, Art. 100 i.V.m. Art. 26 GESETZ"
       },
       {
         "regex": "(Art\\. \\d{1,4})[A-Za-z0-9\\.\\s]+(i\\.V\\.m\\.)+ (Art\\. \\d{1,4}) +(Abs\\. |Ziff\\. |)+(\\d{1,2} |)+((lit\\. \\w|Bst\\. \\w) |)+(\\w{2,5})",
-        "comment": "Problem: findet z.T. auch zu grosse Satzfragmente, insb. solche, die nicht in Klammern stehen. Eine weitere Einschränkung ist nicht möglich, da Ansonsten Art. 45 OR i.V. m. nicht erkannt wird."
+        "example": "Problem: findet z.T. auch zu grosse Satzfragmente, insb. solche, die nicht in Klammern stehen. Eine weitere Einschränkung ist nicht möglich, da Ansonsten Art. 45 OR i.V. m. nicht erkannt wird."
       },
       {
         "regex": "(Art\\. \\d{1,4}) +(Abs\\. |Ziff\\. |)+(\\d{1,2} |)+((lit\\. \\w|Bst\\. \\w) |)+(i\\.V\\.m\\.) +((Art\\. \\d{1,4} )*(Abs\\. |Ziff\\. |)+(\\d{1,2} |)+((lit\\. \\w|Bst\\. \\w) |)(und )?)*(\\w{2,5})",
-        "comment": "Art. 100 Abs. 1 i.V.m. Art. 46 Abs. 1 Bst. a und Art. 45 Abs. 1 GESETZ, Art. 100 Abs. 1 i.V.m. Abs. 2 GESETZ"
+        "example": "Art. 100 Abs. 1 i.V.m. Art. 46 Abs. 1 Bst. a und Art. 45 Abs. 1 GESETZ, Art. 100 Abs. 1 i.V.m. Abs. 2 GESETZ"
       },
       {
         "regex": "(Art\\.\\s(\\d{1,4}\\s(und\\s)?)+\\w{2,5}(\\si\\.V\\.m\\.)?\\s?)+",
-        "comment": "Art. 100 und  46 GESETZ i.V.m. Art. 45 GESETZ, Art 66 GESETZ und Art. 71 GESETZ i.V.m. Art. 5 GESETZ"
+        "example": "Art. 100 und  46 GESETZ i.V.m. Art. 45 GESETZ, Art 66 GESETZ und Art. 71 GESETZ i.V.m. Art. 5 GESETZ"
       },
       {
         "regex": "(Art\\.\\s((\\d{1,4}[\\s,]+)?(und\\s)?)+\\w{2,5}(\\si\\.V\\.m\\.)?\\s?)+",
-        "comment": "Art. 66, 71 und 45 GESETZ i.V.m. Art. 5 GESETZ"
+        "example": "Art. 66, 71 und 45 GESETZ i.V.m. Art. 5 GESETZ"
       },
       {
         "regex": "(Art\\.\\s((\\d{1,4}[\\s,]+)?(und\\s)?)+((Abs|Ziff)\\.\\s)\\d{1,4}?( lit\\. \\w| Bst\\. \\w)?(\\w{2,5})?(\\si\\.V\\.m\\.)?\\s?(und )?)+\\w{2,5}",

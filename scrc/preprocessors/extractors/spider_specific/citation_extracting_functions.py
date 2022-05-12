@@ -4,6 +4,7 @@ from typing import Any, Optional
 from scrc.enums.citation_type import CitationType
 import json
 import regex
+from citation_extractor import extract_citations
 
 from root import ROOT_DIR
 
@@ -15,33 +16,10 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 
 
 def XX_SPIDER(soup: Any, namespace: dict) -> Optional[dict]:
-    def get_combined_regexes(regex_dict, language):
-        return regex.compile("|".join([entry["regex"] for entry in regex_dict[language] if entry["regex"]]))
-    
-    
-    citation_regexes = json.loads((ROOT_DIR / 'legal_info' / 'citation_regexes.json').read_text())
-    pprint(citation_regexes)
-    rulings = []
-    laws = []
-    print("BGE")
-    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['BGE'], namespace['language']), soup):
-        rulings.append(match.group(0))
-        print(match)
-    print("Bger")
-    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['Bger'], namespace['language']), soup):
-        rulings.append(match.group(0))
-        print(match)
-    print("law")
-    for match in regex.findall(get_combined_regexes(citation_regexes['law'], namespace['language']), soup):
-        laws.append(match.group(0))
-        print(match)
-    print({CitationType.LAW: laws, CitationType.RULING: rulings})
-    exit()
+    citations = extract_citations(
+        soup, (ROOT_DIR / 'legal_info' / 'citation_regexes.json'), namespace['language'].value)
+    return citations
 
-
-
-
-# TODO regexes überprüfen mit Zitierungen des Bundesgerichts
 
 def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
     """
@@ -60,10 +38,9 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
 
     for bge in soup.find_all("a", class_=bge_key):
         if bge.string:  # make sure it is not empty or None
-            rulings.append({"type": "bge", "url": bge['href'], "text": bge.string})
+            rulings.append(
+                {"type": "bge", "url": bge['href'], "text": bge.string})
 
-    print({CitationType.LAW: laws, CitationType.RULING: rulings})
-    exit()
     return {CitationType.LAW: laws, CitationType.RULING: rulings}
 
 # This needs special care
