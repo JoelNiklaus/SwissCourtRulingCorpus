@@ -438,12 +438,22 @@
         }
       },
       "CH_ED\u00d6B": {
-        "de": "Eidgen\u00f6ssischer Datenschutz- und \u00d6ffentlichkeitsbeauftragter",
-        "fr": "Eidgen\u00f6ssischer Datenschutz- und \u00d6ffentlichkeitsbeauftragter",
-        "it": "Eidgen\u00f6ssischer Datenschutz- und \u00d6ffentlichkeitsbeauftragter",
+        "de": "Eidgen\u00f6ssischer Datenschutz- und \u00d6ffentlichkeitsbeauftragter (ED\u00d6B)",
+        "fr": "Pr\u00e9pos\u00e9 f\u00e9d\u00e9ral \u00e0 la protection des donn\u00e9es et \u00e0 la transparence (PFPDT)",
+        "it": "Incaricato fedeale della protezione dei dati e della trasparenza",
         "kammern": {
           "CH_ED\u00d6B_001": {
             "spider": "CH_EDOEB"
+          }
+        }
+      },
+      "CH_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "CH_UPL_001": {
+            "spider": "XX_Upload"
           }
         }
       },
@@ -464,6 +474,16 @@
     "fr": "Argovie",
     "it": "Argovia",
     "gerichte": {
+      "AG_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "AG_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "AG_OG": {
         "de": "Obergericht",
         "fr": "Obergericht",
@@ -477,33 +497,80 @@
           },
           "AG_OG_002": {
             "spider": "AG_Gerichte",
-            "de": "Strafkammern",
-            "fr": "Strafkammern",
-            "it": "Strafkammern"
+            "de": "Kammer f\u00fcr Kindes-und Erwachsenenschutz",
+            "fr": "Kammer f\u00fcr Kindes-und Erwachsenenschutz",
+            "it": "Kammer f\u00fcr Kindes-und Erwachsenenschutz"
           },
-          "AG_OG_009": {
+          "AG_OG_005": {
             "spider": "AG_Gerichte",
-            "de": "Versicherungsgericht",
-            "fr": "Versicherungsgericht",
-            "it": "Versicherungsgericht"
+            "de": "Schuldbetreibungs- und Konkurskommission",
+            "fr": "Schuldbetreibungs- und Konkurskommission",
+            "it": "Schuldbetreibungs- und Konkurskommission"
           },
-          "AG_OG_010": {
-            "spider": "AG_Gerichte",
-            "de": "Handelsgericht",
-            "fr": "Handelsgericht",
-            "it": "Handelsgericht"
-          },
-          "AG_OG_011": {
+          "AG_OG_006": {
             "spider": "AG_Gerichte",
             "de": "Verwaltungsgericht",
             "fr": "Verwaltungsgericht",
             "it": "Verwaltungsgericht"
           },
+          "AG_OG_007": {
+            "spider": "AG_Gerichte",
+            "de": "Versicherungsgericht",
+            "fr": "Versicherungsgericht",
+            "it": "Versicherungsgericht"
+          },
+          "AG_OG_008": {
+            "spider": "AG_Gerichte",
+            "de": "Strafgericht",
+            "fr": "Strafgericht",
+            "it": "Strafgericht"
+          },
+          "AG_OG_009": {
+            "spider": "AG_Gerichte",
+            "de": "Handelsgericht",
+            "fr": "Handelsgericht",
+            "it": "Handelsgericht"
+          },
           "AG_OG_999": {
             "spider": "AG_Gerichte",
-            "de": "Sonstige Abteilung",
-            "fr": "Sonstige Abteilung",
-            "it": "Sonstige Abteilung"
+            "de": "sonstige Kammern",
+            "fr": "sonstige Kammern",
+            "it": "sonstige Kammern"
+          }
+        }
+      },
+      "AG_SVWG": {
+        "de": "Spezialverwaltungsgericht",
+        "fr": "Spezialverwaltungsgericht",
+        "it": "Spezialverwaltungsgericht",
+        "kammern": {
+          "AG_SVWG_001": {
+            "spider": "AG_Gerichte",
+            "de": "Kausalabgaben und Enteignungen",
+            "fr": "Kausalabgaben und Enteignungen",
+            "it": "Kausalabgaben und Enteignungen"
+          },
+          "AG_SVWG_002": {
+            "spider": "AG_Gerichte",
+            "de": "Steuern",
+            "fr": "Steuern",
+            "it": "Steuern"
+          },
+          "AG_SVWG_999": {
+            "de": "andere",
+            "fr": "autres",
+            "it": "altro",
+            "spider": "AG_Gerichte"
+          }
+        }
+      },
+      "AG_AUK": {
+        "de": "Aufsichtskommission",
+        "fr": "Aufsichtskommission",
+        "it": "Aufsichtskommission",
+        "kammern": {
+          "AG_AUK_001": {
+            "spider": "AG_Gerichte"
           }
         }
       },
@@ -517,36 +584,22 @@
           }
         }
       },
-      "AG_LWRK": {
-        "de": "Landwirtschaftliche Rekurskommission",
-        "fr": "Landwirtschaftliche Rekurskommission",
-        "it": "Landwirtschaftliche Rekurskommission",
-        "kammern": {
-          "AG_LWRK_001": {
-            "spider": "AG_Gerichte"
-          }
-        }
-      },
-      "AG_SVWG": {
-        "de": "Spezialverwaltungsgericht",
-        "fr": "Spezialverwaltungsgericht",
-        "it": "Spezialverwaltungsgericht",
-        "kammern": {
-          "AG_SVWG_001": {
-            "spider": "AG_Gerichte"
-          }
-        }
-      },
       "AG_VB": {
         "de": "Verwaltungsbeh\u00f6rden",
         "fr": "Verwaltungsbeh\u00f6rden",
         "it": "Verwaltungsbeh\u00f6rden",
         "kammern": {
           "AG_VB_001": {
-            "spider": "AG_Gerichte"
+            "spider": "AG_Gerichte",
+            "de": "Bau, Verkehr und Umwelt",
+            "fr": "Bau, Verkehr und Umwelt",
+            "it": "Bau, Verkehr und Umwelt"
           },
           "AG_VB_002": {
             "spider": "AG_Weitere"
+          },
+          "AG_VB_003": {
+            "spider": "AG_Gerichte"
           },
           "AG_VB_999": {
             "de": "andere",
@@ -556,52 +609,22 @@
           }
         }
       },
-      "AG_PRG": {
-        "de": "Personalrekursgericht",
-        "fr": "Personalrekursgericht",
-        "it": "Personalrekursgericht",
-        "kammern": {
-          "AG_PRG_001": {
-            "spider": "AG_Gerichte"
-          }
-        }
-      },
-      "AG_RGAR": {
+      "AG_RR": {
         "de": "Rekursgericht im Ausl\u00e4nderrecht",
         "fr": "Rekursgericht im Ausl\u00e4nderrecht",
         "it": "Rekursgericht im Ausl\u00e4nderrecht",
         "kammern": {
-          "AG_RGAR_001": {
+          "AG_RR_001": {
             "spider": "AG_Gerichte"
           }
         }
       },
-      "AG_SKBG": {
-        "de": "Sch\u00e4tzungskommission nach Baugesetz",
-        "fr": "Sch\u00e4tzungskommission nach Baugesetz",
-        "it": "Sch\u00e4tzungskommission nach Baugesetz",
+      "AG_JL": {
+        "de": "Justizleitung",
+        "fr": "Justizleitung",
+        "it": "Justizleitung",
         "kammern": {
-          "AG_SKBG_001": {
-            "spider": "AG_Gerichte"
-          }
-        }
-      },
-      "AG_SRG": {
-        "de": "Steuerrekursgericht",
-        "fr": "Steuerrekursgericht",
-        "it": "Steuerrekursgericht",
-        "kammern": {
-          "AG_SRG_001": {
-            "spider": "AG_Gerichte"
-          }
-        }
-      },
-      "AG_OSB": {
-        "de": "Obersch\u00e4tzungsbeh\u00f6rde nach Versicherungsgesetz",
-        "fr": "Obersch\u00e4tzungsbeh\u00f6rde nach Versicherungsgesetz",
-        "it": "Obersch\u00e4tzungsbeh\u00f6rde nach Versicherungsgesetz",
-        "kammern": {
-          "AG_OSB_001": {
+          "AG_JL_001": {
             "spider": "AG_Gerichte"
           }
         }
@@ -661,7 +684,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "AG_XX_001": {
-            "spider": "AG_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -672,6 +695,16 @@
     "fr": "Appenzell Rhodes-Int\u00e9rieures",
     "it": "Appenzello Interno",
     "gerichte": {
+      "AI_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "AI_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "AI_BZG": {
         "de": "Bezirksgericht",
         "fr": "Bezirksgericht",
@@ -709,6 +742,16 @@
     "fr": "Appenzell Rhodes-Ext\u00e9rieures",
     "it": "Appenzello Interno",
     "gerichte": {
+      "AR_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "AR_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "AR_OG": {
         "de": "Obergericht",
         "fr": "Obergericht",
@@ -855,7 +898,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "AR_XX_001": {
-            "spider": "AR_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -866,6 +909,16 @@
     "fr": "Berne",
     "it": "Berna",
     "gerichte": {
+      "BE_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "BE_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "BE_OG": {
         "de": "Obergericht",
         "fr": "Cour supr\u00eame",
@@ -1031,7 +1084,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "BE_XX_001": {
-            "spider": "BE_ZivilStraf"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -1042,6 +1095,16 @@
     "fr": "B\u00e2le-Campagne",
     "it": "Basilea Campagna",
     "gerichte": {
+      "BL_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "BL_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "BL_KG": {
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
@@ -1088,7 +1151,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "BL_XX_001": {
-            "spider": "BL_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -1099,6 +1162,16 @@
     "fr": "B\u00e2le-Ville",
     "it": "Basilea Citt\u00e0",
     "gerichte": {
+      "BS_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "BS_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "BS_APG": {
         "de": "Appellationsgericht",
         "fr": "Appellationsgericht",
@@ -1125,7 +1198,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "BS_XX_001": {
-            "spider": "BS_Omni"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -1136,6 +1209,16 @@
     "fr": "Fribourg",
     "it": "Friburgo",
     "gerichte": {
+      "FR_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "FR_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "FR_TC": {
         "de": "Kantonsgericht",
         "fr": "Tribunal cantonal",
@@ -1219,7 +1302,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "FR_XX_001": {
-            "spider": "FR_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -1230,6 +1313,16 @@
     "fr": "Gen\u00e8ve",
     "it": "Ginevra",
     "gerichte": {
+      "GE_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "GE_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "GE_CAPJ": {
         "de": "Court d'appel du pouvoir judiciaire",
         "fr": "Court d'appel du pouvoir judiciaire",
@@ -1369,7 +1462,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "GE_XX_001": {
-            "spider": "GE_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -1380,6 +1473,16 @@
     "fr": "Glaris",
     "it": "Glarona",
     "gerichte": {
+      "GL_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "GL_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "GL_OG": {
         "de": "Obergericht",
         "fr": "Obergericht",
@@ -1445,6 +1548,16 @@
     "fr": "Grisons",
     "it": "Grigioni",
     "gerichte": {
+      "GR_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "GR_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "GR_KG": {
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
@@ -1567,7 +1680,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "GR_XX_001": {
-            "spider": "GR_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -1578,6 +1691,16 @@
     "fr": "Jura",
     "it": "Giura",
     "gerichte": {
+      "JU_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "JU_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "JU_TC": {
         "de": "Tribunal Cantonal",
         "fr": "Tribunal Cantonal",
@@ -1688,7 +1811,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "JU_XX_001": {
-            "spider": "JU_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -1699,6 +1822,16 @@
     "fr": "Lucerne",
     "it": "Lucerna",
     "gerichte": {
+      "LU_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "LU_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "LU_BZG": {
         "de": "Erstinstanzliche Gerichte",
         "fr": "Erstinstanzliche Gerichte",
@@ -1818,7 +1951,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "LU_XX_001": {
-            "spider": "LU_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -1829,6 +1962,16 @@
     "fr": "Neuch\u00e2tel",
     "it": "Neuch\u00e2tel",
     "gerichte": {
+      "NE_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "NE_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "NE_TC": {
         "de": "Tribunal Cantonal",
         "fr": "Tribunal Cantonal",
@@ -2017,7 +2160,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "NE_XX_001": {
-            "spider": "NE_Omni"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -2028,6 +2171,16 @@
     "fr": "Nidwald",
     "it": "Nidvaldo",
     "gerichte": {
+      "NW_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "NW_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "NW_OG": {
         "de": "Gerichte",
         "fr": "Gerichte",
@@ -2044,7 +2197,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "NW_XX_001": {
-            "spider": "NW_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -2055,6 +2208,16 @@
     "fr": "Obwald",
     "it": "Obvaldo",
     "gerichte": {
+      "OW_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "OW_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "OW_VG": {
         "de": "Verwaltungs- und Verwaltungsgerichtsentscheide (VVGE)",
         "fr": "Verwaltungs- und Verwaltungsgerichtsentscheide (VVGE)",
@@ -2102,6 +2265,16 @@
     "fr": "Saint-Gall",
     "it": "San Gallo",
     "gerichte": {
+      "SG_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "SG_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "SG_KG": {
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
@@ -2237,7 +2410,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "SG_XX_001": {
-            "spider": "SG_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -2248,6 +2421,16 @@
     "fr": "Schaffhouse",
     "it": "Sciaffusa",
     "gerichte": {
+      "SH_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "SH_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "SH_OG": {
         "de": "Obergericht",
         "fr": "Obergericht",
@@ -2264,7 +2447,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "SH_XX_001": {
-            "spider": "SH_OG"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -2275,6 +2458,16 @@
     "fr": "Soleure",
     "it": "Soletta",
     "gerichte": {
+      "SO_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "SO_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "SO_OG": {
         "de": "Obergericht",
         "fr": "Obergericht",
@@ -2370,7 +2563,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "SO_XX_001": {
-            "spider": "SO_Omni"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -2381,6 +2574,16 @@
     "fr": "Schwytz",
     "it": "Svitto",
     "gerichte": {
+      "SZ_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "SZ_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "SZ_KG": {
         "de": "Kantonsgericht",
         "fr": "Kantonsgericht",
@@ -2424,7 +2627,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "SZ_XX_001": {
-            "spider": "SZ_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -2435,6 +2638,16 @@
     "fr": "Tessin",
     "it": "Ticino",
     "gerichte": {
+      "TI_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "TI_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "TI_PP": {
         "de": "Il Presidente della Pretura Penale",
         "fr": "Il Presidente della Pretura Penale",
@@ -2642,6 +2855,16 @@
     "fr": "Thurgovie",
     "it": "Turgovia",
     "gerichte": {
+      "TG_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "TG_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "TG_OG": {
         "de": "Obergericht",
         "fr": "Obergericht",
@@ -2661,7 +2884,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "TG_XX_001": {
-            "spider": "TG_OG"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -2672,6 +2895,16 @@
     "fr": "Uri",
     "it": "Uri",
     "gerichte": {
+      "UR_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "UR_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "UR_REB": {
         "de": "Rechenschaftsbericht u\u0308ber die Rechtspflege\n",
         "fr": "Rechenschaftsbericht u\u0308ber die Rechtspflege\n",
@@ -2688,17 +2921,27 @@
         "it": "corte sconosciuta",
         "kammern": {
           "UR_XX_001": {
-            "spider": "UR_Gerichte"
+            "spider": "XX_Upload"
           }
         }
       }
     }
   },
   "VD": {
-    "de": "Waadtland",
+    "de": "Waadt",
     "fr": "Vaud",
     "it": "Vaud",
     "gerichte": {
+      "VD_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "VD_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "VD_TC": {
         "de": "Tribunal cantonal",
         "fr": "Tribunal cantonal",
@@ -2874,7 +3117,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "VD_XX_001": {
-            "spider": "VD_FindInfo"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -2885,6 +3128,16 @@
     "fr": "Valais",
     "it": "Vallese",
     "gerichte": {
+      "VS_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "VS_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "VS_BZG": {
         "de": "Bezirksgericht",
         "fr": "Tribunal du district",
@@ -2999,6 +3252,16 @@
     "fr": "Zoug",
     "it": "Zugo",
     "gerichte": {
+      "ZG_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "ZG_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "ZG_VG": {
         "de": "Verwaltungsgericht",
         "fr": "Verwaltungsgericht",
@@ -3042,7 +3305,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "ZG_XX_001": {
-            "spider": "ZG_Verwaltungsgericht"
+            "spider": "XX_Upload"
           }
         }
       }
@@ -3053,6 +3316,16 @@
     "fr": "Zurich",
     "it": "Zurigo",
     "gerichte": {
+      "ZH_UPL": {
+        "de": "Upload",
+        "fr": "Upload",
+        "it": "Upload",
+        "kammern": {
+          "ZH_UPL_001": {
+            "spider": "XX_Upload"
+          }
+        }
+      },
       "ZH_BK": {
         "de": "Bezirksgerichte",
         "fr": "Bezirksgerichte",
@@ -3185,7 +3458,7 @@
         "it": "corte sconosciuta",
         "kammern": {
           "ZH_XX_001": {
-            "spider": "ZH_Obergericht"
+            "spider": "XX_Upload"
           }
         }
       }
