@@ -96,7 +96,7 @@ def construct_base_dataset(config):
     cleaner.clean(decision_ids)
  
     
-    section_splitter = SectionSplitter(config, False)
+    section_splitter = SectionSplitter(config)
     section_splitter.start(decision_ids)
 
     citation_extractor = CitationExtractor(config)
