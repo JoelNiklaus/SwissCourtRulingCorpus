@@ -116,6 +116,12 @@ Features:
 - very diverse: 3 languages, 26 cantons, 112 courts, 287 chambers, most if not all legal areas and all Swiss levels of appeal
 """
 
+"""
+Further projects: (inspired by https://arxiv.org/pdf/2106.10776.pdf)
+Investigate Legal Citation Prediction as a Natural Language Generation Problem
+Citation Prediction only on context of the citation not on the entire document (simulating the writing of a decision by a clerk)
+"""
+
 
 class DatasetCreator(AbstractPreprocessor):
     """
@@ -222,7 +228,6 @@ class DatasetCreator(AbstractPreprocessor):
                     out_file.write(json.dumps(record) + '\n')
 
     def get_df(self, engine, feature_col, label_col, lang, save_reports):
-       
 
         table_string, field_string = select_paragraphs_with_decision_and_meta_data()
         # TODO spider testing
@@ -234,7 +239,7 @@ class DatasetCreator(AbstractPreprocessor):
             df = next(self.select(engine, table_string, field_string, where_string, order_by='year',
                                   chunksize=self.get_chunksize()))
             save_df_to_cache(df, cache_dir)
-        
+
         df = self.clean_df(df, feature_col)
         df['legal_area'] = df.chamber_id.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
@@ -242,17 +247,18 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info("Finished loading the data from the database")
 
         return df
-    
 
     def clean_df(self, df, column):
         # replace empty and whitespace strings with nan so that they can be removed
         sections = df['sections']
+
         def filter_column(column_data):
             if not isinstance(column_data, str): return np.nan
             column_data = ast.literal_eval(column_data)
             for section in column_data:
                 if section['name'] == column:
                     return section['section_text']
+
         df[column] = sections.map(filter_column)
         df[column] = df[column].replace(r'^\s+$', np.nan, regex=True)
         df[column] = df[column].replace('', np.nan)
@@ -565,6 +571,7 @@ class DatasetCreator(AbstractPreprocessor):
         :param split:   the exact split (how much of the data goes into train, val and test respectively)
         :return:
         """
+        # TODO revise this for datasets including cantonal data and include year 2021
         last_year = 2020  # disregard partial year 2021
         first_year = 2000  # before the data is quite sparse and there might be too much differences in the language
         num_years = last_year - first_year + 1

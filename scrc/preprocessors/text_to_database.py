@@ -10,24 +10,25 @@ import bs4
 import requests
 from tqdm.contrib.concurrent import process_map
 
-from root import ROOT_DIR
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 
 import tika
 
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, save_from_text_to_database, where_string_spider
+from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, save_from_text_to_database, \
+    where_string_spider
 
 os.environ['TIKA_LOG_PATH'] = str(AbstractPreprocessor.create_dir(Path(os.getcwd()), 'logs'))
 tika.initVM()
 
 from tika import parser
 
+
 # TODO if we need to extract data from html with difficult structure such as tables consider using: https://pypi.org/project/inscriptis/
 
+# TODO Consider using html remove package: https://pypi.org/project/readability-lxml/
 # the keys used in the court dataframes
-
 
 
 class TextToDatabase(AbstractPreprocessor):
@@ -35,7 +36,8 @@ class TextToDatabase(AbstractPreprocessor):
     Extracts the textual and meta information from the court rulings files and saves it in csv files for each spider
     and in one for all courts combined
     """
-    #TODO: Implement Flag in call
+
+    # TODO: Implement Flag in call
     def __init__(self, config: dict, new_files_only: Optional[bool] = True):
         super().__init__(config)
         self.court_keys = [
@@ -85,11 +87,11 @@ class TextToDatabase(AbstractPreprocessor):
         df = pd.DataFrame(spider_dict_list)
 
         self.logger.info(f"Saving data to db")
-        list_df = np.array_split(df, int(len(df)/self.chunksize)+1)
+        list_df = np.array_split(df, int(len(df) / self.chunksize) + 1)
         for idx, df_chunk in enumerate(list_df):
             save_from_text_to_database(self.get_engine('scrc'), df_chunk)
             if len(list_df) > 1:
-                self.logger.info(f"Saved chunk {idx+1}/{len(list_df)}")
+                self.logger.info(f"Saved chunk {idx + 1}/{len(list_df)}")
         return spider_dict_list
 
     def build_spider_dict_list(self, spider_dir: Path, spider: str) -> list:
@@ -102,17 +104,18 @@ class TextToDatabase(AbstractPreprocessor):
             len_after = len(json_filenames)
             if len_after != len_before:
                 self.logger.info(f"Processing {len(json_filenames)} files as the others were already done")
-            
+
         spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=1000)
         return [spider_dict for spider_dict in spider_dict_list if spider_dict]  # remove None values
 
     def filter_already_present(self, json_filenames: List[str], spider: str) -> List[str]:
         table_string = f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}"
         where_string = f"file.file_id IN {where_string_spider('file_id', spider)}"
-        all_filenames_of_spider = self.select( self.get_engine(self.db_scrc), table_string, "file_name", where_string)
+        all_filenames_of_spider = self.select(self.get_engine(self.db_scrc), table_string, "file_name", where_string)
         for filename_chunk in all_filenames_of_spider:
             filename_chunk = list(filename_chunk['file_name'])
-            json_filenames = [filename for filename in json_filenames if filename.split('/')[-1].split('.')[0] not in filename_chunk]
+            json_filenames = [filename for filename in json_filenames if
+                              filename.split('/')[-1].split('.')[0] not in filename_chunk]
         return json_filenames
 
     def build_spider_dict(self, json_file: str) -> Optional[dict]:
@@ -147,7 +150,7 @@ class TextToDatabase(AbstractPreprocessor):
         html_content_dict = self.extract_corresponding_html_content(corresponding_html_path)
         if html_content_dict is not None:  # if it could be parsed correctly
             # add html content
-            court_dict = dict(court_dict, **html_content_dict)  
+            court_dict = dict(court_dict, **html_content_dict)
         return court_dict
 
     def get_filenames_of_extension(self, spider_dir: Path, extension: str) -> list:
