@@ -30,11 +30,11 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     @abstractmethod
     def get_required_data(self, series: pd.DataFrame) -> Any:
         """Returns the data required by the processing functions"""
-        
+
     @abstractmethod
     def save_data_to_database(self, series: pd.DataFrame, engine: Engine):
         """Splits the data into their respective parts and saves them to the table"""
-        
+
     @abstractmethod
     def select_df(self, engine: Engine, spider: str):
         """Selects the dataframe from the database"""
@@ -53,31 +53,34 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         self.col_type = col_type
         self.processed_amount = 0
         self.total_to_process = -1
-        self.spider_specific_dir = self.create_dir(ROOT_DIR, config['dir']['spider_specific_dir'])
+        self.spider_specific_dir = self.create_dir(
+            ROOT_DIR, config['dir']['spider_specific_dir'])
 
     def start(self, decision_ids: Optional[List] = None):
         self.logger.info(self.logger_info["start"])
         if self.ignore_cache:
-           self.processed_file_path.unlink()
+            self.processed_file_path.unlink()
         self.decision_ids = decision_ids
         spider_list, message = self.get_processed_spiders()
         self.logger.info(message)
 
         engine = self.get_engine(self.db_scrc)
-        #self.add_columns(engine)
+        # self.add_columns(engine)
 
         self.start_spider_loop(spider_list, engine)
 
         self.logger.info(self.logger_info["finished"])
 
     def get_processed_spiders(self) -> Tuple[Set, str]:
-        spider_list, message = self.compute_remaining_spiders(self.processed_file_path)
+        spider_list, message = self.compute_remaining_spiders(
+            self.processed_file_path)
         return spider_list, message
 
     """  def add_columns(self, engine: Engine):
         for lang in self.languages:
             self.add_column(engine, lang, col_name=self.col_name, data_type=self.col_type)
     """
+
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
             try:
@@ -89,20 +92,20 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
                 self.logger.exception(
                     f"There are no special functions for spider {spider} and the default spider does not work. "
                     f"{self.logger_info['no_functions']}")
-            
 
-    def process_one_spider(self, engine: Engine, spider: str, use_default_spider = False):
+    def process_one_spider(self, engine: Engine, spider: str, use_default_spider=False):
         self.logger.info(self.logger_info["start_spider"] + " " + spider)
 
-        dfs = self.select_df(engine, spider)
+        dfs = self.select_df(self.get_engine(self.db_scrc), spider)
         # TODO make quick request to see if there are decisions at all: if not, skip lang so no confusing report is printed
         #self.start_progress(engine, spider)
         # stream dfs from the db
         #dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
         for df in dfs:
             df = df.apply(self.process_one_df_row, axis="columns")
-            self.save_data_to_database(df, engine)
-            self.log_progress(self.chunksize)
+            self.save_data_to_database(df, self.get_engine(self.db_scrc))
+            self.logger.info('One chunk saved')
+            # self.log_progress(self.chunksize)
 
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
@@ -115,11 +118,12 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
             namespace['pdf_url'] = series.get('pdf_url').strip()
         namespace['language'] = Language(series['language'])
         namespace['id'] = series['decision_id']
-        
+
         if 'court_id' in series:
             namespace['court'] = Court(series['court_id']).name
         data = self.get_required_data(series)
-        assert data
+        if not data:
+            return series
         series[self.col_name] = self.call_processing_function(
             series["spider"], data, namespace
         )
@@ -130,14 +134,15 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         if not self.check_condition_before_process(spider, data, namespace):
             return None
         try:
-            extracting_functions = getattr(self.processing_functions, spider, getattr(self.processing_functions, 'XX_SPIDER'))
+            extracting_functions = getattr(self.processing_functions, spider, getattr(
+                self.processing_functions, 'XX_SPIDER'))
             # invoke function with data and namespace
             return extracting_functions(data, namespace)
         except ValueError as e:
             # ToDo: info: using default, if it does not work then warning
             # Try block für default spider
             self.logger.warning(e)
-            
+
             # just ignore the error for now. It would need much more rules to prevent this.
             return None
 
@@ -164,10 +169,12 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     def log_progress(self, chunksize: int):
         self.processed_amount = min(
             self.processed_amount + chunksize, self.total_to_process)
-        self.logger.info(f"{self.logger_info['saving']} ({self.processed_amount}/{self.total_to_process})")
+        self.logger.info(
+            f"{self.logger_info['saving']} ({self.processed_amount}/{self.total_to_process})")
 
     def log_coverage(self, engine: Engine, spider: str, table: str):
-        successful_attempts = self.coverage_get_successful(engine, spider, table)
+        successful_attempts = self.coverage_get_successful(
+            engine, spider, table)
         self.logger.info(
             f"{self.logger_info['finish_spider']} with "
             f"{successful_attempts} / {self.total_to_process} "
