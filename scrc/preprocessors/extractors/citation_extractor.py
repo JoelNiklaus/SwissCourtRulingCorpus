@@ -13,6 +13,7 @@ from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, where_decisionid_in_list, where_string_spider
 
+# TODO train ML system on CH_BGer for citation extraction as an alternative (a distilled model for fast inference on CPU)
 
 class CitationExtractor(AbstractExtractor):
     """

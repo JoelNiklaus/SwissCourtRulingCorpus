@@ -66,7 +66,8 @@ class SectionSplitter(AbstractExtractor):
 
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-        only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
+        only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None and len(
+            self.decision_ids) > 0 else ""
         return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')} LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id ", f"decision_id, iso_code as language, html_raw, pdf_raw, html_url, pdf_url, '{spider}' as spider, court_id", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
 
     def run_tokenizer(self, df: pd.DataFrame):
@@ -74,20 +75,21 @@ class SectionSplitter(AbstractExtractor):
         # TODO precompute this in previous step after section splitting for each section
         # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
         spacy_tokenizer, bert_tokenizer = self.tokenizers.get(
-            Language[df['language'][0].upper()])
+            Language(df['language'][0]))
 
         result = {}
 
         for idx, row in df.iterrows():
-            row['sections'][Section.FULLTEXT] = '\n\n'.join(['\n'.join(
-                row['sections'][section]) for section in row['sections'] if len(row['sections']) > 0])
+            if not row['sections']:
+                return {}
+            if len(row['sections']) > 0:
+                row['sections'][Section.FULLTEXT] = '\n\n'.join(['\n'.join(
+                    row['sections'][section]) for section in row['sections']])
             for k in row['sections'].keys():
                 result[k] = {}
-                test = df['sections']
-                print(test)
                 self.logger.debug("Started tokenizing with spacy")
                 result[k]['num_tokens_spacy'] = [
-                    len(result) for result in spacy_tokenizer.pipe(df['sections'][k], batch_size=100)]
+                    len(result) for result in spacy_tokenizer.pipe(row['sections'][k], batch_size=100)]
                 self.logger.debug("Started tokenizing with bert")
                 result[k]['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(
                     df['sections'][k].tolist()).input_ids]
@@ -106,12 +108,14 @@ class SectionSplitter(AbstractExtractor):
                 df.to_json(f)
             return
 
-        tokens = self.run_tokenizer(df)
+        #tokens = self.run_tokenizer(df)
 
         for idx, row in df.iterrows():
             if idx % 50 == 0:
                 self.logger.info(f'Saving decision {idx+1} from chunk')
-            with engine.connect() as conn:
+            if row['sections'] is None or row['sections'].keys is None:
+                continue
+            with self.get_engine(self.db_scrc).connect() as conn:
                 t = Table('section', MetaData(), autoload_with=engine)
                 t_paragraph = Table('paragraph', MetaData(),
                                     autoload_with=engine)
@@ -139,9 +143,9 @@ class SectionSplitter(AbstractExtractor):
                     section_id = conn.execute(stmt).fetchone()['section_id']
 
                     # Add num tokens
-                    stmt = t_num_tokens.insert().values([{'section_id': str(
-                        section_id), 'num_tokes_spacy': tokens[k]['num_tokens_spacy'], 'num_tokens_bert': tokens[k]['num_tokens_bert']}])
-                    conn.execute(stmt)
+                    # stmt = t_num_tokens.insert().values([{'section_id': str(
+                    #    section_id), 'num_tokes_spacy': tokens[k]['num_tokens_spacy'], 'num_tokens_bert': tokens[k]['num_tokens_bert']}])
+                    # conn.execute(stmt)
 
                     # Add a all paragraphs
                     for paragraph in row['sections'][k]:

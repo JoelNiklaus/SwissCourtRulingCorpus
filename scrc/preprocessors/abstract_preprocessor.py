@@ -194,7 +194,7 @@ class AbstractPreprocessor:
                 yield chunk_df
 
     @staticmethod
-    def update(engine, df: pd.DataFrame, table: str, columns: list, output_dir: Path, filename: Optional[str] = None):
+    def update(engine, df: pd.DataFrame, table: str, columns: list, output_dir: Path, filename: Optional[str] = None, index_name: Optional[str] = None):
         """
         Updates the given columns in a table with the data provided by the df
         :param engine:              the db engine to work upon
@@ -222,11 +222,19 @@ class AbstractPreprocessor:
         with engine.connect() as conn:
             t = Table(table, MetaData(), autoload_with=engine)  # get the table
             # only update these cols, id needs to be there for the where clause
-            df = df[columns + ['id']]
-            # cannot use the same name as the col name
-            df = df.rename(columns={'id': 'b_id'})
+            if not index_name:
+                df = df[columns + ['id']]
+                # cannot use the same name as the col name
+                df = df.rename(columns={'id': 'b_id'})
+            else:
+                df = df[columns + [index_name]]
+                if index_name == 'decision_id':
+                    df = df.astype({'decision_id': str})
+                # cannot use the same name as the col name
+                df = df.rename(columns={index_name: 'b_id'})
             # updates all columns which are present in the df
-            query = t.update().where(t.c.id == bindparam('b_id')).values()
+            query = t.update().where(t.c.get(index_name or 'id') ==
+                                     bindparam('b_id')).values()
             conn.execute(query, df.to_dict('records'))  # bulk update
 
     @staticmethod

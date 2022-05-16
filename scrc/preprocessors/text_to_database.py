@@ -35,7 +35,6 @@ class TextToDatabase(AbstractPreprocessor):
     Extracts the textual and meta information from the court rulings files and saves it in csv files for each spider
     and in one for all courts combined
     """
-    #TODO: Implement Flag in call
     def __init__(self, config: dict, new_files_only: Optional[bool] = True):
         super().__init__(config)
         self.court_keys = [
@@ -101,18 +100,23 @@ class TextToDatabase(AbstractPreprocessor):
             json_filenames = self.filter_already_present(json_filenames, spider)
             len_after = len(json_filenames)
             if len_after != len_before:
-                self.logger.info(f"Processing {len(json_filenames)} files as the others were already done")
-            
-        spider_dict_list = process_map(self.build_spider_dict, json_filenames, chunksize=1000)
-        return [spider_dict for spider_dict in spider_dict_list if spider_dict]  # remove None values
+                self.logger.info(
+                    f"Processing {len(json_filenames)} files as the others were already done")
+
+        spider_dict_list = process_map(
+            self.build_spider_dict, json_filenames, chunksize=1000)
+        # remove None values
+        return [spider_dict for spider_dict in spider_dict_list if spider_dict]
 
     def filter_already_present(self, json_filenames: List[str], spider: str) -> List[str]:
         table_string = f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}"
         where_string = f"file.file_id IN {where_string_spider('file_id', spider)}"
-        all_filenames_of_spider = self.select( self.get_engine(self.db_scrc), table_string, "file_name", where_string)
+        all_filenames_of_spider = self.select(self.get_engine(
+            self.db_scrc), table_string, "file_name", where_string)
         for filename_chunk in all_filenames_of_spider:
             filename_chunk = list(filename_chunk['file_name'])
-            json_filenames = [filename for filename in json_filenames if filename.split('/')[-1].split('.')[0] not in filename_chunk]
+            json_filenames = [filename for filename in json_filenames if filename.split(
+                '/')[-1].split('.')[0] not in filename_chunk]
         return json_filenames
 
     def build_spider_dict(self, json_file: str) -> Optional[dict]:

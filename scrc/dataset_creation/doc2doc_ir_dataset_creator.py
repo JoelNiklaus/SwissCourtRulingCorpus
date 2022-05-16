@@ -63,9 +63,36 @@ Antwort: Ja
 """
 
 
+# TODO Compute statistics for sections: how many found, token length distributions
+# TODO Use Codalab for next benchmark paper: https://codalab.org/
+# TODO add uuid to the dataset export for easy identification
+# TODO consider using haystack/FARM for IR experiments
+
 class Doc2DocIRDatasetCreator(DatasetCreator):
     """
     Creates a dataset for information retrieval with the citations serving as ground truth for relevance scores
+    """
+
+    """
+    Dataset description:
+    documents:
+        laws.jsonl:
+            contains all the law articles that can be retrieved (one article per line)
+        rulings.jsonl:
+            contains all the reference rulings that can be retrieved (one ruling per line)
+    queries:
+        queries.jsonl:
+            contains the court decisions that are fed into the model as queries (one query per line)
+            the decisions contain metadata such as language, date, chamber, origin region
+            the labels (relevant documents) are listed in the fields "rulings_relevanes" and "laws_relevances" with the number (0 for lowest relevance - 1 for highest relevance) representing the relevance of the given document
+            laws can be matched by the sr-number and the article number and rulings can be matched by the year, volume and page number
+        train.jsonl:
+            contains only the train split of queries.jsonl (years 2000 - 2014)
+        val.jsonl:
+            contains only the validation split of queries.jsonl (years 2015 - 2016)
+        test.jsonl:
+            contains only the test split of queries.jsonl (years 2017 - 2021)
+        
     """
 
     # usefulness of law articles still unclear.
@@ -196,7 +223,6 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         exit()
 
         # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
-
 
         df = df.rename(columns={feature_col: "text"})  # normalize column names
         df['label'] = df.rulings  # the label is just the rulings for now
