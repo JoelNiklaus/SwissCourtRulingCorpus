@@ -386,13 +386,9 @@ def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    if isinstance(decision, str):
-        print('yes is string')
-        paragraphs = get_paragraphs(decision)
-    else:
-        divs = decision.find_all(
-            "div", class_=['WordSection1', 'Section1', 'WordSection2'])
-        paragraphs = get_paragraphs(divs)
+    divs = decision.find_all(
+        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
+    paragraphs = get_paragraphs(divs)
 
     return associate_sections(paragraphs, section_markers, namespace)
 
