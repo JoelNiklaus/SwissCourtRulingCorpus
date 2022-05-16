@@ -28,25 +28,14 @@ class PatternExtractor(AbstractExtractor):
     """
     Extracts and counts paragraphs/keywords commonly used across a court. The output can be found in ./data/patterns
     To extract the pattern from a court a function must be implemented in paragraph_extraction.py which simply returns the paragraphs.
-    To start the pattern of a court, remove the court from pattern_etraction.txt and run the module 
-    with two arguments:
-    First argument is to limit the amount of cases to analyse. Set it to 0 if it should search through all of them.
-    Second argument should either be 0 or 1. If set to 0 (or anything other than 1) 
-    it will NOT go through the extra step executing applying_regex function which makes whole progress alot more time consuming. (Recommended for big courts)
-    The applying_regex step will go through all the patterns which have been found, apply self.variations and look for potential matches.
+    To start the pattern of a court, remove the court from pattern_etraction.txt and run the module. 
 
-    recommended: python -m scrc.preprocessors.extractors.pattern_extractor 0 0
-
-    if you don't care about runtime:
-
-    python -m scrc.preprocessors.extractors.pattern_extractor 0 1
+    python -m scrc.preprocessors.extractors.pattern_extractor
     """
 
     def __init__(self, config: dict):
         super().__init__(config, function_name="pattern_extracting_functions", col_name='')
         self.logger = get_logger(__name__)
-        self.variations = [(r'^', r'\s\d\d$'),
-                           (r'^', r'.$'), (r'^', r'\s$'), (r'^', r'\s.$')]
         self.columns = ['keyword', 'totalcount', 'example']
         self.test = Language.DE
         self.df = pd.DataFrame(columns=self.columns)
