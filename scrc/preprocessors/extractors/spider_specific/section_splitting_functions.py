@@ -386,10 +386,14 @@ def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    divs = decision.find_all(
-        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
+    if isinstance(decision, str):
+        print('yes is string')
+        paragraphs = get_paragraphs(decision)
+    else:
+        divs = decision.find_all(
+            "div", class_=['WordSection1', 'Section1', 'WordSection2'])
+        paragraphs = get_paragraphs(divs)
 
-    paragraphs = get_paragraphs(divs)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -550,7 +554,8 @@ def get_paragraphs(divs):
                     else:
                         paragraph = text
                     heading = None  # reset heading
-                paragraph = clean_text(paragraph)
+                if paragraph is not None:
+                    paragraph = clean_text(paragraph)
                 if paragraph not in ['', ' ', None]:  # discard empty paragraphs
                     paragraphs.append(paragraph)
         return paragraphs
@@ -610,7 +615,7 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
     :param namespace:       dict of namespace
     :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
     """
-    paragraphs_by_section = { section: [] for section in sections }
+    paragraphs_by_section = {section: [] for section in sections}
     current_section = Section.HEADER
     for paragraph in paragraphs:
         # update the current section if it changed
@@ -618,9 +623,9 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
             current_section, paragraph, section_markers, sections)
         # add paragraph to the list of paragraphs
         paragraphs_by_section[current_section].append(paragraph)
-        
+
     if current_section != Section.FOOTER:
-        exceptions = ['ZH_Steuerrekurs'] # Has no footer
+        exceptions = ['ZH_Steuerrekurs']  # Has no footer
         if not namespace['court'] in exceptions:
             # change the message depending on whether there's a url
             if namespace.get('html_url'):

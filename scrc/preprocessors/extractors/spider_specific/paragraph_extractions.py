@@ -12,6 +12,16 @@ def AR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     return get_pdf_paragraphs(decision)
 
 
+def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    pass
+
+
 def NE_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     divs = decision.find_all(
         "div", class_=['WordSection1', 'Section1', 'WordSection2'])
@@ -19,9 +29,7 @@ def NE_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
 
 
 def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    divs = decision.find_all(
-        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
-    return get_paragraphs(divs)
+    return get_paragraphs(decision)
 
 
 def CH_BGE(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -91,9 +99,7 @@ def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> 
 
 
 def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    divs = decision.find_all(
-        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
-    return get_paragraphs(divs)
+    return get_paragraphs(decision)
 
 
 def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
