@@ -36,7 +36,7 @@ class TextToDatabase(AbstractPreprocessor):
     and in one for all courts combined
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, new_files_only: Optional[bool] = True):
         super().__init__(config)
         self.court_keys = [
             "spider",
@@ -55,7 +55,7 @@ class TextToDatabase(AbstractPreprocessor):
         self.logger = get_logger(__name__)
         self.new_files_only = not self.ignore_cache
 
-    def build_dataset(self) -> None:
+    def build_dataset(self) -> List[dict]:
         """ Builds the dataset for all the spiders """
         self.logger.info(
             "Started extracting text and metadata from court rulings files")
@@ -68,13 +68,15 @@ class TextToDatabase(AbstractPreprocessor):
             processed_file_path)
         self.logger.info(message)
 
+        all_processed_files = []
         for spider in spider_list:
             spider_dict_list = self.build_spider_dataset(spider)
+            all_processed_files.extend(spider_dict_list)
             self.mark_as_processed(processed_file_path, spider)
 
         self.logger.info(
             "Finished extracting text and metadata from court rulings files")
-        return
+        return all_processed_files
 
     def build_spider_dataset(self, spider: str) -> list:
         """ Builds a dataset for a spider """
