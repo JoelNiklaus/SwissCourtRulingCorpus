@@ -1,4 +1,4 @@
-#  prodigy review-facts-annotation de nina -F ./recipes/review_facts_annotation.py
+#  prodigy inspect-facts-annotation de nina -F ./recipes/inspect_facts_annotation.py
 
 import sqlite3
 import spacy
@@ -32,7 +32,7 @@ def inspect_facts_annotation(language:str,annotator:str ):
   stream = JSONL("./annotations/annotations_{}-{}.jsonl".format(language,annotator))
 
 
-  dataset = "annotations_{}_review".format(language)
+  dataset = "annotations_{}_inspect".format(language)
   port = ports[annotator]
 
   return {

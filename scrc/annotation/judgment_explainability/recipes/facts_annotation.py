@@ -10,6 +10,7 @@ from psycopg2 import sql
 from typing import List, Optional
 import os
 from prodigy.components.db import connect
+import re
 ports ={"de":11000,"fr": 12000, "it": 13000, "test":14000}
 
 ## Docs
@@ -20,6 +21,12 @@ ports ={"de":11000,"fr": 12000, "it": 13000, "test":14000}
 # helper function for recipe command line input
 def split_string(string):
   return string.split(",")
+
+
+def get_stream(stream):
+    while True:
+      for task in stream:
+        yield task
 
 # the recipe itself, for info on how to use it, see the prodigy docs
 @prodigy.recipe(
@@ -37,6 +44,7 @@ def facts_annotation(language:str ):
     # Load the spaCy model for tokenization.
     nlp = spacy.load("{}_core_news_sm".format(language))
     stream = JSONL("./datasets/annotation_input_set_{}.jsonl".format(language))
+    # stream = JSONL("./datasets/annotation_input_set_{}_new.jsonl".format(language))
   else:
     nlp = spacy.load("de_core_news_sm")
     stream = JSONL("./datasets/annotation_input_set_de_ex.jsonl")
@@ -44,13 +52,13 @@ def facts_annotation(language:str ):
   dataset = "annotations_{}".format(language)
   port = ports[language]
 
-
   # Tokenize the incoming examples and add a "tokens" property to each
   # example. Also handles pre-defined selected spans. Tokenization allows
   # faster highlighting, because the selection can "snap" to token boundaries.
   # If `use_chars` is True, tokens are split into individual characters, which enables
   # character based selection as opposed to default token based selection.
   stream = add_tokens(nlp, stream, use_chars=None)
+
   return {
     "dataset": dataset ,# Name of dataset_scrc to save annotations
     "view_id": "blocks",

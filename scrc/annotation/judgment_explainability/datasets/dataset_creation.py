@@ -6,6 +6,7 @@ import pandas
 import pandas as pd
 import psycopg2
 from psycopg2 import sql
+import numpy
 
 # Load environment variable from .env
 from dotenv import load_dotenv
@@ -27,7 +28,7 @@ PREDICTIONS_TEST_PATHS =["3/de/predictions_test.csv", "3/fr/predictions_test.csv
 
 PATTERNS = {"de": "[u|U]rteil \w+ \d+?.? \w+ \d{4}", "fr": "([a|A]rrêt \w+ \d+?.? \w+ \d{4})|([a|A]rrêt \w+ \d+?er \w+ \d{4})",
                "it": "([s|S]entenza \w+ \d+?.? \w+ \d{4})|([s|S]entenza \w+'\d+?.? \w+ \d{4})"}
-
+global IDS_SCRC
 # Writes a JSONL file from dictionary list.
 def write_JSONL(filename: str, data: list):
     with open(filename, 'w') as outfile:
@@ -36,12 +37,28 @@ def write_JSONL(filename: str, data: list):
             outfile.write('\n')
     print("Successfully saved file " + filename)
 
+# Reads JSONL file and returns a dataframe
+def read_JSONL(filename: str)-> list:
+    with open(filename, "r") as json_file:
+        json_list = list(json_file)
+    a_list = []
+    for json_str in json_list:
+        result = json.loads(json_str)
+        a_list.append(result)
+        assert isinstance(result, dict)
+
+    return a_list
+
 # Reads CSV file sets index to "id" and returns a DataFrame.
 def read_csv(filepath:str) -> pandas.DataFrame:
     df = pd.read_csv(filepath)
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
     df = df.set_index("id")
     return df
+
+def set_id_scrc(df: pd.DataFrame) -> numpy.ndarray:
+    df = df[df["answer"] != "accept"]
+    return df["id_scrc"].values
 
 # Joins to dataframes according to their ids.
 # Drops rows of False prediction (except in italian dataset).
@@ -102,6 +119,21 @@ def filter_dataset(data: list) -> list:
     validate_filtering(sorted(tuples),filtered_dataset)
     return filtered_dataset
 
+def filter_new_cases(df: pd.DataFrame, data: list) -> list:
+    tuples = set()
+    filtered_dataset = []
+    df = df[df["answer"] != "accept"]
+    values = df[["year","legal_area", "judgment"]].values
+    for value in values:
+        tuples.add(tuple(value))
+    for d in data:
+        t = (d["year"],d["legal_area"],d["judgment"])
+        if t in tuples:
+            filtered_dataset.append(d)
+            tuples.remove(t)
+    return filtered_dataset
+
+
 def header_preprocessing(h:str, pattern:str)->str:
     result = re.search(pattern,h)
     if result is not None:
@@ -109,6 +141,8 @@ def header_preprocessing(h:str, pattern:str)->str:
     else:
         return h
 
+def add_sections(section: str)-> str:
+    return re.sub("(\ )(?=[B-Z]{1}\. {1})", "\n",section)
 
 # Connects to scrc database, executes sql query and uses batched fetching to returns results.
 # Query results are ordered by size of the facts (shortest facts first).
@@ -135,30 +169,32 @@ def db_stream(language: str) -> list:
                 if not rows:
                     break
                 for row in rows:
-                    idx, date, file_number, html_url, pdf_url, header, facts= row
-                    if str(html_url) != "":
-                        link = html_url
-                    if str(pdf_url) != "":
-                        link = pdf_url
+                    idx, date, file_number, html_url, pdf_url, header, facts = row
+                    if idx not in IDS_SCRC:
+                        if str(html_url) != "":
+                            link = html_url
+                        if str(pdf_url) != "":
+                            link = pdf_url
 
-                    res = {"id_scrc": idx,
-                           "text": facts,
-                           "facts_length": len(facts),
-                           "year": int(date.year),
-                           "file_number": file_number,
-                           "link": str(link),
-                           "header": header_preprocessing(header, PATTERNS[language])}
+                        res = {"id_scrc": idx,
+                                   "text": facts,
+                                   "facts_length": len(facts),
+                                   "year": int(date.year),
+                                   "file_number": file_number,
+                                   "link": str(link),
+                                   "header": header_preprocessing(header, PATTERNS[language])}
+                        if res["text"] in set(test_val_set["text"]):
+                            res["legal_area"] = list(test_val_set.loc[test_val_set["text"] == res["text"]]["legal_area"])[0]
+                            res["judgment"] = list(test_val_set.loc[test_val_set["text"] == res["text"]]["label_caller"])[0]
+                            res["id_csv"] = list(test_val_set.loc[test_val_set["text"] == res["text"]].index)[0]
+                            res["is_correct"] = list(test_val_set.loc[test_val_set["text"] == res["text"]]["is_correct"])[0]
 
-                    if res["text"] in set(test_val_set["text"]):
-                        res["legal_area"] = list(test_val_set.loc[test_val_set["text"] == res["text"]]["legal_area"])[0]
-                        res["judgment"] = list(test_val_set.loc[test_val_set["text"] == res["text"]]["label_caller"])[0]
-                        res["id_csv"] = list(test_val_set.loc[test_val_set["text"] == res["text"]].index)[0]
-                        res["is_correct"] = list(test_val_set.loc[test_val_set["text"] == res["text"]]["is_correct"])[0]
-
-                        unfiltered_dataset.append(res)
+                            res["text"] = add_sections(res["text"])
+                            unfiltered_dataset.append(res)
 
             print(len(unfiltered_dataset))
-            return filter_dataset(unfiltered_dataset)
+            return unfiltered_dataset
+
 
 def db_stream_example() -> list:
     example_list = []
@@ -196,6 +232,7 @@ if __name__ == '__main__':
     usage = "Arguments:\n - language: the language you want to extract the dataset from, e.g. the relation de. " \
             "Type -all to create dataset for all the possible languages. \n " \
             "Type -ex to create an example dataset from the training set. \n"\
+            "Type -new to generate a new dataset which replaces ignored and rejected cases. \n"\
             "Usage:\n python datasetCreation.py language\n" \
             "Example:\n python datasetCreation.py de"
     PREDICTIONS_EVAL = read_csv(PATH_TO_PREDICTIONS + "2/predictions_eval.csv")
@@ -204,13 +241,20 @@ if __name__ == '__main__':
         try:
             if sys.argv[1] == "-all":
                 for l in LANGUAGES:
-                    dataset = db_stream(l)
+                    dataset = filter_dataset(db_stream(l))
                     write_JSONL('annotation_input_set_{}.jsonl'.format(l), dataset)
             if sys.argv[1] == "-ex":
                 dataset= db_stream_example()
                 write_JSONL('annotation_input_set_de_ex.jsonl', dataset)
+            if sys.argv[1] == "-new":
+                filepath = "../annotations/annotations_de.jsonl"
+                IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(read_JSONL(filepath)))
+                l = re.findall(r"(?<=_)(.*)(?=.jsonl)",filepath)[0]
+                dataset = db_stream(l)
+                new_case_list = filter_new_cases(pd.DataFrame.from_records(read_JSONL(filepath)), dataset)
+                write_JSONL('annotation_input_set_{}_new.jsonl'.format(l), new_case_list)
             else:
-                dataset = db_stream(sys.argv[1])
+                dataset = filter_dataset(db_stream(sys.argv[1]))
                 write_JSONL('annotation_input_set_{}.jsonl'.format(sys.argv[1]), dataset)
 
         except psycopg2.errors.UndefinedTable as err:

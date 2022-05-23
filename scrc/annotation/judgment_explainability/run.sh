@@ -58,7 +58,7 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
     done
    ;;
   "drop")
-  for VARIABLE in annotations_de-nina annotations_de-ninaa annotations_de_review-nina gold_annotations_de-nina mark-test
+  for VARIABLE in annotations_de-nina gold_annotations_de-nina
     do
       docker exec prodigy_v1_nina prodigy "$task" $VARIABLE
     done
