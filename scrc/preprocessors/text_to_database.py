@@ -88,6 +88,7 @@ class TextToDatabase(AbstractPreprocessor):
         df = pd.DataFrame(spider_dict_list)
 
         self.logger.info(f"Saving data to db")
+        # Split up the dataframe into chunks of 1000 (chunksize) rows and save them individually
         list_df = np.array_split(df, int(len(df)/self.chunksize)+1)
         for idx, df_chunk in enumerate(list_df):
             save_from_text_to_database(self.get_engine('scrc'), df_chunk)
@@ -100,6 +101,7 @@ class TextToDatabase(AbstractPreprocessor):
         # we take the json files as a starting point to get the corresponding html or pdf files
         json_filenames = self.get_filenames_of_extension(spider_dir, 'json')
         if self.new_files_only:
+            # we only want to process the files that are not already present in the database
             len_before = len(json_filenames)
             json_filenames = self.filter_already_present(
                 json_filenames, spider)
@@ -114,6 +116,7 @@ class TextToDatabase(AbstractPreprocessor):
         return [spider_dict for spider_dict in spider_dict_list if spider_dict]
 
     def filter_already_present(self, json_filenames: List[str], spider: str) -> List[str]:
+        # Retrieve the already processed files from the database and get their file names
         table_string = f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}"
         where_string = f"file.file_id IN {where_string_spider('file_id', spider)}"
         all_filenames_of_spider = self.select(self.get_engine(

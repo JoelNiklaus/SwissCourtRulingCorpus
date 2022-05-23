@@ -84,11 +84,14 @@ class ProceduralParticipationExtractor(AbstractExtractor):
                 # create all plaintiffs
                 offset = 0
                 for plaintiff in parties.get('plaintiffs'):
+                    # Insert person into the person table
                     stmt = t_person.insert().returning(column("person_id")).values([{"name": plaintiff['name'], "is_natural_person": plaintiff['legal_type'] == 'natural person', "gender": plaintiff['gender']}])
                     person_id = conn.execute(stmt).fetchone()['person_id']
+                    # Then insert the person into the party table
                     stmt = t_party.insert().values([{"decision_id": str(row['decision_id']), "person_id": person_id, "party_type_id": 1+offset}])
                     conn.execute(stmt)
                     for representant in plaintiff.get('legal_counsel'):
+                        # Insert their representation into the person and party tables
                         stmt = t_person.insert().returning(text("person_id")).values([{"name": representant['name'], "is_natural_person": representant['legal_type'] == 'natural person', "gender": representant['gender']}])
                         person_id = conn.execute(stmt).fetchone()['person_id']
                         stmt = t_party.insert().values([{"decision_id": str(row['decision_id']), "person_id": person_id, "party_type_id": 3+offset}])
@@ -97,11 +100,14 @@ class ProceduralParticipationExtractor(AbstractExtractor):
                 # create all defendants
                 offset = 1
                 for defendant in parties.get('defendants'):
+                    # Insert person into the person table
                     stmt = t_person.insert().returning(text("person_id")).values([{"name": plaintiff['name'], "is_natural_person": plaintiff['legal_type'] == 'natural person', "gender": plaintiff['gender']}])
                     person_id = conn.execute(stmt).fetchone()['person_id']
+                    # Then insert the person into the party table
                     stmt = t_party.insert().values([{"decision_id": str(row['decision_id']), "person_id": person_id, "party_type_id": 1+offset}])
                     conn.execute(stmt)
                     for representant in defendant.get('legal_counsel'):
+                        # Insert their representation into the person and party tables
                         stmt = t_person.insert().returning(text("person_id")).values([{"name": representant['name'], "is_natural_person": representant['legal_type'] == 'natural person', "gender": representant['gender']}])
                         person_id = conn.execute(stmt).fetchone()['person_id']
                         stmt = t_party.insert().values([{"decision_id": str(row['decision_id']), "person_id": person_id, "party_type_id": 3+offset}])

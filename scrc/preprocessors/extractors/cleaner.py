@@ -84,7 +84,7 @@ class Cleaner(AbstractExtractor):
         return True
     
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
-        df['section_type_id'] = 1
+        df['section_type_id'] = 1 # Set the Section type to full text
         self.update(engine, df, 'section', ['decision_id', 'section_type_id', 'section_text'], self.output_dir)
 
     def process_one_spider(self, engine, spider):

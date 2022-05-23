@@ -27,6 +27,28 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
+    # This is how a "standard" section splitting function looks like. 
+    # First specify the markers where to split, then prepare them by joining and normalizing them. 
+    # Then get the paragraphs and loop through them with the markers using the associate_sections function.
+    """ all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'Tatbestand', r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r"Erwägung"],
+            Section.RULINGS: [r"Demnach erkennt", r"Demnach beschliesst", r"Demnach wird beschlossen", r"Demnach wird verfügt", r"Dispositiv"],
+            Section.FOOTER: [r""]
+        }
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+
+    divs = decision.find_all(
+        "div", class_="content")
+    paragraphs = get_paragraphs(divs)
+
+    return associate_sections(paragraphs, section_markers, namespace) """
+
 
 def CH_BGE(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     all_section_markers = {
@@ -612,9 +634,9 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
     :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
     """
     paragraphs_by_section = {section: [] for section in sections}
-    current_section = Section.HEADER
+    current_section = Section.HEADER # Document starts with the header function
     for paragraph in paragraphs:
-        # update the current section if it changed
+        # update the current section if a marker of a different section matched
         current_section = update_section(
             current_section, paragraph, section_markers, sections)
         # add paragraph to the list of paragraphs

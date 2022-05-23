@@ -18,7 +18,7 @@ class LanguageIdentifier(AbstractPreprocessor):
     def start(self):
 
         all_decision_ids = []
-        # Fetch all decisions with language id -1
+        # Fetch all decisions with language id -1 as we need to add a language id to them
         sql_query = 'SELECT html_raw, pdf_raw, decision_id, language_id FROM decision LEFT JOIN file on file.file_id = decision.file_id WHERE decision.language_id = -1'
         df_iterator = pd.read_sql(sql_query, self.get_engine(
             self.db_scrc).connect(), chunksize=self.chunksize)
@@ -43,10 +43,12 @@ class LanguageIdentifier(AbstractPreprocessor):
         if pdf_raw is not None and len(pdf_raw) > 0:
             language = self.lang_id.get_lang(pdf_raw)
         if html_raw is not None and len(html_raw) > 0:
+            # Override pdf language with html language if both exists
             soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
             assert soup.find()  # make sure it is valid html
             language = self.lang_id.get_lang(soup.get_text())
 
+        # Apply the language id to the dataframe
         series['language_id'] = Language.get_id_value(language)
         return series
 

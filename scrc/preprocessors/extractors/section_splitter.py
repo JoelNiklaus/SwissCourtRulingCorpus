@@ -44,7 +44,8 @@ class SectionSplitter(AbstractExtractor):
             'no_functions': 'Not splitting into sections.'
         }
 
-        # spacy_tokenizer, bert_tokenizer = tokenizers['de']
+        # Get the tokenizers at the start so they don't have to be loaded with every chunk
+        # Return value: spacy_tokenizer, bert_tokenizer = tokenizers['de']
         self.tokenizers: dict[Language, Tuple[any, any]] = {
             Language.DE: self.get_tokenizers('de'),
             Language.FR: self.get_tokenizers('fr'),
@@ -81,10 +82,10 @@ class SectionSplitter(AbstractExtractor):
 
         for idx, row in df.iterrows():
             if not row['sections']:
-                return {}
+                return {} # if there was no data, don't do anything
             if len(row['sections']) > 0:
                 row['sections'][Section.FULLTEXT] = '\n\n'.join(['\n'.join(
-                    row['sections'][section]) for section in row['sections']])
+                    row['sections'][section]) for section in row['sections']]) # The fulltext equals all other sections combined
             for k in row['sections'].keys():
                 result[k] = {}
                 self.logger.debug("Started tokenizing with spacy")
@@ -116,6 +117,7 @@ class SectionSplitter(AbstractExtractor):
             if row['sections'] is None or row['sections'].keys is None:
                 continue
             with self.get_engine(self.db_scrc).connect() as conn:
+                # Load the different tables
                 t = Table('section', MetaData(), autoload_with=engine)
                 t_paragraph = Table('paragraph', MetaData(),
                                     autoload_with=engine)
@@ -147,7 +149,7 @@ class SectionSplitter(AbstractExtractor):
                     #    section_id), 'num_tokes_spacy': tokens[k]['num_tokens_spacy'], 'num_tokens_bert': tokens[k]['num_tokens_bert']}])
                     # conn.execute(stmt)
 
-                    # Add a all paragraphs
+                    # Add all paragraphs
                     for paragraph in row['sections'][k]:
                         stmt = t_paragraph.insert().values([{'section_id': str(section_id), "decision_id": str(
                             row['decision_id']), 'paragraph_text': paragraph, 'first_level': None, 'second_level': None, 'third_level': None}])
