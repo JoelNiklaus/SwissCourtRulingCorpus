@@ -1,3 +1,4 @@
+from tika import parser
 import os
 import glob
 import json
@@ -19,15 +20,14 @@ import tika
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, save_from_text_to_database, where_string_spider
 
-os.environ['TIKA_LOG_PATH'] = str(AbstractPreprocessor.create_dir(Path(os.getcwd()), 'logs'))
+os.environ['TIKA_LOG_PATH'] = str(
+    AbstractPreprocessor.create_dir(Path(os.getcwd()), 'logs'))
 tika.initVM()
 
-from tika import parser
 
 # TODO if we need to extract data from html with difficult structure such as tables consider using: https://pypi.org/project/inscriptis/
 
 # the keys used in the court dataframes
-
 
 
 class TextToDatabase(AbstractPreprocessor):
@@ -35,6 +35,7 @@ class TextToDatabase(AbstractPreprocessor):
     Extracts the textual and meta information from the court rulings files and saves it in csv files for each spider
     and in one for all courts combined
     """
+
     def __init__(self, config: dict, new_files_only: Optional[bool] = True):
         super().__init__(config)
         self.court_keys = [
@@ -52,17 +53,19 @@ class TextToDatabase(AbstractPreprocessor):
             "pdf_raw",
         ]
         self.logger = get_logger(__name__)
-        self.new_files_only = new_files_only
+        self.new_files_only = not self.ignore_cache
 
     def build_dataset(self) -> List[dict]:
         """ Builds the dataset for all the spiders """
-        self.logger.info("Started extracting text and metadata from court rulings files")
+        self.logger.info(
+            "Started extracting text and metadata from court rulings files")
         processed_file_path = self.progress_dir / "spiders_extracted.txt"
 
         if self.ignore_cache:
             processed_file_path.unlink()
 
-        spider_list, message = self.compute_remaining_spiders(processed_file_path)
+        spider_list, message = self.compute_remaining_spiders(
+            processed_file_path)
         self.logger.info(message)
 
         all_processed_files = []
@@ -71,7 +74,8 @@ class TextToDatabase(AbstractPreprocessor):
             all_processed_files.extend(spider_dict_list)
             self.mark_as_processed(processed_file_path, spider)
 
-        self.logger.info("Finished extracting text and metadata from court rulings files")
+        self.logger.info(
+            "Finished extracting text and metadata from court rulings files")
         return all_processed_files
 
     def build_spider_dataset(self, spider: str) -> list:
@@ -97,7 +101,8 @@ class TextToDatabase(AbstractPreprocessor):
         json_filenames = self.get_filenames_of_extension(spider_dir, 'json')
         if self.new_files_only:
             len_before = len(json_filenames)
-            json_filenames = self.filter_already_present(json_filenames, spider)
+            json_filenames = self.filter_already_present(
+                json_filenames, spider)
             len_after = len(json_filenames)
             if len_after != len_before:
                 self.logger.info(
@@ -126,44 +131,51 @@ class TextToDatabase(AbstractPreprocessor):
         corresponding_html_path = Path(json_file).with_suffix('.html')
         # if we DO NOT have a court decision corresponding to that found json file
         if not corresponding_html_path.exists() and not corresponding_pdf_path.exists():
-            self.logger.warning(f"No court decision found for json file {json_file}")
+            self.logger.warning(
+                f"No court decision found for json file {json_file}")
             return None  # skip the remaining part since we know already that there is no court decision available
         else:
             return self.compose_court_dict(corresponding_html_path, corresponding_pdf_path, json_file)
 
     def compose_court_dict(self, corresponding_html_path, corresponding_pdf_path, json_file):
         """Composes a court dict from all the available files when we know at least one content file exists"""
-        court_dict_template = {key: '' for key in self.court_keys}  # create dict template from court keys
+        court_dict_template = {
+            key: '' for key in self.court_keys}  # create dict template from court keys
 
         try:
             general_info = self.extract_general_info(json_file)
         except JSONDecodeError as e:
-            self.logger.error(f"Cannot extract metadata from file {json_file}: {e}. Skipping this file")
+            self.logger.error(
+                f"Cannot extract metadata from file {json_file}: {e}. Skipping this file")
             return None
         # add general info
         court_dict = dict(court_dict_template, **general_info)
 
-        pdf_content_dict = self.extract_corresponding_pdf_content(corresponding_pdf_path)
+        pdf_content_dict = self.extract_corresponding_pdf_content(
+            corresponding_pdf_path)
         if pdf_content_dict is not None:  # if it could be parsed correctly
             # add pdf content
             court_dict = dict(court_dict, **pdf_content_dict)
 
-        html_content_dict = self.extract_corresponding_html_content(corresponding_html_path)
+        html_content_dict = self.extract_corresponding_html_content(
+            corresponding_html_path)
         if html_content_dict is not None:  # if it could be parsed correctly
             # add html content
-            court_dict = dict(court_dict, **html_content_dict)  
+            court_dict = dict(court_dict, **html_content_dict)
         return court_dict
 
     def get_filenames_of_extension(self, spider_dir: Path, extension: str) -> list:
         """ Finds all filenames of a given extension in a given directory. """
-        filename_list = list(glob.glob(f"{str(spider_dir)}/*.{extension}"))  # Here we can also use regex
+        filename_list = list(
+            glob.glob(f"{str(spider_dir)}/*.{extension}"))  # Here we can also use regex
         self.logger.info(f"Found {len(filename_list)} {extension} files")
         return filename_list
 
     def extract_general_info(self, json_file) -> dict:
         """Extracts the filename and spider from the file path and metadata from the json file"""
         self.logger.debug(f"Extracting content from json file: \t {json_file}")
-        general_info = {'spider': Path(json_file).parent.name, 'file_name': Path(json_file).stem}
+        general_info = {'spider': Path(
+            json_file).parent.name, 'file_name': Path(json_file).stem}
         # loading json content and and extracting relevant metadata
         with open(json_file) as f:
             metadata = json.load(f)
@@ -182,7 +194,8 @@ class TextToDatabase(AbstractPreprocessor):
                     # This is to be expected in BVGEer, BGE and BSTG
                     general_info['file_number_additional'] = file_numbers[1]
             else:
-                self.logger.warning("Cannot extract file_number from metadata.")
+                self.logger.warning(
+                    "Cannot extract file_number from metadata.")
             if 'HTML' in metadata:
                 general_info['html_url'] = metadata['HTML']['URL']
             if 'PDF' in metadata:
@@ -190,7 +203,8 @@ class TextToDatabase(AbstractPreprocessor):
             if 'PDF' not in metadata and 'HTML' not in metadata:
                 self.logger.warning("Cannot extract url from metadata.")
             if 'Datum' in metadata:
-                general_info['date'] = pd.to_datetime(metadata['Datum'], errors='coerce')
+                general_info['date'] = pd.to_datetime(
+                    metadata['Datum'], errors='coerce')
             else:
                 self.logger.warning("Cannot extract date from metadata.")
         return general_info
@@ -208,11 +222,13 @@ class TextToDatabase(AbstractPreprocessor):
         if not corresponding_html_path.exists():  # if this court decision is NOT available in html format
             return None
         else:
-            self.logger.debug(f"Extracting content from html file: \t {corresponding_html_path}")
+            self.logger.debug(
+                f"Extracting content from html file: \t {corresponding_html_path}")
             html_raw = corresponding_html_path.read_text()  # get html string
             html_raw = self.remove_nul(html_raw)
             if not html_raw:
-                self.logger.error(f"HTML file {corresponding_html_path} is empty.")
+                self.logger.error(
+                    f"HTML file {corresponding_html_path} is empty.")
                 return None
             else:
                 soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
@@ -224,15 +240,19 @@ class TextToDatabase(AbstractPreprocessor):
         if not corresponding_pdf_path.exists():  # if this court decision is NOT available in pdf format
             return None
         else:
-            self.logger.debug(f"Extracting content from pdf file: \t {corresponding_pdf_path}")
+            self.logger.debug(
+                f"Extracting content from pdf file: \t {corresponding_pdf_path}")
             try:
-                pdf = parser.from_file(str(corresponding_pdf_path), requestOptions={'timeout': 300})  # parse pdf
+                pdf = parser.from_file(str(corresponding_pdf_path), requestOptions={
+                                       'timeout': 300})  # parse pdf
             except requests.exceptions.ReadTimeout as e:
-                self.logger.error(f"Timeout error occurred for PDF file {corresponding_pdf_path}: {e}")
+                self.logger.error(
+                    f"Timeout error occurred for PDF file {corresponding_pdf_path}: {e}")
                 return None
             pdf_raw = pdf['content']  # get content
             if not pdf_raw:
-                self.logger.error(f"PDF file {corresponding_pdf_path} is empty.")
+                self.logger.error(
+                    f"PDF file {corresponding_pdf_path} is empty.")
                 return None
             else:
                 pdf_raw = self.remove_nul(pdf_raw)

@@ -89,7 +89,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             Column('pdf_raw', String),
     """
     def save_to_db(df: pd.DataFrame, table: str):
-        # If the returned df is not a DataFrame but a Series, then convert it into a dataframe and Transpose it tt correct the variable. (Not needed for most courts, but edge case needs it)
+        # If the returned df is not a DataFrame but a Series, then convert it into a dataframe and Transpose it to correct the variable. (Not needed for most courts, but edge case needs it)
         if not isinstance(df, pd.DataFrame):
             df = df.to_frame()
             df = df.T
@@ -123,10 +123,11 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             conn.execute(stmt)
         series['decision_id'] = pd.read_sql(
             f"SELECT decision_id FROM decision WHERE file_id = '{series['file_id']}'", engine.connect())["decision_id"][0]
-        series['text'] = series['file_number']
+        series['text'] = series['file_number'].map(lambda x: x.strip())
         save_to_db(series[['decision_id', 'text']], 'file_number')
         if ('file_number_additional' in series and series['file_number_additional'] is not None and len(series['file_number_additional']) > 0):
-            series['text'] = series['file_number_additional']
+            series['text'] = series['file_number_additional'].map(
+                lambda x: x.strip())
             save_to_db(series[['decision_id', 'text']], 'file_number')
         return series
 

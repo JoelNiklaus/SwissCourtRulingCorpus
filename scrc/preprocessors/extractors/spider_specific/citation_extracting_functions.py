@@ -17,7 +17,7 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 
 def XX_SPIDER(soup: Any, namespace: dict) -> Optional[dict]:
     citations = extract_citations(
-        soup, (ROOT_DIR / 'legal_info' / 'citation_regexes.json'), namespace['language'])
+        soup, (namespace['language'].value))
     return citations
 
 
