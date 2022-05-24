@@ -11,7 +11,6 @@ import bs4
 import requests
 from tqdm.contrib.concurrent import process_map
 
-from root import ROOT_DIR
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 

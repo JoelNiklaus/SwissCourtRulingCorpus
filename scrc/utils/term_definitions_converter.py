@@ -9,6 +9,10 @@ from scrc.utils.log_utils import get_logger
 
 
 class TermDefinitionsConverter:
+    """
+    Converts term definitions (mainly laws) from complex xml file into simpler, condensed json file
+    """
+
     base_dir = ROOT_DIR / 'legal_info' / 'term_definitions'
     languages = ['de', 'fr', 'it', 'rm', 'en', 'es']
 

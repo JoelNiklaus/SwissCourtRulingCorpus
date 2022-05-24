@@ -8,7 +8,10 @@ from scrc.utils.main_utils import get_config
 
 
 class LanguageIdentifier(AbstractPreprocessor):
-    """ This class cannot run in a parallel fashion as it will throw a PicklingError due to the LanguageIdentificationSingleton """
+    """
+    This class identifies the language for each decision and saves it to the database
+    This class cannot run in a parallel fashion as it will throw a PicklingError due to the LanguageIdentificationSingleton
+    """
 
     def __init__(self, config: dict):
         super().__init__(config)

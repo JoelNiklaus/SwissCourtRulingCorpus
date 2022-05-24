@@ -1,12 +1,14 @@
-import configparser
 from pathlib import Path
+
+# absolutely necessary to speed up bs4 parsing: https://thehftguy.com/2020/07/28/making-beautifulsoup-parsing-10-times-faster/
+import cchardet
+import lxml
 
 import bs4
 import glob
 import requests
 from tqdm.contrib.concurrent import process_map
 
-from root import ROOT_DIR
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config, save_to_path
@@ -44,7 +46,7 @@ class Scraper(AbstractPreprocessor):
             all_new_files.extend(new_files)
 
         self.logger.info(f"Finished downloading from {url}")
-        
+
         return all_new_files
 
     def link_is_excluded(self, link_text: str):
@@ -67,23 +69,23 @@ class Scraper(AbstractPreprocessor):
         """
         self.logger.info(f"Started downloading from {sub_folder} ...")
         r = requests.get(f"{base_url}/{sub_folder}")  # get starting page
-        data = bs4.BeautifulSoup(r.text, "html.parser")  # parse html
+        data = bs4.BeautifulSoup(r.text, "lxml")  # parse html
         links = data.find_all("a")  # find all links
         included_links = [Path(link["href"]) for link in links if Path(link["href"]).suffix in supported_suffixes]
         self.logger.info(f"Found {len(included_links)} links")
-        
+
         if not self.ignore_cache:
-            already_downloaded_links = [Path(spider).stem for spider in glob.glob(f"{str(self.spiders_dir)}/{sub_folder.stem}/*")]
+            already_downloaded_links = set([Path(spider).stem for spider in glob.glob(f"{str(self.spiders_dir)}/{sub_folder.stem}/*")])
             self.logger.info(f"{len(already_downloaded_links)} of {len(included_links)} are already downloaded")
-            
+
             links_still_to_download = [link for link in included_links if not link.stem in already_downloaded_links]
         else:
             links_still_to_download = included_links
-        
+
         self.logger.info(f"Downloading {len(links_still_to_download)} links")
 
         # process each court in its own process to speed up this creation by a lot!
-        # in case that the server has not enough capacity (we are encounterring 'Connection reset by peer')
+        # in case that the server has not enough capacity (we are encountering 'Connection reset by peer')
         # => decrease number of processes
         process_map(self.download_file_from_url, links_still_to_download, max_workers=8, chunksize=100)
 
@@ -92,7 +94,7 @@ class Scraper(AbstractPreprocessor):
 
         self.logger.info(f"Finished downloading from {sub_folder} ...")
         return links_still_to_download
-    
+
     def download_file_from_url(self, url):
         """download the file from a link and save it"""
         # can lead to problems inside multiprocessing
