@@ -78,23 +78,20 @@ def create_specialized_datasets(config):
     criticality_dataset_creator.create_dataset()
 
 
-def construct_base_dataset(config):   
-    
-    
+def construct_base_dataset(config):
+
     scraper = Scraper(config)
-    new_files = scraper.download_subfolders(base_url + "docs/")
-    
-    text_to_database = TextToDatabase(config, new_files_only=True)
+    scraper.download_subfolders(base_url + "docs/")
+
+    text_to_database = TextToDatabase(config)
     text_to_database.build_dataset()
-    
-   
+
     language_identifier = LanguageIdentifier(config)
-    decision_ids = language_identifier.start() 
-    
+    decision_ids = language_identifier.start()
+
     cleaner = Cleaner(config)
     cleaner.clean(decision_ids)
- 
-    
+
     section_splitter = SectionSplitter(config)
     section_splitter.start(decision_ids)
 
@@ -110,11 +107,12 @@ def construct_base_dataset(config):
     court_composition_extractor = CourtCompositionExtractor(config)
     court_composition_extractor.start(decision_ids)
 
-    procedural_participation_extractor = ProceduralParticipationExtractor(config)
+    procedural_participation_extractor = ProceduralParticipationExtractor(
+        config)
     procedural_participation_extractor.start(decision_ids)
 
     #name_to_gender = NameToGender(config)
-    #name_to_gender.start()
+    # name_to_gender.start()
 
     nlp_pipeline_runner = NlpPipelineRunner(config)
     nlp_pipeline_runner.run_pipeline()

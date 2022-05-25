@@ -1,20 +1,22 @@
+import plotly.express as px
+from scrc.utils.main_utils import get_config, retrieve_from_cache_if_exists, save_df_to_cache, \
+    string_contains_one_of_list
+import pandas as pd
+from scrc.utils.log_utils import get_logger
+from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
+from root import ROOT_DIR
 from typing import List, Union
 
 import json
 import nltk
 from nltk import sent_tokenize, word_tokenize
 
+from scrc.utils.sql_select_utils import get_legal_area
+
 nltk.download('punkt')
 
-from root import ROOT_DIR
-from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
-from scrc.utils.log_utils import get_logger
-import pandas as pd
 # TODO make abstract data base service or something to separate concerns better
 
-from scrc.utils.main_utils import get_config, retrieve_from_cache_if_exists, save_df_to_cache, \
-    string_contains_one_of_list, get_legal_area
-import plotly.express as px
 
 """
 Two large difficulties with this analysis:

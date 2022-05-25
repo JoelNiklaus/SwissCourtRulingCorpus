@@ -36,7 +36,7 @@ class TextToDatabase(AbstractPreprocessor):
     and in one for all courts combined
     """
 
-    def __init__(self, config: dict, new_files_only: Optional[bool] = True):
+    def __init__(self, config: dict):
         super().__init__(config)
         self.court_keys = [
             "spider",

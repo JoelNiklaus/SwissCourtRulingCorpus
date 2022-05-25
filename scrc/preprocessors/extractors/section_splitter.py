@@ -83,16 +83,15 @@ class SectionSplitter(AbstractExtractor):
             if not row['sections']:
                 return {}
             if len(row['sections']) > 0:
-                row['sections'][Section.FULLTEXT] = '\n\n'.join(['\n'.join(
-                    row['sections'][section]) for section in row['sections']])
-            for k in row['sections'].keys():
-                result[k] = {}
-                self.logger.debug("Started tokenizing with spacy")
-                result[k]['num_tokens_spacy'] = [
-                    len(result) for result in spacy_tokenizer.pipe(row['sections'][k], batch_size=100)]
-                self.logger.debug("Started tokenizing with bert")
-                result[k]['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(
-                    df['sections'][k].tolist()).input_ids]
+                row['sections'][Section.FULLTEXT] = '\n\n'.join(['\n'.join(row['sections'][section]) for section in row['sections']])
+        for k in row['sections'].keys():
+            result[k] = {}
+            self.logger.debug("Started tokenizing with spacy")
+            result[k]['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(
+                row['sections'][k], batch_size=100)]
+            self.logger.debug("Started tokenizing with bert")
+            result[k]['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(
+                df['sections'][k].tolist()).input_ids]
 
         return result
 

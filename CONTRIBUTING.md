@@ -35,6 +35,7 @@
     - [Selecting "everything"](#selecting-everything)
       - [tables](#tables)
       - [fields](#fields)
+      - [Setup database from scratch](#setup-database-from-scratch)
   - [Questions?](#questions)
 
 ## Sandbox Setup
@@ -366,6 +367,9 @@ The tables added are:
 #### fields
 The second entry in the table returns the fields
 ```d.*, extract(year from d.date) as year, judgments, citations, file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw, sections, paragraphs, file_numbers, lower_court.date as origin_date, lower_court.court_id as origin_court, lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, lower_court.file_number as origin_file_number```
+
+#### Setup database from scratch
+Use the file `drop_and_create_tables.sql` to drop the tables and set them up again, then use the `setup_values.sql` to insert basic values into the freshly generated tables again. If you want to have a more up-to-date version of the setup values, then you have to create the table code which should be more up-to-date with the setup_values_creation.py.
 ## Questions?
 
 Do not hesitate to contact Adrian Joerg or Joel Niklaus via email: {firstname}.{lastname}@inf.unibe.ch
