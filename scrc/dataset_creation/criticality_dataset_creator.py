@@ -1,7 +1,6 @@
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import pandas as pd
-from abc import ABC, abstractmethod
 
 from scrc.utils.main_utils import get_config
 
@@ -28,8 +27,10 @@ Set Labels
 """
 
 
-class CriticalityDatasetCreator(ABC, DatasetCreator):
-    """Abstract Base Class used by criticality dataset creators to unify their behaviour"""
+class CriticalityDatasetCreator(DatasetCreator):
+    """
+    Creates a dataset with the text as input and whether it reaches the supreme court or not as labels
+    """
 
     # TODO filter out cases where facts or other input for training model is too short
     # - what is used as input?
@@ -55,18 +56,12 @@ class CriticalityDatasetCreator(ABC, DatasetCreator):
     # - distribution among cantons
     # - is there bias detectable?
 
-    @abstractmethod
-    def get_labeled_data(self, bger_df: pd.DataFrame, bge_df: pd.DataFrame):
-        """Returns the labeled data and labels"""
-
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
         self.debug = False
         self.split_type = "date-stratified"
-
-        #Todo check if names for each criticality creator should be unique
         self.dataset_name = "criticality_prediction"
         self.feature_cols = ['text']  # ['facts', 'considerations', 'text']
 
@@ -84,9 +79,34 @@ class CriticalityDatasetCreator(ABC, DatasetCreator):
         # get bger rulings
         bger_df = self.query_bger(feature_col, engine, lang)
         # set criticality label
-        bger_criticality_df = self.get_labeled_data(bger_df, bge_df)
+        bger_criticality_df = self.query_bge_criticality(bger_df, bge_df)
         labels = ['non-critical', 'critical']
         return bger_criticality_df, labels
+
+    # set criticality labels
+    def query_bge_criticality(self, bger_df, bge_df):
+        self.logger.info(f"Processing labeling of bge_criticality")
+
+        # Include all bger rulings whose file_number can be found in the header of a bge
+        # It's not enough no compare date and chamber, there are multiple matching cases
+        # There exist around 12'000 rulings with date = 1.1.2020
+        # error sources:
+        # 1. Regex cannot find correct file number in header
+        # 2. languages are different -> different datasets
+
+        # TODO create method comparing bger file numbers to found regex expression in bge
+        """
+        file_number_match = bger_df.file_number.astype(str).isin(list(bge_df.bge_reference.astype(str)))
+        file_number_match_df = bger_df[file_number_match]       
+        critical_df = bger_df[file_number_match]
+        critical_df['label'] = 'critical'
+        non_critical_df = bger_df[~file_number_match]
+        non_critical_df['label'] = 'non-critical'
+        self.logger.info(f"# critical decisions: {len(critical_df.index)}")
+        self.logger.info(f"# non-critical decisions: {len(non_critical_df.index)}")
+        return critical_df.append(non_critical_df)
+        """
+        return bger_df
 
     # get all bger
     def query_bger(self, feature_col, engine, lang):
@@ -123,3 +143,10 @@ class CriticalityDatasetCreator(ABC, DatasetCreator):
         bge_df = bge_df.dropna(subset=['date', 'id'])
         self.logger.info(f"Found {len(bge_df.index)} supreme bge rulings")
         return bge_df
+
+
+if __name__ == '__main__':
+    config = get_config()
+
+    criticality_dataset_creator = CriticalityDatasetCreator(config)
+    criticality_dataset_creator.create_dataset()
