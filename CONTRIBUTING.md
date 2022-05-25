@@ -36,6 +36,8 @@
       - [tables](#tables)
       - [fields](#fields)
       - [Setup database from scratch](#setup-database-from-scratch)
+  - [Common Errors](#common-errors)
+    - [PermissionError: [Errno 13] Permission denied: '/tmp/tika.log'](#permissionerror-errno-13-permission-denied-tmptikalog)
   - [Questions?](#questions)
 
 ## Sandbox Setup
@@ -371,6 +373,10 @@ The second entry in the table returns the fields
 
 #### Setup database from scratch
 Use the file `drop_and_create_tables.sql` to drop the tables and set them up again, then use the `setup_values.sql` to insert basic values into the freshly generated tables again. If you want to have a more up-to-date version of the setup values, then you have to create the table code which should be more up-to-date with the setup_values_creation.py.
+
+## Common Errors
+### PermissionError: [Errno 13] Permission denied: '/tmp/tika.log'
+Remove the tika.log file in `/tmp` using `sudo rm /tmp/tika.log`.
 ## Questions?
 
 Do not hesitate to contact Adrian Joerg or Joel Niklaus via email: {firstname}.{lastname}@inf.unibe.ch
