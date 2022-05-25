@@ -1,6 +1,7 @@
 from fileinput import filename
 import tika
 import os
+
 tika.TikaLogPath = '/tmp'
 tika.TikaLogFile = '/tmp'
 os.environ['TIKA_LOG_FILE'] = str('')
@@ -23,19 +24,11 @@ from tqdm.contrib.concurrent import process_map
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 
-
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, save_from_text_to_database, where_string_spider
-
-
+from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, save_from_text_to_database, \
+    where_string_spider
 
 # TODO if we need to extract data from html with difficult structure such as tables consider using: https://pypi.org/project/inscriptis/
-
-# TODO fix this for XX_Upload!
-
-# TODO strip bei file_number
-
-# TODO strip bei person
 
 # the keys used in the court dataframes
 
@@ -46,6 +39,7 @@ If you encounter the error: "The chamber {chamber} was not found in the database
 3. Add the chamber in the chamber table with the correct court_id and spider_id (check in the file court_chambers.json if unsure)
 4. Run it again 
 """
+
 
 class TextToDatabase(AbstractPreprocessor):
     """
@@ -104,12 +98,12 @@ class TextToDatabase(AbstractPreprocessor):
         df = pd.DataFrame(spider_dict_list)
 
         self.logger.info(f"Saving data to db")
-        # Split up the dataframe into chunks of 1000 (chunksize) rows and save them individually
-        list_df = np.array_split(df, int(len(df)/self.chunksize)+1)
+        # Split up the dataframe into equal chunks of max. chunksize (1000) rows and save them individually
+        list_df = np.array_split(df, int(len(df) / self.chunksize) + 1)
         for idx, df_chunk in enumerate(list_df):
             save_from_text_to_database(self.get_engine('scrc'), df_chunk)
             if len(list_df) > 1:
-                self.logger.info(f"Saved chunk {idx+1}/{len(list_df)}")
+                self.logger.info(f"Saved chunk {idx + 1}/{len(list_df)}")
         return spider_dict_list
 
     def build_spider_dict_list(self, spider_dir: Path, spider: str) -> list:
@@ -192,8 +186,7 @@ class TextToDatabase(AbstractPreprocessor):
     def extract_general_info(self, json_file) -> dict:
         """Extracts the filename and spider from the file path and metadata from the json file"""
         self.logger.debug(f"Extracting content from json file: \t {json_file}")
-        general_info = {'spider': Path(
-            json_file).parent.name, 'file_name': Path(json_file).stem}
+        general_info = {'spider': Path(json_file).parent.name, 'file_name': Path(json_file).stem}
         # loading json content and and extracting relevant metadata
         with open(json_file) as f:
             metadata = json.load(f)
@@ -207,10 +200,10 @@ class TextToDatabase(AbstractPreprocessor):
             if 'Num' in metadata:
                 file_numbers = metadata['Num']
                 if file_numbers:  # if there is at least one entry
-                    general_info['file_number'] = file_numbers[0]
+                    general_info['file_number'] = file_numbers[0].strip()
                 if len(file_numbers) >= 2:  # if there are even two entries (disregard if there are more)
                     # This is to be expected in BVGEer, BGE and BSTG
-                    general_info['file_number_additional'] = file_numbers[1]
+                    general_info['file_number_additional'] = file_numbers[1].strip()
             else:
                 self.logger.warning(
                     "Cannot extract file_number from metadata.")
@@ -221,8 +214,7 @@ class TextToDatabase(AbstractPreprocessor):
             if 'PDF' not in metadata and 'HTML' not in metadata:
                 self.logger.warning("Cannot extract url from metadata.")
             if 'Datum' in metadata and not 'nodate' in Path(json_file).stem:
-                general_info['date'] = pd.to_datetime(
-                    metadata['Datum'], errors='coerce')
+                general_info['date'] = pd.to_datetime(metadata['Datum'], errors='coerce')
             else:
                 self.logger.warning("Cannot extract date from metadata.")
         return general_info
@@ -262,7 +254,7 @@ class TextToDatabase(AbstractPreprocessor):
                 f"Extracting content from pdf file: \t {corresponding_pdf_path}")
             try:
                 pdf = parser.from_file(str(corresponding_pdf_path), requestOptions={
-                                       'timeout': 300})  # parse pdf
+                    'timeout': 300})  # parse pdf
             except requests.exceptions.ReadTimeout as e:
                 self.logger.error(
                     f"Timeout error occurred for PDF file {corresponding_pdf_path}: {e}")

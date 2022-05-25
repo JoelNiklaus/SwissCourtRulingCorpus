@@ -88,6 +88,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             Column('pdf_url', String),
             Column('pdf_raw', String),
     """
+
     def save_to_db(df: pd.DataFrame, table: str):
         # If the returned df is not a DataFrame but a Series, then convert it into a dataframe and Transpose it to correct the variable. (Not needed for most courts, but edge case needs it)
         if not isinstance(df, pd.DataFrame):
@@ -96,14 +97,14 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         df.to_sql(table, engine, if_exists="append", index=False)
 
     def add_ids_to_df_for_decision(series: pd.DataFrame) -> pd.DataFrame:
-        series['file_id'] = pd.read_sql(
-            f"SELECT file_id FROM file WHERE file_name = '{series['file_name']}'", engine.connect())["file_id"][0]
+        query = f"SELECT file_id FROM file WHERE file_name = '{series['file_name']}'"
+        series['file_id'] = pd.read_sql(query, engine.connect())["file_id"][0]
         series['language_id'] = -1
-        chamber_id = pd.read_sql(
-            f"SELECT chamber_id FROM chamber WHERE chamber_string = '{series['chamber']}'", engine.connect())['chamber_id']
+        query = f"SELECT chamber_id FROM chamber WHERE chamber_string = '{series['chamber']}'"
+        chamber_id = pd.read_sql(query, engine.connect())['chamber_id']
         if len(chamber_id) == 0:
-            print(
-                f"The chamber {series['chamber']} was not found in the database. Add it with the respective court and spider")
+            print(f"The chamber {series['chamber']} was not found in the database. "
+                  f"Add it with the respective court and spider")
             raise ValueError
         else:
             series['chamber_id'] = chamber_id[0]
@@ -119,17 +120,18 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         :param series:
         :return:
         """
-        series['decision_id'] = pd.read_sql(
-            f"SELECT decision_id FROM decision WHERE file_id = '{series['file_id']}'", engine.connect())["decision_id"][0]
+        query = f"SELECT decision_id FROM decision WHERE file_id = '{series['file_id']}'"
+        series['decision_id'] = pd.read_sql(query, engine.connect())["decision_id"][0]
         with engine.connect() as conn:
             t = Table('file_number', MetaData(), autoload_with=engine)
             # Delete and reinsert as no upsert command is available
             stmt = t.delete().where(delete_stmt_decisions_with_df(series))
             conn.execute(stmt)
-        series['text'] = series['file_number'].strip() # .map(lambda x: x.strip())
+        series['text'] = series['file_number'].strip()  # .map(lambda x: x.strip())
         save_to_db(series[['decision_id', 'text']], 'file_number')
-        if ('file_number_additional' in series and series['file_number_additional'] is not None and len(series['file_number_additional']) > 0):
-            series['text'] = series['file_number_additional'].strip() # .map(lambda x: x.strip())
+        if ('file_number_additional' in series and series['file_number_additional'] is not None and len(
+                series['file_number_additional']) > 0):
+            series['text'] = series['file_number_additional'].strip()  # .map(lambda x: x.strip())
             save_to_db(series[['decision_id', 'text']], 'file_number')
         return series
 
@@ -141,12 +143,12 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         t_fil = Table('file', MetaData(), autoload_with=engine)
         t_dec = Table('decision', MetaData(), autoload_with=engine)
         file_name_list = ','.join(
-            ["'" + str(item)+"'" for item in df['file_name'].tolist()])
+            ["'" + str(item) + "'" for item in df['file_name'].tolist()])
         stmt = t_fil.select().where(text(f"file_name in ({file_name_list})"))
         file_ids = [item['file_id'] for item in conn.execute(stmt).all()]
         if len(file_ids) > 0:
             file_ids_list = ','.join(
-                ["'" + str(item)+"'" for item in file_ids])
+                ["'" + str(item) + "'" for item in file_ids])
             # decision_ids = [item['decision_id'] for item in conn.execute(t_dec.select().where(text(f"file_id in ({file_ids_list})"))).all()]
 
             stmt = t_dec.delete().where(text(f"file_id in ({file_ids_list})"))
@@ -168,7 +170,7 @@ def delete_stmt_decisions_with_df(df: pd.DataFrame) -> TextClause:
         decision_id_list = f"'{df['decision_id']}'"
     else:
         decision_id_list = ','.join(
-            ["'" + str(item)+"'" for item in df['decision_id'].values.tolist()])
+            ["'" + str(item) + "'" for item in df['decision_id'].values.tolist()])
     return text(f"decision_id in ({decision_id_list})")
 
 
@@ -177,14 +179,17 @@ def join(table_name: str, join_field: str = 'decision_id', join_table: str = 'd'
     return f" LEFT JOIN {table_name} ON {table_name}.{join_field} = {join_table}.{join_field} "
 
 
-def map_join(map_field: str, new_map_field_name: str, table: str, fill: Optional[Dict[str, str]] = None, group: str = 'decision_id', join_table: str = 'd', additional_fields: str = '') -> str:
+def map_join(map_field: str, new_map_field_name: str, table: str, fill: Optional[Dict[str, str]] = None,
+             group: str = 'decision_id', join_table: str = 'd', additional_fields: str = '') -> str:
     """ Joins a table and concatenates multiple value onto one line """
     if fill:
         json_object_build_string = ','.join(
-            [f"'{item.strip().split('.')[-1]}', {item.strip().split('.')[-1]}" for item in fill.get('field_name').split(',')])
+            [f"'{item.strip().split('.')[-1]}', {item.strip().split('.')[-1]}" for item in
+             fill.get('field_name').split(',')])
         json_build_string = f"json_strip_nulls(json_agg(json_build_object({json_object_build_string}))) {new_map_field_name}"
-        return (f" LEFT JOIN (SELECT {table}_mapped.{group}, {json_build_string} FROM (SELECT {fill.get('field_name')}, {table}.{group} FROM {table} LEFT JOIN {fill.get('table_name')} "
-                f" ON {fill.get('table_name')}.{fill.get('join_field')} = {table}.{fill.get('join_field')}) as {table}_mapped GROUP BY {group}) as {table} ON {table}.{group} = {join_table}.{group} ")
+        return (
+            f" LEFT JOIN (SELECT {table}_mapped.{group}, {json_build_string} FROM (SELECT {fill.get('field_name')}, {table}.{group} FROM {table} LEFT JOIN {fill.get('table_name')} "
+            f" ON {fill.get('table_name')}.{fill.get('join_field')} = {table}.{fill.get('join_field')}) as {table}_mapped GROUP BY {group}) as {table} ON {table}.{group} = {join_table}.{group} ")
 
     return f" LEFT JOIN (SELECT {table}.{group}, array_agg({table}.{map_field}) {new_map_field_name} {additional_fields} FROM {table} GROUP BY {group}) as {table} ON {table}.{group} = {join_table}.{group}"
 
@@ -207,7 +212,7 @@ def join_tables_on_decision(tables: List[str]) -> str:
 
     if ('section' in tables or 'section_type' in tables):
         join_string += map_join('section_id', 'sections', 'section', fill={
-                                'table_name': 'section_type', 'field_name': 'name, section_text', 'join_field': 'section_type_id'})
+            'table_name': 'section_type', 'field_name': 'name, section_text', 'join_field': 'section_type_id'})
 
     if ('lower_court' in tables):
         join_string += join('lower_court')
@@ -217,30 +222,34 @@ def join_tables_on_decision(tables: List[str]) -> str:
 
     if ('chamber' in tables or 'court' in tables or 'spider' in tables):
         join_string += join('chamber', 'chamber_id') + \
-            ' LEFT JOIN court ON court.court_id = chamber.court_id LEFT JOIN spider ON chamber.spider_id = spider.spider_id'
+                       ' LEFT JOIN court ON court.court_id = chamber.court_id LEFT JOIN spider ON chamber.spider_id = spider.spider_id'
 
     if ('citation' in tables or 'citation_type' in tables):
         join_string += map_join('citation_id', 'citations', 'citation', fill={
-                                'table_name': 'citation_type', 'field_name': 'name, text, url', 'join_field': 'citation_type_id'})
+            'table_name': 'citation_type', 'field_name': 'name, text, url', 'join_field': 'citation_type_id'})
 
     if ('judgment_map' in tables or 'judgment' in tables):
         join_string += map_join('judgment_id', 'judgments', 'judgment_map', fill={
-                                'table_name': 'judgment', 'field_name': 'text', 'join_field': 'judgment_id'})
+            'table_name': 'judgment', 'field_name': 'text', 'join_field': 'judgment_id'})
 
     if ('file_number' in tables):
         join_string += map_join('text', 'file_numbers', 'file_number')
 
     if ('paragraph' in tables):
         join_string += map_join('paragraph_id', 'paragraphs', 'paragraph', fill={
-                                'table_name': 'section', 'field_name': 'paragraph_text, section_type_id, paragraph.section_id', 'join_field': 'section_id'})
+            'table_name': 'section', 'field_name': 'paragraph_text, section_type_id, paragraph.section_id',
+            'join_field': 'section_id'})
 
     if ('party' in tables):
         join_string += map_join('party_id', 'parties', 'party', fill={
-                                'table_name': 'person', 'field_name': 'name, is_natural_person, gender, party_type_id', 'join_field': 'person_id'})
+            'table_name': 'person', 'field_name': 'name, is_natural_person, gender, party_type_id',
+            'join_field': 'person_id'})
 
     if ('judicial_person' in tables):
         join_string += map_join('person_id', 'judicial_people', 'judicial_person', fill={
-                                'table_name': 'person', 'field_name': 'name, is_natural_person, gender, is_president, judicial_person_type_id', 'join_field': 'person_id'})
+            'table_name': 'person',
+            'field_name': 'name, is_natural_person, gender, is_president, judicial_person_type_id',
+            'join_field': 'person_id'})
 
     return join_string
 
@@ -258,10 +267,12 @@ def select_paragraphs_with_decision_and_meta_data() -> Tuple[str, str]:
     fields.append('sections')
     fields.append('paragraphs')
     fields.append('file_numbers')
-    fields.append('lower_court.date as origin_date, lower_court.court_id as origin_court, lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, lower_court.file_number as origin_file_number')
+    fields.append(
+        'lower_court.date as origin_date, lower_court.court_id as origin_court, lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, lower_court.file_number as origin_file_number')
 
-    return (join_tables_on_decision(['judgment', 'citation', 'file', 'section', 'paragraph', 'file_number', 'lower_court']),
-            ', '.join(fields))
+    return (
+    join_tables_on_decision(['judgment', 'citation', 'file', 'section', 'paragraph', 'file_number', 'lower_court']),
+    ', '.join(fields))
 
 
 def select_fields_from_table(fields: List[str], table):
@@ -271,7 +282,7 @@ def select_fields_from_table(fields: List[str], table):
 
 def where_decisionid_in_list(decision_ids):
     decision_id_string = ','.join(
-        ["'" + str(item)+"'" for item in decision_ids])
+        ["'" + str(item) + "'" for item in decision_ids])
     return f"decision.decision_id IN ({decision_id_string})"
 
 
