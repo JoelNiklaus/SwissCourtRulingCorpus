@@ -108,7 +108,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         else:
             series['chamber_id'] = chamber_id[0]
 
-        series['decision_id'] = uuid.uuid5(uuid.nil, series['file_name'])
+        series['decision_id'] = uuid.uuid5(uuid.UUID(int=0), series['file_name'])
         # TODO: Add topic recognition, similar to the title of the court decision
         series['topic'] = ''
         return series
