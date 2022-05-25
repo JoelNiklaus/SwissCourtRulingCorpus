@@ -52,7 +52,7 @@ class BgeReferenceExtractor(AbstractExtractor):
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
         self.logger.info("save data in progress")
         # TODO add table to postgres
-       """
+        """
         for idx, row in df.iterrows():
             bge_reference = row['bge_reference']
             with engine.connect() as conn:
