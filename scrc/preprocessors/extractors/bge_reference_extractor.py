@@ -49,8 +49,9 @@ class BgeReferenceExtractor(AbstractExtractor):
         return self.select(engine, f"section headersection {join_decision_and_language_on_parameter('decision_id', 'headersection.decision_id')} {join_file_on_decision()}", f"headersection.decision_id, headersection.section_text as header, '{spider}' as spider, iso_code as language, html_url", where=f"headersection.section_type_id = 1 AND headersection.decision_id IN {where_string_spider('decision_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
+        self.logger.info("save data in progress")
         # TODO add table to postgres
-       """
+        """
         for idx, row in df.iterrows():
             bge_reference = row['bge_reference']
             with engine.connect() as conn:
