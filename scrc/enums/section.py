@@ -8,6 +8,7 @@ class Section(Enum):
     CONSIDERATIONS = 4
     RULINGS = 5
     FOOTER = 6
+    TOPIC = 7
 
     @classmethod
     def without_facts(cls):
