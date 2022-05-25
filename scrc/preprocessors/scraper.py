@@ -1,3 +1,4 @@
+import urllib.parse
 from pathlib import Path
 
 # IMPORTANT: absolutely necessary to speed up bs4 parsing: https://thehftguy.com/2020/07/28/making-beautifulsoup-parsing-10-times-faster/
@@ -111,7 +112,9 @@ class Scraper(AbstractPreprocessor):
         try:
             r = requests.get(base_url + str(url))  # make request to download file
             # save to the last two parts of the url (folder and filename)
-            save_to_path(r.content, self.spiders_dir / Path(*url.parts[-2:]))
+            # do this to prevent special characters (such as ö) of causing problems down the line
+            filename = urllib.parse.unquote(str(Path(*url.parts[-2:])))
+            save_to_path(r.content, self.spiders_dir / filename)
         except Exception as e:
             self.logger.error(f"Caught an exception while processing {str(url)}\n{e}")
 
