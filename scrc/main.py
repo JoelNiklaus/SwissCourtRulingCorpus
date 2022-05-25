@@ -109,7 +109,8 @@ def construct_base_dataset(config):
     court_composition_extractor = CourtCompositionExtractor(config)
     court_composition_extractor.start(decision_ids)
 
-    procedural_participation_extractor = ProceduralParticipationExtractor(config)
+    procedural_participation_extractor = ProceduralParticipationExtractor(
+        config)
     procedural_participation_extractor.start(decision_ids)
 
     # calls a free API which only has limited access

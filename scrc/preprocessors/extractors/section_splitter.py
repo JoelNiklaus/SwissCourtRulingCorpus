@@ -78,26 +78,24 @@ class SectionSplitter(AbstractExtractor):
         # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
         spacy_tokenizer, bert_tokenizer = self.tokenizers.get(Language(df['language'][0]))
 
-        result = {}
-
-        for idx, row in df.iterrows():
+        for _, row in df.iterrows():
             if not row['sections']:
                 return {}  # if there was no data, don't do anything
             if len(row['sections']) > 0:
                 # The fulltext equals all other sections combined
-                row['sections'][Section.FULLTEXT] = '\n\n'.join(
-                    ['\n'.join(row['sections'][section]) for section in row['sections']])
+                row['sections'][Section.FULLTEXT] = ['\n'.join(row['sections'][section]) for section in row['sections']]
 
-            for k in row['sections'].keys():
-                result[k] = {}
-                self.logger.debug("Started tokenizing with spacy")
-                result[k]['num_tokens_spacy'] = [
-                    len(result) for result in spacy_tokenizer.pipe(row['sections'][k], batch_size=100)]
-                self.logger.debug("Started tokenizing with bert")
-                result[k]['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(
-                    df['sections'][k].tolist()).input_ids]
+        def get_section_from_df(series, section: Section):
+            if isinstance(series[section], str):
+                return series[section]
+            return '\n'.join(series[section])
 
-        return result
+        for section in Section:
+            df[section.name] = df['sections'].apply(lambda row: get_section_from_df(row, section))
+            df[section.name+'_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[section.name], batch_size=100)]
+            df[section.name+'_bert'] = [len(input_id) for input_id in bert_tokenizer(df[section.name].tolist()).input_ids]
+            
+        return df
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
 
@@ -109,29 +107,26 @@ class SectionSplitter(AbstractExtractor):
                 df.to_json(f)
             return
 
-        tokens = self.run_tokenizer(df)
+        df = self.run_tokenizer(df)
 
-        for idx, row in df.iterrows():
-            if idx % 50 == 0:
-                self.logger.info(f'Saving decision {idx + 1} from chunk')
-            if row['sections'] is None or row['sections'].keys is None:
-                continue
-            with self.get_engine(self.db_scrc).connect() as conn:
-                # Load the different tables
-                t = Table('section', MetaData(), autoload_with=engine)
-                t_paragraph = Table('paragraph', MetaData(), autoload_with=engine)
-                t_num_tokens = Table('num_tokens', MetaData(), autoload_with=engine)
+        with self.get_engine(self.db_scrc).connect() as conn:
+            # Load the different tables
+            t = Table('section', MetaData(), autoload_with=engine)
+            t_paragraph = Table('paragraph', MetaData(), autoload_with=engine)
+            t_num_tokens = Table('num_tokens', MetaData(), autoload_with=engine)
 
-                # Delete and reinsert as no upsert command is available. This pattern is used multiple times in this method
-                stmt = t.delete().returning(text('section_id')).where(delete_stmt_decisions_with_df(df))
-                section_ids_result = conn.execute(stmt).all()
-                section_ids = [i['section_id'] for i in section_ids_result]
-                stmt = t_paragraph.delete().where(delete_stmt_decisions_with_df(df))
-                conn.execute(stmt)
-                if len(section_ids) > 0:
-                    section_ids_string = ','.join(["'" + str(item) + "'" for item in section_ids])
-                    stmt = t_num_tokens.delete().where(text(f"section_id in ({section_ids_string})"))
-                    conn.execute(stmt)
+            # Delete and reinsert as no upsert command is available. This pattern is used multiple times in this method
+            stmt = t.delete().where(delete_stmt_decisions_with_df(df))
+            conn.execute(stmt)
+            stmt = t_paragraph.delete().where(delete_stmt_decisions_with_df(df))
+            conn.execute(stmt)
+            
+            for idx, row in df.iterrows():
+                if idx % 50 == 0:
+                    self.logger.info(f'Saving decision {idx + 1} from chunk')
+                if row['sections'] is None or row['sections'].keys is None:
+                    continue
+                
                 for k in row['sections'].keys():
                     section_type_id = k.value
                     # insert section
@@ -146,9 +141,10 @@ class SectionSplitter(AbstractExtractor):
                     # Add num tokens
                     tokens_per_section = {
                         'section_id': str(section_id),
-                        'num_tokes_spacy': tokens[k]['num_tokens_spacy'],
-                        'num_tokens_bert': tokens[k]['num_tokens_bert']
+                        'num_tokens_spacy': row[k.name+'_spacy'],
+                        'num_tokens_bert': row[k.name+'_bert']
                     }
+                    
                     stmt = t_num_tokens.insert().values([tokens_per_section])
                     conn.execute(stmt)
 

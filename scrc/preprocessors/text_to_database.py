@@ -1,5 +1,14 @@
-from tika import parser
+from fileinput import filename
+import tika
 import os
+tika.TikaLogPath = '/tmp'
+tika.TikaLogFile = '/tmp'
+os.environ['TIKA_LOG_FILE'] = str('')
+os.environ['TIKA_LOG_PATH'] = str('/tmp/')
+tika.initVM()
+
+from tika import parser
+
 import glob
 import json
 from json import JSONDecodeError
@@ -14,14 +23,10 @@ from tqdm.contrib.concurrent import process_map
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 
-import tika
 
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, save_from_text_to_database, where_string_spider
 
-os.environ['TIKA_LOG_PATH'] = str(
-    AbstractPreprocessor.create_dir(Path(os.getcwd()), 'logs'))
-tika.initVM()
 
 
 # TODO if we need to extract data from html with difficult structure such as tables consider using: https://pypi.org/project/inscriptis/
@@ -210,12 +215,12 @@ class TextToDatabase(AbstractPreprocessor):
                 self.logger.warning(
                     "Cannot extract file_number from metadata.")
             if 'HTML' in metadata:
-                general_info['html_url'] = metadata['HTML']['URL']
+                general_info['html_url'] = metadata['HTML']['URL'].strip()
             if 'PDF' in metadata:
-                general_info['pdf_url'] = metadata['PDF']['URL']
+                general_info['pdf_url'] = metadata['PDF']['URL'].strip()
             if 'PDF' not in metadata and 'HTML' not in metadata:
                 self.logger.warning("Cannot extract url from metadata.")
-            if 'Datum' in metadata:
+            if 'Datum' in metadata and not 'nodate' in Path(json_file).stem:
                 general_info['date'] = pd.to_datetime(
                     metadata['Datum'], errors='coerce')
             else:

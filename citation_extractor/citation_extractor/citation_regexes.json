@@ -55,7 +55,7 @@
           "example": "4A_456/2021 vom 19. Januar 2021 E. 1.2"
         },
         {
-          "regex": "(\\d\\D\\_\\d{1,3}\\/\\d{4}) +(vom \\d{1,2}\\.)\\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) +(\\d{4} E\\.) +(\\d{1,2}(\\w{1,2})?(\\.\\d{1,2}(\\.\\d{1,2}|)|))+( [f]{1,2}\\.)?,?\\s)+(und)\\s\\d{1,2}",
+          "regex": "(\\d\\D\\_\\d{1,3}\\/\\d{4}) +(vom \\d{1,2}\\.)\\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) +(\\d{4} E\\.) +((\\d{1,2}(\\w{1,2})?(\\.\\d{1,2}(\\.\\d{1,2}|)|))+( [f]{1,2}\\.)?,?\\s+)+(und)\\s\\d{1,2}",
           "example": "4A_456/2021 vom 19. Januar 2021 E. 1.2, 1.3 und 3"
         }
       ],

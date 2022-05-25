@@ -14,8 +14,7 @@ def extract_citations(search_string: str, language: str, filepath: str = ''):
     """
     def get_combined_regexes(regex_dict, language):
         try:
-            comp_regex = regex.compile(
-                "|".join([entry["regex"] for entry in regex_dict[language] if entry["regex"]]))
+            comp_regex = regex.compile("|".join([entry["regex"] for entry in regex_dict[language] if entry["regex"]]))
             return comp_regex
         except:
             raise NotImplementedError("Not implemented the requested regexes")
@@ -28,14 +27,22 @@ def extract_citations(search_string: str, language: str, filepath: str = ''):
     citation_regexes = json.loads(filepath.read_text())
     rulings = []
     laws = []
+    try:
+        for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['BGE'], language), str(search_string)):
+            citation = {"type": "bge", "text": " ".join(match).strip()}
+            rulings.append(citation)
 
-    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['BGE'], language), str(search_string)):
-        rulings.append(" ".join(match).strip())
+        for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['Bger'], language), str(search_string)):
+            citation = {"type": "bger", "text": " ".join(match).strip()}
+            rulings.append(citation)
 
-    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['Bger'], language), str(search_string)):
-        rulings.append(" ".join(match).strip())
+        for match in regex.findall(get_combined_regexes(citation_regexes['law'], language), str(search_string)):
+            citation = {"text": " ".join(match).strip()}
+            rulings.append(citation)
 
-    for match in regex.findall(get_combined_regexes(citation_regexes['law'], language), str(search_string)):
-        laws.append(" ".join(match).strip())
-
+        
+    except Exception as e:
+        print(f'Error while extracting citations: {e}')
+        
     return {"rulings": rulings, "laws": laws}
+    
