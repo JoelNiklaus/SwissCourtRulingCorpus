@@ -190,7 +190,8 @@ def db_stream(language: str) -> list:
                             res["is_correct"] = list(test_val_set.loc[test_val_set["text"] == res["text"]]["is_correct"])[0]
 
                             res["text"] = add_sections(res["text"])
-                            unfiltered_dataset.append(res)
+                            if res not in  unfiltered_dataset:
+                                unfiltered_dataset.append(res)
 
             print(len(unfiltered_dataset))
             return unfiltered_dataset
