@@ -2,7 +2,7 @@
 
 - [Contributors](#contributors)
   - [Sandbox Setup](#sandbox-setup)
-    - [Local setup](#local-setup)
+  - [Local setup](#local-setup)
   - [Developing](#developing)
     - [Before starting](#before-starting)
     - [Coding](#coding)
@@ -78,7 +78,7 @@ cp -R /home/fdn-admin/SwissCourtRulingCorpus/data/progress ~/SwissCourtRulingCor
 ln -s /home/fdn-admin/SwissCourtRulingCorpus/data/spiders ~/SwissCourtRulingCorpus/data/spiders
 ```
 
-### Local setup
+## Local setup
 
 1. Fork the repository by clicking on the 'Fork' button on the repository's page. This creates a copy of the code under
    your GitHub user account.
@@ -96,13 +96,14 @@ git remote add upstream https://github.com/JoelNiklaus/SwissCourtRulingCorpus.gi
 git checkout -b a-descriptive-name-for-my-changes
 ```
 4. Install all dependencies. To do this we recommend using [conda]('https://docs.conda.io/projects/conda/en/latest/index.html) named `scrc` in which you can import the `env.yml` file found in the root directory of this project.
-5. Install postgres on your system to host your own database (~26GB). You can then import the backup from the sandbox server (follow steps 2 and 3 of Sandbox setup). A backup of the database is found at `/database/scrc.gz`, however a new one could be made with `sudo -u postgres pg_dump scrc | gzip -9 > scrc.gz`. Locally you can import this database using 
+5. Install postgres on your system to host your own database (~26GB). You can then import the backup from the sandbox server (follow steps 2 and 3 of Sandbox setup to connect to the sandbox). A backup of the database is found at `/database/scrc.gz`, however a new one could be made with `sudo -u postgres pg_dump scrc | gzip -9 > scrc.gz`. Locally you can import this database using 
    ```
    scp username@fdn-sandbox3.inf.unibe.ch:/database/scrc.gz ./scrc.gz
    dropdb scrc && createdb scrc
    gunzip < scrc.gz | psql scrc 
    ```
-6. You might want to replicate steps 6 and 7 using a scp to copy the folders to your local setup.
+   If you do not want to use the backup but generate the database from scratch follow the steps outlined in [Setup database from scratch](#setup-database-from-scratch)
+6. You might want to replicate steps 6 and 7 of the sandbox setup using scp to copy the folders to your local setup.
 
 
 ## Developing

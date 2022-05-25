@@ -121,8 +121,8 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         """Processes one row of a raw df"""
         namespace = dict()
         # Add the data to the namespace object which is passed to the extraction function
-        namespace['html_url'] = series.get('html_url').strip()
-        namespace['pdf_url'] = series.get('pdf_url').strip()
+        namespace['html_url'] = series.get('html_url')
+        namespace['pdf_url'] = series.get('pdf_url')
         namespace['date'] = series.get('date')
         namespace['language'] = Language(series['language'])
         namespace['id'] = series['decision_id']
