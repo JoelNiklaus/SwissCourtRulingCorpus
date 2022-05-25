@@ -1,8 +1,8 @@
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import pandas as pd
-from abc import ABC, abstractmethod
 
+from scrc.utils.main_utils import get_config
 
 """
 Datasets to be created:
@@ -27,46 +27,41 @@ Set Labels
 """
 
 
-class CriticalityDatasetCreator(ABC, DatasetCreator):
-    """Abstract Base Class used by criticality dataset creators to unify their behaviour"""
-
-    """ What needs to be done /take case of:
-     Filter out cases where facts or other input for training model is too short
-     - what is used as input?
-     - what's the input length?
-     Filter only supreme court cases
-     - are there any constraints? time, legal area, ...
-    BGE Criticality definition
-     - Filter all cases that were published with abbreviation BGE
-     - Check if one can find matching bger cases for all BGE cases
-     - make sure no case is found twice
-     - define all BGE cases as criticalBGE
-     TODO Criticality definition 2
-     - get data set of newspaper occurrences
-     - check if one needs to filter certain cases or if all can be used
-     - get case for a occurrence in newspaper
-     - define all cases with occurrence as criticalNEWS
-     Citation Criticality definition 3
-     - get data set of links / references
-     - define all cases that were referenced to as criticalLINK
-     Check distribution of data sets
-     - distribution among languages
-     - distribution among legal areas
-     - distribution among cantons
-     - is there bias detectable?
+class CriticalityDatasetCreator(DatasetCreator):
+    """
+    Creates a dataset with the text as input and whether it reaches the supreme court or not as labels
     """
 
-
-    @abstractmethod
-    def get_labeled_data(self, bger_df: pd.DataFrame, bge_df: pd.DataFrame):
-        """Returns the labeled data and labels"""
+    # TODO filter out cases where facts or other input for training model is too short
+    # - what is used as input?
+    # - what's the input length?
+    # TODO filter only supreme court cases
+    # - are there any constraints? time, legal area, ...
+    # TODO Criticality definition 1
+    # - Filter all cases that were published with abbreviation BGE
+    # - Check if one can find matching bger cases for all BGE cases
+    # - make sure no case is found twice
+    # - define all BGE cases as criticalBGE
+    # TODO Criticality definition 2
+    # - get data set of newspaper occurrences
+    # - check if one needs to filter certain cases or if all can be used
+    # - get case for a occurrence in newspaper
+    # - define all cases with occurrence as criticalNEWS
+    # TODO Criticality definition 3
+    # - get data set of links / references
+    # - define all cases that were referenced to as criticalLINK
+    # TODO Check distribution of data sets
+    # - distribution among languages
+    # - distribution among legal areas
+    # - distribution among cantons
+    # - is there bias detectable?
 
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
+
         self.debug = False
         self.split_type = "date-stratified"
-        #Todo check if names for each criticality creator should be unique
         self.dataset_name = "criticality_prediction"
         self.feature_cols = ['text']  # ['facts', 'considerations', 'text']
 
@@ -77,7 +72,6 @@ class CriticalityDatasetCreator(ABC, DatasetCreator):
         # self.make_single_label = True
 
     def get_dataset(self, feature_col, lang, save_reports):
-        """get all required data: all bge and bger cases and label bger cases"""
         # create engine
         engine = self.get_engine(self.db_scrc)
         # get bge rulings
@@ -85,12 +79,37 @@ class CriticalityDatasetCreator(ABC, DatasetCreator):
         # get bger rulings
         bger_df = self.query_bger(feature_col, engine, lang)
         # set criticality label
-        bger_criticality_df = self.get_labeled_data(bger_df, bge_df)
+        bger_criticality_df = self.query_bge_criticality(bger_df, bge_df)
         labels = ['non-critical', 'critical']
         return bger_criticality_df, labels
 
+    # set criticality labels
+    def query_bge_criticality(self, bger_df, bge_df):
+        self.logger.info(f"Processing labeling of bge_criticality")
+
+        # Include all bger rulings whose file_number can be found in the header of a bge
+        # It's not enough no compare date and chamber, there are multiple matching cases
+        # There exist around 12'000 rulings with date = 1.1.2020
+        # error sources:
+        # 1. Regex cannot find correct file number in header
+        # 2. languages are different -> different datasets
+
+        # TODO create method comparing bger file numbers to found regex expression in bge
+        """
+        file_number_match = bger_df.file_number.astype(str).isin(list(bge_df.bge_reference.astype(str)))
+        file_number_match_df = bger_df[file_number_match]       
+        critical_df = bger_df[file_number_match]
+        critical_df['label'] = 'critical'
+        non_critical_df = bger_df[~file_number_match]
+        non_critical_df['label'] = 'non-critical'
+        self.logger.info(f"# critical decisions: {len(critical_df.index)}")
+        self.logger.info(f"# non-critical decisions: {len(non_critical_df.index)}")
+        return critical_df.append(non_critical_df)
+        """
+        return bger_df
+
+    # get all bger
     def query_bger(self, feature_col, engine, lang):
-        """get all bger form database"""
         # TODO which columns are needed
         columns = ['id', 'chamber', 'date', 'extract(year from date) as year', f'{feature_col}', 'file_name', 'file_number']
         try:
@@ -105,11 +124,10 @@ class CriticalityDatasetCreator(ABC, DatasetCreator):
         # TODO improve this
         bger_df = bger_df.dropna(subset=['date', 'id'])
         self.logger.info(f"Found {len(bger_df.index)} supreme bger rulings")
-        # TODO filter cases with too long / short input for model
         return bger_df
 
+    # get all bge
     def query_bge(self, feature_col, engine, lang):
-        """get all bge from databse"""
         # TODO which columns are needed
         columns = ['id', 'chamber', 'date', 'extract(year from date) as year', f'{feature_col}', 'file_name', 'file_number']
         try:
@@ -125,3 +143,10 @@ class CriticalityDatasetCreator(ABC, DatasetCreator):
         bge_df = bge_df.dropna(subset=['date', 'id'])
         self.logger.info(f"Found {len(bge_df.index)} supreme bge rulings")
         return bge_df
+
+
+if __name__ == '__main__':
+    config = get_config()
+
+    criticality_dataset_creator = CriticalityDatasetCreator(config)
+    criticality_dataset_creator.create_dataset()
