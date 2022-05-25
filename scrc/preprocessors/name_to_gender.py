@@ -3,13 +3,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Set
 from itertools import islice
 import json
-import configparser
 import re
 import datetime
 import requests
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
-from root import ROOT_DIR
 from scrc.utils.main_utils import get_config
 
 if TYPE_CHECKING:

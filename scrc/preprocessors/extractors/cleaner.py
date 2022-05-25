@@ -66,7 +66,7 @@ class Cleaner(AbstractExtractor):
         self.logger.info("Started cleaning raw court rulings")
         processed_file_path = self.progress_dir / "spiders_cleaned.txt"
 
-        if self.ignore_cache:
+        if self.rebuild_entire_database:
             processed_file_path.unlink()
         if decision_ids is not None:
             self.decision_ids = decision_ids
@@ -87,7 +87,7 @@ class Cleaner(AbstractExtractor):
         return True
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
-        df['section_type_id'] = 1
+        df['section_type_id'] = 1 # Set the Section type to full text
         self.update(engine, df, 'section', ['decision_id', 'section_type_id', 'section_text'], self.output_dir)
 
     def process_one_spider(self, engine, spider):

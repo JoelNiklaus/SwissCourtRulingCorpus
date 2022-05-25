@@ -1,5 +1,3 @@
-
-from typing import List, Dict
 from scrc.preprocessors.language_identifier import LanguageIdentifier
 from scrc.preprocessors.name_to_gender import NameToGender
 from scrc.preprocessors.extractors.procedural_participation_extractor import ProceduralParticipationExtractor
@@ -50,7 +48,7 @@ def main():
     config = get_config()
     process_scrc(config)
 
-    process_external_corpora(config)
+    # process_external_corpora(config)
 
 
 def process_scrc(config):
@@ -61,7 +59,7 @@ def process_scrc(config):
     """
     construct_base_dataset(config)
 
-    create_specialized_datasets(config)
+    # create_specialized_datasets(config)
 
 
 def create_specialized_datasets(config):
@@ -79,6 +77,10 @@ def create_specialized_datasets(config):
 
 
 def construct_base_dataset(config):
+    """
+    If you want to test a single spider all the way through,
+    delete the spider folder inside the directory data/spiders
+    """
 
     scraper = Scraper(config)
     scraper.download_subfolders(base_url + "docs/")
@@ -111,14 +113,17 @@ def construct_base_dataset(config):
         config)
     procedural_participation_extractor.start(decision_ids)
 
-    #name_to_gender = NameToGender(config)
+    # calls a free API which only has limited access
+    # name_to_gender = NameToGender(config)
     # name_to_gender.start()
 
-    nlp_pipeline_runner = NlpPipelineRunner(config)
-    nlp_pipeline_runner.run_pipeline()
+    # TODO this should be adapted or can even be removed
+    # nlp_pipeline_runner = NlpPipelineRunner(config)
+    # nlp_pipeline_runner.run_pipeline()
 
-    count_computer = CountComputer(config)
-    count_computer.run_pipeline()
+    # TODO this should be adapted or can even be removed
+    # count_computer = CountComputer(config)
+    # count_computer.run_pipeline()
 
 
 def process_external_corpora(config):

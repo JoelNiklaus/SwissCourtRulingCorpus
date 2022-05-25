@@ -44,7 +44,8 @@ class AbstractPreprocessor:
     def __init__(self, config: dict):
         self.languages = json.loads(config['general']['languages'])
         self.chunksize = int(config['general']['chunksize'])
-        self.ignore_cache = config['general']['ignore_cache'].lower() == 'true'
+        self.rebuild_entire_database = config['general']['rebuild_entire_database'].lower() == 'true'
+        self.process_new_files_only = config['general']['process_new_files_only'].lower() == 'true'
 
         self.data_dir = self.create_dir(ROOT_DIR, config['dir']['data_dir'])
         self.progress_dir = self.create_dir(
@@ -207,7 +208,6 @@ class AbstractPreprocessor:
         """
 
         if not AbstractPreprocessor._check_write_privilege(engine):
-            path = ''
             if filename is None:
                 AbstractPreprocessor.create_dir(output_dir, os.getlogin())
                 path = Path.joinpath(output_dir, os.getlogin(

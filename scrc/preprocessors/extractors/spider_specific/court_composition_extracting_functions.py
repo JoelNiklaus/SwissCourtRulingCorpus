@@ -35,6 +35,8 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     :return:            the sections dict
     """
 
+    #ToDo: Use the functions extracted at the end of the file
+
     header = sections[Section.HEADER]
 
     information_start_regex = r'Besetzung|Bundesrichter|Composition( de la Cour:)?|Composizione|Giudic[ie] federal|composta'
@@ -513,11 +515,11 @@ def match_person_to_database(person: CourtPerson, current_gender: Gender) -> Tup
     if len(split_name) > 1:
         initial = next((x for x in split_name if len(x) == 1), None)
         split_name = list(filter(lambda x: len(x) > 1, split_name))
-    if person.court_role.value in personal_information_database:
+    if person.court_role.value in personal_information_database: # The court_role of the person is in the database
         for subcategory in personal_information_database[person.court_role.value]:
             for cat_id in personal_information_database[person.court_role.value][subcategory]:
                 for db_person in personal_information_database[person.court_role.value][subcategory][cat_id]:
-                    if set(split_name).issubset(set(db_person['name'].split())):
+                    if set(split_name).issubset(set(db_person['name'].split())): # The name of the person is in the database, then match it
                         if not initial or re.search(rf'\s{initial.upper()}\w*', db_person['name']):
                             person.name = db_person['name']
                             if db_person.get('gender'):
@@ -526,7 +528,7 @@ def match_person_to_database(person: CourtPerson, current_gender: Gender) -> Tup
                                 person.party = PoliticalParty(db_person['party'])
                             results.append(person)
     else:
-        for existing_role in personal_information_database:
+        for existing_role in personal_information_database: # Go through all roles in the database to find the person
             temp_person = CourtPerson(person.name, court_role=CourtRole(existing_role))
             db_person, match = match_person_to_database(temp_person, current_gender)
             if match:

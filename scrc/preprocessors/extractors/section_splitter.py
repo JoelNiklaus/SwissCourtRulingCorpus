@@ -1,26 +1,23 @@
 from __future__ import annotations
-import configparser
 from datetime import datetime
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Tuple, Union
 
 import bs4
 import pandas as pd
-import uuid
 from sqlalchemy.sql.expression import text
 
 from sqlalchemy.sql.schema import MetaData, Table
-
 
 from scrc.enums.language import Language
 from scrc.enums.section import Section
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
-from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, where_decisionid_in_list, where_string_spider
+from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, \
+    where_decisionid_in_list, where_string_spider
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -44,7 +41,8 @@ class SectionSplitter(AbstractExtractor):
             'no_functions': 'Not splitting into sections.'
         }
 
-        # spacy_tokenizer, bert_tokenizer = tokenizers['de']
+        # Get the tokenizers at the start so they don't have to be loaded with every chunk
+        # Return value: spacy_tokenizer, bert_tokenizer = tokenizers['de']
         self.tokenizers: dict[Language, Tuple[any, any]] = {
             Language.DE: self.get_tokenizers('de'),
             Language.FR: self.get_tokenizers('fr'),
@@ -68,88 +66,102 @@ class SectionSplitter(AbstractExtractor):
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None and len(
             self.decision_ids) > 0 else ""
-        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')} LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id ", f"decision_id, iso_code as language, html_raw, pdf_raw, html_url, pdf_url, '{spider}' as spider, court_id", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
+        return self.select(engine,
+                           f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')} LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id ",
+                           f"decision_id, iso_code as language, html_raw, pdf_raw, html_url, pdf_url, '{spider}' as spider, court_id",
+                           where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}",
+                           chunksize=self.chunksize)
 
-    def run_tokenizer(self, df: pd.DataFrame):
+    def run_tokenizer(self, df: pd.DataFrame) -> dict:
         # only calculate this if we save the reports because it takes a long time
         # TODO precompute this in previous step after section splitting for each section
         # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
-        spacy_tokenizer, bert_tokenizer = self.tokenizers.get(
-            Language(df['language'][0]))
+        spacy_tokenizer, bert_tokenizer = self.tokenizers.get(Language(df['language'][0]))
 
         result = {}
 
         for idx, row in df.iterrows():
             if not row['sections']:
-                return {}
+                return {}  # if there was no data, don't do anything
             if len(row['sections']) > 0:
-                row['sections'][Section.FULLTEXT] = '\n\n'.join(['\n'.join(row['sections'][section]) for section in row['sections']])
-        for k in row['sections'].keys():
-            result[k] = {}
-            self.logger.debug("Started tokenizing with spacy")
-            result[k]['num_tokens_spacy'] = [len(result) for result in spacy_tokenizer.pipe(
-                row['sections'][k], batch_size=100)]
-            self.logger.debug("Started tokenizing with bert")
-            result[k]['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(
-                df['sections'][k].tolist()).input_ids]
+                # The fulltext equals all other sections combined
+                row['sections'][Section.FULLTEXT] = '\n\n'.join(
+                    ['\n'.join(row['sections'][section]) for section in row['sections']])
+
+            for k in row['sections'].keys():
+                result[k] = {}
+                self.logger.debug("Started tokenizing with spacy")
+                result[k]['num_tokens_spacy'] = [
+                    len(result) for result in spacy_tokenizer.pipe(row['sections'][k], batch_size=100)]
+                self.logger.debug("Started tokenizing with bert")
+                result[k]['num_tokens_bert'] = [len(input_id) for input_id in bert_tokenizer(
+                    df['sections'][k].tolist()).input_ids]
 
         return result
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
 
         if not AbstractPreprocessor._check_write_privilege(engine):
-            path = ''
             AbstractPreprocessor.create_dir(self.output_dir, os.getlogin())
-            path = Path.joinpath(self.output_dir, os.getlogin(
-            ), datetime.now().isoformat() + '.json')
+            path = Path.joinpath(self.output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
 
             with path.open("a") as f:
                 df.to_json(f)
             return
 
-        #tokens = self.run_tokenizer(df)
+        tokens = self.run_tokenizer(df)
 
         for idx, row in df.iterrows():
             if idx % 50 == 0:
-                self.logger.info(f'Saving decision {idx+1} from chunk')
+                self.logger.info(f'Saving decision {idx + 1} from chunk')
             if row['sections'] is None or row['sections'].keys is None:
                 continue
             with self.get_engine(self.db_scrc).connect() as conn:
+                # Load the different tables
                 t = Table('section', MetaData(), autoload_with=engine)
-                t_paragraph = Table('paragraph', MetaData(),
-                                    autoload_with=engine)
-                t_num_tokens = Table(
-                    'num_tokens', MetaData(), autoload_with=engine)
+                t_paragraph = Table('paragraph', MetaData(), autoload_with=engine)
+                t_num_tokens = Table('num_tokens', MetaData(), autoload_with=engine)
 
                 # Delete and reinsert as no upsert command is available. This pattern is used multiple times in this method
-                stmt = t.delete().returning(text('section_id')).where(
-                    delete_stmt_decisions_with_df(df))
+                stmt = t.delete().returning(text('section_id')).where(delete_stmt_decisions_with_df(df))
                 section_ids_result = conn.execute(stmt).all()
                 section_ids = [i['section_id'] for i in section_ids_result]
                 stmt = t_paragraph.delete().where(delete_stmt_decisions_with_df(df))
                 conn.execute(stmt)
                 if len(section_ids) > 0:
-                    section_ids_string = ','.join(
-                        ["'" + str(item)+"'" for item in section_ids])
-                    stmt = t_num_tokens.delete().where(
-                        text(f"section_id in ({section_ids_string})"))
+                    section_ids_string = ','.join(["'" + str(item) + "'" for item in section_ids])
+                    stmt = t_num_tokens.delete().where(text(f"section_id in ({section_ids_string})"))
                     conn.execute(stmt)
                 for k in row['sections'].keys():
                     section_type_id = k.value
                     # insert section
-                    stmt = t.insert().returning(text("section_id")).values([{"decision_id": str(
-                        row['decision_id']), "section_type_id": section_type_id, "section_text": row['sections'][k]}])
+                    section_dict = {
+                        "decision_id": str(row['decision_id']),
+                        "section_type_id": section_type_id,
+                        "section_text": row['sections'][k]
+                    }
+                    stmt = t.insert().returning(text("section_id")).values([section_dict])
                     section_id = conn.execute(stmt).fetchone()['section_id']
 
                     # Add num tokens
-                    # stmt = t_num_tokens.insert().values([{'section_id': str(
-                    #    section_id), 'num_tokes_spacy': tokens[k]['num_tokens_spacy'], 'num_tokens_bert': tokens[k]['num_tokens_bert']}])
-                    # conn.execute(stmt)
+                    tokens_per_section = {
+                        'section_id': str(section_id),
+                        'num_tokes_spacy': tokens[k]['num_tokens_spacy'],
+                        'num_tokens_bert': tokens[k]['num_tokens_bert']
+                    }
+                    stmt = t_num_tokens.insert().values([tokens_per_section])
+                    conn.execute(stmt)
 
-                    # Add a all paragraphs
+                    # Add all paragraphs
                     for paragraph in row['sections'][k]:
-                        stmt = t_paragraph.insert().values([{'section_id': str(section_id), "decision_id": str(
-                            row['decision_id']), 'paragraph_text': paragraph, 'first_level': None, 'second_level': None, 'third_level': None}])
+                        paragraph_dict = {
+                            'section_id': str(section_id), "decision_id": str(row['decision_id']),
+                            'paragraph_text': paragraph,
+                            'first_level': None,
+                            'second_level': None,
+                            'third_level': None
+                        }
+                        stmt = t_paragraph.insert().values([paragraph_dict])
                         conn.execute(stmt)
 
     def read_column(self, engine: Engine, spider: str, name: str, lang: str) -> pd.DataFrame:
@@ -174,7 +186,7 @@ class SectionSplitter(AbstractExtractor):
 
         # retrieve all chunks iteratively to limit memory usage
         for chunk in range(batch_info['chunknumber']):
-            if not (path/f"{chunk}.json").exists():
+            if not (path / f"{chunk}.json").exists():
                 continue
             df_chunk = pd.read_json(str(path / f"{chunk}.json"))
             summary['total_collected'] += df_chunk.shape[0]

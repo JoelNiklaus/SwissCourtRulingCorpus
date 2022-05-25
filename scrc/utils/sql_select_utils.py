@@ -108,13 +108,17 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         else:
             series['chamber_id'] = chamber_id[0]
 
-        series['decision_id'] = uuid.uuid5(
-            uuid.UUID(int=0), series['file_name'])
+        series['decision_id'] = uuid.uuid5(uuid.UUID(int=0), series['file_name'])
         # TODO: Add topic recognition, similar to the title of the court decision
         series['topic'] = ''
         return series
 
     def save_the_file_numbers(series: pd.DataFrame) -> pd.DataFrame:
+        """
+        Saves the file_number for each of the decision ids
+        :param series:
+        :return:
+        """
         series['decision_id'] = pd.read_sql(
             f"SELECT decision_id FROM decision WHERE file_id = '{series['file_id']}'", engine.connect())["decision_id"][0]
         with engine.connect() as conn:
@@ -122,11 +126,10 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             # Delete and reinsert as no upsert command is available
             stmt = t.delete().where(delete_stmt_decisions_with_df(series))
             conn.execute(stmt)
-        series['text'] = series['file_number'].map(lambda x: x.strip())
+        series['text'] = series['file_number'].strip() # .map(lambda x: x.strip())
         save_to_db(series[['decision_id', 'text']], 'file_number')
         if ('file_number_additional' in series and series['file_number_additional'] is not None and len(series['file_number_additional']) > 0):
-            series['text'] = series['file_number_additional'].map(
-                lambda x: x.strip())
+            series['text'] = series['file_number_additional'].strip() # .map(lambda x: x.strip())
             save_to_db(series[['decision_id', 'text']], 'file_number')
         return series
 
