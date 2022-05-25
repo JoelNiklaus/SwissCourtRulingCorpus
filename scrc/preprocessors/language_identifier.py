@@ -19,7 +19,6 @@ class LanguageIdentifier(AbstractPreprocessor):
         self.logger = get_logger(__name__)
 
     def start(self):
-
         all_decision_ids = []
         # Fetch all decisions with language id -1 as we need to add a language id to them
         sql_query = 'SELECT html_raw, pdf_raw, decision_id, language_id FROM decision LEFT JOIN file on file.file_id = decision.file_id WHERE decision.language_id = -1'
@@ -27,14 +26,15 @@ class LanguageIdentifier(AbstractPreprocessor):
             self.db_scrc).connect(), chunksize=self.chunksize)
         df_list = list(df_iterator)
 
-        self.logger.info(f'Identifying language for {len(df_list)} decisions')
         # Get language
         for df in df_list:
-            df = df.apply(self.get_lang, axis="columns")
-            # Save in db
-            self.update(self.get_engine(self.db_scrc), df, 'decision',
-                        ['language_id'], self.output_dir, None, 'decision_id')
-            all_decision_ids.extend(df['decision_id'])
+            if not df.empty:
+                self.logger.info(f'Identifying language for {len(df.index)} decisions')
+                df = df.apply(self.get_lang, axis="columns")
+                # Save in db
+                self.update(self.get_engine(self.db_scrc), df, 'decision',
+                            ['language_id'], self.output_dir, None, 'decision_id')
+                all_decision_ids.extend(df['decision_id'])
 
         return all_decision_ids
 
