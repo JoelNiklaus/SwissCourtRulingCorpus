@@ -114,6 +114,11 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         return series
 
     def save_the_file_numbers(series: pd.DataFrame) -> pd.DataFrame:
+        """
+        Saves the file_number for each of the decision ids
+        :param series:
+        :return:
+        """
         series['decision_id'] = pd.read_sql(
             f"SELECT decision_id FROM decision WHERE file_id = '{series['file_id']}'", engine.connect())["decision_id"][0]
         with engine.connect() as conn:
@@ -121,13 +126,10 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             # Delete and reinsert as no upsert command is available
             stmt = t.delete().where(delete_stmt_decisions_with_df(series))
             conn.execute(stmt)
-        series['decision_id'] = pd.read_sql(
-            f"SELECT decision_id FROM decision WHERE file_id = '{series['file_id']}'", engine.connect())["decision_id"][0]
-        series['text'] = series['file_number'].map(lambda x: x.strip())
+        series['text'] = series['file_number'].strip() # .map(lambda x: x.strip())
         save_to_db(series[['decision_id', 'text']], 'file_number')
         if ('file_number_additional' in series and series['file_number_additional'] is not None and len(series['file_number_additional']) > 0):
-            series['text'] = series['file_number_additional'].map(
-                lambda x: x.strip())
+            series['text'] = series['file_number_additional'].strip() # .map(lambda x: x.strip())
             save_to_db(series[['decision_id', 'text']], 'file_number')
         return series
 
@@ -158,7 +160,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
     df = df.apply(add_ids_to_df_for_decision, 1)
     save_to_db(
         df[['language_id', 'chamber_id', 'file_id', 'date', 'topic']], 'decision')
-    df = df.apply(save_the_file_numbers, 1)
+    df.apply(save_the_file_numbers, 1)
 
 
 def delete_stmt_decisions_with_df(df: pd.DataFrame) -> TextClause:
@@ -270,7 +272,7 @@ def select_fields_from_table(fields: List[str], table):
 def where_decisionid_in_list(decision_ids):
     decision_id_string = ','.join(
         ["'" + str(item)+"'" for item in decision_ids])
-    return f"decision_id IN ({decision_id_string})"
+    return f"decision.decision_id IN ({decision_id_string})"
 
 
 def convert_to_binary_judgments(df, with_partials=False, with_write_off=False, with_unification=False,

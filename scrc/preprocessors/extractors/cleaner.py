@@ -63,7 +63,7 @@ class Cleaner(AbstractExtractor):
         self.logger.info("Started cleaning raw court rulings")
         processed_file_path = self.progress_dir / "spiders_cleaned.txt"
 
-        if self.ignore_cache:
+        if self.rebuild_entire_database:
             processed_file_path.unlink()
         if decision_ids is not None:
             self.decision_ids = decision_ids

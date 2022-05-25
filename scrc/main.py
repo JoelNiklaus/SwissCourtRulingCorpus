@@ -48,7 +48,7 @@ def main():
     config = get_config()
     process_scrc(config)
 
-    process_external_corpora(config)
+    # process_external_corpora(config)
 
 
 def process_scrc(config):
@@ -59,7 +59,7 @@ def process_scrc(config):
     """
     construct_base_dataset(config)
 
-    create_specialized_datasets(config)
+    # create_specialized_datasets(config)
 
 
 def create_specialized_datasets(config):
@@ -77,10 +77,15 @@ def create_specialized_datasets(config):
 
 
 def construct_base_dataset(config):
-    scraper = Scraper(config)
-    new_files = scraper.download_subfolders(base_url + "docs/")
+    """
+    If you want to test a single spider all the way through,
+    delete the spider folder inside the directory data/spiders
+    """
 
-    text_to_database = TextToDatabase(config, new_files_only=True)
+    scraper = Scraper(config)
+    scraper.download_subfolders(base_url + "docs/")
+
+    text_to_database = TextToDatabase(config)
     text_to_database.build_dataset()
 
     language_identifier = LanguageIdentifier(config)
@@ -112,12 +117,12 @@ def construct_base_dataset(config):
     # name_to_gender.start()
 
     # TODO this should be adapted or can even be removed
-    nlp_pipeline_runner = NlpPipelineRunner(config)
-    nlp_pipeline_runner.run_pipeline()
+    # nlp_pipeline_runner = NlpPipelineRunner(config)
+    # nlp_pipeline_runner.run_pipeline()
 
     # TODO this should be adapted or can even be removed
-    count_computer = CountComputer(config)
-    count_computer.run_pipeline()
+    # count_computer = CountComputer(config)
+    # count_computer.run_pipeline()
 
 
 def process_external_corpora(config):

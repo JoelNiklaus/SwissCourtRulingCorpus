@@ -1,6 +1,7 @@
 from pathlib import Path
 
-# absolutely necessary to speed up bs4 parsing: https://thehftguy.com/2020/07/28/making-beautifulsoup-parsing-10-times-faster/
+# IMPORTANT: absolutely necessary to speed up bs4 parsing: https://thehftguy.com/2020/07/28/making-beautifulsoup-parsing-10-times-faster/
+# TODO use everywhere where we need to parse with bs4
 import cchardet
 import lxml
 
@@ -19,6 +20,7 @@ supported_suffixes = ['.htm', '.html', '.pdf', '.txt', '.json']
 supported_languages = ['de', 'fr', 'it']
 excluded_link_names = ['Name', 'Last modified', 'Size', 'Description', 'Parent Directory', 'Index', 'Jobs', 'Sitemaps']
 
+
 class Scraper(AbstractPreprocessor):
     """Scrapes the court rulings with the associated metadata files from entscheidsuche.ch/docs"""
 
@@ -34,7 +36,7 @@ class Scraper(AbstractPreprocessor):
         """
         self.logger.info(f"Started downloading from {url}")
         r = requests.get(url)  # get starting page
-        data = bs4.BeautifulSoup(r.text, "html.parser")  # parse html
+        data = bs4.BeautifulSoup(r.text, "lxml")  # parse html
         links = data.find_all("a")  # find all links
 
         included_links = [Path(link["href"]) for link in links if not self.link_is_excluded(link.text)]
@@ -74,11 +76,16 @@ class Scraper(AbstractPreprocessor):
         included_links = [Path(link["href"]) for link in links if Path(link["href"]).suffix in supported_suffixes]
         self.logger.info(f"Found {len(included_links)} links")
 
-        if not self.ignore_cache:
-            already_downloaded_links = set([Path(spider).stem for spider in glob.glob(f"{str(self.spiders_dir)}/{sub_folder.stem}/*")])
+        if self.process_new_files_only:
+            already_downloaded_links = [Path(spider).stem for spider in
+                                        glob.glob(f"{str(self.spiders_dir)}/{sub_folder.stem}/*")]
             self.logger.info(f"{len(already_downloaded_links)} of {len(included_links)} are already downloaded")
 
-            links_still_to_download = [link for link in included_links if not link.stem in already_downloaded_links]
+            if len(included_links) == len(already_downloaded_links):
+                links_still_to_download = []  # shortcut to save computation
+            else:
+                already_downloaded_links = set(already_downloaded_links)  # set for faster lookup
+                links_still_to_download = [link for link in included_links if not link.stem in already_downloaded_links]
         else:
             links_still_to_download = included_links
 
@@ -87,7 +94,8 @@ class Scraper(AbstractPreprocessor):
         # process each court in its own process to speed up this creation by a lot!
         # in case that the server has not enough capacity (we are encountering 'Connection reset by peer')
         # => decrease number of processes
-        process_map(self.download_file_from_url, links_still_to_download, max_workers=8, chunksize=100)
+        if links_still_to_download:
+            process_map(self.download_file_from_url, links_still_to_download, max_workers=8, chunksize=100)
 
         # for link in tqdm(included_links):
         #    self.download_file_from_url(link)

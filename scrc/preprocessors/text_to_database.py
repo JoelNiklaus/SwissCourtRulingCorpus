@@ -26,8 +26,21 @@ tika.initVM()
 
 # TODO if we need to extract data from html with difficult structure such as tables consider using: https://pypi.org/project/inscriptis/
 
+# TODO fix this for XX_Upload!
+
+# TODO strip bei file_number
+
+# TODO strip bei person
+
 # the keys used in the court dataframes
 
+"""
+If you encounter the error: "The chamber {chamber} was not found in the database. Add it with the respective court and spider", do the following:
+1. Add another court in the court table if it does not exist yet
+2. Add the respective spider in the spider table if it does not exist yet
+3. Add the chamber in the chamber table with the correct court_id and spider_id (check in the file court_chambers.json if unsure)
+4. Run it again 
+"""
 
 class TextToDatabase(AbstractPreprocessor):
     """
@@ -35,7 +48,7 @@ class TextToDatabase(AbstractPreprocessor):
     and in one for all courts combined
     """
 
-    def __init__(self, config: dict, new_files_only: Optional[bool] = True):
+    def __init__(self, config: dict):
         super().__init__(config)
         self.court_keys = [
             "spider",
@@ -52,7 +65,6 @@ class TextToDatabase(AbstractPreprocessor):
             "pdf_raw",
         ]
         self.logger = get_logger(__name__)
-        self.new_files_only = not self.ignore_cache
 
     def build_dataset(self) -> List[dict]:
         """ Builds the dataset for all the spiders """
@@ -60,7 +72,7 @@ class TextToDatabase(AbstractPreprocessor):
             "Started extracting text and metadata from court rulings files")
         processed_file_path = self.progress_dir / "spiders_extracted.txt"
 
-        if self.ignore_cache:
+        if self.rebuild_entire_database:
             processed_file_path.unlink()
 
         spider_list, message = self.compute_remaining_spiders(
@@ -99,18 +111,17 @@ class TextToDatabase(AbstractPreprocessor):
         """ Builds the spider dict list which we can convert to a pandas Data Frame later """
         # we take the json files as a starting point to get the corresponding html or pdf files
         json_filenames = self.get_filenames_of_extension(spider_dir, 'json')
-        if self.new_files_only:
+        if self.process_new_files_only:
             # we only want to process the files that are not already present in the database
             len_before = len(json_filenames)
-            json_filenames = self.filter_already_present(
-                json_filenames, spider)
+            json_filenames = self.filter_already_present(json_filenames, spider)
             len_after = len(json_filenames)
             if len_after != len_before:
                 self.logger.info(
                     f"Processing {len(json_filenames)} files as the others were already done")
 
         spider_dict_list = process_map(
-            self.build_spider_dict, json_filenames, chunksize=1000)
+            self.build_spider_dict, json_filenames, chunksize=self.chunksize)
         # remove None values
         return [spider_dict for spider_dict in spider_dict_list if spider_dict]
 
