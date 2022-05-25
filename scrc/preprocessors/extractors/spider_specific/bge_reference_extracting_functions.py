@@ -1,8 +1,7 @@
-from typing import List, Dict, Union
-import bs4
 import re
-
-from typing import Any, Optional
+import json
+from typing import Dict, Optional
+from root import ROOT_DIR
 from scrc.enums.section import Section
 
 
@@ -12,31 +11,29 @@ The name of the functions should be equal to the spider! Otherwise, they won't b
 Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
-def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    """
-    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict (keys: section, values: list of paragraphs)
-    """
+
+def XX_SPIDER(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
 
-def CH_BGE(soup: Any, namespace: dict) -> Optional[str]:
+def CH_BGE(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
-    :param soup:        the soup parsed by bs4
+    Extract the reference to the corresponding bger file in bge
+    :param sections:    the dict containing the sections per section key
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the string of found reference, 'no reference found' if no reference was extracted
+    :return:            the reference as string
     """
 
-    pattern = re.compile('\d\D?_\d{1,3}/\d{4}|\d\D?\.\d{1,3}/\d{4}|\d\D?\s\d{1,3}/\d{4}')
-    bge_references = soup.find(string=re.compile(pattern))
-    if bge_references:
-        # only consider first entry
-        bge_reference = re.search(pattern, bge_references).group()
-        bge_reference = bge_reference.replace('_', ' ')
-        bge_reference = bge_reference.replace('.', ' ')
-        return bge_reference
-    else:
-        return 'no reference found'
+    header = sections[Section.HEADER]
+    citation_regexes = json.loads((ROOT_DIR / 'legal_info' / 'bge_origin_bger_reference_citation.json').read_text())
+
+    def get_combined_regexes(regex_dict):
+        return re.compile("|".join([entry["regex"] for entry in regex_dict if entry["regex"]]))
+
+    bge_reference_pattern = get_combined_regexes(citation_regexes['ruling']['bge_reference'])
+
+    bge_reference = re.search(bge_reference_pattern, header)
+
+    return str(bge_reference)
 
