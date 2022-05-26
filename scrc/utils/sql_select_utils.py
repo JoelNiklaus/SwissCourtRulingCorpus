@@ -156,6 +156,8 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             stmt = t_fil.delete().where(text(f"file_id in ({file_ids_list})"))
             conn.execute(stmt)
 
+    df = df.replace({np.NaN: None}) # Convert pandas NaT values (Non-Type for Datetime) to None using np as np recognizes these types
+
     save_to_db(
         df[['file_name', 'html_url', 'pdf_url', 'html_raw', 'pdf_raw']], 'file')
 
