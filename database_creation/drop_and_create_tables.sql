@@ -51,16 +51,6 @@ CREATE TABLE IF NOT EXISTS chamber(
   chamber_string TEXT NOT NULL UNIQUE
 );
 
-CREATE TABLE IF NOT EXISTS lower_court(
-  lower_court_id SERIAL PRIMARY KEY,
-  court_id INTEGER REFERENCES court,
-  canton_id INTEGER REFERENCES canton,
-  chamber_id INTEGER REFERENCES chamber,
-  "date" DATE,
-  file_number TEXT,
-  decision_id INTEGER NOT NULL REFERENCES decision
-);
-
 CREATE TABLE IF NOT EXISTS "file"(
   file_id SERIAL PRIMARY KEY,
   file_name TEXT NOT NULL,
@@ -71,12 +61,22 @@ CREATE TABLE IF NOT EXISTS "file"(
 );
 
 CREATE TABLE IF NOT EXISTS decision(
-  decision_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  decision_id UUID PRIMARY KEY,
   language_id INTEGER NOT NULL REFERENCES "language",
   chamber_id INTEGER REFERENCES chamber,
   file_id INTEGER NOT NULL REFERENCES "file",
   "date" DATE,
   topic TEXT
+);
+
+CREATE TABLE IF NOT EXISTS lower_court(
+  lower_court_id SERIAL PRIMARY KEY,
+  court_id INTEGER REFERENCES court,
+  canton_id INTEGER REFERENCES canton,
+  chamber_id INTEGER REFERENCES chamber,
+  "date" DATE,
+  file_number TEXT,
+  decision_id INTEGER NOT NULL REFERENCES decision
 );
 
 CREATE TABLE IF NOT EXISTS judgment(
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS paragraph(
 
 CREATE TABLE IF NOT EXISTS num_tokens(
   num_tokens_id SERIAL PRIMARY KEY,
-  section_id INTEGER NOT NULL REFERENCES "section",
+  section_id INTEGER NOT NULL REFERENCES "section" ON DELETE CASCADE,
   num_tokens_spacy INTEGER,
   num_tokens_bert INTEGER
 );
