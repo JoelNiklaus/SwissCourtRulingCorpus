@@ -526,6 +526,25 @@ def CH_BSTG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     return associate_sections(paragraphs, section_markers, namespace)
 
 
+def GL_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'in Sachen'],
+            Section.CONSIDERATIONS: [r'Die Kammer zieht in Erwägung:'],
+            Section.RULINGS: [r'Demgemäss erkennt die Kammer', ],
+            Section.FOOTER: [r'Im Namen des Steuerrekursgerichts']
+        }}
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    divs = decision.find_all(
+        "span")
+    paragraphs = get_paragraphs_from_span(divs)
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
 def get_paragraphs(divs):
     # """
     # Get Paragraphs in the decision
@@ -621,7 +640,7 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
         paragraphs_by_section[current_section].append(paragraph)
 
     if current_section != Section.FOOTER:
-        exceptions = ['ZH_Steuerrekurs']  # Has no footer
+        exceptions = ['ZH_Steuerrekurs', 'GL_Omni']  # Has no footer
         if not namespace['court'] in exceptions:
             # change the message depending on whether there's a url
             if namespace.get('html_url'):
@@ -634,6 +653,15 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
                 message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! "
             get_logger(__name__).warning(message)
     return paragraphs_by_section
+
+
+def get_paragraphs_from_span(spans):
+    paragraphs = []
+    for span in spans:
+        string = unicodedata.normalize("NFKD", span.text)
+        if not str.isspace(string):
+            paragraphs.append(string)
+    return paragraphs
 
 
 def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
