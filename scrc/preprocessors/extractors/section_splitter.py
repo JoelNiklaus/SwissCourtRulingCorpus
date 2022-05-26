@@ -150,9 +150,10 @@ class SectionSplitter(AbstractExtractor):
 
                     # Add all paragraphs
                     for paragraph in row['sections'][k]:
+                        if len(paragraph.strip()) == 0: continue
                         paragraph_dict = {
                             'section_id': str(section_id), "decision_id": str(row['decision_id']),
-                            'paragraph_text': paragraph,
+                            'paragraph_text': paragraph.strip(),
                             'first_level': None,
                             'second_level': None,
                             'third_level': None
