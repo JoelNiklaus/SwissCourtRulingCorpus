@@ -7,6 +7,7 @@ import regex
 from citation_extractor import extract_citations
 
 from root import ROOT_DIR
+from scrc.enums.language import Language
 
 """
 This file is used to extract citations from decisions sorted by spiders.
@@ -16,9 +17,13 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 
 
 def XX_SPIDER(soup: Any, namespace: dict) -> Optional[dict]:
+    valid_languages = [Language.DE, Language.IT, Language.FR]
+    if namespace['language'] not in [Language.DE, Language.IT, Language.FR]:
+       raise ValueError(f"This function is only implemented for the languages {valid_languages} so far.")
     citations = extract_citations(
-        soup, (ROOT_DIR / 'legal_info' / 'citation_regexes.json'), namespace['language'])
-    return citations
+        soup, (namespace['language'].value))
+    
+    return {CitationType.LAW: citations.get('laws'), CitationType.RULING: citations.get('rulings')}
 
 
 def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
