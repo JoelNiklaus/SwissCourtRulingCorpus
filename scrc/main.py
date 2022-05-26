@@ -82,8 +82,8 @@ def construct_base_dataset(config):
     delete the spider folder inside the directory data/spiders
     """
 
-    scraper = Scraper(config)
-    scraper.download_subfolders(base_url + "docs/")
+    #scraper = Scraper(config)
+    #scraper.download_subfolders(base_url + "docs/")
 
     text_to_database = TextToDatabase(config)
     text_to_database.build_dataset()
@@ -109,13 +109,12 @@ def construct_base_dataset(config):
     court_composition_extractor = CourtCompositionExtractor(config)
     court_composition_extractor.start(decision_ids)
 
-    procedural_participation_extractor = ProceduralParticipationExtractor(
-        config)
+    procedural_participation_extractor = ProceduralParticipationExtractor(config)
     procedural_participation_extractor.start(decision_ids)
 
     # calls a free API which only has limited access
-    # name_to_gender = NameToGender(config)
-    # name_to_gender.start()
+    name_to_gender = NameToGender(config)
+    name_to_gender.start()
 
     # TODO this should be adapted or can even be removed
     # nlp_pipeline_runner = NlpPipelineRunner(config)
