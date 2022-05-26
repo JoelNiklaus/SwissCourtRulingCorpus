@@ -127,8 +127,8 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         namespace['language'] = Language(series['language'])
         namespace['id'] = series['decision_id']
 
-        if 'court_id' in series:
-            namespace['court'] = Court(series['court_id']).name
+        if 'court_string' in series:
+            namespace['court'] = series.get('court_string')
         data = self.get_required_data(series)
         if not data:
             return series

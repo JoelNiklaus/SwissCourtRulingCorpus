@@ -1,3 +1,4 @@
+from scrc.preprocessors.create_court_and_chamber_tables import CreateCourtAndChamberTables
 from scrc.preprocessors.language_identifier import LanguageIdentifier
 from scrc.preprocessors.name_to_gender import NameToGender
 from scrc.preprocessors.extractors.procedural_participation_extractor import ProceduralParticipationExtractor
@@ -82,8 +83,11 @@ def construct_base_dataset(config):
     delete the spider folder inside the directory data/spiders
     """
 
-    #scraper = Scraper(config)
-    #scraper.download_subfolders(base_url + "docs/")
+    scraper = Scraper(config)
+    scraper.download_subfolders(base_url + "docs/")
+
+    create_court_and_chamber_tables = CreateCourtAndChamberTables(config)
+    create_court_and_chamber_tables.start()
 
     text_to_database = TextToDatabase(config)
     text_to_database.build_dataset()
