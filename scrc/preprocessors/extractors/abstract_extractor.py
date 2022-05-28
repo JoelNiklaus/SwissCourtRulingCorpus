@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Set, TYPE_CHECKING, Tuple
 import pandas as pd
 from root import ROOT_DIR
-from scrc.enums.court import Court
 
 from scrc.enums.language import Language
 from scrc.utils.log_utils import get_logger
