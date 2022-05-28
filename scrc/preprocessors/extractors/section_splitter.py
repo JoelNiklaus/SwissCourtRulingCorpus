@@ -67,8 +67,10 @@ class SectionSplitter(AbstractExtractor):
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None and len(
             self.decision_ids) > 0 else ""
         return self.select(engine,
-                           f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')} LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id ",
-                           f"decision_id, iso_code as language, html_raw, pdf_raw, html_url, pdf_url, '{spider}' as spider, court_id",
+                           f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')} " \
+                               "LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id " \
+                               "LEFT JOIN court ON court.court_id = chamber.court_id ",
+                           f"decision_id, iso_code as language, html_raw, pdf_raw, html_url, pdf_url, '{spider}' as spider, court_string",
                            where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}",
                            chunksize=self.chunksize)
 
@@ -150,9 +152,10 @@ class SectionSplitter(AbstractExtractor):
 
                     # Add all paragraphs
                     for paragraph in row['sections'][k]:
+                        if len(paragraph.strip()) == 0: continue
                         paragraph_dict = {
                             'section_id': str(section_id), "decision_id": str(row['decision_id']),
-                            'paragraph_text': paragraph,
+                            'paragraph_text': paragraph.strip(),
                             'first_level': None,
                             'second_level': None,
                             'third_level': None

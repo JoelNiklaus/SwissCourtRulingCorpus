@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING, Dict, List, Optional, Set
 from itertools import islice
 import json
 import re
@@ -25,133 +25,68 @@ class NameToGender(AbstractPreprocessor):
         self.names_database = json.loads(Path(self.gender_db_file).read_text())
 
     def read_data_to_match(self, engine: Engine):
-        query_str_lang = [
-            f"SELECT id, parties, '{lang}' as lang FROM {lang} WHERE parties is not null and parties <> 'null'" for lang in self.languages]
-        query_str = ' UNION '.join(query_str_lang)
-        return self.query(engine, query_str)
-
-    def check_party_and_representation_for_names(self, current_party, names: Set) -> Set:
-        if 'party' in current_party:
-            for party in current_party['party']:
-                if 'gender' not in party and party['type'] == 'natural person' and 'name' in party and not re.fullmatch(r'[A-Z]\.\_', party['name']):
-                    names.add(party['name'])
-
-        if 'representation' in current_party:
-            for party in current_party['representation']:
-                if 'gender' not in party and party['type'] == 'natural person' and 'name' in party:
-                    names.add(party['name'])
-        return names
+        table = 'person'
+        columns = 'person_id, name'
+        where = f"gender IS NULL AND is_natural_person AND NOT name LIKE '%._' "
+        return self.select(engine, table, columns, where)
 
     def start(self):
-        self.read_file()
-
         engine = self.get_engine(self.db_scrc)
-        self.data = self.read_data_to_match(engine)
+        dfs = self.read_data_to_match(engine)
+        for data in dfs:
+            self.read_file()
+            self.logger.info(f"Getting the name for the first chunk of {len(data.index)} people")
+            self.data = data
+            self.data['name'] = self.data['name'].apply(self.preprocess_names)
+            
+            self.data['gender'] = self.data['name'].apply(self.get_gender_from_file)
+            
+            names = set()
+            names.update(self.data.loc[self.data['gender'].isna()]['name'])
+            names = names.difference(set(self.names_database['u']))
+            if len(names) > 0:
+                self.get_gender_from_api(names)
 
-        names = set()
-
-        for idx in range(len(self.data)):
-            parties = json.loads(self.data['parties'][idx])
-            first_party = parties['0']
-            second_party = parties['1']
-
-            names = self.check_party_and_representation_for_names(first_party, names)
-            names = self.check_party_and_representation_for_names(second_party, names)
+            self.data['gender'] = self.data['name'].apply(self.get_gender_from_file)
+            
+            self.logger.info(f"Saving the gender for {len(self.data.loc[~self.data['gender'].isna()])} people")
+            self.update(engine, self.data.loc[~self.data['gender'].isna()], 'person', ['gender'], self.output_dir, index_name='person_id')
 
 
-        names = self.filter_names(names)
-        names = set(filter(
-            lambda n: n not in self.names_database['m'] and n not in self.names_database['f'] and n not in self.names_database['u'], names))
-        self.get_gender_from_api(names)
-
-        self.apply_gender_to_data(engine)
-
-    def apply_gender_to_data(self, engine: Engine):
-        self.read_file()
-        for idx in range(len(self.data)):
-            if idx % 10000 == 0:
-                self.logger.info(f"Applying gender to data {idx} - {idx+9999} of {len(self.data)}")
-            parties = json.loads(self.data['parties'][idx])
-            first_party = parties['0']
-            second_party = parties['1']
-            changed = False
-            if 'party' in first_party:
-                for party_idx, party in enumerate(first_party['party']):
-                    if 'gender' not in party and party['type'] == 'natural person' and 'name' in party and not re.fullmatch(r'[A-Z]\.([A-Z]\.)?\_', party['name']):
-                        if party['name'] is not None and party['name'].strip().split()[0] in self.names_database['m']:
-                            first_party['party'][party_idx]['gender'] = 'm'
-                            changed = True
-                        if party['name'] is not None and party['name'].strip().split()[0] in self.names_database['f']:
-                            first_party['party'][party_idx]['gender'] = 'f'
-                            changed = True
-
-            if 'representation' in first_party:
-                for party_idx, party in enumerate(first_party['representation']):
-                    if 'gender' not in party and party['type'] == 'natural person' and 'name' in party:
-                        if party['name'] is not None and party['name'].strip().split()[0] in self.names_database['m']:
-                            first_party['representation'][party_idx]['gender'] = 'm'
-                            changed = True
-                        if party['name'] is not None and party['name'].strip().split()[0] in self.names_database['f']:
-                            first_party['representation'][party_idx]['gender'] = 'f'
-                            changed = True
-
-            if 'party' in second_party:
-                for party_idx, party in enumerate(second_party['party']):
-                    if 'gender' not in party and party['type'] == 'natural person' and 'name' in party and not re.fullmatch(r'[A-Z]\.([A-Z]\.)?\_', party['name']):
-                        if party['name'] is not None and party['name'].strip().split()[0] in self.names_database['m']:
-                            second_party['party'][party_idx]['gender'] = 'm'
-                            changed = True
-                        if party['name'] is not None and party['name'].strip().split()[0] in self.names_database['f']:
-                            second_party['party'][party_idx]['gender'] = 'f'
-                            changed = True
-
-            if 'representation' in second_party:
-                for party_idx, party in enumerate(second_party['representation']):
-                    if 'gender' not in party and party['type'] == 'natural person' and 'name' in party:
-                        if party['name'] is not None and party['name'].strip().split()[0] in self.names_database['m']:
-                            second_party['representation'][party_idx]['gender'] = 'm'
-                            changed = True
-                        if party['name'] is not None and party['name'].strip().split()[0] in self.names_database['f']:
-                            second_party['representation'][party_idx]['gender'] = 'f'
-                            changed = True
-
-            if changed:
-                self.data.loc[idx, 'parties'] = json.dumps({'0': first_party, '1': second_party})
-        for language in self.languages:
-            self.logger.info(f"Saving table {language}")
-            dataframe_language_filtered = self.data[self.data['lang'] == language]
-            chunk_size = 1000
-            list_df = [dataframe_language_filtered[i:i+chunk_size] for i in range(0,dataframe_language_filtered.shape[0],chunk_size)]
-            for index in range(len(list_df)):
-                self.logger.info(f"Saving table {language} index {index * chunk_size} - {(index+1) * chunk_size -1}")
-                self.update(engine, list_df[index], language, ['parties'], self.output_dir)
-
-    def filter_names(self, names: set[str]) -> set:
-        names = [name.strip().split()[0] for name in names if name]
-        return set([name for name in names if not '_' in name and len(name) > 3])
+    def preprocess_names(self, name: str):
+        name_parts = name.strip().replace('.', '').split()
+        if len(name_parts) == 1 or (len(name_parts[0]) > 1 and name_parts[0] != 'dott' and name_parts[0] != 'Dr'):
+            return name_parts[0]
+        return name_parts[1]
+        
+    def get_gender_from_file(self, name: str):
+        if name in self.names_database['m']: return 'm'
+        if name in self.names_database['f']: return 'f'
+        return None
 
     def get_gender_from_api(self, names: Set[str]):
         self.logger.info(f"{len(names)} new names to fetch from the api")
-        responses = [self.get_chunk(name_chunk)
-                     for name_chunk in self.chunked(names, 10)]
-        male = [person['name']
-                for responses_chunk in responses for person in responses_chunk if 'gender' in person and person['gender'] == 'male']
-        female = [person['name']
-                  for responses_chunk in responses for person in responses_chunk if 'gender' in person and person['gender'] == 'female']
-        unknown_with_locale = [person['name']
-                               for responses_chunk in responses for person in responses_chunk if 'gender' in person and person['gender'] is None]+self.names_database['u']
-        responses_without_locale = [self.get_chunk(
-            name_chunk, locale=False) for name_chunk in self.chunked(unknown_with_locale, 10)]
-        male.extend([person['name']
-                    for responses_chunk in responses_without_locale for person in responses_chunk if 'gender' in person and person['gender'] == 'male'])
-        female.extend([person['name']
-                      for responses_chunk in responses_without_locale for person in responses_chunk if 'gender' in person and person['gender'] == 'female'])
-        unknown = [person['name']
-                   for responses_chunk in responses_without_locale for person in responses_chunk if 'gender' in person and person['gender'] is None]
+        
+        def get_by_gender_from_response(responses: List[Dict[str, str]], gender: Optional[str]):
+            return [person['name'] for responses_chunk in responses for person in responses_chunk if 'gender' in person and person['gender'] == gender]
+        
+        # Fetch the gender of names from the api using switzerland as the locale
+        responses = [self.get_chunk(name_chunk) for name_chunk in self.chunked(names, 10)]
+        male = get_by_gender_from_response(responses, 'male')
+        female = get_by_gender_from_response(responses, 'female')
+        unknown_with_locale = get_by_gender_from_response(responses, None)+self.names_database['u']
+        
+        # Fetch the gender of names from the api using switzerland as the locale
+        responses_without_locale = [self.get_chunk(name_chunk, locale=False) for name_chunk in self.chunked(unknown_with_locale, 10)]
+        male.extend(get_by_gender_from_response(responses_without_locale, 'male'))
+        female.extend( get_by_gender_from_response(responses_without_locale, 'female'))
+        unknown = get_by_gender_from_response(responses_without_locale, None)
+        
         male.extend(self.names_database['m'])
         all_male = set(male)
         female.extend(self.names_database['f'])
         all_female = set(female)
+        unknown.extend(self.names_database['u'])
         all_unknown = set(unknown)
         Path(self.gender_db_file).write_text(json.dumps({"m": sorted(
             all_male), "f": sorted(all_female), "u": sorted(all_unknown)}, indent=4))

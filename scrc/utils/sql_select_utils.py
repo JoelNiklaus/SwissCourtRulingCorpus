@@ -10,8 +10,6 @@ from transformers.file_utils import add_code_sample_docstrings
 from scrc.enums.cantons import Canton
 from scrc.enums.chamber import Chamber
 
-from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
-
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
 
@@ -156,10 +154,13 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             stmt = t_fil.delete().where(text(f"file_id in ({file_ids_list})"))
             conn.execute(stmt)
 
-    save_to_db(
-        df[['file_name', 'html_url', 'pdf_url', 'html_raw', 'pdf_raw']], 'file')
+    save_to_db(df[['file_name', 'html_url', 'pdf_url', 'html_raw', 'pdf_raw']], 'file')
 
     df = df.apply(add_ids_to_df_for_decision, 1)
+
+    df = df.replace({np.NaN: None}) # Convert pandas NaT values (Non-Type for Datetime) to None using np as np recognizes these types
+    df['date'] = df['date'].replace(r'^\s*$', None, regex=True)
+    df['date'] = df['date'].astype('datetime64[ns]')
     save_to_db(
         df[['language_id', 'chamber_id', 'file_id', 'date', 'topic']], 'decision')
     df.apply(save_the_file_numbers, 1)

@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Set, TYPE_CHECKING, Tuple
 import pandas as pd
 from root import ROOT_DIR
-from scrc.enums.court import Court
 
 from scrc.enums.language import Language
 from scrc.utils.log_utils import get_logger
@@ -127,8 +126,8 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         namespace['language'] = Language(series['language'])
         namespace['id'] = series['decision_id']
 
-        if 'court_id' in series:
-            namespace['court'] = Court(series['court_id']).name
+        if 'court_string' in series:
+            namespace['court'] = series.get('court_string')
         data = self.get_required_data(series)
         if not data:
             return series

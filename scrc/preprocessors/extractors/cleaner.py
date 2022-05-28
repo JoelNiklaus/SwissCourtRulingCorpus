@@ -15,7 +15,7 @@ from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import clean_text, get_config
-from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, join_decision_on_parameter, where_decisionid_in_list, where_string_spider
+from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, join_decision_on_parameter, join_tables_on_decision, where_decisionid_in_list, where_string_spider
 
 
 class Cleaner(AbstractExtractor):
@@ -42,7 +42,7 @@ class Cleaner(AbstractExtractor):
                          col_name='text', 
                          col_type='text')
         self.cleaning_regexes = self.load_cleaning_regexes(config['files']['cleaning_regexes'])
-        self.processed_file_path = self.data_dir / "spiders_cleaned.txt"
+        self.processed_file_path = self.progress_dir / "spiders_cleaned.txt"
 
         self.logger_info = {
             'start': 'Started cleaning decisions',
@@ -76,7 +76,11 @@ class Cleaner(AbstractExtractor):
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
-        return self.select(engine, f"file {join_decision_on_parameter('file_id', 'file.file_id')}", 'decision_id,file_id,html_raw,pdf_raw', where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
+        
+        tables = f"file {join_decision_on_parameter('file_id', 'file.file_id')} LEFT JOIN section ON section.decision_id = decision.decision_id"
+        columns = f"decision.decision_id,file.file_id,file_name,html_raw,pdf_raw,'{spider}' as spider, section_id"
+        where_string = f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}"
+        return self.select(engine, tables, columns, where=where_string, chunksize=self.chunksize)
 
     def get_required_data(self, series: pd.DataFrame) -> Any:
         return series['spider']
@@ -88,16 +92,17 @@ class Cleaner(AbstractExtractor):
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
         df['section_type_id'] = 1 # Set the Section type to full text
-        self.update(engine, df, 'section', ['decision_id', 'section_type_id', 'section_text'], self.output_dir)
+        self.update(engine, df, 'section', ['section_text'], self.output_dir, index_name='section_id')
 
     def process_one_spider(self, engine, spider):
         """Cleans one spider csv file"""
         self.logger.info(f"Started cleaning {spider}")
 
-        self.start_progress(engine, spider, engine)
+        #self.start_progress(engine, spider, engine)
         dfs = self.select_df(engine, spider)  # stream dfs from the db
         for df in dfs:
             # according to docs you should aim for a partition size of 100MB
+            df['section_text'] = ''
             ddf = dd.from_pandas(df, npartitions=self.num_cpus)
             # apply cleaning function to each row
             ddf = ddf.apply(self.process_one_df_row, axis='columns', meta=ddf)
@@ -112,8 +117,7 @@ class Cleaner(AbstractExtractor):
         """Cleans one row of a raw df"""
         self.logger.debug(
             f"{self.logger_info['processing_one']} {series['file_name']}")
-        namespace = series[
-            ['file_id', 'pdf_url', 'html_url']].to_dict()
+        namespace = series.reindex(['file_id', 'pdf_url', 'html_url']).to_dict()
         spider = self.get_required_data(series)
 
         html_clean, pdf_clean = '', ''
@@ -130,13 +134,13 @@ class Cleaner(AbstractExtractor):
             pdf_clean = self.clean_pdf(spider, pdf_raw, namespace)
 
         # Combine columns into one easy to use text column (prioritize html content if both exist)
-        series['text'] = np.where(html_clean != '', html_clean, pdf_clean)
-        if series['text'] == '':
+        series['section_text'] = np.where(html_clean != '', html_clean, pdf_clean)
+        if series['section_text'] == '':
             # series['text'] = np.nan  # set to nan, so that it can be removed afterwards
             self.logger.warning(f"No raw text available for court decision {series['file_id']}")
 
         # otherwise we get an error when we want to save it into the db
-        series.text = str(series.text)
+        series.section_text = str(series.section_text)
 
         return series
 

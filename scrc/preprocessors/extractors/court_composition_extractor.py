@@ -5,6 +5,7 @@ import pandas as pd
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.schema import MetaData, Table
+from scrc.data_classes.court_composition import CourtComposition
 
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.enums.section import Section
@@ -61,55 +62,56 @@ class CourtCompositionExtractor(AbstractExtractor):
         with engine.connect() as conn:
             t_person = Table('person', MetaData(), autoload_with=conn)
             t_jud_person = Table('judicial_person', MetaData(), autoload_with=conn)
-            for idx, row in df.iterrows():
-                # Delete person
-                # Delete and reinsert as no upsert command is available
-                stmt = t_jud_person.delete().where(delete_stmt_decisions_with_df(df))
-                conn.execute(stmt)
-
-                court_composition = row['court_composition']
-                president = court_composition['president']
-
-                # create president person
-                president_dict = {"name": president['name'].strip(),
-                                  "is_natural_person": True,
-                                  "gender": president['gender']}
-                stmt = t_person.insert().returning(text("person_id")).values(
-                    [president_dict])
-                person_id = conn.execute(stmt).fetchone()['person_id']
-                person_dict = {"decision_id": str(row['decision_id']), "person_id": person_id,
-                               "judicial_person_type_id": 1, "isPresident": True}
-                stmt = t_jud_person.insert.values([person_dict])
-                conn.execute(stmt)
+            
+            # Delete and reinsert as no upsert command is available
+            stmt = t_jud_person.delete().where(delete_stmt_decisions_with_df(df))
+            conn.execute(stmt)
+            
+            for _, row in df.iterrows():
+                if not 'court_composition' in row or row['court_composition'] is None:
+                    continue
+                court_composition: CourtComposition = row['court_composition']
+                president = court_composition.president
+                if president:
+                    # create president person
+                    president_dict = {"name": president.name.strip(),
+                                    "is_natural_person": True,
+                                    "gender": president.gender.value[0] if president.gender else None}
+                    stmt = t_person.insert().returning(text("person_id")).values([president_dict])
+                    person_id = conn.execute(stmt).fetchone()['person_id']
+                    person_dict = {"decision_id": str(row['decision_id']), "person_id": person_id,
+                                "judicial_person_type_id": 1, "is_president": True}
+                    stmt = t_jud_person.insert().values([person_dict])
+                    conn.execute(stmt)
 
                 # create all judges
-                for judge in court_composition.get('judges'):
-                    if judge == president:
+                for judge in court_composition.judges:
+                    if judge == president: # President is already created above
                         continue
-                    judge_dict = {"name": judge['name'].strip(), "is_natural_person": True, "gender": judge['gender']}
+                    judge_dict = {"name": judge.name.strip(), "is_natural_person": True, "gender": judge.gender.value[0] if judge.gender else None}
                     stmt = t_person.insert().returning(text("person_id")).values([judge_dict])
                     person_id = conn.execute(stmt).fetchone()['person_id']
                     person_dict = {"decision_id": str(row['decision_id']),
                                    "person_id": person_id, "judicial_person_type_id": 1,
-                                   "isPresident": False}
+                                   "is_president": False}
                     stmt = t_jud_person.insert().values([person_dict])
                     conn.execute(stmt)
 
                 # create all clerks
-                for clerk in court_composition.get('clerks'):
-                    clerk_dict = {"name": clerk['name'].strip(), "is_natural_person": True, "gender": clerk['gender']}
+                for clerk in court_composition.clerks:
+                    clerk_dict = {"name": clerk.name.strip(), "is_natural_person": True, "gender": clerk.gender.value[0] if clerk.gender else None}
                     stmt = t_person.insert().returning(text("person_id")).values([clerk_dict])
                     person_id = conn.execute(stmt).fetchone()['person_id']
                     person_dict = {"decision_id": str(row['decision_id']),
                                    "person_id": person_id, "judicial_person_type_id": 2,
-                                   "isPresident": False}
+                                   "is_president": False}
                     stmt = t_jud_person.insert().values([person_dict])
                     conn.execute(stmt)
 
-            where = f"NOT EXISTS (SELECT FROM judicial_person jp WHERE jp.person_id = person.person_id " \
-                    f"UNION SELECT FROM party WHERE party.person_id = person.person_id)"
+            where = f"NOT EXISTS (SELECT 1 FROM judicial_person jp WHERE jp.person_id = person.person_id " \
+                    f"UNION SELECT 1 FROM party WHERE party.person_id = person.person_id)"
             stmt = t_person.delete().where(text(where))
-            conn.execute(stmt)
+            #conn.execute(stmt)
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing. 
