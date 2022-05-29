@@ -110,7 +110,7 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
             where += f" AND ({' OR '.join(searches)})"
             where += f" LIMIT {chunksize}"
             self.logger.info(f'Getting values for {lang}')
-            sql_result = self.select(engine, table, columns, where, chunksize=chunksize)
+            sql_result = self.select(engine, table, columns, where, chunksize=chunksize, log_query=True)
             df = df.append(next(sql_result))
 
         save_df_to_cache(df, cache_file)
