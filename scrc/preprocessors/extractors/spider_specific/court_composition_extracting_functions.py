@@ -20,10 +20,86 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 
 
 def XX_SPIDER(sections: Dict[Section, str], namespace: dict) -> CourtComposition:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    """
+    Extract the court composition from decisions of the Baurekursgericht of Zurich
+    :param header:      the dict containing the sections per section key
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the court composition
+    """
+    # Seems to work for: CH_BVGer, mostly TI_Gerichte
+    # Does not seem to work for: GE_Gerichte
 
-    # header = sections[Section.HEADER] to get a specific section
-    pass
+    header = sections[Section.HEADER]
+    language = namespace['language']
+
+
+    role_regexes = {
+        Language.DE:{
+            Gender.MALE: {
+                CourtRole.JUDGE: [r'Richter(?!in)', r'Einzelrichter(?!in)', r'Schiedsrichter(?!in)'],
+                CourtRole.CLERK: [r'Gerichtsschreiber(?!in)']
+            },
+            Gender.FEMALE: {
+                CourtRole.JUDGE: [r'Richterin(nen)?', r'Einzelrichterin(nen)?', r'Schiedsrichterin(nen)?'],
+                CourtRole.CLERK: [r'Gerichtsschreiberin(nen)?']
+            }
+        },
+        Language.FR: {
+            Gender.MALE: {
+                CourtRole.JUDGE: [r'MM?\.(( et|,) Mmes?)? les? Juges?'],
+                CourtRole.CLERK: [r'Greffier[^\w\s]*']
+            },
+            Gender.FEMALE: {
+                CourtRole.JUDGE: [r'Mmes? l(a|es) Juges?', r'MMe et MM?\. les? Juges?'],
+                CourtRole.CLERK: [r'Greffière.*Mme']
+            }
+        },
+        Language.IT: {
+            Gender.MALE: {
+                CourtRole.JUDGE: [r'[Gg]iudici'],
+                CourtRole.CLERK: [r'[Cc]ancelliere']
+            },
+            Gender.FEMALE: {
+                CourtRole.JUDGE: [r'[Gg]iudice federal'],
+                CourtRole.CLERK: [r'[Cc]ancelliera']
+            }
+        }
+    }
+
+    header = header.replace('U R T E I L', 'Urteil')
+    header = header.replace('U R TE I L', 'Urteil')
+    header = header.replace('URTEIL', 'Urteil')
+    header = header.replace('Z W I S C H E N E N T S C H E I D', 'Zwischenentscheid')
+
+    information_start_regex = r'Besetzung|Bundesrichter|Composition( de la Cour:)?|Composizione|Giudic[ie] federal|composta'
+
+    start_pos = re.search(information_start_regex, header)
+    if start_pos:
+        # split off the first word
+        header = header[start_pos.span()[1]:]
+    end_pos = {
+        Language.DE: 
+            re.search(r'.(?=(1.)?(Partei)|(Verfahrensbeteiligt))', header) 
+            or re.search('Urteil vom',header)
+            or re.search(r'[Ii]n Sachen|Gegenstand', header) 
+            or re.search(r'\w{2,}\.', header),
+        Language.FR: 
+            re.search(r'.(?=(Parties|Participant))', header) 
+            or re.search(r'Greffi[eè]re? M(\w)*\.\s\w*.', header),
+        Language.IT: 
+            re.search(r'.(?=(Parti)|(Partecipant))', header) 
+            or re.search(r'[Cc]ancellier[ae]:?\s?\w*.', header) or re.search(r'\w{2,}\.', header),
+    }
+    end_pos = end_pos[language]
+    if end_pos:
+        header = header[:end_pos.span()[1]-1]
+
+    composition = CourtComposition()
+    composition = find_composition(header, role_regexes[language], namespace)
+    if not composition: return None
+    if len(composition.clerks)>5 or len(composition.judges) > 5:
+        raise ValueError(f'Looks like the compostion of {namespace["id"]} was not correctly recognized and fulltext was included')
+    return composition if composition else None
 
 
 # check if court got assigned shortcut: SELECT count(*) from de WHERE lower_court is not null and lower_court <> 'null' and lower_court::json#>>'{court}'~'[A-Z0-9_]{2,}';
@@ -467,6 +543,8 @@ def get_composition_strings(header: str) -> list:
     header = re.sub(r'\bdie\b', '', header)
     # und & sowie separte different people
     header = header.replace(' und', ', ')
+    header = header.replace(' et ', ', ')
+    header = header.replace(' e ', ', ')
     header = header.replace(' sowie', ', ')
     # academic degrees presumably aren't relevant for this task
     header = header.replace('lic.', '')
@@ -487,6 +565,13 @@ def get_composition_strings(header: str) -> list:
     # neither is this relevant
     header = header.replace(' als Einzelrichterin', '')
     header = header.replace(' als Einzelrichter', '')
+    header = header.replace(';', ',')
+    header = header.replace('Th', '')
+    header = header.replace('MMe', 'Mme')
+    header = re.sub(r'(?<!M)(?<!Mme)(?<!MM)(?<!\s\w)\.', ', ', header)
+    header = re.sub(r'MM?\., Mme', 'M. et Mme', header)
+    header = re.sub(r'Mmes?, MM?\.', 'MMe et M', header)
+    header = header.replace('federali, ', 'federali')
     # uncomment to debug
     # print(header)
     return header.split(',')
@@ -500,7 +585,7 @@ def get_skip_strings() -> dict:
         Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger',
                       'Berufungskläger'],
         Language.FR: ['Juge suppléant', 'en qualité de juge unique'],
-        Language.IT: ['Giudice supplente', 'supplente']
+        Language.IT: ['Giudice supplente', 'supplente', 'statuendo']
     }
 
 
@@ -576,13 +661,14 @@ def find_composition(header: str, role_regexes: dict, namespace: dict) -> CourtC
             text = text[:-1]
         if len(text) == 0 or text in skip_strings[namespace['language']]:
             continue
-        if (re.search(r'Vorsitz', text) or re.search(r'(?<![Vv]ize)[Pp]räsident', text)):
+        if (re.search(r'Vorsitz', text) or re.search(r'(?<![Vv]ice-)[Pp]r[äée]sid', text)):
             # Set president either to the current person or the last Person (case 1: Präsident Niklaus, case 2: Niklaus, Präsident)
             if last_person:
                 composition.president = last_person
+                print('Set president to'+composition.president.name)
                 continue
             else:
-                pos = re.search(r'(?<![Vv]ize)[Pp]räsident(in)?', text)
+                pos = re.search(r'(?<![Vv]ice-)[Pp]r[äée]sid', text)
                 if pos == None:
                     pos = re.search(r'Vorsitz[\w]*', text)
                 # assign gender depending on the noun ending

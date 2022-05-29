@@ -366,17 +366,17 @@ legal_areas = {
     "penal_law": [Chamber.CH_BGer_006, Chamber.CH_BGer_013],
     "social_law": [Chamber.CH_BGer_008, Chamber.CH_BGer_009],
     "insurance_law": [Chamber.CH_BGer_016],
-    "other": [Chamber.CH_BGer_010, Chamber.CH_BGer_012, Chamber.CH_BGer_014, Chamber.CH_BGer_015, Chamber.CH_BGer_999],
+    "other": [Chamber.CH_BGer_010, Chamber.CH_BGer_012, Chamber.CH_BGer_014, Chamber.CH_BGer_015, Chamber.CH_BGer_999, Chamber.CH_BGer_011],
 }
 
 
 def get_legal_area(chamber: int):
     if chamber is None:
         return None
-    if not chamber >= 90 and chamber <= 103:
-        raise ValueError(
-            "So far this method is only implemented for the Federal Supreme Court")
+    if not (chamber >= 90 and chamber <= 103) and not chamber == 405:
+        raise ValueError("So far this method is only implemented for the Federal Supreme Court")
 
+    chamber: Chamber = Chamber(chamber)
     for legal_area, chambers in legal_areas.items():
         if chamber in chambers:
             return legal_area

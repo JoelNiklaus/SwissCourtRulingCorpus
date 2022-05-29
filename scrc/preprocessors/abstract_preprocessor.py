@@ -80,6 +80,9 @@ class AbstractPreprocessor:
             ROOT_DIR, config['dir']['spider_specific_dir'])
         self.output_dir = self.create_dir(
             self.data_dir, config['dir']['output_subdir'])
+        
+        self.legal_info_dir = self.create_dir(
+            ROOT_DIR, config['dir']['legal_info_dir'])
 
         self.ip = config['postgres']['ip']
         self.port = config['postgres']['port']

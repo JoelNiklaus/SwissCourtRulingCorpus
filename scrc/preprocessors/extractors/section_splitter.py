@@ -66,6 +66,7 @@ class SectionSplitter(AbstractExtractor):
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None and len(
             self.decision_ids) > 0 else ""
+        
         return self.select(engine,
                            f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')} " \
                                "LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id " \
@@ -81,7 +82,7 @@ class SectionSplitter(AbstractExtractor):
         spacy_tokenizer, bert_tokenizer = self.tokenizers.get(Language(df['language'][0]))
 
         for _, row in df.iterrows():
-            if not row['sections']:
+            if not row['sections'] or not isinstance(row['sections'], str):
                 return {}  # if there was no data, don't do anything
             if len(row['sections']) > 0:
                 # The fulltext equals all other sections combined
@@ -109,6 +110,10 @@ class SectionSplitter(AbstractExtractor):
                 df.to_json(f)
             return
 
+        df = df.loc[df['language'] != '--']
+        if df.empty:
+            return
+        
         df = self.run_tokenizer(df)
 
         with self.get_engine(self.db_scrc).connect() as conn:
@@ -118,6 +123,9 @@ class SectionSplitter(AbstractExtractor):
             t_num_tokens = Table('num_tokens', MetaData(), autoload_with=engine)
 
             # Delete and reinsert as no upsert command is available. This pattern is used multiple times in this method
+            if not isinstance(df, pd.DataFrame) or df.empty:
+                # empty dfs are given as dicts, so no need to save
+                return
             stmt = t.delete().where(delete_stmt_decisions_with_df(df))
             conn.execute(stmt)
             stmt = t_paragraph.delete().where(delete_stmt_decisions_with_df(df))
@@ -130,10 +138,13 @@ class SectionSplitter(AbstractExtractor):
                     continue
                 
                 for k in row['sections'].keys():
+                    decision_id_str = str(row['decision_id'])
+                    if decision_id_str == '':
+                        continue
                     section_type_id = k.value
                     # insert section
                     section_dict = {
-                        "decision_id": str(row['decision_id']),
+                        "decision_id": decision_id_str,
                         "section_type_id": section_type_id,
                         "section_text": row['sections'][k]
                     }
@@ -151,16 +162,21 @@ class SectionSplitter(AbstractExtractor):
                     conn.execute(stmt)
 
                     # Add all paragraphs
+                    paragraph_dicts = []
                     for paragraph in row['sections'][k]:
-                        if len(paragraph.strip()) == 0: continue
+                        paragraph = paragraph.strip()
+                        if len(paragraph) == 0: continue
                         paragraph_dict = {
-                            'section_id': str(section_id), "decision_id": str(row['decision_id']),
-                            'paragraph_text': paragraph.strip(),
+                            'section_id': str(section_id), 
+                            "decision_id": decision_id_str,
+                            'paragraph_text': paragraph,
                             'first_level': None,
                             'second_level': None,
                             'third_level': None
                         }
-                        stmt = t_paragraph.insert().values([paragraph_dict])
+                        paragraph_dicts.append(paragraph_dict)
+                    if len(paragraph_dicts) > 0:
+                        stmt = t_paragraph.insert().values(paragraph_dicts)
                         conn.execute(stmt)
 
     def read_column(self, engine: Engine, spider: str, name: str, lang: str) -> pd.DataFrame:

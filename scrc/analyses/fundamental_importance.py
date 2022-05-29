@@ -1,3 +1,4 @@
+import ast
 import plotly.express as px
 from scrc.utils.main_utils import get_config, retrieve_from_cache_if_exists, save_df_to_cache, \
     string_contains_one_of_list
@@ -11,7 +12,7 @@ import json
 import nltk
 from nltk import sent_tokenize, word_tokenize
 
-from scrc.utils.sql_select_utils import get_legal_area
+from scrc.utils.sql_select_utils import get_legal_area, join_decision_and_language_on_parameter, map_join, where_string_spider
 
 nltk.download('punkt')
 
@@ -27,7 +28,7 @@ Two large difficulties with this analysis:
 
 class FundamentalImportanceAnalysis(AbstractPreprocessor):
 
-    def __init__(self, config: dict, negation_detection_type="xlmr"):
+    def __init__(self, config: dict, negation_detection_type="simple"):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
@@ -86,20 +87,28 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
 
         # otherwise query it from the database
         df = pd.DataFrame()
-        for lang in ["de", "fr", "it"]:
-            # strpos is faster than LIKE, which is faster than ~ (regex search)
-            where = f"spider = 'CH_BGer' AND "
+        paragraph_join =  map_join('paragraph_id', 'paragraphs', 'paragraph', {
+            'table_name': 'section', 'field_name': 'paragraph_text, section_type_id, paragraph.section_id',
+            'join_field': 'section_id'}, 'decision_id', 'decision')
+        table = f'section {join_decision_and_language_on_parameter("decision_id", "section.decision_id")} {paragraph_join}'
+        columns = 'decision.decision_id, decision.chamber_id as chamber, decision.date as date, section_text as text, language.iso_code as language, paragraphs'
+        
+        for lang in ['de', 'fr', 'it']:
+            where = f"section.decision_id IN {where_string_spider('decision_id', 'CH_BGer')} AND section_type_id = 1 AND language.iso_code = '{lang}' AND "
+            
             if type == "search_strings":
                 search_strings = self.fundamental_importance_search_strings[lang]
             elif type == "articles":
                 search_strings = self.articles[lang]
             else:
                 raise ValueError("type should be either search_strings or articles")
-            searches = [f"strpos(text, '{s}')>0" for s in search_strings]
+            searches = [f"strpos(section_text, '{s}')>0" for s in search_strings]
             where += f"({' OR '.join(searches)})"
-            columns = "language, chamber, date, html_url, paragraphs, text"
-            df = df.append(next(self.select(engine, lang, columns=columns, where=where, chunksize=20000)))
-
+            where += f"LIMIT 20000"
+            self.logger.info(f'Getting values for {lang}')
+            sql_result = self.select(engine,table, columns, where, chunksize=20000)
+            df = df.append(next(sql_result))
+        
         save_df_to_cache(df, cache_file)
         return df
 
@@ -158,7 +167,7 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
         df.to_csv(self.analysis_dir / "fundamental_importance_result.csv")
 
         # Sample decisions to check the validity of the process
-        df = df[["language", "negated", "legal_area", "html_url"]]
+        df = df[["language", "negated", "legal_area"]]
 
         sample = df.groupby(["language", "negated"]).sample(n=3, random_state=42)
         sample.to_csv(self.analysis_dir / "samples.csv")
@@ -190,7 +199,7 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
 
     def contains_negation_fundamental_importance(self, df):
         # TODO bessere negation detection einbauen: https://spacy.io/universe/project/negspacy, https://drive.google.com/drive/folders/1md-_WBrg9x2Kp4g6jNExLJrEt5HBGL23
-        all_negations = json.load((ROOT_DIR / 'legal_info' / 'negations.json').read_text())
+        all_negations = json.loads((ROOT_DIR / 'legal_info' / 'negations.json').read_text())
         lang = df.language
         negations = all_negations[lang]["words"]
         if self.negation_detection_type == 'simple':
@@ -211,10 +220,12 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
 
     def filter_by_fundamental_importance(self, df):
         search_strings = self.fundamental_importance_search_strings[df.language]
-        df['fundamental_importance_sentences'] = [sentence for sentence in df.sentences if
-                                                  search_strings in sentence]
-        df['fundamental_importance_paragraphs'] = [paragraph['text'] for paragraph in df.paragraphs if
-                                                   search_strings in paragraph['text']]
+        if 'sentences' in df:
+            df['fundamental_importance_sentences'] = [sentence for sentence in df.sentences if
+                                                  any(item in sentence for item in search_strings)]
+        df['paragraphs'] = self.convert_json_col(df['paragraphs'])
+        df['fundamental_importance_paragraphs'] = [paragraph['paragraph_text'] for paragraph in df['paragraphs'] if 
+                                                   any(item in paragraph['paragraph_text'] for item in search_strings)]
         return df
 
     def sentencize(self, df):
@@ -235,6 +246,10 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
             raise ValueError(f"The language {language} is not supported.")
         return tokenization_func(text, language=langs[language])
 
+    def convert_json_col(self, json_string):
+        if not isinstance(json_string, str):
+            return json_string
+        return ast.literal_eval(json_string)
 
 if __name__ == '__main__':
     config = get_config()

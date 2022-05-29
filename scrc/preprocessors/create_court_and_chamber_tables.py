@@ -1,11 +1,14 @@
 import json
 import pandas as pd
+import requests
 from sqlalchemy import MetaData, Table
+import urllib3
+from legal_info.extend_court_chambers import ExtendCourtChambers
 from root import ROOT_DIR
 
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
-from scrc.utils.main_utils import get_config
+from scrc.utils.main_utils import get_config, save_to_path
 
 class CreateCourtAndChamberTables(AbstractPreprocessor):
     def __init__(self, config: dict):
@@ -15,6 +18,8 @@ class CreateCourtAndChamberTables(AbstractPreprocessor):
 
     def start(self):
         self.logger.info('Checking for new courts and chambers')
+        self.download_new_version_of_file()
+        ExtendCourtChambers().extend()
         courts_chambers_file = json.loads((ROOT_DIR / "legal_info/court_chambers.json").read_text())
         
         self.existing_cantons = self.get_cantons()
@@ -26,6 +31,17 @@ class CreateCourtAndChamberTables(AbstractPreprocessor):
         self.existing_chambers = self.get_existing_chambers() # Get current chambers
         self.spiders = self.get_spiders() # Get the spiders
         self.add_chambers(courts_chambers_file) # Add chambers not present yet
+    
+    def download_new_version_of_file(self):
+        url = 'https://entscheidsuche.ch/docs/Facetten_alle.json'
+        try:
+            r = requests.get(url)  # make request to download file
+            # save to the last two parts of the url (folder and filename)
+            # do this to prevent special characters (such as ö) of causing problems down the line
+            filename = 'court_chambers.json'
+            save_to_path(r.json(), self.legal_info_dir / filename, overwrite=True)
+        except Exception as e:
+            self.logger.error(f"Caught an exception while processing {str(url)}\n{e}")
     
     def get_cantons(self)-> pd.DataFrame:
         return list(self.select(self.get_engine(self.db_scrc), 'canton'))[0]
@@ -68,6 +84,8 @@ class CreateCourtAndChamberTables(AbstractPreprocessor):
                             stmt = t_chamber.insert().values([chamber_dict])
                             conn.execute(stmt)
                             self.logger.info(f"Added new chamber {chamber}")
+                            
+                            
     
 if __name__ == '__main__':
     config = get_config()

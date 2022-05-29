@@ -108,8 +108,8 @@ class CourtCompositionExtractor(AbstractExtractor):
                     stmt = t_jud_person.insert().values([person_dict])
                     conn.execute(stmt)
 
-            where = f"NOT EXISTS (SELECT 1 FROM judicial_person jp WHERE jp.person_id = person.person_id " \
-                    f"UNION SELECT 1 FROM party WHERE party.person_id = person.person_id)"
+            where = f"WHERE NOT EXISTS (SELECT 1 FROM judicial_person b WHERE a.person_id = b.person_id) " \
+                    f"AND NOT EXISTS (SELECT 1 FROM party c WHERE a.person_id = c.person_id)"
             stmt = t_person.delete().where(text(where))
             #conn.execute(stmt)
 
