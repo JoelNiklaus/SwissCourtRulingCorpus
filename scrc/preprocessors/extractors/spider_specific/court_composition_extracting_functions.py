@@ -26,6 +26,8 @@ def XX_SPIDER(sections: Dict[Section, str], namespace: dict) -> CourtComposition
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the court composition
     """
+    # Seems to work for: CH_BVGer, mostly TI_Gerichte
+    # Does not seem to work for: GE_Gerichte
 
     header = sections[Section.HEADER]
     language = namespace['language']
@@ -541,6 +543,8 @@ def get_composition_strings(header: str) -> list:
     header = re.sub(r'\bdie\b', '', header)
     # und & sowie separte different people
     header = header.replace(' und', ', ')
+    header = header.replace(' et ', ', ')
+    header = header.replace(' e ', ', ')
     header = header.replace(' sowie', ', ')
     # academic degrees presumably aren't relevant for this task
     header = header.replace('lic.', '')
@@ -561,6 +565,13 @@ def get_composition_strings(header: str) -> list:
     # neither is this relevant
     header = header.replace(' als Einzelrichterin', '')
     header = header.replace(' als Einzelrichter', '')
+    header = header.replace(';', ',')
+    header = header.replace('Th', '')
+    header = header.replace('MMe', 'Mme')
+    header = re.sub(r'(?<!M)(?<!Mme)(?<!MM)(?<!\s\w)\.', ', ', header)
+    header = re.sub(r'MM?\., Mme', 'M. et Mme', header)
+    header = re.sub(r'Mmes?, MM?\.', 'MMe et M', header)
+    header = header.replace('federali, ', 'federali')
     # uncomment to debug
     # print(header)
     return header.split(',')
@@ -574,7 +585,7 @@ def get_skip_strings() -> dict:
         Language.DE: ['Einzelrichter', 'Konkurskammer', 'Beschwerdeführerin', 'Beschwerdeführer', 'Kläger',
                       'Berufungskläger'],
         Language.FR: ['Juge suppléant', 'en qualité de juge unique'],
-        Language.IT: ['Giudice supplente', 'supplente']
+        Language.IT: ['Giudice supplente', 'supplente', 'statuendo']
     }
 
 
@@ -650,13 +661,14 @@ def find_composition(header: str, role_regexes: dict, namespace: dict) -> CourtC
             text = text[:-1]
         if len(text) == 0 or text in skip_strings[namespace['language']]:
             continue
-        if (re.search(r'Vorsitz', text) or re.search(r'(?<![Vv]ize)[Pp]räsident', text)):
+        if (re.search(r'Vorsitz', text) or re.search(r'(?<![Vv]ice-)[Pp]r[äée]sid', text)):
             # Set president either to the current person or the last Person (case 1: Präsident Niklaus, case 2: Niklaus, Präsident)
             if last_person:
                 composition.president = last_person
+                print('Set president to'+composition.president.name)
                 continue
             else:
-                pos = re.search(r'(?<![Vv]ize)[Pp]räsident(in)?', text)
+                pos = re.search(r'(?<![Vv]ice-)[Pp]r[äée]sid', text)
                 if pos == None:
                     pos = re.search(r'Vorsitz[\w]*', text)
                 # assign gender depending on the noun ending
