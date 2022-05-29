@@ -12,7 +12,8 @@ import json
 import nltk
 from nltk import sent_tokenize, word_tokenize
 
-from scrc.utils.sql_select_utils import get_legal_area, join_decision_and_language_on_parameter, map_join, where_string_spider
+from scrc.utils.sql_select_utils import get_legal_area, join_decision_and_language_on_parameter, map_join, \
+    where_string_spider
 
 nltk.download('punkt')
 
@@ -87,28 +88,31 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
 
         # otherwise query it from the database
         df = pd.DataFrame()
-        paragraph_join =  map_join('paragraph_id', 'paragraphs', 'paragraph', {
+        paragraph_join = map_join('paragraph_id', 'paragraphs', 'paragraph', {
             'table_name': 'section', 'field_name': 'paragraph_text, section_type_id, paragraph.section_id',
             'join_field': 'section_id'}, 'decision_id', 'decision')
         table = f'section {join_decision_and_language_on_parameter("decision_id", "section.decision_id")} {paragraph_join}'
-        columns = 'decision.decision_id, decision.chamber_id as chamber, decision.date as date, section_text as text, language.iso_code as language, paragraphs'
-        
+        columns = 'decision.decision_id, decision.chamber_id as chamber, decision.date as date, ' \
+                  'section_text as text, language.iso_code as language, paragraphs'
+
         for lang in ['de', 'fr', 'it']:
-            where = f"section.decision_id IN {where_string_spider('decision_id', 'CH_BGer')} AND section_type_id = 1 AND language.iso_code = '{lang}' AND "
-            
+            where = f"section.decision_id IN {where_string_spider('decision_id', 'CH_BGer')} " \
+                    f"AND section_type_id = 1 AND language.iso_code = '{lang}'"
+
             if type == "search_strings":
                 search_strings = self.fundamental_importance_search_strings[lang]
             elif type == "articles":
                 search_strings = self.articles[lang]
             else:
                 raise ValueError("type should be either search_strings or articles")
+            chunksize = 20_000
             searches = [f"strpos(section_text, '{s}')>0" for s in search_strings]
-            where += f"({' OR '.join(searches)})"
-            where += f"LIMIT 20000"
+            where += f" AND ({' OR '.join(searches)})"
+            where += f" LIMIT {chunksize}"
             self.logger.info(f'Getting values for {lang}')
-            sql_result = self.select(engine,table, columns, where, chunksize=20000)
+            sql_result = self.select(engine, table, columns, where, chunksize=chunksize)
             df = df.append(next(sql_result))
-        
+
         save_df_to_cache(df, cache_file)
         return df
 
@@ -222,9 +226,9 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
         search_strings = self.fundamental_importance_search_strings[df.language]
         if 'sentences' in df:
             df['fundamental_importance_sentences'] = [sentence for sentence in df.sentences if
-                                                  any(item in sentence for item in search_strings)]
+                                                      any(item in sentence for item in search_strings)]
         df['paragraphs'] = self.convert_json_col(df['paragraphs'])
-        df['fundamental_importance_paragraphs'] = [paragraph['paragraph_text'] for paragraph in df['paragraphs'] if 
+        df['fundamental_importance_paragraphs'] = [paragraph['paragraph_text'] for paragraph in df['paragraphs'] if
                                                    any(item in paragraph['paragraph_text'] for item in search_strings)]
         return df
 
@@ -250,6 +254,7 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
         if not isinstance(json_string, str):
             return json_string
         return ast.literal_eval(json_string)
+
 
 if __name__ == '__main__':
     config = get_config()
