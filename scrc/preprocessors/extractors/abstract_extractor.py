@@ -89,7 +89,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
             try:
-                # if there is no special funciton for the spider the default gets used
+                # if there is no special function for the spider the default gets used
                 if not hasattr(self.processing_functions, spider):
                     self.logger.debug(f"Using default function for {spider}")
                 self.process_one_spider(engine, spider)
