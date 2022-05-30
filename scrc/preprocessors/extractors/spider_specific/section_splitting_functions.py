@@ -9,7 +9,8 @@ from scrc.enums.language import Language
 from scrc.enums.section import Section
 from scrc.utils.main_utils import clean_text
 from scrc.utils.log_utils import get_logger
-from scrc.preprocessors.extractors.spider_specific.paragraph_extractions import *
+from scrc.utils.main_utils import get_paragraphs_unified
+
 
 """
 This file is used to extract sections from decisions sorted by spiders.
@@ -27,8 +28,8 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
-    # This is how a "standard" section splitting function looks like. 
-    # First specify the markers where to split, then prepare them by joining and normalizing them. 
+    # This is how a "standard" section splitting function looks like.
+    # First specify the markers where to split, then prepare them by joining and normalizing them.
     # Then get the paragraphs and loop through them with the markers using the associate_sections function.
     """ all_section_markers = {
         Language.DE: {
@@ -68,6 +69,24 @@ def CH_BGE(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional
     divs = decision.find_all(
         "div", class_="content")
     paragraphs = get_paragraphs(divs)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def GE_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.FR: {
+            Section.FACTS: [r'EN FAIT', r'en fait'],
+            Section.CONSIDERATIONS: [r'EN DROIT', 'en droit'],
+            Section.RULINGS: [r'PAR CES MOTIFS', r'LA CHAMBRE ADMINISTRATIVE'],
+            Section.FOOTER: [r'La [g,G]reffière', r'la [G,g]reffière', r'Siégeant', r'Voie de recours', r'Le recours doit être', r'Le [G,g]reffier', r'Le [P,p]résident']
+        }
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
 
     return associate_sections(paragraphs, section_markers, namespace)
 
@@ -333,7 +352,7 @@ def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
 
 
 def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
-    Dict[Section, List[str]]]:
+        Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
@@ -639,6 +658,8 @@ def CH_BSTG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     return associate_sections(paragraphs, section_markers, namespace)
 
 
+
+
 def get_paragraphs(divs):
     # """
     # Get Paragraphs in the decision
@@ -712,7 +733,7 @@ def prepare_section_markers(all_section_markers, namespace: dict) -> Dict[Sectio
     section_markers = dict(
         map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
     for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
+        section_markers[section] = unicodedata.normalize('NFKD', regexes)
     return section_markers
 
 
@@ -735,7 +756,7 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict,
         paragraphs_by_section[current_section].append(paragraph)
 
     if current_section != Section.FOOTER:
-        exceptions = ['ZH_Steuerrekurs']  # Has no footer
+        exceptions = ['ZH_Steuerrekurs', 'GL_Omni']  # Has no footer
         if not namespace['court'] in exceptions:
             # change the message depending on whether there's a url
             if namespace.get('html_url'):
@@ -760,7 +781,7 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
     :return:                the updated section
     """
     paragraph = unicodedata.normalize(
-        'NFC', paragraph)  # if we don't do this, we get weird matching behaviour
+        'NFKD', paragraph)  # if we don't do this, we get weird matching behaviour
     if current_section == Section.FOOTER:
         return current_section  # we made it to the end, hooray!
     next_section_index = sections.index(current_section) + 1
@@ -779,7 +800,7 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
 
 
 def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
-    Dict[Section, List[str]]]:
+        Dict[Section, List[str]]]:
     """
     Split a decision of the Verwaltungsgericht of Zug into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -881,7 +902,7 @@ def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> 
 
 
 def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
-    Dict[Section, List[str]]]:
+        Dict[Section, List[str]]]:
     """
     Split a decision of the Sozialversicherungsgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -1040,7 +1061,7 @@ def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
 
 
 def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
-    Dict[Section, List[str]]]:
+        Dict[Section, List[str]]]:
     """
     Split a decision of the Verwaltungsgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf

@@ -44,6 +44,24 @@ def save_to_path(content, path, overwrite=False):
         path.write_text(json.dumps(content, indent = 4))
     else:
         raise ValueError(f"Invalid data type {type(content)} supplied.")
+    
+def get_paragraphs_unified(decision):
+    text = decision.get_text()
+    paragraphs = text.splitlines()
+    paragraphs = list(filter(clean_whitespace, paragraphs))
+    paragraphs = [clean_paragraph(paragraph) for paragraph in paragraphs]
+    return paragraphs
+
+def clean_whitespace(str):
+    str = str.strip()
+    if str:
+        return True
+    return False
+
+def clean_paragraph(paragraph):
+    stripped_string = paragraph.strip()
+    clean_string = unicodedata.normalize("NFKD", stripped_string)
+    return clean_string
 
 
 def get_raw_text(html) -> str:

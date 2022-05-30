@@ -150,7 +150,7 @@ class SectionSplitter(AbstractExtractor):
                     }
                     stmt = t.insert().returning(text("section_id")).values([section_dict])
                     section_id = conn.execute(stmt).fetchone()['section_id']
-
+    
                     # Add num tokens
                     tokens_per_section = {
                         'section_id': str(section_id),
