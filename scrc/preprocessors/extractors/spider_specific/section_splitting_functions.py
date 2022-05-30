@@ -9,7 +9,8 @@ from scrc.enums.language import Language
 from scrc.enums.section import Section
 from scrc.utils.main_utils import clean_text
 from scrc.utils.log_utils import get_logger
-from scrc.preprocessors.extractors.spider_specific.paragraph_extractions import *
+from scrc.utils.main_utils import get_paragraphs_unified
+
 
 """
 This file is used to extract sections from decisions sorted by spiders.
@@ -68,6 +69,24 @@ def CH_BGE(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional
     divs = decision.find_all(
         "div", class_="content")
     paragraphs = get_paragraphs(divs)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def GE_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.FR: {
+            Section.FACTS: [r'EN FAIT', r'en fait'],
+            Section.CONSIDERATIONS: [r'EN DROIT', 'en droit'],
+            Section.RULINGS: [r'PAR CES MOTIFS', r'LA CHAMBRE ADMINISTRATIVE'],
+            Section.FOOTER: [r'La [g,G]reffière', r'la [G,g]reffière', r'Siégeant', r'Voie de recours', r'Le recours doit être', r'Le [G,g]reffier', r'Le [P,p]résident']
+        }
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
 
     return associate_sections(paragraphs, section_markers, namespace)
 
@@ -639,23 +658,6 @@ def CH_BSTG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     return associate_sections(paragraphs, section_markers, namespace)
 
 
-def GL_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    all_section_markers = {
-        Language.DE: {
-            Section.HEADER: [],
-            Section.FACTS: [r'in Sachen'],
-            Section.CONSIDERATIONS: [r'Die Kammer zieht in Erwägung:'],
-            Section.RULINGS: [r'Demgemäss erkennt die Kammer', ],
-            Section.FOOTER: [r'Im Namen des Steuerrekursgerichts']
-        }}
-
-    valid_namespace(namespace, all_section_markers)
-
-    section_markers = prepare_section_markers(all_section_markers, namespace)
-    divs = decision.find_all(
-        "span")
-    paragraphs = get_paragraphs_from_span(divs)
-    return associate_sections(paragraphs, section_markers, namespace)
 
 
 def get_paragraphs(divs):
@@ -731,7 +733,7 @@ def prepare_section_markers(all_section_markers, namespace: dict) -> Dict[Sectio
     section_markers = dict(
         map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
     for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFC', regexes)
+        section_markers[section] = unicodedata.normalize('NFKD', regexes)
     return section_markers
 
 
@@ -769,15 +771,6 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict,
     return paragraphs_by_section
 
 
-def get_paragraphs_from_span(spans):
-    paragraphs = []
-    for span in spans:
-        string = unicodedata.normalize("NFKD", span.text)
-        if not str.isspace(string):
-            paragraphs.append(string)
-    return paragraphs
-
-
 def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
     """
     Update the current section if it changed
@@ -788,7 +781,7 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
     :return:                the updated section
     """
     paragraph = unicodedata.normalize(
-        'NFC', paragraph)  # if we don't do this, we get weird matching behaviour
+        'NFKD', paragraph)  # if we don't do this, we get weird matching behaviour
     if current_section == Section.FOOTER:
         return current_section  # we made it to the end, hooray!
     next_section_index = sections.index(current_section) + 1

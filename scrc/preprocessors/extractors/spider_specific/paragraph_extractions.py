@@ -7,6 +7,7 @@ import unicodedata
 
 from scrc.enums.section import Section
 from scrc.utils.main_utils import clean_text
+from scrc.utils.main_utils import get_paragraphs_unified
 
 
 def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -15,46 +16,10 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
     """
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-    pass
+    return get_paragraphs_unified(decision)
 
 def AR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     return get_pdf_paragraphs(decision)
-
-
-def NE_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_paragraphs(decision)
-
-
-def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_paragraphs(decision)
-
-
-def CH_BGE(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_paragraphs(decision)
-
-
-def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_paragraphs(decision)
-
-
-def SO_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_paragraphs(decision)
-
-
-def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    divs = decision.find_all("div", class_="content")
-    # we expect maximally two divs with class content
-    assert len(divs) <= 2
-    return get_paragraphs(decision)
-
-
-def VD_FindInfo(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_paragraphs(decision)
-
-
-def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_paragraphs(decision)
 
 
 def CH_BSTG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -69,10 +34,6 @@ def GR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     return get_pdf_paragraphs(decision)
 
 
-def TI_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_paragraphs(decision)
-
-
 def CH_BPatG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     return get_pdf_paragraphs(decision)
 
@@ -83,10 +44,6 @@ def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> 
 
 def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     return get_pdf_paragraphs(decision)
-
-
-def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_paragraphs(decision)
 
 
 def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -121,61 +78,7 @@ def get_pdf_paragraphs(soup: str) -> list:
     return paragraphs
 
 
-def GL_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_paragraphs(decision)
 
 
-def get_paragraphs(decision):
-    text = decision.get_text()
-    # text = unicodedata.normalize("NFKD", text)
-    paragraphs = text.splitlines()
-    paragraphs = list(filter(clean_whitespace, paragraphs))
-    return paragraphs
 
 
-def clean_whitespace(str):
-    str = str.strip()
-    if str:
-        return True
-    return False
-
-
-def get_paragraphs_from_span(spans):
-
-    paragraphs = []
-    for span in spans:
-        string = unicodedata.normalize("NFKD", span.text)
-        if not str.isspace(string):
-            paragraphs.append(span.text)
-    return paragraphs
-
-
-# def get_paragraphs(divs, namespace):
-#     # """
-#     # Get Paragraphs in the decision
-#     # :param divs:
-#     # :return:
-#     # """
-#     paragraphs = []
-#     heading, paragraph = None, None
-#     for div in divs:
-#         for element in div:
-#             if isinstance(element, bs4.element.Tag):
-#                 text = str(element.string)
-#                 # This is a hack to also get tags which contain other tags such as links to BGEs
-#                 if text.strip() == 'None':
-#                     text = element.get_text()
-#                 # get numerated titles such as 1. or A.
-#                 if "." in text and len(text) < 5:
-#                     heading = text  # set heading for the next paragraph
-#                 else:
-#                     if heading is not None:  # if we have a heading
-#                         paragraph = heading + " " + text  # add heading to text of the next paragraph
-#                     else:
-#                         paragraph = text
-#                     heading = None  # reset heading
-#                 if paragraph is not None:
-#                     paragraph = clean_text(paragraph)
-#                 if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-#                     paragraphs.append(paragraph)
-#         return paragraphs
