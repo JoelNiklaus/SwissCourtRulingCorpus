@@ -36,6 +36,9 @@
       - [tables](#tables)
       - [fields](#fields)
       - [Setup database from scratch](#setup-database-from-scratch)
+  - [Common Errors](#common-errors)
+    - [PermissionError: [Errno 13] Permission denied: '/tmp/tika.log'](#permissionerror-errno-13-permission-denied-tmptikalog)
+    - [idle_in_transaction_session_timeout](#idle_in_transaction_session_timeout)
   - [Questions?](#questions)
 
 ## Sandbox Setup
@@ -266,7 +269,6 @@ when we encounter a different court to take these alternative regular expression
 example of court chambers being applied in a section splitting task for
 this [specific spider](https://github.com/JoelNiklaus/SwissCourtRulingCorpus/blob/3a177d02cdd87eba07aa4d3bca4e2fb52995cb18/scrc/preprocessors/extractors/spider_specific/section_splitting_functions.py#L112-L190)
 .
-
 ## Running long tasks
 
 Some tasks may take a very long time to run. This means if you just start it in the terminal, the terminal will
@@ -277,6 +279,7 @@ following: https://www.hamvocke.com/blog/a-quick-and-easy-guide-to-tmux/
 
 ## SQL FAQ
 
+An image with the current database table setup is stored under [database_creation](./database_creation/DB_Schema.png).
 This section explains the methods of the sql_select_utils so they can be replicated as SQL Queries. If you want to check for what a specific case return sand it is not explained in here, then you can retrieve the result easily:
 1. Change to the default project path and open a python interpreter
    ```bash
@@ -371,6 +374,13 @@ The second entry in the table returns the fields
 
 #### Setup database from scratch
 Use the file `drop_and_create_tables.sql` to drop the tables and set them up again, then use the `setup_values.sql` to insert basic values into the freshly generated tables again. If you want to have a more up-to-date version of the setup values, then you have to create the table code which should be more up-to-date with the setup_values_creation.py.
+
+## Common Errors
+### PermissionError: [Errno 13] Permission denied: '/tmp/tika.log'
+Remove the tika.log file in `/tmp` using `sudo rm /tmp/tika.log`.
+
+### idle_in_transaction_session_timeout
+This is a postgres error that can be resolved by updating the configuration, such that the idle_in_transaction_session_timout is disabled. To do this open the postgres console and execute `SET idle_in_transaction_session_timeout TO '0'`, which should be the default state.
 ## Questions?
 
 Do not hesitate to contact Adrian Joerg or Joel Niklaus via email: {firstname}.{lastname}@inf.unibe.ch

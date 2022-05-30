@@ -164,12 +164,14 @@ class DatasetCreator(AbstractPreprocessor):
 
         dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
-        # TODO not one dataset per feature col, but put all feature cols into the same dataset
         processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created.txt"
         datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
         self.logger.info(message)
 
+        # Check these todos on the judgment_dataset_creator
+        # TODO not one dataset per feature col, but put all feature cols always as lists of paragraphs (facts, considerations, etc.) into the same dataset
         # TODO put all languages into the same dataset
+        # TODO check if all columns are fetched correctly (num_tokens_bert, etc.)
 
         if datasets:
             lang_splits = {lang: dict() for lang in self.languages}
@@ -314,7 +316,7 @@ class DatasetCreator(AbstractPreprocessor):
 
     def prepare_kaggle_splits(self, splits):
         self.logger.info("Saving the data in kaggle format")
-        # deepcopy splits so we don't mess with the original dict
+        # deepcopy splits, so we don't mess with the original dict
         kaggle_splits = copy.deepcopy(splits)
         # create solution file
         kaggle_splits['solution'] = kaggle_splits['test'].drop('text', axis='columns')  # drop text

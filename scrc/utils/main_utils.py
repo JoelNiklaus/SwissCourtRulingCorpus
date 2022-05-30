@@ -41,7 +41,7 @@ def save_to_path(content, path, overwrite=False):
     elif isinstance(content, str):
         path.write_text(content)
     elif isinstance(content, dict):
-        path.write_text(json.dumps(content))
+        path.write_text(json.dumps(content, indent = 4))
     else:
         raise ValueError(f"Invalid data type {type(content)} supplied.")
 

@@ -1,3 +1,4 @@
+from scrc.preprocessors.create_court_and_chamber_tables import CreateCourtAndChamberTables
 from scrc.preprocessors.language_identifier import LanguageIdentifier
 from scrc.preprocessors.name_to_gender import NameToGender
 from scrc.preprocessors.extractors.procedural_participation_extractor import ProceduralParticipationExtractor
@@ -85,6 +86,9 @@ def construct_base_dataset(config):
     scraper = Scraper(config)
     scraper.download_subfolders(base_url + "docs/")
 
+    create_court_and_chamber_tables = CreateCourtAndChamberTables(config)
+    create_court_and_chamber_tables.start()
+
     text_to_database = TextToDatabase(config)
     text_to_database.build_dataset()
 
@@ -109,13 +113,12 @@ def construct_base_dataset(config):
     court_composition_extractor = CourtCompositionExtractor(config)
     court_composition_extractor.start(decision_ids)
 
-    procedural_participation_extractor = ProceduralParticipationExtractor(
-        config)
+    procedural_participation_extractor = ProceduralParticipationExtractor(config)
     procedural_participation_extractor.start(decision_ids)
 
     # calls a free API which only has limited access
-    # name_to_gender = NameToGender(config)
-    # name_to_gender.start()
+    name_to_gender = NameToGender(config)
+    name_to_gender.start()
 
     # TODO this should be adapted or can even be removed
     # nlp_pipeline_runner = NlpPipelineRunner(config)

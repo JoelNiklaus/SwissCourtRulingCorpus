@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from typing import Any, List, Optional, Set, TYPE_CHECKING, Tuple, Union
 from pathlib import Path
@@ -17,14 +16,14 @@ from scrc.enums.language import Language
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, where_decisionid_in_list, where_string_spider
+from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, \
+    where_decisionid_in_list, where_string_spider
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
 
 
 class PatternExtractor(AbstractExtractor):
-
     """
     Extracts and counts paragraphs/keywords commonly used across a court. The output can be found in ./data/patterns
     To extract the pattern from a court a function must be implemented in paragraph_extraction.py which simply returns the paragraphs.
@@ -95,9 +94,12 @@ class PatternExtractor(AbstractExtractor):
         namespace['id'] = series['decision_id']
         data = self.get_required_data(series)
         assert data
-        self.analyze_structure(self.call_processing_function(
-            series["spider"], data, namespace
-        ), namespace)
+        paragraphs = self.call_processing_function(series["spider"], data, namespace)
+        if not paragraphs:
+            raise ValueError(f"No valid paragraphs received. "
+                             f"Please implement a function for spider {series['spider']} in "
+                             f"preprocessors/extractors/spider_specific/paragraph_extractions.py")
+        self.analyze_structure(paragraphs, namespace)
 
     def save_data_to_database(self, series: pd.DataFrame, engine: Engine):
         """Splits the data into their respective parts and saves them to the table"""
@@ -113,7 +115,10 @@ class PatternExtractor(AbstractExtractor):
             self.counter = 0
             self.spider = spider
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
-        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}", f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
+        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}",
+                           f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider",
+                           where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}",
+                           chunksize=self.chunksize)
 
     def process_one_spider(self, engine: Engine, spider: str):
         self.logger.info(self.logger_info["start_spider"] + " " + spider)
@@ -135,8 +140,7 @@ class PatternExtractor(AbstractExtractor):
             if item is not None and (4 < len(item) < 80):
                 self.check_existance(item, namespace)
         if self.counter % 500 == 0:
-            self.logger.info(
-                f"Pattern extractor: {self.spider}: {self.counter} processed")
+            self.logger.info(f"Pattern extractor: {self.spider}: {self.counter} processed")
 
     def create_dfs(self):
         for key in self.dict:
@@ -181,14 +185,18 @@ class PatternExtractor(AbstractExtractor):
                 Section.FACTS: [r'[F,f]ait', 'droit'],
                 Section.CONSIDERATIONS: [r'[C,c]onsidère', r'[C,c]onsidérant', r'droit'],
                 Section.RULINGS: [r'prononce', r'motifs'],
-                Section.FOOTER: [r'\w*,\s(le\s?)?((\d?\d)|\d\s?(er|re|e)|premier|première|deuxième|troisième)\s?(?:janv|févr|mars|avr|mai|juin|juill|août|sept|oct|nov|déc).{0,10}\d?\d?\d\d\s?(.{0,5}[A-Z]{3}|(?!.{2})|[\.])',
-                                 r'Au nom de la Cour']
+                Section.FOOTER: [
+                    r'\w*,\s(le\s?)?((\d?\d)|\d\s?(er|re|e)|premier|première|deuxième|troisième)\s?(?:janv|févr|mars|avr|mai|juin|juill|août|sept|oct|nov|déc).{0,10}\d?\d?\d\d\s?(.{0,5}[A-Z]{3}|(?!.{2})|[\.])',
+                    r'Au nom de la Cour']
             },
             Language.DE: {
                 Section.FACTS: [r'[S,s]achverhalt', r'[T,t]atsachen', r'[E,e]insicht in', r'[F,f]ait', 'droit'],
-                Section.CONSIDERATIONS: [r'[E,e]rwägung', r"erwägt", "ergeben", r'[C,c]onsidère', r'[C,c]onsidérant', r'droit'],
-                Section.RULINGS: [r'erk[e,a]nnt',  r'beschlossen', r'verfügt', r'beschliesst', r'entscheidet', r'prononce', r'motifs'],
-                Section.FOOTER: [r'Rechtsmittelbelehrung',  r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))',
+                Section.CONSIDERATIONS: [r'[E,e]rwägung', r"erwägt", "ergeben", r'[C,c]onsidère', r'[C,c]onsidérant',
+                                         r'droit'],
+                Section.RULINGS: [r'erk[e,a]nnt', r'beschlossen', r'verfügt', r'beschliesst', r'entscheidet',
+                                  r'prononce', r'motifs'],
+                Section.FOOTER: [r'Rechtsmittelbelehrung',
+                                 r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))',
                                  r'Im Namen des']
             },
             Language.IT: {
@@ -246,7 +254,8 @@ class PatternExtractor(AbstractExtractor):
                         try:
                             if 'totalcount' in dfs[key].columns:
                                 dfs[key].sort_values(
-                                    by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key), index=False)
+                                    by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key),
+                                                                                 index=False)
                         except ValueError:
                             print(f'error trying to output {key}')
 

@@ -3,7 +3,7 @@ import tika
 import os
 
 tika.TikaLogPath = '/tmp'
-tika.TikaLogFile = '/tmp'
+tika.TikaLogFile = ''
 os.environ['TIKA_LOG_FILE'] = str('')
 os.environ['TIKA_LOG_PATH'] = str('/tmp/')
 tika.initVM()
