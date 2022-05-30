@@ -1,14 +1,14 @@
-from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
+from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import pandas as pd
 
 from scrc.utils.main_utils import get_config
+from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
 
 
-class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
+class CitationCriticalityDatasetCreator(CriticalityDatasetCreator):
     """
-    Defines a criticality label for each found bger case, based if the case was published as
-    bge or not.
+    Creates a dataset with criticality labels based on the definition of bge criticality
     """
 
     def __init__(self, config: dict):
@@ -22,13 +22,11 @@ class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
         self.logger.info(f"Processing labeling of bge_criticality")
 
         # Include all bger rulings whose file_number can be found in the header of a bge
-        # It's not enough no compare date and chamber, there are multiple matching cases
-        # There exist around 12'000 rulings with date = 1.1.2020
-        # error sources:
+        # get a list of number of citations of bge which were found in other rulings
+        # define a minimum amount of citations needed to define a ruling as critical
         # 1. Regex cannot find correct file number in header
         # 2. languages are different -> different datasets
 
-        # TODO create method comparing bger file numbers to found regex expression in bge
         """
         file_number_match = bger_df.file_number.astype(str).isin(list(bge_df.bge_reference.astype(str)))
         file_number_match_df = bger_df[file_number_match]       
@@ -46,5 +44,5 @@ class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
 if __name__ == '__main__':
     config = get_config()
 
-    bge_criticality_dataset_creator = BgeCriticalityDatasetCreator(config)
-    bge_criticality_dataset_creator.create_dataset()
+    citation_criticality_dataset_creator = CitationCriticalityDatasetCreator(config)
+    citation_criticality_dataset_creator.create_dataset()
