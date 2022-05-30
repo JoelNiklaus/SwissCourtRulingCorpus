@@ -27,8 +27,8 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
 
-    # This is how a "standard" section splitting function looks like. 
-    # First specify the markers where to split, then prepare them by joining and normalizing them. 
+    # This is how a "standard" section splitting function looks like.
+    # First specify the markers where to split, then prepare them by joining and normalizing them.
     # Then get the paragraphs and loop through them with the markers using the associate_sections function.
     """ all_section_markers = {
         Language.DE: {
@@ -333,7 +333,7 @@ def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
 
 
 def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
-    Dict[Section, List[str]]]:
+        Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
     :param namespace:   the namespace containing some metadata of the court decision
@@ -807,7 +807,7 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
 
 
 def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
-    Dict[Section, List[str]]]:
+        Dict[Section, List[str]]]:
     """
     Split a decision of the Verwaltungsgericht of Zug into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -909,7 +909,7 @@ def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> 
 
 
 def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
-    Dict[Section, List[str]]]:
+        Dict[Section, List[str]]]:
     """
     Split a decision of the Sozialversicherungsgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -1068,7 +1068,7 @@ def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
 
 
 def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
-    Dict[Section, List[str]]]:
+        Dict[Section, List[str]]]:
     """
     Split a decision of the Verwaltungsgericht of Zurich into several named sections
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
