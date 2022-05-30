@@ -8,7 +8,6 @@ from scrc.preprocessors.extractors.citation_extractor import CitationExtractor
 from scrc.preprocessors.extractors.cleaner import Cleaner
 from scrc.dataset_creation.doc2doc_ir_dataset_creator import Doc2DocIRDatasetCreator
 from scrc.dataset_creation.bge_criticality_dataset_creator import BgeCriticalityDatasetCreator
-from scrc.dataset_creation.citation_criticality_dataset_creator import CitationCriticalityDatasetCreator
 from scrc.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
 from scrc.preprocessors.text_to_database import TextToDatabase
 from scrc.preprocessors.extractors.judgment_extractor import JudgmentExtractor
@@ -75,10 +74,7 @@ def create_specialized_datasets(config):
     citation_dataset_creator.create_dataset()
 
     bge_criticality_dataset_creator = BgeCriticalityDatasetCreator(config)
-    # bge_criticality_dataset_creator.create_dataset()
-
-    citation_criticality_dataset_creator = CitationCriticalityDatasetCreator(config)
-    # citation_criticality_dataset_creator.create_dataset()
+    bge_criticality_dataset_creator.create_dataset()
 
 
 def construct_base_dataset(config):
