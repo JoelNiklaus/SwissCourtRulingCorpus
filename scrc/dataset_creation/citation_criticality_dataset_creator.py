@@ -1,3 +1,4 @@
+from scrc.data_classes.ruling_citation import RulingCitation
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import pandas as pd
@@ -27,18 +28,42 @@ class CitationCriticalityDatasetCreator(CriticalityDatasetCreator):
         # 1. Regex cannot find correct file number in header
         # 2. languages are different -> different datasets
 
+        # TODO get all citations in a bger ruling
+
+        # TODO count amount of citations for one bge in all bger rulings
+
+        # TODO safe this number in the database?
+
         """
-        file_number_match = bger_df.file_number.astype(str).isin(list(bge_df.bge_reference.astype(str)))
-        file_number_match_df = bger_df[file_number_match]       
-        critical_df = bger_df[file_number_match]
+        criticality_score_match = bger_df.citations >= 10
+        critical_df = bger_df[criticality_score_match]
         critical_df['label'] = 'critical'
-        non_critical_df = bger_df[~file_number_match]
+        non_critical_df = bger_df[~criticality_score_match]
         non_critical_df['label'] = 'non-critical'
-        self.logger.info(f"# critical decisions: {len(critical_df.index)}")
-        self.logger.info(f"# non-critical decisions: {len(non_critical_df.index)}")
         return critical_df.append(non_critical_df)
         """
         return bger_df
+
+    def process_citation_for_bger(self, df, lang):
+        self.logger.info(f"Processing the ruling citations.")
+        df['citations'] = df.citations.parallel_apply(self.get_citations, lang=lang)
+
+        # we cannot use the ones which have no citations
+        # because we drop everything we lose some data, but it is easier, because we know that all the entries have both laws citations and rulings citations
+        # reset the index so that we don't get out of bounds errors
+        df = df.dropna(subset=['citation']).reset_index(drop=True)
+
+        return df
+
+    def get_citations(self, citations, lang):
+        cits = []
+        cit = citations['text']
+        cit = ' '.join(cit.split())  # remove multiple whitespaces inside
+        type_cit = RulingCitation(cit, lang)
+        # only actually include ruling citations that we can find in our corpus
+        cits.append(type_cit)
+        if cits:  # only return something if we actually have citations
+            return cits
 
 
 if __name__ == '__main__':
