@@ -27,7 +27,7 @@ Set Labels
 """
 
 
-class CriticalityDatasetCreator(DatasetCreator):
+class BgeCriticalityDatasetCreator(DatasetCreator):
     """
     Creates a dataset with the text as input and whether it reaches the supreme court or not as labels
     """
@@ -148,5 +148,5 @@ class CriticalityDatasetCreator(DatasetCreator):
 if __name__ == '__main__':
     config = get_config()
 
-    criticality_dataset_creator = CriticalityDatasetCreator(config)
-    criticality_dataset_creator.create_dataset()
+    bge_criticality_dataset_creator = BgeCriticalityDatasetCreator(config)
+    bge_criticality_dataset_creator.create_dataset()
