@@ -87,6 +87,8 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
                 return df
 
         # otherwise query it from the database
+        # TODO remove paragraphs table alltogether and store section text as list of paragraphs
+        #  ==> like this we don't have to join with the huge paragraph table of over 10M rows
         df = pd.DataFrame()
         paragraph_join = map_join('paragraph_id', 'paragraphs', 'paragraph', {
             'table_name': 'section', 'field_name': 'paragraph_text, section_type_id, paragraph.section_id',

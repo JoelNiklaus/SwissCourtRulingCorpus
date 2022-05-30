@@ -141,8 +141,9 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         if not self.check_condition_before_process(spider, data, namespace):
             return None
         try:
-            extracting_functions = getattr(self.processing_functions, spider, getattr(
-                self.processing_functions, 'XX_SPIDER'))  # Get the function for the spider or the default function
+            # Get the function for the spider or the default function
+            default = getattr(self.processing_functions, 'XX_SPIDER')
+            extracting_functions = getattr(self.processing_functions, spider, default)
             # invoke function with data and namespace
             return extracting_functions(data, namespace)
         except ValueError as e:

@@ -8,10 +8,6 @@ from scrc.enums.section import Section
 from scrc.utils.main_utils import clean_text
 
 
-def AR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_pdf_paragraphs(decision)
-
-
 def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
     :param decision:    the decision parsed by bs4 or the string extracted of the pdf
@@ -20,6 +16,9 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     """
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
+
+def AR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    return get_pdf_paragraphs(decision)
 
 
 def NE_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
