@@ -24,7 +24,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict
     """
-
+    # Define the needed regexes at the top of the file
     information_start_regex = r'Vorinstanz|Beschwerden?\sgegen|gegen\sden\s(Entscheid|Beschluss)|gegen\sdas\sUrteil|Gegenstand|Instance précédente|recours|révision de|ricorso|ricorrente|rettifica'
 
     information_regex = {
@@ -76,41 +76,45 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     }
 
     def prepareCantonForQuery(canton: str, court_chambers_data) -> str:
+        """ Try to match the canton as text with its corresponding abbreviation """
         for canton_short in court_chambers_data:
             current_canton = court_chambers_data[canton_short]
             if current_canton['de'] == canton or \
                     current_canton['fr'] == canton or \
                     current_canton['it'] == canton:
-                return canton_short
+                return canton_short # If the canton is found, return the corresponding abbreviation
         print(canton)
 
     def prepareCourtForQuery(court: str, canton: str, court_chambers_data) -> str:
+        """ Try to match the court as text with its corresponding abbreviation """
         canton_court_data = court_chambers_data[canton]
         for current_court_short in canton_court_data['gerichte']:
             current_court = canton_court_data['gerichte'][current_court_short]
             if current_court['de'] == court or \
                     current_court['fr'] == court or \
                     current_court['it'] == court:
-                return current_court_short
+                return current_court_short # If the court is found, return the corresponding abbreviation
 
     def prepareChamberForQuery(chamber: str, court: str, canton: str, court_chambers_data) -> str:
-        if court not in court_chambers_data[canton]['gerichte']:
+        """ Try to match the chamber as text with its corresponding abbreviation """
+        if court not in court_chambers_data[canton]['gerichte']: # The court is not found in the list, so no chance of finding the chamber
             return chamber
-        possible_labels = court_chambers_data[canton]['gerichte'][court]['kammern']
-        for current_short in possible_labels:
+        possible_labels = court_chambers_data[canton]['gerichte'][court]['kammern'] # Get the list of all possible chambers for the court
+        for current_short in possible_labels: # Try to match the chamber with one of the possible labels
             current_court_data = court_chambers_data[canton]['gerichte'][court]['kammern'][current_short]
-            if {'de', 'fr', 'it'} <= current_court_data.keys():
+            if {'de', 'fr', 'it'} <= current_court_data.keys(): # If the chamber is found, return the corresponding abbreviation
                 if chamber in current_court_data['de'] or \
                         chamber in current_court_data['fr'] or \
                         chamber in current_court_data['it']:
                     return current_short
-                chamber_without_number = re.sub(r'[IV0-9]*.\s', '', chamber)
+                chamber_without_number = re.sub(r'[IV0-9]*.\s', '', chamber) # Remove the number from the chamber name to try and match it again
                 if chamber_without_number in current_court_data['de'] or \
                         chamber_without_number in current_court_data['fr'] or \
                         chamber_without_number in current_court_data['it']:
                     return current_short
 
     def prepareDateForQuery(date: str) -> str:
+        # Replace some strings with different to get a valid date
         translation_dict = {
             "Januar": "Jan", "Februar": "Feb", "März": "Mar", "Mai": "May", "Juni": "June", "Juli": "July",
             "Oktober": "Oct", "Dezember": "Dec",
@@ -130,20 +134,21 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         return pd.to_datetime(date, errors='ignore', dayfirst=True).strftime('%Y-%m-%d')
 
     def get_lower_court_by_date_and_court(lower_court_information) -> Optional[str]:
-        languages = ['de', 'fr', 'it']
-        chamber = None
 
-        if 'canton' in lower_court_information:
+        if 'canton' in lower_court_information: 
             court_chambers_data = json.loads(Path("legal_info/court_chambers.json").read_text())
+            # There was information of the canton in the text, tries to match the canton with its abbreviation
             lower_court_information['canton'] = prepareCantonForQuery(lower_court_information['canton'],
                                                                       court_chambers_data)
+            # If the canton is found, tries to match the court with its abbreviation
             if 'court_string' in lower_court_information and lower_court_information['canton'] is not None:
                 lower_court_information['court'] = prepareCourtForQuery(lower_court_information['court_string'],
                                                                         lower_court_information['canton'],
                                                                         court_chambers_data)
-        else:
+        else: # No canton information was found in the text, tries to match the court for the federal level
             if 'court_string' in lower_court_information:
                 court_chambers_data = json.loads(Path("legal_info/court_chambers.json").read_text())
+                # Tries to match a court with the text on a federal level
                 lower_court_information['court'] = prepareCourtForQuery(lower_court_information['court_string'], 'CH',
                                                                         court_chambers_data)
                 if re.match(r'CH_', lower_court_information['court']):
@@ -153,11 +158,13 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
                 value is not None for value in
                 [lower_court_information['chamber_string'], lower_court_information['court'],
                  lower_court_information['canton']]):
+                 # Try to find the chamber is canton, chamber_string and court are all present
             lower_court_information['chamber'] = prepareChamberForQuery(lower_court_information['chamber_string'],
                                                                         lower_court_information['court'],
                                                                         lower_court_information['canton'], json.loads(
                     Path("legal_info/court_chambers.json").read_text()))
         if 'date' in lower_court_information:
+            # Include the date in the returned information
             lower_court_information['date'] = prepareDateForQuery(lower_court_information['date'])
 
         return lower_court_information
@@ -168,16 +175,18 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
         if start_pos:
             header = header[start_pos.span()[0]:]
 
-        for information_key in information_regex:
+        for information_key in information_regex: # For each category try to match the regex in the text
             regex = '|'.join(information_regex[information_key])
             # not a normal regex search so we find last occurence
             regex_result = None
             for regex_result in re.finditer(regex, header):
                 if 'high_prio' in regex_result.groupdict() and regex_result.group('high_prio') != None:
+                    # Groups named 'high_prio' are the ones that are more important and therefore should be returned
                     break
                 pass
             if regex_result:
                 if 'high_prio' in regex_result.groupdict() and regex_result.group('high_prio') != None:
+                     # Groups named 'high_prio' are the ones that are more important and therefore should be returned
                     result[information_key] = regex_result.group('high_prio')
                 else:
                     result[information_key] = regex_result.group()

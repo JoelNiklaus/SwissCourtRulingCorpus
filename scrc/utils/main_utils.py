@@ -63,15 +63,23 @@ def clean_text(text: str) -> str:
     :param text:    the text to be cleaned
     :return:
     """
+    if not text:
+        return ''
     cleaned_text = text
     # https://stackoverflow.com/questions/16467479/normalizing-unicode
-    cleaned_text = unicodedata.normalize('NFKC', cleaned_text)  # normalize strings
-    cleaned_text = re.sub('(\w+)-\n+(\w+)', '\1\2', cleaned_text)  # remove hyphens before new line
-    cleaned_text = re.sub(r"\u00a0", ' ', cleaned_text)  # replace NBSP with normal whitespace
-    cleaned_text = re.sub(r"\xa0", ' ', cleaned_text)  # replace \xa0 with normal whitespace
+    cleaned_text = unicodedata.normalize(
+        'NFKC', cleaned_text)  # normalize strings
+    # remove hyphens before new line
+    cleaned_text = re.sub('(\w+)-\n+(\w+)', '\1\2', cleaned_text)
+    # replace NBSP with normal whitespace
+    cleaned_text = re.sub(r"\u00a0", ' ', cleaned_text)
+    # replace \xa0 with normal whitespace
+    cleaned_text = re.sub(r"\xa0", ' ', cleaned_text)
     cleaned_text = re.sub(r"\x00", '', cleaned_text)  # remove \x00 completely
-    cleaned_text = re.sub(r"\s+", ' ', cleaned_text)  # replace all whitespace with a single whitespace
-    cleaned_text = re.sub(r"_+", '_', cleaned_text)  # remove duplicate underscores (from anonymisations)
+    # replace all whitespace with a single whitespace
+    cleaned_text = re.sub(r"\s+", ' ', cleaned_text)
+    # remove duplicate underscores (from anonymisations)
+    cleaned_text = re.sub(r"_+", '_', cleaned_text)
     cleaned_text = cleaned_text.strip()  # remove leading and trailing whitespace
     cleaned_text = "".join(
         ch for ch in cleaned_text if unicodedata.category(ch)[0] != "C")  # remove control characters
@@ -168,7 +176,8 @@ def get_region(canton: str):
     for region, cantons in regions.items():
         if canton in cantons:
             return region
-    raise ValueError(f"Please provide a valid canton name. Could not find {canton} in {regions}")
+    raise ValueError(
+        f"Please provide a valid canton name. Could not find {canton} in {regions}")
 
 
 legal_areas = {
@@ -191,15 +200,18 @@ def get_legal_area(chamber: str):
     for legal_area, chambers in legal_areas.items():
         if chamber in chambers:
             return legal_area
-    raise ValueError(f"Please provide a valid chamber name. Could not find {chamber} in {legal_areas}")
+    raise ValueError(
+        f"Please provide a valid chamber name. Could not find {chamber} in {legal_areas}")
 
 
 def get_config() -> configparser.ConfigParser:
     """Returns the parsed `config.ini` / `rootconfig.ini` files"""
     config = configparser.ConfigParser()
-    config.read(ROOT_DIR / 'config.ini')  # this stops working when the script is called from the src directory!
+    # this stops working when the script is called from the src directory!
+    config.read(ROOT_DIR / 'config.ini')
     if exists(ROOT_DIR / 'rootconfig.ini'):
-        config.read(ROOT_DIR / 'rootconfig.ini')  # this stops working when the script is called from the src directory!
+        # this stops working when the script is called from the src directory!
+        config.read(ROOT_DIR / 'rootconfig.ini')
     return config
 
 

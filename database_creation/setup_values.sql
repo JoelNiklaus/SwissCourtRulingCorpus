@@ -7,7 +7,7 @@ Could be reused but might be no longer up-to-date
 
 INSERT INTO "language"(iso_code) VALUES ('de'), ('fr'), ('it'), ('en');
 
-INSERT INTO canton("short_code") VALUES 
+INSERT INTO canton(short_code) VALUES 
     ('CH'),
     ('AG'),
     ('AI'),
@@ -321,26 +321,6 @@ INSERT INTO court(canton_id, court_string) VALUES
     ((SELECT canton_id FROM canton WHERE short_code = 'ZH'), 'ZH_XX')
 ;
 
-/**
-    import json
-
-    with open('legal_info/court_chambers_extended.json') as f:
-        data = json.load(f)
-
-    all_spider = set()
-    def per_language(lang, canton):
-        
-        gerichte = data[canton]['gerichte']
-        for gericht in gerichte:
-            court_name = data[canton]['gerichte'][gericht][lang].replace("'", "''")
-            all_spider.add(f"\t((SELECT court_id FROM court WHERE court_string = '{gericht}'), (SELECT language_id FROM language WHERE iso_code = '{lang}'), '{court_name}')")
-
-    for lang in ['de', 'fr', 'it']:
-        for canton in data:
-            per_language(lang, canton)
-
-    print(',\n'.join(sorted(all_spider)))
-*/
 INSERT INTO court_name(court_id, "language_id", "name") VALUES 
         ((SELECT court_id FROM court WHERE court_string = 'AG_AK'), (SELECT language_id FROM language WHERE iso_code = 'de'), 'Anwaltskommission'),
         ((SELECT court_id FROM court WHERE court_string = 'AG_AK'), (SELECT language_id FROM language WHERE iso_code = 'fr'), 'Anwaltskommission'),
@@ -1175,32 +1155,6 @@ INSERT INTO chamber(court_id, spider_id, chamber_string) VALUES
     ((SELECT court_id FROM court WHERE court_string = 'ZH_XX'), (SELECT spider_id FROM spider WHERE name = 'ZH_Obergericht'), 'ZH_XX_001')
 ;
 
-INSERT INTO lower_court("date", court_id, canton_id, chamber_id, file_number) 
-    SELECT 
-        CAST( lower_court#>>'{date}' AS date), 
-        (SELECT court_id FROM court WHERE court_string = lower_court#>>'{court}'),
-        (SELECT canton_id FROM canton WHERE short_code = lower_court#>>'{canton}'),
-        (SELECT chamber_id FROM chamber WHERE chamber_string = lower_court#>>'{chamber}'),
-        lower_court#>>'{file_number}'
-    from de WHERE lower_court is not null and lower_court <> 'null' 
-    UNION ALL
-    SELECT 
-        CAST( lower_court#>>'{date}' AS date), 
-        (SELECT court_id FROM court WHERE court_string = lower_court#>>'{court}'),
-        (SELECT canton_id FROM canton WHERE short_code = lower_court#>>'{canton}'),
-        (SELECT chamber_id FROM chamber WHERE chamber_string = lower_court#>>'{chamber}'),
-        lower_court#>>'{file_number}'
-    from fr WHERE lower_court is not null and lower_court <> 'null'
-    UNION ALL
-    SELECT 
-        CAST( lower_court#>>'{date}' AS date), 
-        (SELECT court_id FROM court WHERE court_string = lower_court#>>'{court}'),
-        (SELECT canton_id FROM canton WHERE short_code = lower_court#>>'{canton}'),
-        (SELECT chamber_id FROM chamber WHERE chamber_string = lower_court#>>'{chamber}'),
-        lower_court#>>'{file_number}'
-    from it WHERE lower_court is not null and lower_court <> 'null'
-;
-
 INSERT INTO judgement("text") VALUES
     ('approval'),
     ('dismissal'),
@@ -1237,17 +1191,4 @@ INSERT INTO party_type("name") VALUES
     ('defendant'),
     ('representation_plaintiff'),
     ('representation_defendant')
-;
-
-INSERT INTO file_number(decision_id, "text") 
-    SELECT decision_id, file_number as "text" 
-    FROM de 
-    INNER JOIN file ON (file.file_name = de.file_name) INNER JOIN decision ON (file.file_id = decision.file_id)
-;
-
-INSERT INTO file_number(decision_id, "text") 
-    SELECT decision_id, file_number_additional as "text" 
-    FROM de 
-    INNER JOIN file ON (file.file_name = de.file_name) INNER JOIN decision ON (file.file_id = decision.file_id)
-    WHERE file_number_additional is not null and file_number_additional <> ''
 ;

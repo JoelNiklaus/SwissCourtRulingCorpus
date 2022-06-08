@@ -84,11 +84,10 @@ def construct_base_dataset(config):
     scraper = Scraper(config)
     new_files = scraper.download_subfolders(base_url + "docs/")
     
-    # TODO: Decide whether it should really go after file list from scraper or with the old technique
     text_to_database = TextToDatabase(config, new_files_only=True)
-    list_of_files: List[Dict] = text_to_database.build_dataset()
+    text_to_database.build_dataset()
     
-    # TODO: Decide whether it should really go after file list from scraper or with the old technique
+   
     language_identifier = LanguageIdentifier(config)
     decision_ids = language_identifier.start() 
     
@@ -96,7 +95,7 @@ def construct_base_dataset(config):
     cleaner.clean(decision_ids)
  
     
-    section_splitter = SectionSplitter(config, False)
+    section_splitter = SectionSplitter(config)
     section_splitter.start(decision_ids)
 
     citation_extractor = CitationExtractor(config)

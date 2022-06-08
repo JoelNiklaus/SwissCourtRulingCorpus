@@ -1,3 +1,4 @@
+from logging import exception
 import unicodedata
 from typing import Optional, List, Dict, Union
 
@@ -25,6 +26,28 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     """
     # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
     pass
+
+    # This is how a "standard" section splitting function looks like. 
+    # First specify the markers where to split, then prepare them by joining and normalizing them. 
+    # Then get the paragraphs and loop through them with the markers using the associate_sections function.
+    """ all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'Tatbestand', r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r"Erwägung"],
+            Section.RULINGS: [r"Demnach erkennt", r"Demnach beschliesst", r"Demnach wird beschlossen", r"Demnach wird verfügt", r"Dispositiv"],
+            Section.FOOTER: [r""]
+        }
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+
+    divs = decision.find_all(
+        "div", class_="content")
+    paragraphs = get_paragraphs(divs)
+
+    return associate_sections(paragraphs, section_markers, namespace) """
 
 
 def CH_BGE(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -241,13 +264,13 @@ def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     else:
         message = f"({namespace['id']}): We got stuck at court {namespace['court']}. Please check! "
 
-    if namespace['html_url']:
+    if 'html_url' in namespace and namespace['html_url']:
         valid_namespace(namespace, all_section_markers)
         section_markers = prepare_section_markers(
             all_section_markers, namespace)
         divs = decision.findAll("div", {'id': 'content-content'})
         paragraphs = get_paragraphs(divs)
-    elif namespace['pdf_url']:
+    elif 'pdf_url' in namespace and namespace['pdf_url']:
         if namespace['language'] not in all_section_markers:
             message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
             raise ValueError(message)
@@ -387,8 +410,8 @@ def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
 
     divs = decision.find_all(
         "div", class_=['WordSection1', 'Section1', 'WordSection2'])
-
     paragraphs = get_paragraphs(divs)
+
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -551,7 +574,8 @@ def get_paragraphs(divs):
                     else:
                         paragraph = text
                     heading = None  # reset heading
-                paragraph = clean_text(paragraph)
+                if paragraph is not None:
+                    paragraph = clean_text(paragraph)
                 if paragraph not in ['', ' ', None]:  # discard empty paragraphs
                     paragraphs.append(paragraph)
         return paragraphs
@@ -612,29 +636,27 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict, 
     :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
     """
     paragraphs_by_section = {section: [] for section in sections}
-
-    # assert that for every passed section a section_marker is present, the header is included by default
-    assert set(sections) == set(section_markers.keys()).union(set([Section.HEADER, Section.FULLTEXT])), \
-        f"Missing section marker: {set(sections) - set(section_markers.keys()).union(set([Section.HEADER]))}"
-    current_section = Section.HEADER
+    current_section = Section.HEADER # Document starts with the header function
     for paragraph in paragraphs:
-        # update the current section if it changed
+        # update the current section if a marker of a different section matched
         current_section = update_section(
             current_section, paragraph, section_markers, sections)
         # add paragraph to the list of paragraphs
         paragraphs_by_section[current_section].append(paragraph)
-    if current_section != Section.FOOTER and False:
 
-        # change the message depending on whether there's a url
-        if namespace.get('html_url'):
-            message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
-                f"Here you have the url to the decision: {namespace['html_url']}"
-        elif 'pdf_url' in namespace and namespace['pdf_url']:
-            message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
-                f"Here is the url to the decision: {namespace['pdf_url']}"
-        else:
-            message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! "
-        get_logger(__name__).warning(message)
+    if current_section != Section.FOOTER:
+        exceptions = ['ZH_Steuerrekurs']  # Has no footer
+        if not namespace['court'] in exceptions:
+            # change the message depending on whether there's a url
+            if namespace.get('html_url'):
+                message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
+                    f"Here you have the url to the decision: {namespace['html_url']}"
+            elif 'pdf_url' in namespace and namespace['pdf_url']:
+                message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! " \
+                    f"Here is the url to the decision: {namespace['pdf_url']}"
+            else:
+                message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! "
+            get_logger(__name__).warning(message)
     return paragraphs_by_section
 
 

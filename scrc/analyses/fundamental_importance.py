@@ -12,7 +12,8 @@ from scrc.utils.log_utils import get_logger
 import pandas as pd
 # TODO make abstract data base service or something to separate concerns better
 
-from scrc.utils.main_utils import get_config, retrieve_from_cache_if_exists, save_df_to_cache, string_contains_one_of_list
+from scrc.utils.main_utils import get_config, retrieve_from_cache_if_exists, save_df_to_cache, \
+    string_contains_one_of_list, get_legal_area
 import plotly.express as px
 
 """
