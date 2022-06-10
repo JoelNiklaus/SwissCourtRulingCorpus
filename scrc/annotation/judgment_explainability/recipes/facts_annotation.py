@@ -43,8 +43,8 @@ def facts_annotation(language:str ):
   if language != "test":
     # Load the spaCy model for tokenization.
     nlp = spacy.load("{}_core_news_sm".format(language))
-    stream = JSONL("./datasets/annotation_input_set_{}.jsonl".format(language))
-    # stream = JSONL("./datasets/annotation_input_set_{}_new.jsonl".format(language))
+    # stream = JSONL("./datasets/annotation_input_set_{}.jsonl".format(language))
+    stream = JSONL("./datasets/annotation_input_set_{}_new.jsonl".format(language))
   else:
     nlp = spacy.load("de_core_news_sm")
     stream = JSONL("./datasets/annotation_input_set_de_ex.jsonl")
