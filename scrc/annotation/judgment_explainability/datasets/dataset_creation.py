@@ -253,7 +253,7 @@ if __name__ == '__main__':
                 l = re.findall(r"(?<=_)(.*)(?=.jsonl)",filepath)[0]
                 dataset = db_stream(l)
                 new_case_list = filter_new_cases(pd.DataFrame.from_records(read_JSONL(filepath)), dataset)
-                write_JSONL('annotation_input_set_{}_new.jsonl'.format(l), new_case_list)
+                write_JSONL('annotation_input_set_{}.jsonl'.format(l), new_case_list)
             else:
                 dataset = filter_dataset(db_stream(sys.argv[1]))
                 write_JSONL('annotation_input_set_{}.jsonl'.format(sys.argv[1]), dataset)
