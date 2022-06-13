@@ -1,0 +1,8 @@
+prodigy_results.db
+.env
+documentation
+wheel
+judgment_explainability/datasets/*.jsonl
+judgment_explainability/datasets/dataset_scrc
+judgment_explainability/datasets/sjp
+annotations/
