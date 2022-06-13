@@ -1,8 +1,16 @@
 prodigy_results.db
 .env
+<<<<<<< HEAD
 documentation/
 wheel/
 judgment_explainability/datasets/*.jsonl
 judgment_explainability/datasets/dataset_scrc/
 judgment_explainability/datasets/sjp/
+=======
+documentation
+wheel
+judgment_explainability/datasets/*.jsonl
+judgment_explainability/datasets/dataset_scrc
+judgment_explainability/datasets/sjp
+>>>>>>> 8ac356fcd1a84c36276e94e51b66104b7940d745
 annotations/
