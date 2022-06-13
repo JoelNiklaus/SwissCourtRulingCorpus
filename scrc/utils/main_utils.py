@@ -41,9 +41,27 @@ def save_to_path(content, path, overwrite=False):
     elif isinstance(content, str):
         path.write_text(content)
     elif isinstance(content, dict):
-        path.write_text(json.dumps(content))
+        path.write_text(json.dumps(content, indent = 4))
     else:
         raise ValueError(f"Invalid data type {type(content)} supplied.")
+    
+def get_paragraphs_unified(decision):
+    text = decision.get_text()
+    paragraphs = text.splitlines()
+    paragraphs = list(filter(clean_whitespace, paragraphs))
+    paragraphs = [clean_paragraph(paragraph) for paragraph in paragraphs]
+    return paragraphs
+
+def clean_whitespace(str):
+    str = str.strip()
+    if str:
+        return True
+    return False
+
+def clean_paragraph(paragraph):
+    stripped_string = paragraph.strip()
+    clean_string = unicodedata.normalize("NFKD", stripped_string)
+    return clean_string
 
 
 def get_raw_text(html) -> str:
@@ -155,53 +173,6 @@ def roman_to_int(s: str) -> int:
         else:
             int_val += rom_val[s[i]]
     return int_val
-
-
-# according to BFS: https://en.wikipedia.org/wiki/Subdivisions_of_Switzerland
-regions = {
-    "Eastern_Switzerland": ["SG", "TG", "AI", "AR", "GL", "SH", "GR"],
-    "Zürich": ["ZH"],
-    "Central_Switzerland": ["UR", "SZ", "OW", "NW", "LU", "ZG"],
-    "Northwestern_Switzerland": ["BS", "BL", "AG"],
-    "Espace_Mittelland": ["BE", "SO", "FR", "NE", "JU"],
-    "Region_Lemanique": ["GE", "VD", "VS"],
-    "Ticino": ["TI"],
-    "Federation": ["CH"],  # this is a hack to map CH to a region too
-}
-
-
-def get_region(canton: str):
-    if canton is None:
-        return None
-    for region, cantons in regions.items():
-        if canton in cantons:
-            return region
-    raise ValueError(
-        f"Please provide a valid canton name. Could not find {canton} in {regions}")
-
-
-legal_areas = {
-    "public_law": ['CH_BGer_001', 'CH_BGer_002'],
-    "civil_law": ['CH_BGer_004', 'CH_BGer_005'],
-    "penal_law": ['CH_BGer_006', 'CH_BGer_011', 'CH_BGer_013'],
-    "social_law": ['CH_BGer_008', 'CH_BGer_009'],
-    "insurance_law": ['CH_BGer_016'],
-    "other": ['CH_BGer_010', 'CH_BGer_012', 'CH_BGer_014', 'CH_BGer_015', 'CH_BGer_999'],
-}
-
-
-def get_legal_area(chamber: str):
-    if chamber is None:
-        return None
-    if not chamber.startswith('CH_BGer_'):
-        raise ValueError(f"So far this method is only implemented for the Federal Supreme Court (CH_BGer). "
-                         f"You supplied the chamber {chamber}")
-
-    for legal_area, chambers in legal_areas.items():
-        if chamber in chambers:
-            return legal_area
-    raise ValueError(
-        f"Please provide a valid chamber name. Could not find {chamber} in {legal_areas}")
 
 
 def get_config() -> configparser.ConfigParser:

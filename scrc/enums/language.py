@@ -7,6 +7,8 @@ class Language(Enum):
     FR = 'fr'
     IT = 'it'
     EN = 'en'  # maybe remove this
+    RM = 'rm'
+    UK = '--'
     
     @staticmethod
     def get_id_value(language_str) -> int:

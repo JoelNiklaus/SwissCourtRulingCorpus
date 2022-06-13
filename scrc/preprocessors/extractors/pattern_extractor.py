@@ -1,12 +1,10 @@
-
 from __future__ import annotations
-from typing import Any, List, Optional, Set, TYPE_CHECKING, Tuple, Union
+from typing import Set, TYPE_CHECKING, Union
 from pathlib import Path
+import unicodedata
 import pandas as pd
 import sys
 import re
-from scrc.preprocessors.extractors.spider_specific.section_splitting_functions import prepare_section_markers
-
 from scrc.enums.section import Section
 from pandas.core.frame import DataFrame
 
@@ -15,16 +13,17 @@ import pandas as pd
 
 from scrc.enums.language import Language
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
+from scrc.preprocessors.extractors.spider_specific.section_splitting_functions import prepare_section_markers
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, where_decisionid_in_list, where_string_spider
+from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, \
+    where_decisionid_in_list, where_string_spider
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
 
 
 class PatternExtractor(AbstractExtractor):
-
     """
     Extracts and counts paragraphs/keywords commonly used across a court. The output can be found in ./data/patterns
     To extract the pattern from a court a function must be implemented in paragraph_extraction.py which simply returns the paragraphs.
@@ -86,18 +85,24 @@ class PatternExtractor(AbstractExtractor):
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
         """Processes one row of a raw df"""
-        # namespace = series[['date', 'html_url', 'pdf_url', 'id']].to_dict()
-        # namespace['language'] = Language(series['language'])
         namespace = dict()
-        if 'html_url' in series:
-            namespace['html_url'] = series.get('html_url')
+        # Add the data to the namespace object which is passed to the extraction function
+        namespace['html_url'] = series.get('html_url')
+        namespace['pdf_url'] = series.get('pdf_url')
+        namespace['date'] = series.get('date')
         namespace['language'] = Language(series['language'])
         namespace['id'] = series['decision_id']
+        if 'court_string' in series:
+            namespace['court'] = series.get('court_string')
         data = self.get_required_data(series)
         assert data
-        self.analyze_structure(self.call_processing_function(
-            series["spider"], data, namespace
-        ), namespace)
+        paragraphs = self.call_processing_function(series["spider"], data, namespace)
+        if not paragraphs:
+            raise ValueError(f"No valid paragraphs received. "
+                             f"Please implement a function for spider {series['spider']} in "
+                             f"preprocessors/extractors/spider_specific/paragraph_extractions.py")
+        if paragraphs:    
+            self.analyze_structure(paragraphs, namespace)
 
     def save_data_to_database(self, series: pd.DataFrame, engine: Engine):
         """Splits the data into their respective parts and saves them to the table"""
@@ -111,13 +116,21 @@ class PatternExtractor(AbstractExtractor):
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         if self.spider != spider:
             self.counter = 0
-            self.spider = spider
-        only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
-        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}", f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
+        self.spider = spider
+        only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None and len(
+            self.decision_ids) > 0 else ""
+        
+        return self.select(engine,
+                           f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')} " \
+                               "LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id " \
+                               "LEFT JOIN court ON court.court_id = chamber.court_id ",
+                           f"decision_id, iso_code as language, html_raw, pdf_raw, html_url, pdf_url, '{spider}' as spider, court_string",
+                           where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}",
+                           chunksize=self.chunksize)
 
     def process_one_spider(self, engine: Engine, spider: str):
         self.logger.info(self.logger_info["start_spider"] + " " + spider)
-        dfs = self.select_df(engine, spider)
+        dfs = self.select_df(self.get_engine(self.db_scrc), spider)
         for df in dfs:
             df = df.apply(self.process_one_df_row, axis="columns")
         self.create_dfs()
@@ -126,17 +139,12 @@ class PatternExtractor(AbstractExtractor):
     def analyze_structure(self, paragraphs: list, namespace: dict):
         self.counter += 1
         self.count_total_cases(namespace)
-        # no more url in namespace?
-        # url = namespace['pdf_url']
-        # if url == '':
-        #     url = namespace['html_url']
         noDuplicates = list(dict.fromkeys(paragraphs))
         for item in noDuplicates:
             if item is not None and (4 < len(item) < 80):
                 self.check_existance(item, namespace)
         if self.counter % 500 == 0:
-            self.logger.info(
-                f"Pattern extractor: {self.spider}: {self.counter} processed")
+            self.logger.info(f"Pattern extractor: {self.spider}: {self.counter} processed")
 
     def create_dfs(self):
         for key in self.dict:
@@ -152,11 +160,14 @@ class PatternExtractor(AbstractExtractor):
 
     def check_existance(self, item: str, namespace):
         item = re.sub('^=+', '', item)
+        url = namespace['html_url']
+        if url == '':
+            url = namespace['pdf_url']
         if item in self.dict[namespace['language']]['dict']:
             self.dict[namespace['language']]['dict'][item]['totalcount'] += 1
         else:
             self.dict[namespace['language']]['dict'][item] = {
-                "totalcount": 1, "keyword": item}
+                "totalcount": 1, "keyword": item, "url": url}
 
     def merge_rows(self, indices, df: DataFrame):
         for index in indices[1:]:
@@ -178,17 +189,21 @@ class PatternExtractor(AbstractExtractor):
     def assign_section(self, df: DataFrame, namespace, count):
         all_section_markers = {
             Language.FR: {
-                Section.FACTS: [r'[F,f]ait', 'droit'],
-                Section.CONSIDERATIONS: [r'[C,c]onsidère', r'[C,c]onsidérant', r'droit'],
-                Section.RULINGS: [r'prononce', r'motifs'],
-                Section.FOOTER: [r'\w*,\s(le\s?)?((\d?\d)|\d\s?(er|re|e)|premier|première|deuxième|troisième)\s?(?:janv|févr|mars|avr|mai|juin|juill|août|sept|oct|nov|déc).{0,10}\d?\d?\d\d\s?(.{0,5}[A-Z]{3}|(?!.{2})|[\.])',
-                                 r'Au nom de la Cour']
+                Section.FACTS: [r'[F,f]ait', r'FAIT'],
+                Section.CONSIDERATIONS: [r'[C,c]onsidère', r'[C,c]onsidérant', r'droit', r'DROIT'],
+                Section.RULINGS: [r'prononce', r'motifs', r'MOTIFS'],
+                Section.FOOTER: [
+                    r'\w*,\s(le\s?)?((\d?\d)|\d\s?(er|re|e)|premier|première|deuxième|troisième)\s?(?:janv|févr|mars|avr|mai|juin|juill|août|sept|oct|nov|déc).{0,10}\d?\d?\d\d\s?(.{0,5}[A-Z]{3}|(?!.{2})|[\.])',
+                    r'Au nom de la Cour', r'L[e,a] [g,G]reffière', r'l[e,a] [G,g]reffière', r'Le [P,p]résident']
             },
             Language.DE: {
-                Section.FACTS: [r'[S,s]achverhalt', r'[T,t]atsachen', r'[E,e]insicht in', r'[F,f]ait', 'droit'],
-                Section.CONSIDERATIONS: [r'[E,e]rwägung', r"erwägt", "ergeben", r'[C,c]onsidère', r'[C,c]onsidérant', r'droit'],
-                Section.RULINGS: [r'erk[e,a]nnt',  r'beschlossen', r'verfügt', r'beschliesst', r'entscheidet', r'prononce', r'motifs'],
-                Section.FOOTER: [r'Rechtsmittelbelehrung',  r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))',
+                Section.FACTS: [r'[S,s]achverhalt', r'[T,t]atsachen', r'[E,e]insicht in', r'in Sachen'],
+                Section.CONSIDERATIONS: [r'[E,e]rwägung', r"erwägt", "ergeben"
+                                         ],
+                Section.RULINGS: [r'erk[e,a]nnt', r'beschlossen', r'verfügt', r'beschliesst', r'entscheidet',
+                                  r'prononce', r'motifs'],
+                Section.FOOTER: [r'Rechtsmittelbelehrung',
+                                 r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))',
                                  r'Im Namen des']
             },
             Language.IT: {
@@ -246,7 +261,8 @@ class PatternExtractor(AbstractExtractor):
                         try:
                             if 'totalcount' in dfs[key].columns:
                                 dfs[key].sort_values(
-                                    by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key), index=False)
+                                    by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key),
+                                                                                 index=False)
                         except ValueError:
                             print(f'error trying to output {key}')
 
@@ -255,8 +271,6 @@ class PatternExtractor(AbstractExtractor):
             df.drop(
                 df[df.totalcount < 2].index, inplace=True)
             df.reset_index(drop=True, inplace=True)
-        else:
-            print(df)
         return df
 
     def get_path(self, spider: str, lang):

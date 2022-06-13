@@ -17,8 +17,8 @@ class CourtPerson(Person):
             'party': self.party.value if self.party else None,
             'court_role': self.court_role.value if self.court_role else None,
         }
-        person_dict = super().toJSON()
-        dict_representation = {**super().toJSON(), **intermediate_dict_representation}
+        person_dict = json.loads(super().toJSON())
+        dict_representation = {**person_dict, **intermediate_dict_representation}
         
         return json.dumps(dict_representation, 
             sort_keys=True, indent=4)

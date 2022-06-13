@@ -156,6 +156,12 @@
       "replacement": "",
       "description": "remove 'Microsoft Word' with file name at the beginning."
     }
+  ],
+  "CH_BGer": [
+    {
+      "pattern": "((?<=\\w)\\s)(?=[a-z]\\s)",
+      "replacement": "",
+      "description": "remove whitespaces in words (e.g. U r t e i l)"
+    }
   ]
 }
-

@@ -44,7 +44,8 @@ class AbstractPreprocessor:
     def __init__(self, config: dict):
         self.languages = json.loads(config['general']['languages'])
         self.chunksize = int(config['general']['chunksize'])
-        self.ignore_cache = config['general']['ignore_cache'].lower() == 'true'
+        self.rebuild_entire_database = config['general']['rebuild_entire_database'].lower() == 'true'
+        self.process_new_files_only = config['general']['process_new_files_only'].lower() == 'true'
 
         self.data_dir = self.create_dir(ROOT_DIR, config['dir']['data_dir'])
         self.progress_dir = self.create_dir(
@@ -79,6 +80,9 @@ class AbstractPreprocessor:
             ROOT_DIR, config['dir']['spider_specific_dir'])
         self.output_dir = self.create_dir(
             self.data_dir, config['dir']['output_subdir'])
+        
+        self.legal_info_dir = self.create_dir(
+            ROOT_DIR, config['dir']['legal_info_dir'])
 
         self.ip = config['postgres']['ip']
         self.port = config['postgres']['port']
@@ -172,7 +176,7 @@ class AbstractPreprocessor:
             conn.execute(query)
 
     @staticmethod
-    def select(engine, table, columns="*", where=None, order_by=None, chunksize=1000):
+    def select(engine, table, columns="*", where=None, order_by=None, chunksize=1000, log_query=False):
         """
         This is the utility function to stream entries from the database.
 
@@ -182,6 +186,7 @@ class AbstractPreprocessor:
         :param where:           an sql WHERE clause to filter by certain column values
         :param order_by:        an sql ORDER BY clause to order the output
         :param chunksize:       the number of rows to retrieve per chunk
+        :param log_query:       whether to log the query for debug purposes or not
         :return:                a generator of pd.DataFrame
         """
         with engine.connect().execution_options(stream_results=True) as conn:
@@ -190,6 +195,8 @@ class AbstractPreprocessor:
                 query += " WHERE " + where
             if order_by:
                 query += " ORDER BY " + order_by
+            if log_query:
+                print(query)
             for chunk_df in pd.read_sql(query, conn, chunksize=chunksize):
                 yield chunk_df
 
@@ -207,7 +214,6 @@ class AbstractPreprocessor:
         """
 
         if not AbstractPreprocessor._check_write_privilege(engine):
-            path = ''
             if filename is None:
                 AbstractPreprocessor.create_dir(output_dir, os.getlogin())
                 path = Path.joinpath(output_dir, os.getlogin(
