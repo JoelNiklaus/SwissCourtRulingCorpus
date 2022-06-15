@@ -5,6 +5,8 @@ import bs4
 import re
 import unicodedata
 
+from bs4 import BeautifulSoup
+
 from scrc.enums.section import Section
 from scrc.utils.main_utils import clean_text
 from scrc.utils.main_utils import get_paragraphs_unified
@@ -16,46 +18,20 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the sections dict (keys: section, values: list of paragraphs)
     """
+    if isinstance(decision, str):
+        return get_pdf_paragraphs(decision)
     return get_paragraphs_unified(decision)
 
-def AR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_pdf_paragraphs(decision)
-
-
-def CH_BSTG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_pdf_paragraphs(decision)
-
-
-def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_pdf_paragraphs(decision)
-
-
-def GR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_pdf_paragraphs(decision)
-
-
-def CH_BPatG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_pdf_paragraphs(decision)
-
-
-def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_pdf_paragraphs(decision)
-
-
-def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_pdf_paragraphs(decision)
-
-
-def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_pdf_paragraphs(decision)
-
-
-def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_pdf_paragraphs(decision)
-
-
-def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    return get_pdf_paragraphs(decision)
+def LU_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    """
+    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the sections dict (keys: section, values: list of paragraphs)
+    """
+    paragraphs = []
+    for string in decision.strings:
+        paragraphs.append(string)
+    return list(filter(clean_text, paragraphs))
 
 
 def get_pdf_paragraphs(soup: str) -> list:
@@ -74,6 +50,7 @@ def get_pdf_paragraphs(soup: str) -> list:
         element = element.replace('  ', ' ')
         paragraph = clean_text(element)
         if paragraph not in ['', ' ', None]:  # discard empty paragraphs
+            
             paragraphs.append(paragraph)
     return paragraphs
 

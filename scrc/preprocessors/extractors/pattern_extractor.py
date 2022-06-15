@@ -44,8 +44,7 @@ class PatternExtractor(AbstractExtractor):
         self.counter = 0
         self.spider = ''
         self.limit = 0
-        self.dict = {Language.DE: {'count': 0, 'dict': {}}, Language.FR: {
-            'count': 0, 'dict': {}}, Language.IT: {'count': 0, 'dict': {}}, Language.EN: {'count': 0, 'dict': {}}}
+        self.dict = {}
         self.end = {}
         self.logger_info = {
             'start': 'Started pattern extraction',
@@ -72,6 +71,10 @@ class PatternExtractor(AbstractExtractor):
 
     def add_columns(self, engine: Engine):
         return None
+    
+    def init_dict(self):
+        self.dict = {Language.DE: {'count': 0, 'dict': {}}, Language.FR: {
+            'count': 0, 'dict': {}}, Language.IT: {'count': 0, 'dict': {}}, Language.EN: {'count': 0, 'dict': {}}, Language.UK: {'count': 0, 'dict': {}}}
 
     def start_progress(self, engine: Engine, spider: str, lang: str):
         self.processed_amount = 0
@@ -95,20 +98,19 @@ class PatternExtractor(AbstractExtractor):
         if 'court_string' in series:
             namespace['court'] = series.get('court_string')
         data = self.get_required_data(series)
-        assert data
         paragraphs = self.call_processing_function(series["spider"], data, namespace)
-        if not paragraphs:
-            raise ValueError(f"No valid paragraphs received. "
-                             f"Please implement a function for spider {series['spider']} in "
-                             f"preprocessors/extractors/spider_specific/paragraph_extractions.py")
         if paragraphs:    
             self.analyze_structure(paragraphs, namespace)
 
     def save_data_to_database(self, series: pd.DataFrame, engine: Engine):
         """Splits the data into their respective parts and saves them to the table"""
+        
+    def get_coverage(self, engine: Engine, spider: str):
+        """Splits the data into their respective parts and saves them to the table"""
 
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
+            self.init_dict()
             self.process_one_spider(engine, spider)
         self.mark_as_processed(self.processed_file_path, spider)
 
@@ -141,7 +143,7 @@ class PatternExtractor(AbstractExtractor):
         self.count_total_cases(namespace)
         noDuplicates = list(dict.fromkeys(paragraphs))
         for item in noDuplicates:
-            if item is not None and (4 < len(item) < 80):
+            if item is not None and (4 < len(item)):
                 self.check_existance(item, namespace)
         if self.counter % 500 == 0:
             self.logger.info(f"Pattern extractor: {self.spider}: {self.counter} processed")
@@ -198,8 +200,7 @@ class PatternExtractor(AbstractExtractor):
             },
             Language.DE: {
                 Section.FACTS: [r'[S,s]achverhalt', r'[T,t]atsachen', r'[E,e]insicht in', r'in Sachen'],
-                Section.CONSIDERATIONS: [r'[E,e]rwägung', r"erwägt", "ergeben"
-                                         ],
+                Section.CONSIDERATIONS: [r'[E,e]rwägung', r"erwägt", "ergeben", r'Erwägungen'],
                 Section.RULINGS: [r'erk[e,a]nnt', r'beschlossen', r'verfügt', r'beschliesst', r'entscheidet',
                                   r'prononce', r'motifs'],
                 Section.FOOTER: [r'Rechtsmittelbelehrung',
@@ -219,6 +220,12 @@ class PatternExtractor(AbstractExtractor):
                 Section.CONSIDERATIONS: [],
                 Section.RULINGS: [],
                 Section.FOOTER: []
+            },
+            Language.UK: {
+                Section.FACTS: [],
+                Section.CONSIDERATIONS: [],
+                Section.RULINGS: [],
+                Section.FOOTER: []
             }
         }
         section_markers = prepare_section_markers(
@@ -233,16 +240,16 @@ class PatternExtractor(AbstractExtractor):
             for index, element in enumerate(df['keyword'].tolist()):
                 if index % 100 == 0:
                     self.logger.info(self.get_progress_string(
-                        index, df['keyword'].size, "Section assignment"))
+                        index, df['keyword'].size, "Section assignment: "))
                 foundAssigntment = False
                 for key in section_markers:
                     if re.search(section_markers[key], element):
-                        if key == Section.RULINGS or len(element) < 45:
-                            row = df.loc[index]
-                            row['coverage'] = row['totalcount'] / count * 100
-                            dfs[key] = dfs[key].append(
-                                row, ignore_index=True)
-                            foundAssigntment = True
+                        # if key == Section.RULINGS or len(element) < 400:
+                        row = df.loc[index]
+                        row['coverage'] = row['totalcount'] / count * 100
+                        dfs[key] = dfs[key].append(
+                            row, ignore_index=True)
+                        foundAssigntment = True
                 if not foundAssigntment:
                     row = df.loc[index]
                     row['coverage'] = row['totalcount'] / count * 100
@@ -258,18 +265,15 @@ class PatternExtractor(AbstractExtractor):
             with pd.ExcelWriter(self.get_path(self.spider, lang)) as writer:
                 for key in dfs:
                     if key != Section.FULLTEXT:
-                        try:
-                            if 'totalcount' in dfs[key].columns:
-                                dfs[key].sort_values(
-                                    by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key),
-                                                                                 index=False)
-                        except ValueError:
-                            print(f'error trying to output {key}')
+                        if 'totalcount' in dfs[key].columns:
+                            dfs[key].sort_values(
+                                by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key),
+                                                                             index=False)
 
     def drop_rows(self, df: DataFrame):
         if 'totalcount' in df.columns:
             df.drop(
-                df[df.totalcount < 2].index, inplace=True)
+                df[df.totalcount < 5].index, inplace=True)
             df.reset_index(drop=True, inplace=True)
         return df
 

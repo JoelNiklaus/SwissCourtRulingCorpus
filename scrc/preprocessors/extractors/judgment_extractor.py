@@ -45,6 +45,9 @@ class JudgmentExtractor(AbstractExtractor):
     def get_database_selection_string(self, spider: str, lang: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         return f"spider='{spider}' AND rulings IS NOT NULL AND rulings <> ''"
+    
+    def get_coverage(self, engine: Engine, spider: str):
+        """Splits the data into their respective parts and saves them to the table"""
 
     def get_required_data(self, series: DataFrame) -> Any:
         """Returns the data required by the processing functions"""

@@ -191,7 +191,6 @@ def BS_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
         if Judgment.PARTIAL_DISMISSAL in judgments:
             # if partial_dismissal is found, it will find dismissal as well
             judgments.discard(Judgment.DISMISSAL)
-
     return judgments
 
 def GL_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:

@@ -35,6 +35,10 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     @abstractmethod
     def save_data_to_database(self, series: pd.DataFrame, engine: Engine):
         """Splits the data into their respective parts and saves them to the table"""
+        
+    @abstractmethod
+    def get_coverage(self, engine: Engine, spider: str):
+        """Logs the coverage"""
 
     @abstractmethod
     def select_df(self, engine: Engine, spider: str):
@@ -109,11 +113,12 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         # dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
         for df in dfs:  # For each chunk in the data: apply the extraction function and save the result
             df = df.apply(self.process_one_df_row, axis="columns")
-            if not df.empty:
-                self.save_data_to_database(df, self.get_engine(self.db_scrc))
-                self.logger.info(f'One chunk of {len(df.index)} decisions saved')
+            df.to_csv('test.csv')
+            # if not df.empty:
+                # self.save_data_to_database(df, self.get_engine(self.db_scrc))
+                # self.logger.info(f'One chunk of {len(df.index)} decisions saved')
             # self.log_progress(self.chunksize)
-
+        self.get_coverage(spider)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
