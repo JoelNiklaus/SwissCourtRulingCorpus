@@ -57,7 +57,7 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
   "db-out")
   for VARIABLE in annotations_de annotations_de-angela annotations_de-lynn annotations_de-thomas annotations_fr annotations_fr-lynn annotations_it-angela annotations_it
     do
-      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./annotations/$VARIABLE.jsonl
+      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./judgment_explainability/annotations/$VARIABLE.jsonl
     done
    ;;
   "drop")
