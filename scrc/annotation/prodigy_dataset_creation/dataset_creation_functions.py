@@ -35,7 +35,6 @@ PATTERNS = {"de": "[u|U]rteil \w+ \d+?.? \w+ \d{4}",
             "fr": "([a|A]rrêt \w+ \d+?.? \w+ \d{4})|([a|A]rrêt \w+ \d+?er \w+ \d{4})",
             "it": "([s|S]entenza \w+ \d+?.? \w+ \d{4})|([s|S]entenza \w+'\d+?.? \w+ \d{4})"}
 
-
 # Writes a JSONL file from dictionary list.
 def write_JSONL(filename: str, data: list):
     with open(filename, 'w') as outfile:
@@ -66,8 +65,9 @@ def read_csv(filepath: str) -> pandas.DataFrame:
     return df
 
 
-def set_id_scrc(df: pd.DataFrame) -> numpy.ndarray:
-    df = df[df["answer"] != "accept"]
+def set_id_scrc(df: pd.DataFrame, mode: int) -> numpy.ndarray:
+    if mode != 1:
+        df = df[df["answer"] != "accept"]
     return df["id_scrc"].values
 
 
@@ -97,28 +97,31 @@ def filter_dataset(data: list, mode: int) -> list:
     """
     tuples = set()
     filtered_dataset = []
-    print(mode)
     for d in data:
-        if mode == 0:
-            t = (d["year"], d["legal_area"], d["judgment"])
+        t = (d["year"], d["legal_area"], d["judgment"])
         if mode == 1:
             t = (d["year"], d["legal_area"], d["judgment"], d["is_correct"])
-            print(t)
         if t not in tuples:
             tuples.add(t)
             filtered_dataset.append(d)
 
-    validate_filtering(sorted(tuples), filtered_dataset)
+
+    validate_filtering(sorted(tuples), filtered_dataset, mode)
     return filtered_dataset
 
-def validate_filtering(tuple_list: list, filtered_list: list):
+def validate_filtering(tuple_list: list, filtered_list: list, mode: int):
     """
     Asserts uniqueness of dataset entries
     Checks if every year has a complete set of 6 rulings
     Asserts a list length smaller than NUMBER_OF_RULINGS_PER_LANGUAGE
     """
-
     i = 0
+    j = 5
+    steps = 6
+    if mode == 1:
+        j = 11
+        steps = 12
+        filtered_list += [''] * (NUMBER_OF_RULINGS_PER_LANGUAGE_prediction - len(filtered_list))
     incomplete_set_years = []
     try:
         assert len(tuple_list) == len(set(tuple_list))
@@ -126,15 +129,19 @@ def validate_filtering(tuple_list: list, filtered_list: list):
         print("Dataset was not filtered correctly: Contains duplicates.")
     try:
         while i < len(tuple_list):
-            if tuple_list[i][0] == tuple_list[i + 5][0]:
+            if tuple_list[i][0] == tuple_list[i + j][0]:
                 print("Set {} complete!".format(tuple_list[i][0]))
-                i += 6
+                i += steps
             else:
                 i += 1
                 if tuple_list[i][0] != tuple_list[i + 1][0]:
                     print("Set {} not complete!".format(tuple_list[i][0]))
                     incomplete_set_years.append(tuple_list[i][0])
-        assert len(filtered_list) == NUMBER_OF_RULINGS_PER_LANGUAGE_explainability
+        if mode == 0:
+            assert len(filtered_list) == NUMBER_OF_RULINGS_PER_LANGUAGE_explainability
+        if mode == 1:
+            assert len(filtered_list) == NUMBER_OF_RULINGS_PER_LANGUAGE_prediction
+
     except AssertionError:
         print("Dataset was not filtered correctly: Contains an incorrect number of entries {}.".format(
             len(filtered_list)))
