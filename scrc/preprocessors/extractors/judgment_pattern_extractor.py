@@ -4,13 +4,20 @@ import datetime
 import os
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
+from nltk.tokenize import sent_tokenize
+
+
 
 import pandas as pd
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.schema import MetaData, Table
 from scrc.enums.judgment import Judgment
+from scrc.enums.language import Language
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
+from nltk import ngrams
+
+
 
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
@@ -31,7 +38,8 @@ class JudgmentExtractor(AbstractExtractor):
     def __init__(self, config: dict):
         super().__init__(config, function_name='judgment_extracting_functions', col_name='judgments')
         self.logger = get_logger(__name__)
-        self.processed_file_path = self.progress_dir / "spiders_judgment_extracted.txt"
+        self.processed_file_path = self.progress_dir / "judgment_pattern_extractor.txt"
+        self.dict = {1: {}, 2: {}, 3: {}, 4: {}, 5: {}, 6: {}}
         self.logger_info = {
             'start': 'Started extracting judgments',
             'finished': 'Finished extracting judgments',
@@ -48,6 +56,73 @@ class JudgmentExtractor(AbstractExtractor):
     
     def get_coverage(self, engine: Engine, spider: str):
         """Splits the data into their respective parts and saves them to the table"""
+    
+    def get_coverage(self, engine: Engine, spider: str):
+        """Splits the data into their respective parts and saves them to the table"""
+        
+    def process_one_spider(self, engine: Engine, spider: str):
+        self.logger.info(self.logger_info["start_spider"] + " " + spider)
+        dfs = self.select_df(self.get_engine(self.db_scrc), spider)  # Get the data needed for the extraction
+        # TODO make quick request to see if there are decisions at all: if not, skip lang so no confusing report is printed
+        # self.start_progress(engine, spider)
+        # stream dfs from the db
+        # dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
+        for df in dfs:  # For each chunk in the data: apply the extraction function and save the result
+            df = df.apply(self.process_one_df_row, axis="columns")
+            self.df_to_csv(spider)
+        self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
+    
+    def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
+        """Processes one row of a raw df"""
+        namespace = dict()
+        # Add the data to the namespace object which is passed to the extraction function
+        namespace['html_url'] = series.get('html_url')
+        namespace['pdf_url'] = series.get('pdf_url')
+        namespace['date'] = series.get('date')
+        namespace['language'] = Language(series['language'])
+        namespace['id'] = series['decision_id']
+        if 'court_string' in series:
+            namespace['court'] = series.get('court_string')
+        data = self.get_required_data(series)
+        if data: 
+            self.sentencize(data)
+              
+    
+    def df_to_csv(self, spider):
+        # todo: section assignment
+        with pd.ExcelWriter(self.get_path(spider)) as writer:
+            for key in self.dict:
+                dict_list = list(self.dict[key].items())
+                dict_list.sort(key = lambda x:x[1]['totalcount'], reverse = True)
+                df = pd.DataFrame(dict_list)
+                df.to_excel(writer, sheet_name=str(key),index=False)
+                
+    def get_path(self, spider: str):
+        filepath = Path(f'data/judgment_patterns/{spider}.xlsx')
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        return filepath
+            
+        
+    
+    def add_combinations(self, sentence):
+        # add url
+        for i in range(1, 7):
+            gram_list = self.create_ngrams(i, sentence)
+            for gram in gram_list:
+                if gram in self.dict[i]:
+                    self.dict[i][gram]['totalcount'] += 1
+                else:
+                    self.dict[i][gram] = {'totalcount': 1}
+            
+    def create_ngrams(self, n, sentence):
+        n_gram = ngrams(sentence, n)
+        return [gram for gram in n_gram]
+    
+    def sentencize(self, data):
+        sentence_list = sent_tokenize(data)
+        for sentence in sentence_list:
+            self.add_combinations(sentence.split())
+        
 
     def get_required_data(self, series: DataFrame) -> Any:
         """Returns the data required by the processing functions"""
@@ -63,27 +138,7 @@ class JudgmentExtractor(AbstractExtractor):
                            chunksize=self.chunksize)
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
-        if not AbstractPreprocessor._check_write_privilege(engine):
-            AbstractPreprocessor.create_dir(self.output_dir, os.getlogin())
-            path = Path.joinpath(self.output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
-
-            with path.open("a") as f:
-                df.to_json(f)
-            return
-        for idx, row in df.iterrows():
-            with engine.connect() as conn:
-                t = Table('judgment_map', MetaData(), autoload_with=engine)
-                if row['judgments']:  # only insert, when we find judgments
-                    # Delete and reinsert as no upsert command is available
-                    stmt = t.delete().where(delete_stmt_decisions_with_df(df))
-                    conn.execute(stmt)
-                    for k in row['judgments']:
-                        judgment_type_id = Judgment(k).value
-                        stmt = t.insert().values([{"decision_id": str(row['decision_id']),
-                                                   "judgment_id": judgment_type_id}])
-                        conn.execute(stmt)
-                else:
-                    self.logger.warning(f"No judgments found for {row['html_url']}")
+        """Do nothing"""
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing.
