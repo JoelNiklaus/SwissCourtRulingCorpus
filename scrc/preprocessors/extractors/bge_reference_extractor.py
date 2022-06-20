@@ -28,11 +28,11 @@ class BgeReferenceExtractor(AbstractExtractor):
         self.logger_info = {
             'start': 'Started extracting the bge references',
             'finished': 'Finished extracting the bge references',
-            'start_spider': 'Started extracting the court compositions for spider',
-            'finish_spider': 'Finished extracting the court compositions for spider',
-            'saving': 'Saving chunk of court compositions',
-            'processing_one': 'Extracting the court composition from',
-            'no_functions': 'Not extracting the court compositions.'
+            'start_spider': 'Started extracting the bge references for spider',
+            'finish_spider': 'Finished extracting the bge references for spider',
+            'saving': 'Saving chunk of bge references',
+            'processing_one': 'Extracting the bge references from',
+            'no_functions': 'Not extracting the bge references'
         }
 
     def get_database_selection_string(self, spider: str, lang: str) -> str:
