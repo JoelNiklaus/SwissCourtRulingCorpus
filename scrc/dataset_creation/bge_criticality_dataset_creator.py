@@ -1,6 +1,10 @@
 from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
 from scrc.utils.log_utils import get_logger
 import pandas as pd
+from root import ROOT_DIR
+from pathlib import Path
+
+
 
 from scrc.utils.main_utils import get_config
 
@@ -25,15 +29,17 @@ class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
 
         # Include all bger rulings whose file_number can be found in the header of a bge
         # It's not enough no compare date and chamber, there are multiple matching cases
-        # There exist around 12'000 rulings with date = 1.1.2020
         # error sources:
         # 1. Regex cannot find correct file number in header
         # 2. languages are different -> different datasets
 
-        # TODO create method comparing bger file numbers to found regex expression in bge
-        """
-        file_number_match = bger_df.file_number.astype(str).isin(list(bge_df.bge_reference.astype(str)))
-        file_number_match_df = bger_df[file_number_match]       
+        # TODO correct path
+        bge_references_file_path: Path = ROOT_DIR / "scrc" / "dataset_creation" / "bge_references.txt"
+        if not bge_references_file_path.exists():
+            bge_references_file_path.touch()
+        bge_references = bge_references_file_path.read_text().strip().split("\n")
+        # TODO check why file_number_match is not working -> strings in file have underscore!
+        file_number_match = bger_df.file_number.astype(str).isin(list(bge_references))
         critical_df = bger_df[file_number_match]
         critical_df['label'] = 'critical'
         non_critical_df = bger_df[~file_number_match]
@@ -41,8 +47,6 @@ class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
         self.logger.info(f"# critical decisions: {len(critical_df.index)}")
         self.logger.info(f"# non-critical decisions: {len(non_critical_df.index)}")
         return critical_df.append(non_critical_df)
-        """
-        return bger_df
 
 
 if __name__ == '__main__':
