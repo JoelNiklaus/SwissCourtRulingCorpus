@@ -25,7 +25,7 @@ class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
     def get_labeled_data(self, bger_df, bge_df):
         self.logger.info(f"Processing labeling of bge_criticality")
         self.logger.info(f"# bger decisions: {len(bger_df.index)}")
-        self.logger.info(f"# bgel decisions: {len(bge_df.index)}")
+        self.logger.info(f"# bge decisions: {len(bge_df.index)}")
 
         # Include all bger rulings whose file_number can be found in the header of a bge
         # It's not enough no compare date and chamber, there are multiple matching cases
