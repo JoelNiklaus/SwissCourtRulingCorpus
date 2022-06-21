@@ -39,11 +39,17 @@ def CH_BGE(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
 
     # create pattern for bge references: 1_456/2021 oder 1a.456/2021 oder 3a 32/2019
     pattern = re.compile('\d\D?_\d{1,3}/\d{4}|\d\D?\.\d{1,3}/\d{4}|\d\D?\s\d{1,3}/\d{4}')
-    bge_reference = pattern.findall(header)[0]
-    # in database decisions are saved with space, make sure pattern is the same
-    bge_reference = bge_reference.replace('_', ' ')
-    bge_reference = bge_reference.replace('.', ' ')
+    bge_references = []
+    bge_references = pattern.findall(header)
+    if bge_references:
+        bge_reference = bge_references[0]
+        # in database decisions are saved with space, make sure pattern is the same
+        bge_reference = bge_reference.replace('_', ' ')
+        bge_reference = bge_reference.replace('.', ' ')
+    else:
+        bge_reference = 'no reference found'
     return str(bge_reference)
+
 
 
 
