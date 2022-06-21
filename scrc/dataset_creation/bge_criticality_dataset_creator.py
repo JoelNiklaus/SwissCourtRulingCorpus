@@ -24,8 +24,8 @@ class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
     # set criticality labels
     def get_labeled_data(self, bger_df, bge_df):
         self.logger.info(f"Processing labeling of bge_criticality")
-        self.logger.info(f"# bger decisions: {len(bger_df.index)}")
-        self.logger.info(f"# bge decisions: {len(bge_df.index)}")
+        self.logger.info(f"# there are {len(bger_df.index)} bger decisions")
+        self.logger.info(f"# there are {len(bge_df.index)} bge decisions")
 
         # Include all bger rulings whose file_number can be found in the header of a bge
         # It's not enough no compare date and chamber, there are multiple matching cases
@@ -37,7 +37,6 @@ class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
         if not bge_references_file_path.exists():
             bge_references_file_path.touch()
         bge_references = bge_references_file_path.read_text().strip().split("\n")
-        # TODO check why file_number_match is not working -> strings in file have underscore!
         file_number_match = bger_df.file_number.astype(str).isin(list(bge_references))
         critical_df = bger_df[file_number_match]
         critical_df['label'] = 'critical'
@@ -45,7 +44,20 @@ class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
         non_critical_df['label'] = 'non-critical'
         self.logger.info(f"# critical decisions: {len(critical_df.index)}")
         self.logger.info(f"# non-critical decisions: {len(non_critical_df.index)}")
+        self.calculate_label_coverage(bge_references, file_number_match, critical_df, bger_df)
         return critical_df.append(non_critical_df)
+
+    def calculate_label_coverage(self, bge_references, file_number_match, critical_df, bger_df):
+        self.logger.info(f"there were {len(bge_references)} references extracted")
+        bge_references = set(bge_references)
+        self.logger.info(f"{len(bge_references)} of the entries were unique")
+        # get references which were extracted but not found in bger cases
+        extracted_and_found = list(critical_df.file_number.astype(str))
+        new_list = [decision for decision in bge_references if decision not in extracted_and_found]
+        self.logger.info(f"{len(new_list)} references were extracted but not found")
+
+
+
 
 
 if __name__ == '__main__':
