@@ -33,8 +33,7 @@ class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
         # 1. Regex cannot find correct file number in header
         # 2. languages are different -> different datasets
 
-        # TODO correct path
-        bge_references_file_path: Path = ROOT_DIR / "scrc" / "dataset_creation" / "bge_references.txt"
+        bge_references_file_path: Path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
         if not bge_references_file_path.exists():
             bge_references_file_path.touch()
         bge_references = bge_references_file_path.read_text().strip().split("\n")
