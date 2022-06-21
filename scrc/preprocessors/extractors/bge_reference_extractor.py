@@ -41,15 +41,22 @@ class BgeReferenceExtractor(AbstractExtractor):
 
     def get_required_data(self, series: pd.DataFrame) -> Union[bs4.BeautifulSoup, str, None]:
         """Returns the data required by the processing functions"""
-        return {Section.HEADER: series['header']}
+        html_raw = series['html_raw']
+        if pd.notna(html_raw) and html_raw not in [None, '']:
+            # Parses the html string with bs4 and returns the body content
+            return bs4.BeautifulSoup(html_raw, "html.parser")
+        pdf_raw = series['pdf_raw']
+        if pd.notna(pdf_raw) and pdf_raw not in [None, '']:
+            return pdf_raw
+        return None
 
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
-        # TODO test what is selected
-        # select analog zur Abfrage in court_composition_extractor aber ohne footer
-        to_return = self.select(engine, f"section headersection {join_decision_and_language_on_parameter('decision_id', 'headersection.decision_id')} {join_file_on_decision()}", f"headersection.decision_id, headersection.section_text as header, '{spider}' as spider, iso_code as language, html_url", where=f"headersection.section_type_id = 1 AND headersection.decision_id IN {where_string_spider('decision_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
-        return to_return
+        return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}",
+                           f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider",
+                           where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}",
+                           chunksize=self.chunksize)
 
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
