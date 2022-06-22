@@ -3,15 +3,11 @@ from typing import Any, TYPE_CHECKING, Union
 import bs4
 import pandas as pd
 from sqlalchemy.engine.base import Engine
-from sqlalchemy.sql.expression import text
-from sqlalchemy.sql.schema import MetaData, Table
-
 from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
-from scrc.enums.section import Section
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, \
-    join_file_on_decision, where_decisionid_in_list, where_string_spider
+from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, \
+    where_decisionid_in_list, where_string_spider
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
@@ -60,9 +56,11 @@ class BgeReferenceExtractor(AbstractExtractor):
 
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
+        """Instead of saving data into database, references get written into a text file"""
         self.logger.info("save data in progress")
         processed_file_path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
         for _, row in df.iterrows():
+            # only add new content to textfile not overwriting
             with processed_file_path.open("a") as f:
                 if 'bge_reference' in row and row['bge_reference'] != 'no reference found':
                     bge_reference = str(row['bge_reference'])
@@ -78,5 +76,6 @@ class BgeReferenceExtractor(AbstractExtractor):
 if __name__ == '__main__':
     config = get_config()
     bge_reference_extractor = BgeReferenceExtractor(config)
-    bge_reference_extractor.start()
     # delete bge_reference_found.txt file before letting it run.
+    # remove CH_BGE from processed spiders
+    bge_reference_extractor.start()
