@@ -57,4 +57,8 @@ if __name__ == '__main__':
     config = get_config()
 
     bge_criticality_dataset_creator = BgeCriticalityDatasetCreator(config)
+    # TODO use create_dataset method instead
     bge_criticality_dataset_creator.get_dataset('text', 'de', False)
+    bge_criticality_dataset_creator.get_dataset('text', 'fr', False)
+    bge_criticality_dataset_creator.get_dataset('text', 'it', False)
+
