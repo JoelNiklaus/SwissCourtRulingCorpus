@@ -26,7 +26,7 @@ def CH_BGE(soup: Any, namespace: dict) -> Optional[str]:
     """
     :param soup:        the soup parsed by bs4
     :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict, None if not in German
+    :return:            the string of found reference, 'no reference found' if no reference was extracted
     """
 
     pattern = re.compile('\d\D?_\d{1,3}/\d{4}|\d\D?\.\d{1,3}/\d{4}|\d\D?\s\d{1,3}/\d{4}')
@@ -38,15 +38,5 @@ def CH_BGE(soup: Any, namespace: dict) -> Optional[str]:
         bge_reference = bge_reference.replace('.', ' ')
         return bge_reference
     else:
-        bge_reference = 'no reference found'
-    return bge_reference
-
-
-
-
-
-
-
-
-
+        return 'no reference found'
 
