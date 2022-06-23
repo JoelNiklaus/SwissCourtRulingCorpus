@@ -24,28 +24,37 @@ class CitationCriticalityDatasetCreator(CriticalityDatasetCreator):
 
     # set criticality labels
     def get_labeled_data(self, bger_df, bge_df):
-        self.logger.info(f"Processing labeling of bge_criticality")
-        # TODO take care of all languages
-        type_corpus_frequency = self.process_citation_type("rulings", bger_df, 'de')
-        self.logger.info(f"Got the processed frequencies")
+        """set for each bger ruling a label critical or non-critical depending on how often a case was cited in another
+            case or not.
+            One should think about where citations can be found. Only in bger or also in cantons.
+        """
+        self.logger.info(f"Processing labeling of citation_criticality")
+        self.logger.info(f"# there are {len(bger_df.index)} bger decisions")
+        self.logger.info(f"# there are {len(bge_df.index)} bge decisions")
+        self.logger.info(f"Processing labeling of citation_criticality")
 
         # Include all bger rulings
         # get a list of number of citations of bge which were found in other rulings
         # define a minimum amount of citations needed to define a ruling as critical
         # 1. languages are different -> different datasets
 
-        """
-        critical_case_list = list(str(type_corpus_frequency[file_number]) where type_corpus_frequency[score]>=1)
-        case_cited = bger_df.file_number.astype(str).isin(critical_case_list)
-        critical_df = bger_df[case_cited]
-        critical_df['label'] = 'critical'
-        non_critical_df = bger_df[~criticality_score_match]
-        non_critical_df['label'] = 'non-critical'
-        return critical_df.append(non_critical_df)
-        """
-        return bger_df
+        # TODO take care of all languages
+        # get a dict where for each bge ruling is counted how often it was cited by other rulings
+        type_corpus_frequency = self.process_citation("rulings", bger_df, 'de')
 
-    def process_citation_type(self, cit_type, df, lang):
+        critical_cases = set()
+        for file_number, citations_amount in type_corpus_frequency.items():
+            if citations_amount >= 1:
+                critical_cases.add(str(file_number))
+
+        file_number_match = bger_df.file_number.astype(str).isin(critical_cases)
+        critical_df = bger_df[file_number_match]
+        critical_df['citation_label'] = 'critical'
+        non_critical_df = bger_df[~file_number_match]
+        non_critical_df['citation_label'] = 'non-critical'
+        return critical_df.append(non_critical_df)
+
+    def process_citation(self, cit_type, df, lang):
         self.logger.info(f"Processing the {cit_type} citations.")
         df[cit_type] = df.citations.parallel_apply(Doc2DocIRDatasetCreator.get_citations, type=cit_type, lang=lang)
 
@@ -88,4 +97,4 @@ if __name__ == '__main__':
     config = get_config()
 
     citation_criticality_dataset_creator = CitationCriticalityDatasetCreator(config)
-    citation_criticality_dataset_creator.create_dataset()
+    citation_criticality_dataset_creator.get_dataset('text', 'de', False)
