@@ -17,7 +17,7 @@ class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
 
     # set criticality labels
     def get_labeled_data(self, bger_df, bge_df):
-        """give each bger ruling a label critical or non-critical depending on whether their
+        """set for each bger ruling a label critical or non-critical depending on whether their
         file number was extracted in a bge"""
 
         self.logger.info(f"Processing labeling of bge_criticality")
@@ -34,9 +34,9 @@ class BgeCriticalityDatasetCreator(CriticalityDatasetCreator):
         bge_references = bge_references_file_path.read_text().strip().split("\n")
         file_number_match = bger_df.file_number.astype(str).isin(list(bge_references))
         critical_df = bger_df[file_number_match]
-        critical_df['label'] = 'critical'
+        critical_df['bge_label'] = 'critical'
         non_critical_df = bger_df[~file_number_match]
-        non_critical_df['label'] = 'non-critical'
+        non_critical_df['bge_label'] = 'non-critical'
         self.logger.info(f"# critical decisions: {len(critical_df.index)}")
         self.logger.info(f"# non-critical decisions: {len(non_critical_df.index)}")
         self.calculate_label_coverage(bge_references, file_number_match, critical_df, bger_df)
