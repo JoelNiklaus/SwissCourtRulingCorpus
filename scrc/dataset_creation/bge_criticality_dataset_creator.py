@@ -1,4 +1,5 @@
 from scrc.dataset_creation.dataset_creator import DatasetCreator
+from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
 from root import ROOT_DIR
 from pathlib import Path
 from scrc.utils.main_utils import get_config
@@ -52,14 +53,17 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
     def get_dataset(self, feature_col, lang, save_reports):
         """get all bger cases and set labels"""
 
-        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', lang, save_reports)
+        # TODO change how data is received, why is it not working?
+        # df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', lang, save_reports)
+        engine = self.get_engine(self.db_scrc)
+        df = self.query_bger(feature_col, engine, lang)
         df = self.set_bge_criticality_label(df)
 
         # TODO need to drop something else?
-        df = df.drop(['citations', 'counter', 'rulings'], axis=1)
+        # df = df.drop(['citations', 'counter', 'rulings'], axis=1)
         # TODO rename neccessarry?
         # df = df.rename(columns={feature_col: "text"})  # normalize column names
-        labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
+        labels, _ = list(np.unique(np.hstack(df.bge_label), return_index=True))
         return df, labels
 
     def set_bge_criticality_label(self, df):
@@ -81,7 +85,7 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         non_critical_df['bge_label'] = 'non-critical'
         self.logger.info(f"# critical decisions: {len(critical_df.index)}")
         self.logger.info(f"# non-critical decisions: {len(non_critical_df.index)}")
-        self.calculate_label_coverage(bge_references, file_number_match, critical_df, bger_df)
+        self.calculate_label_coverage(bge_references, file_number_match, critical_df, df)
         return critical_df.append(non_critical_df)
 
     def calculate_label_coverage(self, bge_references, file_number_match, critical_df, bger_df):
@@ -94,10 +98,29 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         new_list = [decision for decision in bge_references if decision not in extracted_and_found]
         self.logger.info(f"{len(new_list)} references were extracted but not found")
 
+    def query_bger(self, feature_col, engine, lang):
+        """get all bger form database"""
+        # TODO which columns are needed
+        columns = ['id', 'chamber', 'date', 'extract(year from date) as year', f'{feature_col}', 'file_name', 'file_number']
+        try:
+            bger_df = next(self.select(engine, lang,
+                                      columns=",".join(columns),
+                                      where="court = 'CH_BGer'",
+                                      order_by="date",
+                                      chunksize=self.get_chunksize()))
+        except StopIteration:
+            raise ValueError("No bger rulings found")
+        # get rid of all dublicated cases
+        # TODO improve this
+        bger_df = bger_df.dropna(subset=['date', 'id'])
+        self.logger.info(f"Found {len(bger_df.index)} supreme bger rulings")
+        # TODO filter cases with too long / short input for model
+        return bger_df
+
 
 if __name__ == '__main__':
     config = get_config()
 
     bge_criticality_dataset_creator = BgeCriticalityDatasetCreator(config)
-    bge_criticality_dataset_creator.create_dataset()
+    bge_criticality_dataset_creator.get_dataset('text', 'de', False)
 
