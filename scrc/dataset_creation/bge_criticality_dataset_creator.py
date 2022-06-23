@@ -33,8 +33,8 @@ Check distribution of data sets
 
 class BgeCriticalityDatasetCreator(DatasetCreator):
     """
-    Defines a criticality label for each found bger case, based if the case was published as
-    bge or not.
+    Creates a dataset containing bger cases and sets for each case a criticality label, based if the case was published
+    as bge or not.
     """
 
     def __init__(self, config: dict):
