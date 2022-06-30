@@ -7,6 +7,8 @@ from scrc.utils.log_utils import get_logger
 import numpy as np
 from tqdm import tqdm
 from pandarallel import pandarallel
+from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, \
+    select_paragraphs_with_decision_and_meta_data, where_string_spider
 
 """
 Dataset to be created:
@@ -30,6 +32,7 @@ Check distribution of data sets
     - distribution among cantons
     - is there bias detectable?
 """
+
 
 class BgeCriticalityDatasetCreator(DatasetCreator):
     """
@@ -57,13 +60,17 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         # df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', lang, save_reports)
         engine = self.get_engine(self.db_scrc)
         df = self.query_bger(feature_col, engine, lang)
+        df['legal_area'] = 'Strafrecht'
+        df['origin_region'] = 'Aargau'
+        df['origin_canton'] = 'Bern'
         df = self.set_bge_criticality_label(df)
 
         # TODO need to drop something else?
         # df = df.drop(['citations', 'counter', 'rulings'], axis=1)
         # TODO rename neccessarry?
-        # df = df.rename(columns={feature_col: "text"})  # normalize column names
-        labels, _ = list(np.unique(np.hstack(df.bge_label), return_index=True))
+        df = df.rename(columns={feature_col: "text"})  # normalize column names
+        df = df.rename(columns={'bge_label': "label"})
+        labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
 
     def set_bge_criticality_label(self, df):
@@ -122,5 +129,5 @@ if __name__ == '__main__':
     config = get_config()
 
     bge_criticality_dataset_creator = BgeCriticalityDatasetCreator(config)
-    bge_criticality_dataset_creator.get_dataset('text', 'de', False)
+    bge_criticality_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)
 
