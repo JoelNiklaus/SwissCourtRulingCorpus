@@ -50,7 +50,7 @@ class BgeReferenceExtractor(AbstractExtractor):
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
         return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}",
-                           f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider",
+                           f"decision_id, iso_code as language, html_raw, pdf_raw, file_name, 'date', 'extract(year from date) as year', '{spider}' as spider",
                            where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}",
                            chunksize=self.chunksize)
 
@@ -59,13 +59,26 @@ class BgeReferenceExtractor(AbstractExtractor):
         """Instead of saving data into database, references get written into a text file"""
         self.logger.info("save data in progress")
         processed_file_path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
+        not_processed_file_path = ROOT_DIR / 'data' / 'progress' / "bge_not_extracted.txt"
+        counter_not_extracted_bge = 0
+        counter_nebge_unclear = 0
         for _, row in df.iterrows():
             # only add new content to textfile not overwriting
-            with processed_file_path.open("a") as f:
-                if 'bge_reference' in row and row['bge_reference'] != 'no reference found':
-                    bge_reference = str(row['bge_reference'])
+            if 'bge_reference' in row and row['bge_reference'] != 'no reference found':
+                bge_reference = str(row['bge_reference'])
+                with processed_file_path.open("a") as f:
                     f.write(f"{bge_reference}\n")
-
+            else:
+                counter_not_extracted_bge = counter_not_extracted_bge + 1
+                read_date = str(row['file_name'])[-4:]
+                if read_date.isnumeric():
+                    if int(read_date) > 2006:
+                        counter_nebge_unclear = counter_nebge_unclear + 1
+                with not_processed_file_path.open("a") as f:
+                    file_name = str(row['file_name'])
+                    f.write(f"{file_name}\n")
+        self.logger.info(f"There were {counter_not_extracted_bge} bge found that were not extracted.")
+        self.logger.info(f"There were {counter_nebge_unclear} bge newer than 2006.")
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing.
