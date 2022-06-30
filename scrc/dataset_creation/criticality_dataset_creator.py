@@ -2,6 +2,11 @@ from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.utils.log_utils import get_logger
 import pandas as pd
 from abc import ABC, abstractmethod
+from scrc.utils.log_utils import get_logger
+from scrc.utils.main_utils import get_config
+
+from root import ROOT_DIR
+from pathlib import Path
 
 
 """
@@ -27,7 +32,7 @@ Set Labels
 """
 
 
-class CriticalityDatasetCreator(ABC, DatasetCreator):
+class CriticalityDatasetCreator(DatasetCreator):
     """Abstract Base Class used by criticality dataset creators to unify their behaviour"""
 
     """ What needs to be done /take case of:
@@ -56,11 +61,6 @@ class CriticalityDatasetCreator(ABC, DatasetCreator):
      - is there bias detectable?
     """
 
-
-    @abstractmethod
-    def get_labeled_data(self, bger_df: pd.DataFrame, bge_df: pd.DataFrame):
-        """Returns the labeled data and labels"""
-
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
@@ -70,6 +70,7 @@ class CriticalityDatasetCreator(ABC, DatasetCreator):
         self.dataset_name = "criticality_prediction"
         self.feature_cols = ['text']  # ['facts', 'considerations', 'text']
 
+        self.bge_df = self.get_dataset('text', 'de', False)
         # self.with_partials = False
         # self.with_write_off = False
         # self.with_unification = False
@@ -83,11 +84,9 @@ class CriticalityDatasetCreator(ABC, DatasetCreator):
         # get bge rulings
         bge_df = self.query_bge(feature_col, engine, lang)
         # get bger rulings
-        bger_df = self.query_bger(feature_col, engine, lang)
-        # set criticality label
-        bger_criticality_df = self.get_labeled_data(bger_df, bge_df)
-        labels = ['non-critical', 'critical']
-        return bger_criticality_df, labels
+        # bger_df = self.query_bger(feature_col, engine, lang)
+        # check distribution of exracted and not extracted bge
+        return bge_df
 
     def query_bger(self, feature_col, engine, lang):
         """get all bger form database"""
@@ -125,3 +124,28 @@ class CriticalityDatasetCreator(ABC, DatasetCreator):
         bge_df = bge_df.dropna(subset=['date', 'id'])
         self.logger.info(f"Found {len(bge_df.index)} supreme bge rulings")
         return bge_df
+
+    def check_distribution(self):
+        bge_references_file_path: Path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
+        if not bge_references_file_path.exists():
+            raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
+        bge_references = bge_references_file_path.read_text().strip().split("\n")
+        self.logger.info(f"There were {len(bge_references)} file numbers extracted.")
+        file_number_match = self.bge_df.file_number.astype(str).isin(list(bge_references))
+        critical_df = self.bge_df[file_number_match]
+        self.logger.info(f'critical length : {len(critical_df)}')
+
+    def check_general_bge_distribution(self):
+        pass
+
+    def check_bger_distribution(self):
+        pass
+
+
+if __name__ == '__main__':
+    config = get_config()
+
+    criticality_dataset_creator = CriticalityDatasetCreator(config)
+    criticality_dataset_creator.check_distribution()
+
+
