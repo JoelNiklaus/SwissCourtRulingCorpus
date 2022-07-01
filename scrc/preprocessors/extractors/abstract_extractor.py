@@ -114,10 +114,10 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         for df in dfs:  # For each chunk in the data: apply the extraction function and save the result
             df = df.apply(self.process_one_df_row, axis="columns")
             df.to_csv('test.csv')
-            # if not df.empty:
-                # self.save_data_to_database(df, self.get_engine(self.db_scrc))
-                # self.logger.info(f'One chunk of {len(df.index)} decisions saved')
-            # self.log_progress(self.chunksize)
+            if not df.empty:
+                self.save_data_to_database(df, self.get_engine(self.db_scrc))
+                self.logger.info(f'One chunk of {len(df.index)} decisions saved')
+            self.log_progress(self.chunksize)
         self.get_coverage(spider)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 

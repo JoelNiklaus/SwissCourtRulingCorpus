@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Set, TYPE_CHECKING, Union
 from pathlib import Path
-import unicodedata
 import pandas as pd
 import sys
 import re
@@ -9,14 +8,13 @@ from scrc.enums.section import Section
 from pandas.core.frame import DataFrame
 
 import bs4
-import pandas as pd
 
 from scrc.enums.language import Language
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.preprocessors.extractors.spider_specific.section_splitting_functions import prepare_section_markers
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, \
+from scrc.utils.sql_select_utils import coverage_query, get_total_decisions, join_decision_and_language_on_parameter, \
     where_decisionid_in_list, where_string_spider
 
 if TYPE_CHECKING:
@@ -105,14 +103,32 @@ class PatternExtractor(AbstractExtractor):
     def save_data_to_database(self, series: pd.DataFrame, engine: Engine):
         """Splits the data into their respective parts and saves them to the table"""
         
-    def get_coverage(self, engine: Engine, spider: str):
-        """Splits the data into their respective parts and saves them to the table"""
-
+    def get_coverage(self, spider):
+        with self.get_engine(self.db_scrc).connect() as conn:
+            for lang_key in Language:
+                language_key = Language.get_id_value(lang_key.value)
+                if language_key != -1:
+                    total_result = conn.execute(get_total_decisions(spider, language_key)).fetchone()
+                    if total_result[0] != 0:
+                        self.logger.info(f'Your coverage for {lang_key} of {spider} ({total_result[0]}):')
+                        for section_key in Section:
+                            if section_key.value != 1:
+                                coverage_result = conn.execute(coverage_query(spider, section_key.value, language_key)).fetchone()
+                                coverage =  round(coverage_result[0] / total_result[0]  * 100, 2)
+                                if not coverage_result[0]:
+                                    self.logger.info(f'No sections found for: {section_key}')
+                                else:
+                                    self.logger.info(f'{section_key} is {coverage}%')
+    
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
-            self.init_dict()
-            self.process_one_spider(engine, spider)
-        self.mark_as_processed(self.processed_file_path, spider)
+            if len(sys.argv) > 1:
+                self.get_coverage(spider)
+            else:
+                self.init_dict()
+                self.process_one_spider(engine, spider)
+            self.mark_as_processed(self.processed_file_path, spider)
+
 
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
@@ -279,7 +295,7 @@ class PatternExtractor(AbstractExtractor):
 
     def get_path(self, spider: str, lang):
         filepath = Path(
-            f'data/patterns/{spider}_{lang}.xlsx')
+            f'data/patterns/{spider}/{spider}_{lang}_section.xlsx')
         filepath.parent.mkdir(parents=True, exist_ok=True)
         return filepath
 

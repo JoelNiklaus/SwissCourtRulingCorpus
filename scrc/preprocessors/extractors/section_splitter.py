@@ -93,6 +93,8 @@ class SectionSplitter(AbstractExtractor):
             return '\n'.join(series[section])
 
         for section in Section:
+            if section == Section.FACTS:
+                print('')
             df[section.name] = df['sections'].apply(lambda row: get_section_from_df(row, section))
             df[section.name+'_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[section.name], batch_size=100)]
             df[section.name+'_bert'] = [len(input_id) for input_id in bert_tokenizer(df[section.name].tolist()).input_ids]   
@@ -109,8 +111,11 @@ class SectionSplitter(AbstractExtractor):
                         for section_key in Section:
                             if section_key.value != 1:
                                 coverage_result = conn.execute(coverage_query(spider, section_key.value, language_key)).fetchone()
-                                coverage =  round((total_result[0] - coverage_result[0]) / total_result[0] * 100, 2)
-                                self.logger.info(f'{section_key} is {coverage}%')
+                                coverage =  round(coverage_result[0] / total_result[0]  * 100, 2)
+                                if not coverage_result[0]:
+                                    self.logger.info(f'No sections found for: {section_key}')
+                                else:
+                                    self.logger.info(f'{section_key} is {coverage}%')
                                           
                             
 
