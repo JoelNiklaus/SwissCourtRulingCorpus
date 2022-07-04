@@ -26,8 +26,8 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.with_inadmissible = False
         self.make_single_label = True
 
-    def get_dataset(self, feature_col, lang, save_reports):
-        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'judgments', lang, save_reports)
+    def get_dataset(self, feature_col, save_reports):
+        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'judgments', save_reports)
 
         # Delete cases with "Nach Einsicht" from the dataset because they are mostly inadmissible or otherwise dismissal
         # => too easily learnable for the model (because of spurious correlation)

@@ -20,7 +20,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-        self.debug = False
+        self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         # TODO wait for section splitting in other courts for facts and considerations to be enabled

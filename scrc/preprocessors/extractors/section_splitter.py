@@ -183,7 +183,7 @@ class SectionSplitter(AbstractExtractor):
                     paragraph_dicts = []
                     for paragraph in row['sections'][k]:
                         paragraph = paragraph.strip()
-                        if len(paragraph) == 0: continue
+                        if len(paragraph) < 2: continue
                         paragraph_dict = {
                             'section_id': str(section_id), 
                             "decision_id": decision_id_str,
