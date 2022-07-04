@@ -146,7 +146,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.feature_cols = ["text"]  # to be overridden
 
     @abc.abstractmethod
-    def get_dataset(self, feature_col, lang, save_reports):
+    def get_dataset(self, feature_col, save_reports):
         pass
 
     def get_chunksize(self):
@@ -165,7 +165,7 @@ class DatasetCreator(AbstractPreprocessor):
         dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
         processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created.txt"
-        datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
+        datasets, message = self.compute_remaining_parts(processed_file_path,  ["-".join(self.feature_cols)])
         self.logger.info(message)
 
         # Check these todos on the judgment_dataset_creator
@@ -174,24 +174,19 @@ class DatasetCreator(AbstractPreprocessor):
         # TODO check if all columns are fetched correctly (num_tokens_bert, etc.)
 
         if datasets:
-            lang_splits = {lang: dict() for lang in self.languages}
-            for feature_col in datasets:
-                self.logger.info(f"Processing dataset feature col {feature_col}")
-                feature_col_folder = self.create_dir(dataset_folder, feature_col)
-                for lang in self.languages:
-                    self.logger.info(f"Processing language {lang}")
-                    lang_folder = self.create_dir(feature_col_folder, lang)
-                    df, labels = self.get_dataset(feature_col, lang, save_reports)
-                    df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset to make sampling easier
-                    splits = self.save_dataset(df, labels, lang_folder, self.split_type,
-                                               sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
-                    lang_splits[lang] = splits
+            feature_cols = datasets
+            feature_col_folder = self.create_dir(dataset_folder, "-".join(feature_cols))
+        
+            df, labels = self.get_dataset(feature_cols, save_reports)
+            df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset to make sampling easier
+            splits = self.save_dataset(df, labels, feature_col_folder, self.split_type,
+                                        sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
 
-                if huggingface:
-                    self.logger.info("Generating huggingface dataset")
-                    self.save_huggingface_dataset(lang_splits, feature_col_folder)
+            if huggingface:
+                self.logger.info("Generating huggingface dataset")
+                self.save_huggingface_dataset(splits, feature_col_folder)
 
-                self.mark_as_processed(processed_file_path, feature_col)
+            self.mark_as_processed(processed_file_path, feature_cols)
         else:
             self.logger.info("All parts have been computed already.")
 
@@ -229,10 +224,17 @@ class DatasetCreator(AbstractPreprocessor):
                 for record in records:
                     out_file.write(json.dumps(record) + '\n')
 
-    def get_df(self, engine, feature_col, label_col, lang, save_reports):
+    def get_df(self, engine, feature_col, label_col, save_reports):
+    
+        field_string = ("d.*, " 
+            "extract(year from d.date) as year, judgments, citations, " 
+            "file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw, " 
+            "sections, "
+            "lower_court.date as origin_date, lower_court.court_id as origin_court, "
+            "lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, "
+            "lower_court.file_number as origin_file_number")
 
-        table_string, field_string = select_paragraphs_with_decision_and_meta_data()
-        # TODO spider testing
+        table_string, _ = select_paragraphs_with_decision_and_meta_data()
         where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
         cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
         df = retrieve_from_cache_if_exists(cache_dir)

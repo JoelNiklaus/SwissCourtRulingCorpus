@@ -266,13 +266,12 @@ def select_paragraphs_with_decision_and_meta_data() -> Tuple[str, str]:
     fields.append(
         'file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw')
     fields.append('sections')
-    fields.append('paragraphs')
     fields.append('file_numbers')
     fields.append(
         'lower_court.date as origin_date, lower_court.court_id as origin_court, lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, lower_court.file_number as origin_file_number')
 
     return (
-    join_tables_on_decision(['judgment', 'citation', 'file', 'section', 'paragraph', 'file_number', 'lower_court']),
+    join_tables_on_decision(['judgment', 'citation', 'file', 'section', 'lower_court']),
     ', '.join(fields))
 
 

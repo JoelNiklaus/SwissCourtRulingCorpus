@@ -19,8 +19,15 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 
 
 def XX_SPIDER(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-    pass
+    header = sections[Section.HEADER]
+
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
+
+    header = get_participation_from_header(header, information_start_regex, namespace)
+    party = get_procedural_participation(header, namespace, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name)
+
+    return party.toJSON()
+
 
 
 def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
