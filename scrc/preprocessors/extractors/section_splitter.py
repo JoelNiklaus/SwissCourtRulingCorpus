@@ -146,7 +146,7 @@ class SectionSplitter(AbstractExtractor):
                     section_dict = {
                         "decision_id": decision_id_str,
                         "section_type_id": section_type_id,
-                        "section_text": list(row['sections'][k])
+                        "section_text": row['sections'][k]
                     }
                     stmt = t.insert().returning(text("section_id")).values([section_dict])
                     section_id = conn.execute(stmt).fetchone()['section_id']
