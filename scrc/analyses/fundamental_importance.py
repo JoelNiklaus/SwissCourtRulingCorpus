@@ -92,7 +92,7 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
         df = pd.DataFrame()
         table = f'section {join_decision_and_language_on_parameter("decision_id", "section.decision_id")}'
         columns = 'decision.decision_id, decision.chamber_id as chamber, decision.date as date, ' \
-                  'section_text as text, language.iso_code as language, paragraphs'
+                  'section_text as text, language.iso_code as language'
 
         for lang in ['de', 'fr', 'it']:
             where = f"section.decision_id IN {where_string_spider('decision_id', 'CH_BGer')} " \
@@ -226,9 +226,9 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
         if 'sentences' in df:
             df['fundamental_importance_sentences'] = [sentence for sentence in df.sentences if
                                                       any(item in sentence for item in search_strings)]
-        df['paragraphs'] = self.convert_json_col(df['section_text'].split('\n'))
-        df['fundamental_importance_paragraphs'] = [paragraph['paragraph_text'] for paragraph in df['paragraphs'] if
-                                                   any(item in paragraph['paragraph_text'] for item in search_strings)]
+        df['paragraphs'] = self.convert_json_col(df['text'].split('\n'))
+        df['fundamental_importance_paragraphs'] = [paragraph for paragraph in df['paragraphs'] if
+                                                   any(item in paragraph for item in search_strings)]
         return df
 
     def sentencize(self, df):
