@@ -16,7 +16,7 @@ from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, \
+from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, get_judgment_query, get_total_judgments, join_decision_and_language_on_parameter, \
     join_file_on_decision, where_decisionid_in_list, where_string_spider
 
 if TYPE_CHECKING:
@@ -45,6 +45,15 @@ class JudgmentExtractor(AbstractExtractor):
     def get_database_selection_string(self, spider: str, lang: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         return f"spider='{spider}' AND rulings IS NOT NULL AND rulings <> ''"
+    
+    def get_coverage(self, spider: str):
+        with self.get_engine(self.db_scrc).connect() as conn:
+            total_judgments = conn.execute(get_total_judgments(spider)).fetchone()
+            coverage_result = conn.execute(get_judgment_query(spider)).fetchone()
+            coverage =  round(coverage_result[0] / total_judgments[0]  * 100, 2)
+            self.logger.info(f'{spider}: Found judgment outcome for {coverage}% of the rulings')
+
+
 
     def get_required_data(self, series: DataFrame) -> Any:
         """Returns the data required by the processing functions"""
@@ -67,13 +76,14 @@ class JudgmentExtractor(AbstractExtractor):
             with path.open("a") as f:
                 df.to_json(f)
             return
-        for idx, row in df.iterrows():
-            with engine.connect() as conn:
-                t = Table('judgment_map', MetaData(), autoload_with=engine)
+        with engine.connect() as conn:
+            t = Table('judgment_map', MetaData(), autoload_with=engine)
+            stmt = t.delete().where(delete_stmt_decisions_with_df(df))
+            conn.execute(stmt)
+            for idx, row in df.iterrows():
+                # print(df.loc[:, df.columns!= 'section_text'])
                 if row['judgments']:  # only insert, when we find judgments
                     # Delete and reinsert as no upsert command is available
-                    stmt = t.delete().where(delete_stmt_decisions_with_df(df))
-                    conn.execute(stmt)
                     for k in row['judgments']:
                         judgment_type_id = Judgment(k).value
                         stmt = t.insert().values([{"decision_id": str(row['decision_id']),
@@ -90,6 +100,5 @@ class JudgmentExtractor(AbstractExtractor):
 
 if __name__ == '__main__':
     config = get_config()
-
     judgment_extractor = JudgmentExtractor(config)
     judgment_extractor.start()
