@@ -113,7 +113,6 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         # dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
         for df in dfs:  # For each chunk in the data: apply the extraction function and save the result
             df = df.apply(self.process_one_df_row, axis="columns")
-            df.to_csv('test.csv')
             if not df.empty:
                 self.save_data_to_database(df, self.get_engine(self.db_scrc))
                 self.logger.info(f'One chunk of {len(df.index)} decisions saved')

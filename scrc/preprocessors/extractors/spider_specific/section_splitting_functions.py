@@ -1078,6 +1078,46 @@ def NE_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     return associate_sections(paragraphs, section_markers, namespace)
 
 
+def SG_Publikationen(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt', r'in Sachen', r'Aus dem Sachverhalt:', r'Zum Sachverhalt:', r'hat das Verwaltungsgericht festgestellt:', r'Das Verwaltungsgericht stellt fest:'],
+            Section.CONSIDERATIONS: [r'Erwägungen', r'in Erwägung', r'Darüber zieht das Verwaltungsgericht in Erwägung:', r'Der Abteilungspräsident erwägt:'],
+            Section.RULINGS: [r'zu Recht erkannt:',r'Demnach erkennt das Verwaltungsgericht zu Recht:', r'Demnach erkennt das Verwaltungsgericht auf dem Zirkulationsweg zu Recht:', r'Demnach hat das Verwaltungsgericht zu Recht erkannt:', r'Der Abteilungspräsident verfügt:', r'Der Präsident verfügt:'
+                              , r'zu Recht:$', r'verfügt:$', r'Entscheid:$', r'entschieden:$', r'^Entscheid$' ],
+            Section.FOOTER: [r'Rechtsmittelbelehrung']
+        }
+    }
+ 
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+    
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def SG_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt:?$', r'in Sachen$', r'Das Verwaltungsgericht stellt fest:', r'hat das Verwaltungsgericht festgestellt:'],
+            Section.CONSIDERATIONS: [r'^Erwägungen:?$', r'^Erwägung$', r'Darüber wird in Erwägung gezogen:', r'Darüber zieht das Verwaltungsgericht in Erwägung:', r'Aus den Erwägungen:', r'hat das Versicherungsgericht in Erwägung gezogen:', r'Der Abteilungspräsident erwägt:', r'in Erwägung gezogen:'],
+            Section.RULINGS: [r'^Entscheid:?$', r'^entschieden:?$', r'^erkannt:?$', r'zu Recht erkannt:', r'zu Recht:$', r'zu Recht erkannt:$', r'^beschlossen$', r'festgestellt und erkannt:?$', r'verfügt:$', r'beschlossen und erkannt:?$', r'beschlossen:$', r'Demgemäss hat das Versicherungsgericht entschieden:' ],
+            Section.FOOTER: [r'Rechtsmittelbelehrung']
+        }
+    }
+ 
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+    
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
 
 
 def associate_sections(paragraphs: List[str], section_markers, namespace: dict,
@@ -1110,6 +1150,8 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict,
             else:
                 message = f"({namespace['id']}): We got stuck at section {current_section}. Please check! "
             get_logger(__name__).warning(message)
+    if len(paragraphs_by_section[Section.RULINGS]) < 1:
+        print('')
     return paragraphs_by_section
 
 

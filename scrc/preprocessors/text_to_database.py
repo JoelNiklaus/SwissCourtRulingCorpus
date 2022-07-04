@@ -87,6 +87,11 @@ class TextToDatabase(AbstractPreprocessor):
         self.logger.info(
             "Finished extracting text and metadata from court rulings files")
         return all_processed_files
+    
+    def filter_by_text_length(self, spider_dict_list: dict):
+        filtered = [x for x in spider_dict_list if (len(x['pdf_raw']) > 500 or len(x['html_raw']) > 500)]
+        return filtered
+                
 
     def build_spider_dataset(self, spider: str) -> list:
         """ Builds a dataset for a spider """
