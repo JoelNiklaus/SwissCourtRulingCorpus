@@ -127,26 +127,54 @@ def get_annotator_set(annotator_name: str, tokens: pandas.DataFrame)-> pandas.Da
     annotator = tokens[tokens['_annotator_id'] == "annotations_de-{}".format(annotator_name)].drop_duplicates().copy()
     annotator['tokens_text'] = annotator.groupby(['annotations_de'])['tokens_text'].transform(lambda x: ' '.join(x))
     annotator['tokens_id'] = annotator.groupby(['annotations_de'])['tokens_id'].transform(lambda x: ','.join(x.astype(str)))
-    #.transform(lambda x: [x.tolist()]*len(x))z
     annotator = annotator[['annotations_de','tokens_text','tokens_id','_timestamp']]
     annotator= annotator.drop_duplicates()
     annotator["tokens_id"] = annotator["tokens_id"].astype(str).str.split(",")
     return annotator
 
-def string_to_int_list(column_value) -> list:
-    return_list = []
-    if type(column_value) is str:
-        for integer in column_value.split(","):
-            return_list.append(int(integer))
-        return return_list
-    if type(column_value) is int:
-        return [column_value]
+"""
+@Todo Create merge loop for even and odd lists
+"""
+def merge_label_df(df_list: list, person_suffixes: list):
+    i = 0
+    merged_df = pd.merge(df_list[i], df_list[i + 1], on="annotations_de",
+                         suffixes=('_{}'.format(person_suffixes[i]), '_{}'.format(person_suffixes[i + 1])),
+                         how="left").fillna("Nan")
+    df = pd.merge(merged_df, df_list[i + 2], on="annotations_de", how="right").fillna("Nan").rename(
+        columns={"tokens_text": "tokens_text_{}".format(person_suffixes[i + 2]),
+                 "tokens_id": "tokens_id_{}".format(person_suffixes[i + 2])})
+    return df
+
+def get_normalize_tokens_dict(df: pandas.DataFrame) -> pandas.DataFrame:
+    normalized_tokens = []
+    df_copy = df.copy()
+    df["tokens_text"] = df_copy["tokens_text_thomas"].astype(str) + " " + df_copy["tokens_text_angela"].astype(
+        str) + " " + df_copy["tokens_text_lynn"].astype(str)
+    for sentence in df["tokens_text"].values:
+        tokens = nltk.word_tokenize(sentence, language='german')
+        normalized_tokens.append(dict(zip(tokens, range(0, len(tokens)))))
+    df["normalized_tokens_dict"] = normalized_tokens
+    df.drop('tokens_text', axis=1)
+    return df
+
+def normalize_tokens(df: pandas.DataFrame,pers: str, lang: str):
+    normalized_tokens = []
+    for sentences in df[["annotations_de","tokens_text_{}".format(pers)]].values:
+        normalized_tokens_row = []
+        tokens = nltk.word_tokenize(sentences[1], language=lang)
+        token_dict = df[df["annotations_de"] == sentences[0]]["normalized_tokens_dict"].values[0]
+        for word in tokens:
+            normalized_tokens_row.append(token_dict[word])
+        normalized_tokens.append(normalized_tokens_row)
+    df["normalized_tokens_{}".format(pers)] = normalized_tokens
+    return df
+
 
 
 if __name__ == '__main__':
     datasets = extract_dataset()
     dump_csv(datasets)
-    number_of_spans = {"Lower court": 0,"Opposes judgment":0, "Supports judgment":0}
+    label_list = []
     for lang in LANGUAGES:
         try:
             #print(collections.Counter(list(datasets["annotations_{}".format(lang)].index)))
@@ -158,40 +186,22 @@ if __name__ == '__main__':
                 label_df = get_span_df(annotations_spans, annotations_tokens, label)
                 for pers in PERSONS:
                     globals()[f"{label.lower().replace(' ','_')}_{pers}"] = get_annotator_set(pers, label_df)
+                    label_list.append(get_annotator_set(pers, label_df))
+                globals()[f"{label.lower().replace(' ', '_')}"] = merge_label_df(label_list,PERSONS)
         except KeyError:
             pass
 
-    #print(lower_court_thomas)
-    #print(lower_court_angela)
-    #print(lower_court_lynn)
+    print(globals().keys())
+    print(lower_court)
 
-    merged_df = pd.merge(lower_court_thomas,lower_court_angela , on="annotations_de", suffixes=('_thomas', '_angela'), how ="left").fillna("Nan")
-    df = pd.merge(merged_df,lower_court_lynn , on="annotations_de", how ="right").fillna("Nan").rename(columns={"tokens_text":"tokens_text_lynn","tokens_id":"tokens_id_lynn"})
+    #merged_df = pd.merge(lower_court_thomas,lower_court_angela , on="annotations_de", suffixes=('_thomas', '_angela'), how ="left").fillna("Nan")
+    #lower_court = pd.merge(merged_df, lower_court_lynn, on="annotations_de", how ="right").fillna("Nan").rename(columns={"tokens_text": "tokens_text_lynn", "tokens_id": "tokens_id_lynn"})
 
+    lower_court = get_normalize_tokens_dict(lower_court)
+    for pers in PERSONS:
+        lower_court = normalize_tokens(lower_court, pers, "german")
 
-
-
-    normalized_tokens = []
-    df_copy = df.copy()
-    df["tokens_text"] = df_copy["tokens_text_thomas"].astype(str)+ " " + df_copy["tokens_text_angela"].astype(str) + " " + df_copy["tokens_text_lynn"].astype(str)
-
-    for sentence in df["tokens_text"].values:
-        tokens = nltk.word_tokenize(sentence, language='german')
-        normalized_tokens.append(dict(zip(tokens,range(0, len(tokens)))))
-    df["normalized_tokens"] = normalized_tokens
-
-    normalized_tokens = []
-    for sentences in df[["annotations_de","tokens_text_thomas"]].values:
-        normalized_tokens_row = []
-        tokens = nltk.word_tokenize(sentences[1], language='german')
-        token_dict = df[df["annotations_de"] == sentences[0]]["normalized_tokens"].values[0]
-        for word in tokens:
-            normalized_tokens_row.append(token_dict[word])
-        normalized_tokens.append(normalized_tokens_row)
-
-    df["normalized_tokens_thomas"] = normalized_tokens
-
-    print(df[["normalized_tokens","tokens_id_thomas","normalized_tokens_thomas"]])
+    print(lower_court[["normalized_tokens_angela","normalized_tokens_lynn", "normalized_tokens_thomas"]])
 
 
 
@@ -199,6 +209,5 @@ if __name__ == '__main__':
     #print(cohen_kappa_score)
 
     #df["cohen_kappa_score"] = cohen_kappa_score(df["tokens_id_thomas"], df["tokens_id_angela"])
-
 
 
