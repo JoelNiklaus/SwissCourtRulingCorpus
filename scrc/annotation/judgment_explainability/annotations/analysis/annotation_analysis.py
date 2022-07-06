@@ -11,6 +11,7 @@ the annotation is also possible.
 
 Sources for Metrics:
 - https://scikit-learn.org/stable/modules/generated/sklearn.metrics.cohen_kappa_score.html#sklearn.metrics.cohen_kappa_score
+- https://scikit-learn.org/stable/modules/model_evaluation.html#cohen-kappa
 - https://www.statsmodels.org/stable/_modules/statsmodels/stats/inter_rater.html
 - https://pypi.org/project/rouge-score/
 - https://www.journaldev.com/46659/bleu-score-in-python
@@ -71,8 +72,8 @@ def extract_dataset() -> dict:
     datasets = {}
     for language in LANGUAGES:
         a_list = []
-        with open("../test.jsonl".format(language), "r") as json_file:
-        #with open("../annotations_{}.jsonl".format(language), "r") as json_file:
+        #with open("../test.jsonl".format(language), "r") as json_file:
+        with open("../annotations_{}.jsonl".format(language), "r") as json_file:
             json_list = list(json_file)
             for json_str in json_list:
                 result = json.loads(json_str)
@@ -126,7 +127,7 @@ def get_annotator_set(annotator_name: str, tokens: pandas.DataFrame)-> pandas.Da
     annotator = tokens[tokens['_annotator_id'] == "annotations_de-{}".format(annotator_name)].drop_duplicates().copy()
     annotator['tokens_text'] = annotator.groupby(['annotations_de'])['tokens_text'].transform(lambda x: ' '.join(x))
     annotator['tokens_id'] = annotator.groupby(['annotations_de'])['tokens_id'].transform(lambda x: ','.join(x.astype(str)))
-    annotator = annotator[['annotations_de','tokens_text','tokens_id','_timestamp']]
+    annotator = annotator[['annotations_de','tokens_text','tokens_id']]
     annotator= annotator.drop_duplicates()
     annotator["tokens_id"] = annotator["tokens_id"].astype(str).str.split(",")
     return annotator
@@ -202,26 +203,46 @@ if __name__ == '__main__':
         except KeyError:
             pass
 
-
-
-    #merged_df = pd.merge(lower_court_thomas,lower_court_angela , on="annotations_de", suffixes=('_thomas', '_angela'), how ="left").fillna("Nan")
-    #lower_court = pd.merge(merged_df, lower_court_lynn, on="annotations_de", how ="right").fillna("Nan").rename(columns={"tokens_text": "tokens_text_lynn", "tokens_id": "tokens_id_lynn"})
-
     lower_court = get_normalize_tokens_dict(lower_court)
     for pers in PERSONS:
         lower_court = normalize_tokens(lower_court, pers, "german")
 
-    #print(lower_court)
+    columns = lower_court.columns
+
+    lower_court = lower_court.loc[lower_court.astype(str).drop_duplicates().index]
+
+    for value_list in lower_court[['annotations_de',"normalized_tokens_angela","normalized_tokens_lynn", "normalized_tokens_thomas"]].values:
+        value_list[0]
+        for i in range (1, len(value_list)-1, 2):
+            c_k_1, c_k_2, c_k_3 = 2,2,2
+            list_a, list_b, list_c = value_list[i], value_list[i+1], value_list[i+2]
+            if len(list_a) != 1 and len(list_b) != 1:
+                list_a, list_b = normalize_list_length(value_list[i], value_list[i + 1])
+                c_k_1 = cohen_kappa_score(list_a, list_b )
+            if len(list_a) != 1 and len(list_c) != 1:
+                list_a, list_c = normalize_list_length(value_list[i], value_list[i + 2])
+                c_k_2 = cohen_kappa_score(list_a, list_c )
+            if len(list_b) != 1 and len(list_c) != 1:
+                list_b, list_c = normalize_list_length(value_list[i + 1], value_list[i + 2])
+                c_k_3 = cohen_kappa_score(list_b, list_c )
+
+            c_k_list = [c_k_1,c_k_2, c_k_3]
+            try:
+                c_k_list = list(filter((2).__ne__,  c_k_list))
+            except ValueError:
+                pass
+
+            if len(c_k_list) > 0:
+                max_value = max(c_k_list)
+                min_value = min(c_k_list)
+                avg_value = 0 if len(c_k_list) == 0 else sum(c_k_list)/len(c_k_list)
+
+                print(c_k_list,max_value, min_value, avg_value)
+            else:
+                print(list_a, list_b, list_c)
 
 
-    for value_list in lower_court[["normalized_tokens_angela","normalized_tokens_lynn", "normalized_tokens_thomas"]].values:
-        for i in range (0, len(value_list)-1, 2):
-            list_a, list_b = normalize_list_length(value_list[i], value_list[i+1])
-            cohen_kappa_score(list_a, list_b )
-            list_a, list_c = normalize_list_length(value_list[i], value_list[i+2])
-            cohen_kappa_score(list_a, list_c )
-            list_b, list_c = normalize_list_length(value_list[i+1], value_list[i+2])
-            cohen_kappa_score(list_b, list_c )
+
 
 
 
