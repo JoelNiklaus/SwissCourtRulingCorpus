@@ -174,7 +174,7 @@ def header_preprocessing(h: str, pattern: str) -> str:
 
 
 def add_sections(section: str) -> str:
-    return re.sub("(\ )(?=[B-Z]{1}\. {1})", "\n", section)
+    return re.sub("((\ )(?=A\.[a-z]{1}\. {1})|(\ )(?=[B-Z]{1}\. {1}))", "\n", section)
 
 
 

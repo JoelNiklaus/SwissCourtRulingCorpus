@@ -55,8 +55,7 @@ def judgment_prediction(language:str ):
 
   # Load the spaCy model for tokenization.
   nlp = spacy.load("{}_core_news_sm".format(language))
-  #stream = JSONL("./judgment_explainability/datasets/annotation_input_set_{}.jsonl".format(language))
-  stream = JSONL("./judgment_prediction/test.jsonl")
+  stream = JSONL("./judgment_explainability/datasets/annotation_input_set_{}.jsonl".format(language))
 
   dataset = "judgment_predictions_{}".format(language)
   port = ports[language]

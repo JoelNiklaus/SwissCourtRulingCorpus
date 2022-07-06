@@ -53,15 +53,22 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
     docker exec -it -d prodigy_v1_nina prodigy "$task" gold_annotations_de annotations_de-angela,annotations_de-lynn,annotations_de-thomas -l "Supports judgment","Opposes judgment","Lower court" -v spans_manual --auto-accept
 
     ;;
-
+    "judgment-prediction")
+  for VARIABLE in de fr it
+    do
+      printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
+      docker exec  -it -d prodigy_v1_nina prodigy "$task" $VARIABLE -F ./judgment_prediction/recipes/judgment_prediction.py
+    done
+  ;;
   "db-out")
-  for VARIABLE in annotations_de annotations_de-angela annotations_de-lynn annotations_de-thomas annotations_fr annotations_fr-lynn annotations_it-angela annotations_it
+  for VARIABLE in annotations_de annotations_de-angela annotations_de-lynn annotations_de-thomas annotations_fr annotations_fr-lynn annotations_it-angela annotations_it annotations_de_inspect annotations_de_inspect-lynn annotations_de_inspect-thomas
+
     do
       docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./judgment_explainability/annotations/$VARIABLE.jsonl
     done
    ;;
   "drop")
-  for VARIABLE in annotations_de-nina annotations_de-ninaa annotations_de-ninaaa
+  for VARIABLE in annotations_de-nina annotations_de-ninaa annotations_de-ninaaa annotations_it-nina annotations_fr-nina
     do
       docker exec prodigy_v1_nina prodigy "$task" $VARIABLE
     done
