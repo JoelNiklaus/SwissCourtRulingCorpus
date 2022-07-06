@@ -155,7 +155,6 @@ def get_normalize_tokens_dict(df: pandas.DataFrame) -> pandas.DataFrame:
         tokens = nltk.word_tokenize(sentence, language='german')
         normalized_tokens.append(dict(zip(tokens, range(0, len(tokens)))))
     df["normalized_tokens_dict"] = normalized_tokens
-    df.drop('tokens_text', axis=1)
     return df
 
 def normalize_tokens(df: pandas.DataFrame,pers: str, lang: str):
@@ -207,12 +206,11 @@ if __name__ == '__main__':
     for pers in PERSONS:
         lower_court = normalize_tokens(lower_court, pers, "german")
 
-    columns = lower_court.columns
-
+    lower_court.drop('tokens_text', axis=1,inplace=True)
     lower_court = lower_court.loc[lower_court.astype(str).drop_duplicates().index]
 
+    print(lower_court[lower_court["annotations_de"]==436297])
     for value_list in lower_court[['annotations_de',"normalized_tokens_angela","normalized_tokens_lynn", "normalized_tokens_thomas"]].values:
-        value_list[0]
         for i in range (1, len(value_list)-1, 2):
             c_k_1, c_k_2, c_k_3 = 2,2,2
             list_a, list_b, list_c = value_list[i], value_list[i+1], value_list[i+2]
@@ -226,7 +224,7 @@ if __name__ == '__main__':
                 list_b, list_c = normalize_list_length(value_list[i + 1], value_list[i + 2])
                 c_k_3 = cohen_kappa_score(list_b, list_c )
 
-            c_k_list = [c_k_1,c_k_2, c_k_3]
+            c_k_list = [c_k_1,c_k_2,c_k_3]
             try:
                 c_k_list = list(filter((2).__ne__,  c_k_list))
             except ValueError:
@@ -237,9 +235,7 @@ if __name__ == '__main__':
                 min_value = min(c_k_list)
                 avg_value = 0 if len(c_k_list) == 0 else sum(c_k_list)/len(c_k_list)
 
-                print(c_k_list,max_value, min_value, avg_value)
-            else:
-                print(list_a, list_b, list_c)
+                print("{},{},{},{},{}".format(value_list[0],len(c_k_list),max_value,min_value,avg_value))
 
 
 
