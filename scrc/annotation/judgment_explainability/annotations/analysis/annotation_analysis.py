@@ -39,7 +39,6 @@ nltk.download('punkt')
 LANGUAGES = ["de", "fr", "it"]
 PERSONS = ["angela", "lynn", "thomas"]
 LABELS = [ "Lower court","Opposes judgment", "Supports judgment"]
-CONTROL_SPANS_COUNT = {}
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
@@ -137,6 +136,7 @@ def get_annotator_set(annotator_name: str, tokens: pandas.DataFrame)-> pandas.Da
 """
 def merge_label_df(df_list: list, person_suffixes: list):
     i = 0
+    df_list = sorted(df_list, key=len)
     merged_df = pd.merge(df_list[i], df_list[i + 1], on="annotations_de",
                          suffixes=('_{}'.format(person_suffixes[i]), '_{}'.format(person_suffixes[i + 1])),
                          how="left").fillna("Nan")
@@ -169,6 +169,17 @@ def normalize_tokens(df: pandas.DataFrame,pers: str, lang: str):
     df["normalized_tokens_{}".format(pers)] = normalized_tokens
     return df
 
+def normalize_list_length(list_1: list, list_2: list) -> (list, list):
+    while len(list_1) != len(list_2):
+        if len(list_1) > len(list_2):
+            random = randint(0, 1000)
+            if random not in list_2 and random not in list_1:
+                list_2.append(random)
+        if len(list_1) < len(list_2):
+            random = randint(0, 1000)
+            if random not in list_2 and random not in list_1:
+                list_1.append(random)
+    return list_1, list_2
 
 
 if __name__ == '__main__':
@@ -191,8 +202,7 @@ if __name__ == '__main__':
         except KeyError:
             pass
 
-    print(globals().keys())
-    print(lower_court)
+
 
     #merged_df = pd.merge(lower_court_thomas,lower_court_angela , on="annotations_de", suffixes=('_thomas', '_angela'), how ="left").fillna("Nan")
     #lower_court = pd.merge(merged_df, lower_court_lynn, on="annotations_de", how ="right").fillna("Nan").rename(columns={"tokens_text": "tokens_text_lynn", "tokens_id": "tokens_id_lynn"})
@@ -201,13 +211,20 @@ if __name__ == '__main__':
     for pers in PERSONS:
         lower_court = normalize_tokens(lower_court, pers, "german")
 
-    print(lower_court[["normalized_tokens_angela","normalized_tokens_lynn", "normalized_tokens_thomas"]])
+    #print(lower_court)
+
+
+    for value_list in lower_court[["normalized_tokens_angela","normalized_tokens_lynn", "normalized_tokens_thomas"]].values:
+        for i in range (0, len(value_list)-1, 2):
+            list_a, list_b = normalize_list_length(value_list[i], value_list[i+1])
+            cohen_kappa_score(list_a, list_b )
+            list_a, list_c = normalize_list_length(value_list[i], value_list[i+2])
+            cohen_kappa_score(list_a, list_c )
+            list_b, list_c = normalize_list_length(value_list[i+1], value_list[i+2])
+            cohen_kappa_score(list_b, list_c )
 
 
 
-    #cohen_kappa_score = cohen_kappa_score(df["tokens_id_thomas"], df["tokens_id_angela"])
-    #print(cohen_kappa_score)
 
-    #df["cohen_kappa_score"] = cohen_kappa_score(df["tokens_id_thomas"], df["tokens_id_angela"])
 
 
