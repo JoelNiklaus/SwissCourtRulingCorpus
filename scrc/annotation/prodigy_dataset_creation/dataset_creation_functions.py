@@ -9,6 +9,7 @@ import psycopg2
 # Load environment variable from .env
 from dotenv import load_dotenv
 from psycopg2 import sql
+from collections import Counter
 
 load_dotenv()
 DB_USER = os.getenv("DB_USER")
@@ -100,16 +101,16 @@ def filter_dataset(data: list, mode: int) -> list:
     for d in data:
         t = (d["year"], d["legal_area"], d["judgment"])
         if mode == 1:
-            t = (d["year"], d["legal_area"], d["judgment"], d["is_correct"])
+            t = (d["year"], d["legal_area"], d["judgment"], str(d["is_correct"]))
         if t not in tuples:
             tuples.add(t)
             filtered_dataset.append(d)
 
 
-    validate_filtering(sorted(tuples), filtered_dataset, mode)
+    validate_filtering(data,sorted(tuples), filtered_dataset, mode)
     return filtered_dataset
 
-def validate_filtering(tuple_list: list, filtered_list: list, mode: int):
+def validate_filtering(original_data: list,tuple_list: list, filtered_list: list, mode: int):
     """
     Asserts uniqueness of dataset entries
     Checks if every year has a complete set of 6 rulings
@@ -121,7 +122,7 @@ def validate_filtering(tuple_list: list, filtered_list: list, mode: int):
     if mode == 1:
         j = 11
         steps = 12
-        filtered_list += [''] * (NUMBER_OF_RULINGS_PER_LANGUAGE_prediction - len(filtered_list))
+        #filtered_list += [''] * (NUMBER_OF_RULINGS_PER_LANGUAGE_prediction - len(filtered_list))
     incomplete_set_years = []
     try:
         assert len(tuple_list) == len(set(tuple_list))
@@ -137,6 +138,11 @@ def validate_filtering(tuple_list: list, filtered_list: list, mode: int):
                 if tuple_list[i][0] != tuple_list[i + 1][0]:
                     print("Set {} not complete!".format(tuple_list[i][0]))
                     incomplete_set_years.append(tuple_list[i][0])
+
+        if len(incomplete_set_years) > 0:
+            fill_incomplete_sets(original_data, filtered_list, tuple_list, mode)
+
+
         if mode == 0:
             assert len(filtered_list) == NUMBER_OF_RULINGS_PER_LANGUAGE_explainability
         if mode == 1:
@@ -147,6 +153,7 @@ def validate_filtering(tuple_list: list, filtered_list: list, mode: int):
             len(filtered_list)))
         for t in tuple_list:
             for y in incomplete_set_years:
+                print(incomplete_set_years)
                 if y == t[0]:
                     print(t)
 
@@ -162,8 +169,36 @@ def filter_new_cases(df: pd.DataFrame, data: list) -> list:
         if t in tuples:
             filtered_dataset.append(d)
             tuples.remove(t)
+
     return filtered_dataset
 
+def fill_incomplete_sets(original_data: list, filtered_dataset: list, current_tuples: list, mode: int):
+    iteration = 0
+    if iteration == 0:
+        for d in original_data:
+            t = (d["year"], d["legal_area"], d["judgment"], "None")
+            if t not in current_tuples and d not in filtered_dataset:
+                t_1, t_2 = (d["year"], d["legal_area"], d["judgment"], "False"), (
+                d["year"], d["legal_area"], d["judgment"], "True")
+                if t_1 not in current_tuples or t_2 not in current_tuples:
+                    current_tuples.append(t)
+                    filtered_dataset.append(d)
+        iteration =+ 1
+
+    if iteration == 1:
+        for d in original_data:
+            t = (d["year"], d["legal_area"], "None", "None")
+            if t not in current_tuples and d not in filtered_dataset:
+                t_1, t_2 = (d["year"], d["legal_area"], "approval", "False"), (
+                d["year"], d["legal_area"], "approval", "True")
+                t_3, t_4 = (d["year"], d["legal_area"], "dismissal", "False"), (
+                d["year"], d["legal_area"], "dismissal", "True")
+                if t_1 not in current_tuples or t_2 not in current_tuples or t_3 not in current_tuples or t_4 not in current_tuples:
+                    if Counter(elem[0] for elem in current_tuples)[t[0]]< 12:
+                        current_tuples.append(t)
+                        filtered_dataset.append(d)
+
+    validate_filtering(original_data, sorted(current_tuples), filtered_dataset,mode)
 
 def header_preprocessing(h: str, pattern: str) -> str:
     result = re.search(pattern, h)

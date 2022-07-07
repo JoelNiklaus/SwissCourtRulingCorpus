@@ -49,10 +49,12 @@ if __name__ == '__main__':
                     write_JSONL(filepath_dataset.format(l), new_case_list+read_JSONL(FILEPATH_DATASET_JE.format(l)))
             if sys.argv[1] in LANGUAGES:
                 FILEPATH_ANNOTATION = FILEPATH_ANNOTATION.format(sys.argv[1])
+                filepath_dataset = FILEPATH_DATASET_JE.format(sys.argv[1])
                 if int(sys.argv[2]) == 1:
                     filepath_dataset = FILEPATH_DATASET_P.format(sys.argv[1])
-                    ids_scrc = set_id_scrc(pd.DataFrame.from_records(read_JSONL(FILEPATH_ANNOTATION)), 1)
-                filepath_dataset = FILEPATH_DATASET_JE.format(sys.argv[1])
+                    ids_scrc = set_id_scrc(pd.DataFrame.from_records(read_JSONL(FILEPATH_DATASET_JE.format(sys.argv[1]))), 1)
+                    if sys.argv[1] == "de":
+                        ids_scrc = set_id_scrc(pd.DataFrame.from_records(read_JSONL(FILEPATH_ANNOTATION)), 1)
                 dataset = filter_dataset(db_stream(sys.argv[1], int(sys.argv[2]), ids_scrc), int(sys.argv[2]))
 
                 write_JSONL(filepath_dataset.format(sys.argv[1]), dataset)
