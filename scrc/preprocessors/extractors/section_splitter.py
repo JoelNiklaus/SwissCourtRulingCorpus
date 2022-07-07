@@ -107,7 +107,7 @@ class SectionSplitter(AbstractExtractor):
             path = Path.joinpath(self.output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
 
             with path.open("a") as f:
-                df.to_json(f)
+                df.to_json(f, default_handler=str)
             return
 
         df = df.loc[df['language'] != '--']

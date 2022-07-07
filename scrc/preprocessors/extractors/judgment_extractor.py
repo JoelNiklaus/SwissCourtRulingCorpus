@@ -60,7 +60,7 @@ class JudgmentExtractor(AbstractExtractor):
             path = Path.joinpath(self.output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
             
             with path.open("a") as f:
-                df.to_json(f)
+                df.to_json(f, default_handler=str)
             return
         for idx, row in df.iterrows():
             with engine.connect() as conn:
