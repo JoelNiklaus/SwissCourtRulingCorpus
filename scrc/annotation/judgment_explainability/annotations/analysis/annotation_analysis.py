@@ -27,7 +27,7 @@ Sources for Metrics:
 """
 import json
 from pathlib import Path
-
+import itertools
 import pandas
 import pandas as pd
 import numpy as np
@@ -38,8 +38,9 @@ import nltk
 nltk.download('punkt')
 
 LANGUAGES = ["de", "fr", "it"]
+LANGUAGES_NLTK ={"de":"german", "fr":"french", "it":"italian"}
 PERSONS = ["angela", "lynn", "thomas"]
-LABELS = [ "Lower court","Opposes judgment", "Supports judgment"]
+LABELS = [ "Lower court","Supports judgment","Opposes judgment"]
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
@@ -106,28 +107,28 @@ def extract_values_from_column(annotations: pandas.DataFrame, col_1:str, col_2:s
     annotations_col = annotations_col.drop([col_1], axis=1)
     return annotations_col.join(df_col)
 
-def get_span_df(annotations_spans:pandas.DataFrame, annotations_tokens:pandas.DataFrame,  span:str,) -> (pandas.DataFrame, dict):
+def get_span_df(annotations_spans:pandas.DataFrame, annotations_tokens:pandas.DataFrame,  span:str, lang:str) -> (pandas.DataFrame, dict):
     spans = annotations_spans[annotations_spans["spans_label"] == span]
     token_numbers = {}
-    for mini_list in list(spans[['annotations_de','_annotator_id','spans_token_start', 'spans_token_end']].values):
+    for mini_list in list(spans[['annotations_{}'.format(lang),'_annotator_id','spans_token_start', 'spans_token_end']].values):
         numbers = []
         for nr in list(range(int(mini_list[2]), int(mini_list[3])+1)):
             numbers.append(nr)
         token_numbers["{}.{}.{}".format(mini_list[0],mini_list[1],randint(0, 100000))] = numbers
     spans_list = []
     for key in token_numbers:
-        new_annotations_tokens = annotations_tokens[annotations_tokens['annotations_de'] == int(key.split(".")[0])].copy()
+        new_annotations_tokens = annotations_tokens[annotations_tokens['annotations_{}'.format(lang)] == int(key.split(".")[0])].copy()
         new_annotations_tokens = new_annotations_tokens[new_annotations_tokens["tokens_id"].isin(token_numbers[key])]
         new_annotations_tokens = new_annotations_tokens[new_annotations_tokens['_annotator_id'] == key.split(".")[1]]
         spans_list.append(new_annotations_tokens)
     spans = pd.concat(spans_list)
     return spans
 
-def get_annotator_set(annotator_name: str, tokens: pandas.DataFrame)-> pandas.DataFrame:
-    annotator = tokens[tokens['_annotator_id'] == "annotations_de-{}".format(annotator_name)].drop_duplicates().copy()
-    annotator['tokens_text'] = annotator.groupby(['annotations_de'])['tokens_text'].transform(lambda x: ' '.join(x))
-    annotator['tokens_id'] = annotator.groupby(['annotations_de'])['tokens_id'].transform(lambda x: ','.join(x.astype(str)))
-    annotator = annotator[['annotations_de','tokens_text','tokens_id']]
+def get_annotator_set(annotator_name: str, tokens: pandas.DataFrame, lang:str)-> pandas.DataFrame:
+    annotator = tokens[tokens['_annotator_id'] == "annotations_{}-{}".format(lang,annotator_name)].drop_duplicates().copy()
+    annotator['tokens_text'] = annotator.groupby(['annotations_{}'.format(lang)])['tokens_text'].transform(lambda x: ' '.join(x))
+    annotator['tokens_id'] = annotator.groupby(['annotations_{}'.format(lang)])['tokens_id'].transform(lambda x: ','.join(x.astype(str)))
+    annotator = annotator[['annotations_{}'.format(lang),'tokens_text','tokens_id']]
     annotator= annotator.drop_duplicates()
     annotator["tokens_id"] = annotator["tokens_id"].astype(str).str.split(",")
     return annotator
@@ -135,13 +136,13 @@ def get_annotator_set(annotator_name: str, tokens: pandas.DataFrame)-> pandas.Da
 """
 @Todo Create merge loop for even and odd lists
 """
-def merge_label_df(df_list: list, person_suffixes: list):
+def merge_label_df(df_list: list, person_suffixes: list, lang:str):
     i = 0
     df_list = sorted(df_list, key=len)
-    merged_df = pd.merge(df_list[i], df_list[i + 1], on="annotations_de",
+    merged_df = pd.merge(df_list[i], df_list[i + 1], on="annotations_{}".format(lang),
                          suffixes=('_{}'.format(person_suffixes[i]), '_{}'.format(person_suffixes[i + 1])),
                          how="left").fillna("Nan")
-    df = pd.merge(merged_df, df_list[i + 2], on="annotations_de", how="right").fillna("Nan").rename(
+    df = pd.merge(merged_df, df_list[i + 2], on="annotations_{}".format(lang), how="right").fillna("Nan").rename(
         columns={"tokens_text": "tokens_text_{}".format(person_suffixes[i + 2]),
                  "tokens_id": "tokens_id_{}".format(person_suffixes[i + 2])})
     return df
@@ -157,16 +158,18 @@ def get_normalize_tokens_dict(df: pandas.DataFrame) -> pandas.DataFrame:
     df["normalized_tokens_dict"] = normalized_tokens
     return df
 
-def normalize_tokens(df: pandas.DataFrame,pers: str, lang: str):
+def normalize_tokens(df: pandas.DataFrame,pers: str, lang:str ,lang_nltk: str):
     normalized_tokens = []
-    for sentences in df[["annotations_de","tokens_text_{}".format(pers)]].values:
+    for sentences in df[["annotations_{}".format(lang),"tokens_text_{}".format(pers)]].values:
         normalized_tokens_row = []
-        tokens = nltk.word_tokenize(sentences[1], language=lang)
-        token_dict = df[df["annotations_de"] == sentences[0]]["normalized_tokens_dict"].values[0]
+        tokens = nltk.word_tokenize(sentences[1], language=lang_nltk)
+        token_dict = df[df["annotations_{}".format(lang)] == sentences[0]]["normalized_tokens_dict"].values[0]
         for word in tokens:
             normalized_tokens_row.append(token_dict[word])
         normalized_tokens.append(normalized_tokens_row)
     df["normalized_tokens_{}".format(pers)] = normalized_tokens
+    df = df.drop('tokens_text', axis=1)
+    df = df.loc[df.astype(str).drop_duplicates().index]
     return df
 
 def normalize_list_length(list_1: list, list_2: list) -> (list, list):
@@ -181,62 +184,82 @@ def normalize_list_length(list_1: list, list_2: list) -> (list, list):
                 list_1.append(random)
     return list_1, list_2
 
+def get_combinations(value_list:list) -> list:
+    combinations = []
+    for L in range(0, len(value_list) + 1):
+        for subset in itertools.combinations(value_list, L):
+            if len(subset) == 2:
+                combinations.append(subset)
+
+    return combinations
+
+def calculate_cohen_kappa(label_df: pandas.DataFrame) -> pandas.DataFrame:
+    cohen_kappa_scores_list =[]
+    for value_list in label_df[['annotations_{}'.format(lang),"normalized_tokens_angela","normalized_tokens_lynn", "normalized_tokens_thomas"]].values:
+        for i in range (1, len(value_list)-1):
+            cohen_kappa_scores = {'annotations_{}'.format(lang):value_list[0], "cohen_kappa_scores": []}
+            combinations = get_combinations(value_list[1:])
+            for comb in combinations:
+                if len(comb[0]) != 1 and len(comb[1]) != 1:
+                    list_a, list_b = normalize_list_length(comb[0], comb[1])
+                    cohen_kappa_scores["cohen_kappa_scores"]+=[cohen_kappa_score(list_a, list_b )]
+        cohen_kappa_scores_list.append(cohen_kappa_scores)
+    cohen_kappa_scores_df = pd.DataFrame.from_records(cohen_kappa_scores_list)
+    return cohen_kappa_scores_df
+
+
+
+
+
 
 if __name__ == '__main__':
     datasets = extract_dataset()
     dump_csv(datasets)
-    label_list = []
     for lang in LANGUAGES:
         try:
-            #print(collections.Counter(list(datasets["annotations_{}".format(lang)].index)))
             annotations = datasets["annotations_{}".format(lang)][
                 datasets["annotations_{}".format(lang)]["answer"] == "accept"]
             annotations_spans = extract_values_from_column(annotations, "spans", "tokens")
             annotations_tokens = extract_values_from_column(annotations, "tokens", "spans")
             for label in LABELS:
-                label_df = get_span_df(annotations_spans, annotations_tokens, label)
+                label_list = []
+                label_df = get_span_df(annotations_spans, annotations_tokens, label, lang)
                 for pers in PERSONS:
-                    globals()[f"{label.lower().replace(' ','_')}_{pers}"] = get_annotator_set(pers, label_df)
-                    label_list.append(get_annotator_set(pers, label_df))
-                globals()[f"{label.lower().replace(' ', '_')}"] = merge_label_df(label_list,PERSONS)
-        except KeyError:
+                    globals()[f"{label.lower().replace(' ','_')}_{lang}_{pers}"] = get_annotator_set(pers, label_df, lang)
+                    label_list.append(get_annotator_set(pers, label_df, lang))
+                globals()[f"{label.lower().replace(' ', '_')}_{lang}"] = merge_label_df(label_list,PERSONS, lang)
+                globals()[f"{label.lower().replace(' ', '_')}_{lang}"] = get_normalize_tokens_dict(globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
+                for pers in PERSONS:
+                    globals()[f"{label.lower().replace(' ', '_')}_{lang}"] = normalize_tokens(globals()[f"{label.lower().replace(' ', '_')}_{lang}"], pers, lang,LANGUAGES_NLTK[lang])
+            if lang == "de":
+                lower_court_de = lower_court_de.merge(calculate_cohen_kappa(lower_court_de),
+                                                      on='annotations_{}'.format("de"),
+                                                      how='left')
+                to_csv(Path("lower_court_de.csv"), lower_court_de)
+                supports_judgment_de = supports_judgment_de.merge(calculate_cohen_kappa(supports_judgment_de),
+                                                                  on='annotations_{}'.format(lang), how='left')
+                to_csv(Path("supports_judgment_de.csv"), supports_judgment_de)
+                opposes_judgment_de = opposes_judgment_de.merge(calculate_cohen_kappa(opposes_judgment_de),
+                                                                on='annotations_{}'.format(lang), how='left')
+                to_csv(Path("opposes_judgment_de.csv"),opposes_judgment_de)
+        except KeyError as err:
+            print(err)
             pass
 
-    lower_court = get_normalize_tokens_dict(lower_court)
-    for pers in PERSONS:
-        lower_court = normalize_tokens(lower_court, pers, "german")
 
-    lower_court.drop('tokens_text', axis=1,inplace=True)
-    lower_court = lower_court.loc[lower_court.astype(str).drop_duplicates().index]
 
-    print(lower_court[lower_court["annotations_de"]==436297])
-    for value_list in lower_court[['annotations_de',"normalized_tokens_angela","normalized_tokens_lynn", "normalized_tokens_thomas"]].values:
-        for i in range (1, len(value_list)-1, 2):
-            c_k_1, c_k_2, c_k_3 = 2,2,2
-            list_a, list_b, list_c = value_list[i], value_list[i+1], value_list[i+2]
-            if len(list_a) != 1 and len(list_b) != 1:
-                list_a, list_b = normalize_list_length(value_list[i], value_list[i + 1])
-                c_k_1 = cohen_kappa_score(list_a, list_b )
-            if len(list_a) != 1 and len(list_c) != 1:
-                list_a, list_c = normalize_list_length(value_list[i], value_list[i + 2])
-                c_k_2 = cohen_kappa_score(list_a, list_c )
-            if len(list_b) != 1 and len(list_c) != 1:
-                list_b, list_c = normalize_list_length(value_list[i + 1], value_list[i + 2])
-                c_k_3 = cohen_kappa_score(list_b, list_c )
 
-            c_k_list = [c_k_1,c_k_2,c_k_3]
-            try:
-                c_k_list = list(filter((2).__ne__,  c_k_list))
-            except ValueError:
-                pass
 
-            if len(c_k_list) > 0:
-                max_value = max(c_k_list)
-                min_value = min(c_k_list)
-                avg_value = 0 if len(c_k_list) == 0 else sum(c_k_list)/len(c_k_list)
+""" 
+        for key in cohen_kappa_scores:
+            if len(cohen_kappa_scores[key]) > 0:
+                max_value = max(cohen_kappa_scores[key])
+                min_value = min(cohen_kappa_scores[key])
+                avg_value = 0 if len(cohen_kappa_scores[key]) == 0 else sum(cohen_kappa_scores[key]) / len(
+                        cohen_kappa_scores[key])
 
-                print("{},{},{},{},{}".format(value_list[0],len(c_k_list),max_value,min_value,avg_value))
-
+                print("{},{},{},{},{}".format(key, len(cohen_kappa_scores[key]), max_value, min_value, avg_value))
+"""
 
 
 
