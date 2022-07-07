@@ -52,17 +52,28 @@ class CitationExtractor(AbstractExtractor):
     
     
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):       
-        for idx, row in df.iterrows():
-            with engine.connect() as conn:
-                t = Table('citation', MetaData(), autoload_with=engine)
-                # Delete and reinsert as no upsert command is available
-                stmt = t.delete().where(delete_stmt_decisions_with_df(df))
-                engine.execute(stmt)
+        
+        with engine.connect() as conn:
+            t = Table('citation', MetaData(), autoload_with=engine)
+            # Delete and reinsert as no upsert command is available
+            stmt = t.delete().where(delete_stmt_decisions_with_df(df))
+            engine.execute(stmt)
+            
+            for _, row in df.iterrows():
                 for k in row['citations'].keys():
                     citation_type_id = CitationType(k).value
+                    citations_to_insert = []
                     for citation in row['citations'][k]:
-                        stmt = t.insert().values([{"decision_id": str(row['decision_id']), "citation_type_id": citation_type_id, "url": citation.get("url"), "text": citation["text"]}])
-                        engine.execute(stmt)
+                        citation_dict = {
+                            "decision_id": str(row['decision_id']),
+                            "citation_type_id": citation_type_id,
+                            "url": citation.get("url"),
+                            "text": citation["text"]
+                        }
+                        citations_to_insert.append(citation_dict)
+                    if len(citations_to_insert) == 0: continue
+                    stmt = t.insert().values(citations_to_insert)
+                    engine.execute(stmt)
 
 if __name__ == '__main__':
     config = get_config()
