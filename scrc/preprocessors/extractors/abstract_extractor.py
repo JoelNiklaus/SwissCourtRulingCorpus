@@ -35,6 +35,10 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     @abstractmethod
     def save_data_to_database(self, series: pd.DataFrame, engine: Engine):
         """Splits the data into their respective parts and saves them to the table"""
+        
+    @abstractmethod
+    def get_coverage(self, engine: Engine, spider: str):
+        """Logs the coverage"""
 
     @abstractmethod
     def select_df(self, engine: Engine, spider: str):
@@ -89,7 +93,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
             try:
-                # if there is no special funciton for the spider the default gets used
+                # if there is no special function for the spider the default gets used
                 if not hasattr(self.processing_functions, spider):
                     self.logger.debug(f"Using default function for {spider}")
                 self.process_one_spider(engine, spider)
@@ -112,8 +116,8 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
             if not df.empty:
                 self.save_data_to_database(df, self.get_engine(self.db_scrc))
                 self.logger.info(f'One chunk of {len(df.index)} decisions saved')
-            # self.log_progress(self.chunksize)
-
+            self.log_progress(self.chunksize)
+        self.get_coverage(spider)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
@@ -141,8 +145,9 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         if not self.check_condition_before_process(spider, data, namespace):
             return None
         try:
-            extracting_functions = getattr(self.processing_functions, spider, getattr(
-                self.processing_functions, 'XX_SPIDER'))  # Get the function for the spider or the default function
+            # Get the function for the spider or the default function
+            default = getattr(self.processing_functions, 'XX_SPIDER')
+            extracting_functions = getattr(self.processing_functions, spider, default)
             # invoke function with data and namespace
             return extracting_functions(data, namespace)
         except ValueError as e:

@@ -1,3 +1,5 @@
+import ast
+
 from root import ROOT_DIR
 from scrc.utils.sql_select_utils import convert_to_binary_judgments
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
@@ -31,8 +33,8 @@ class BuildingViolationsAnalysis(AbstractPreprocessor):
         if cache_file.exists() and not overwrite_cache:
             self.logger.info(f"Loading data from cache at {cache_file}")
             df = pd.read_csv(cache_file)
-            df.parties = df.parties.apply(lambda x: eval(x))  # parse dict string to dict again
-            df.original_judgments = df.original_judgments.apply(lambda x: eval(x))  # parse list string to list again
+            df.parties = df.parties.apply(lambda x: ast.literal_eval(x))  # parse dict string to dict again
+            df.original_judgments = df.original_judgments.apply(lambda x: ast.literal_eval(x))  # parse list string to list again
             return df
 
         # otherwise query it from the database
