@@ -20,7 +20,7 @@ import json
 from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache
 
 from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, \
-    select_paragraphs_with_decision_and_meta_data, where_string_spider
+    select_sections_with_decision_and_meta_data, where_string_spider
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -234,7 +234,7 @@ class DatasetCreator(AbstractPreprocessor):
             "lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, "
             "lower_court.file_number as origin_file_number")
 
-        table_string, _ = select_paragraphs_with_decision_and_meta_data()
+        table_string, _ = select_sections_with_decision_and_meta_data()
         where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
         cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
         df = retrieve_from_cache_if_exists(cache_dir)

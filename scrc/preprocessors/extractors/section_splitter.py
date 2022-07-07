@@ -82,7 +82,7 @@ class SectionSplitter(AbstractExtractor):
         spacy_tokenizer, bert_tokenizer = self.tokenizers.get(Language(df['language'][0]))
 
         for _, row in df.iterrows():
-            if not row['sections'] or not isinstance(row['sections'], str):
+            if not row['sections'] or not isinstance(row['sections'], dict):
                 return {}  # if there was no data, don't do anything
             if len(row['sections']) > 0:
                 # The fulltext equals all other sections combined
@@ -119,7 +119,6 @@ class SectionSplitter(AbstractExtractor):
         with self.get_engine(self.db_scrc).connect() as conn:
             # Load the different tables
             t = Table('section', MetaData(), autoload_with=engine)
-            t_paragraph = Table('paragraph', MetaData(), autoload_with=engine)
             t_num_tokens = Table('num_tokens', MetaData(), autoload_with=engine)
 
             # Delete and reinsert as no upsert command is available. This pattern is used multiple times in this method
@@ -127,8 +126,6 @@ class SectionSplitter(AbstractExtractor):
                 # empty dfs are given as dicts, so no need to save
                 return
             stmt = t.delete().where(delete_stmt_decisions_with_df(df))
-            conn.execute(stmt)
-            stmt = t_paragraph.delete().where(delete_stmt_decisions_with_df(df))
             conn.execute(stmt)
             
             for idx, row in df.iterrows():
@@ -142,11 +139,12 @@ class SectionSplitter(AbstractExtractor):
                     if decision_id_str == '':
                         continue
                     section_type_id = k.value
+                    row['sections'][k] = [paragraph for paragraph in row['sections'][k] if len(paragraph) > 0]
                     # insert section
                     section_dict = {
                         "decision_id": decision_id_str,
                         "section_type_id": section_type_id,
-                        "section_text": row['sections'][k]
+                        "section_text": '\n'.join(row['sections'][k])
                     }
                     stmt = t.insert().returning(text("section_id")).values([section_dict])
                     section_id = conn.execute(stmt).fetchone()['section_id']
@@ -160,24 +158,6 @@ class SectionSplitter(AbstractExtractor):
                     
                     stmt = t_num_tokens.insert().values([tokens_per_section])
                     conn.execute(stmt)
-
-                    # Add all paragraphs
-                    paragraph_dicts = []
-                    for paragraph in row['sections'][k]:
-                        paragraph = paragraph.strip()
-                        if len(paragraph) < 2: continue
-                        paragraph_dict = {
-                            'section_id': str(section_id), 
-                            "decision_id": decision_id_str,
-                            'paragraph_text': paragraph,
-                            'first_level': None,
-                            'second_level': None,
-                            'third_level': None
-                        }
-                        paragraph_dicts.append(paragraph_dict)
-                    if len(paragraph_dicts) > 0:
-                        stmt = t_paragraph.insert().values(paragraph_dicts)
-                        conn.execute(stmt)
 
     def read_column(self, engine: Engine, spider: str, name: str, lang: str) -> pd.DataFrame:
         query = f"SELECT count({name}) FROM {lang} WHERE {self.get_database_selection_string(spider, lang)} AND {name} <> ''"
