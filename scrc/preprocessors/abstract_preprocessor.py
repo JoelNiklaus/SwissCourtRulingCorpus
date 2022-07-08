@@ -222,7 +222,7 @@ class AbstractPreprocessor:
                 output_dir.mkdir(parents=True, exist_ok=True)
                 path = Path.joinpath(output_dir, filename)
             with path.open("a") as f:
-                df.to_json(f)
+                df.to_json(f, default_handler=str)
             return
 
         with engine.connect() as conn:

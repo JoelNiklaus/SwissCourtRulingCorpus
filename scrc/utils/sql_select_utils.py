@@ -281,11 +281,6 @@ def join_tables_on_decision(tables: List[str]) -> str:
     if ('file_number' in tables):
         join_string += map_join('text', 'file_numbers', 'file_number')
 
-    if ('paragraph' in tables):
-        join_string += map_join('paragraph_id', 'paragraphs', 'paragraph', fill={
-            'table_name': 'section', 'field_name': 'paragraph_text, section_type_id, paragraph.section_id',
-            'join_field': 'section_id'})
-
     if ('party' in tables):
         join_string += map_join('party_id', 'parties', 'party', fill={
             'table_name': 'person', 'field_name': 'name, is_natural_person, gender, party_type_id',
@@ -300,7 +295,7 @@ def join_tables_on_decision(tables: List[str]) -> str:
     return join_string
 
 
-def select_paragraphs_with_decision_and_meta_data() -> Tuple[str, str]:
+def select_sections_with_decision_and_meta_data() -> Tuple[str, str]:
     """ 
         Edit this according to the example given below. 
         Easiest function to default join tables to a decision.

@@ -38,7 +38,7 @@ def extract_citations(search_string: str, language: str, filepath: str = ''):
 
         for match in regex.findall(get_combined_regexes(citation_regexes['law'], language), str(search_string)):
             citation = {"text": " ".join(match).strip()}
-            rulings.append(citation)
+            laws.append(citation)
 
         
     except Exception as e:
