@@ -228,7 +228,7 @@ class DatasetCreator(AbstractPreprocessor):
     
         cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
         df = retrieve_from_cache_if_exists(cache_dir)
-        if df.empty or True:
+        if df.empty:
             self.logger.info("Retrieving the data from the database")
 
             where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
