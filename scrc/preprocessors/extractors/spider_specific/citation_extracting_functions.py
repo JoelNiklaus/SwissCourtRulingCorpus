@@ -1,11 +1,11 @@
 from pathlib import Path
 from pprint import pprint
 from typing import Any, Optional, Tuple
+
+import pandas as pd
 from scrc.data_classes.law_citation import LawCitation
 from scrc.data_classes.ruling_citation import RulingCitation
 from scrc.enums.citation_type import CitationType
-import json
-import regex
 from citation_extractor import extract_citations
 
 from root import ROOT_DIR
@@ -23,12 +23,9 @@ def check_if_convertible(laws, rulings, language: Language) -> Tuple[list, list]
     language_str = language.value
     for law in laws:
         try:
-            # Todo: add law_abbreviations
-            _ = LawCitation(law['text'], language_str, [])
+            _ = LawCitation(law['text'], language_str, pd.read_json(ROOT_DIR / "corpora" / "lexfind.jsonl", lines=True))
             valid_laws.append(law)          
         except:
-            # until law abbrs are added:
-            valid_laws.append(law) 
             continue
         
     for ruling in rulings:

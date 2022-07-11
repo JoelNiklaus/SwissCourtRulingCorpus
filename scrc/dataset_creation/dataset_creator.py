@@ -19,7 +19,7 @@ from scrc.utils.log_utils import get_logger
 import json
 from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache
 
-from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, \
+from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision, legal_areas, get_region, \
     select_sections_with_decision_and_meta_data, where_string_spider
 
 # pd.options.mode.chained_assignment = None  # default='warn'
@@ -226,25 +226,65 @@ class DatasetCreator(AbstractPreprocessor):
 
     def get_df(self, engine, feature_col, label_col, save_reports):
     
-        field_string = ("d.*, " 
-            "extract(year from d.date) as year, judgments, citations, " 
-            "file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw, " 
-            "sections, "
-            "lower_court.date as origin_date, lower_court.court_id as origin_court, "
-            "lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, "
-            "lower_court.file_number as origin_file_number")
-
-        table_string, _ = select_sections_with_decision_and_meta_data()
-        where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
         cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
         df = retrieve_from_cache_if_exists(cache_dir)
-        if df.empty:
+        if df.empty or True:
             self.logger.info("Retrieving the data from the database")
-            df = next(self.select(engine, table_string, field_string, where_string, order_by='year',
-                                  chunksize=self.get_chunksize()))
-            save_df_to_cache(df, cache_dir)
 
-        df = self.clean_df(df, feature_col)
+            where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
+            table_string ='decision d LEFT JOIN language ON language.language_id = d.language_id'
+            decision_df =  next(self.select(engine, table_string , 'd.*, extract(year from d.date) as year, language.iso_code as lang', where_string,
+                                    chunksize=self.get_chunksize()))
+            decision_ids = ["'" + str(x) + "'" for x in decision_df['decision_id'].tolist()]
+            
+            print('Loading Judgments')
+            table = f"{join_tables_on_decision(['judgment'])}"
+            where = f"judgment_map.decision_id IN ({','. join(decision_ids)})"
+            judgments_df = next(self.select(engine, table, "judgments", where, None, self.get_chunksize()))
+            decision_df['judgments'] = judgments_df['judgments']
+            
+            print('Loading File')
+            table = f"{join_tables_on_decision(['file'])}"
+            file_ids = ["'" + str(x) + "'" for x in decision_df['file_id'].tolist()]
+            where = f"file.file_id IN ({','. join(file_ids)})"
+            file_df = next(self.select(engine, table, 'file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw', where, None, self.get_chunksize()))
+            decision_df['file_name'] = file_df['file_name']
+            decision_df['html_url'] = file_df['html_url']
+            decision_df['pdf_url'] = file_df['pdf_url']
+            decision_df['html_raw'] = file_df['html_raw']
+            decision_df['pdf_raw'] = file_df['pdf_raw']
+            
+            print('Loading Lower Court')
+            table = f"{join_tables_on_decision(['lower_court'])}"
+            where = f"lower_court.decision_id IN ({','. join(decision_ids)})"
+            lower_court_select_fields = ("lower_court.date as origin_date,"
+            "lower_court.court_id as origin_court, "
+            "lower_court.canton_id as origin_canton, "
+            "lower_court.chamber_id as origin_chamber, "
+            "lower_court.file_number as origin_file_number")
+            lower_court_df = next(self.select(engine, table, lower_court_select_fields, where, None, self.get_chunksize()))
+            decision_df['origin_date'] = lower_court_df['origin_date']
+            decision_df['origin_court'] = lower_court_df['origin_court']
+            decision_df['origin_canton'] = lower_court_df['origin_canton']
+            decision_df['origin_chamber'] = lower_court_df['origin_chamber']
+            decision_df['origin_file_number'] = lower_court_df['origin_file_number']
+            
+            print('Loading Citation')
+            table = f"{join_tables_on_decision(['citation'])}"
+            where = f"citation.decision_id IN ({','. join(decision_ids)})"
+            citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()))
+            decision_df['citations'] = citations_df['citations']
+            
+            print('Loading Section')
+            table = f"{join_tables_on_decision(['num_tokens'])}"
+            where = f"section.decision_id IN ({','. join(decision_ids)})"
+            section_df = next(self.select(engine, table, "sections", where, None, self.get_chunksize()))
+            decision_df['sections'] = section_df['sections']
+            
+            save_df_to_cache(decision_df, cache_dir)
+            df = decision_df
+        for feature_col in list(feature_col)[0].split('-'):
+            df = self.clean_df(df, feature_col)
         df['legal_area'] = df.chamber_id.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
 
@@ -257,10 +297,11 @@ class DatasetCreator(AbstractPreprocessor):
         sections = df['sections']
 
         def filter_column(column_data):
-            if not isinstance(column_data, str): return np.nan
-            column_data = ast.literal_eval(column_data)
+            if not isinstance(column_data, str) and not isinstance(column_data, list): return np.nan
+            if isinstance(column_data, str):
+                column_data = ast.literal_eval(column_data)
             for section in column_data:
-                if section['name'] == column:
+                if section['name'] in column:
                     return section['section_text']
 
         df[column] = sections.map(filter_column)
