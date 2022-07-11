@@ -259,6 +259,16 @@ def join_tables_on_decision(tables: List[str]) -> str:
     if ('section' in tables or 'section_type' in tables):
         join_string += map_join('section_id', 'sections', 'section', fill={
             'table_name': 'section_type', 'field_name': 'name, section_text', 'join_field': 'section_type_id'})
+        
+    if ('num_tokens' in tables):
+        # Dont use num tokens and section or section_type as num_tokens includes both of them
+        join_string += (" LEFT JOIN "
+                        "(SELECT section_mapped.decision_id, json_strip_nulls(json_agg(json_build_object"
+                        "('name', name,'section_text', section_text, 'num_tokens_bert', num_tokens_bert, 'num_tokens_spacy', num_tokens_spacy))) sections "
+                        "FROM (SELECT name, section_text, section.decision_id, num_tokens_bert, num_tokens_spacy FROM section "
+                        "LEFT JOIN section_type  ON section_type.section_type_id = section.section_type_id "
+                        "LEFT JOIN num_tokens ON num_tokens.section_id = section.section_id) as section_mapped "
+                        "GROUP BY decision_id) as section ON section.decision_id = d.decision_id")
 
     if ('lower_court' in tables):
         join_string += join('lower_court')
@@ -281,11 +291,6 @@ def join_tables_on_decision(tables: List[str]) -> str:
     if ('file_number' in tables):
         join_string += map_join('text', 'file_numbers', 'file_number')
 
-    if ('paragraph' in tables):
-        join_string += map_join('paragraph_id', 'paragraphs', 'paragraph', fill={
-            'table_name': 'section', 'field_name': 'paragraph_text, section_type_id, paragraph.section_id',
-            'join_field': 'section_id'})
-
     if ('party' in tables):
         join_string += map_join('party_id', 'parties', 'party', fill={
             'table_name': 'person', 'field_name': 'name, is_natural_person, gender, party_type_id',
@@ -300,7 +305,7 @@ def join_tables_on_decision(tables: List[str]) -> str:
     return join_string
 
 
-def select_paragraphs_with_decision_and_meta_data() -> Tuple[str, str]:
+def select_sections_with_decision_and_meta_data() -> Tuple[str, str]:
     """ 
         Edit this according to the example given below. 
         Easiest function to default join tables to a decision.
@@ -334,29 +339,30 @@ def where_decisionid_in_list(decision_ids):
 def convert_to_binary_judgments(df, with_partials=False, with_write_off=False, with_unification=False,
                                 with_inadmissible=False, make_single_label=True):
     def clean(judgments):
+        judgment_texts = [item['text'] for item in judgments]
         out = set()
         for judgment in judgments:
             # remove "partial_" from all the items to merge them with full ones
             if not with_partials:
-                judgment = judgment.replace("partial_", "")
+                judgment['text'] = judgment['text'].replace("partial_", "")
 
-            out.add(judgment)
+            out.add(judgment['text'])
 
         if not with_write_off:
             # remove write_off because reason for it happens mostly behind the scenes and not written in the facts
-            if 'write_off' in judgments:
+            if 'write_off' in judgment_texts:
                 out.remove('write_off')
 
         if not with_unification:
             # remove unification because reason for it happens mostly behind the scenes and not written in the facts
-            if 'unification' in judgments:
+            if 'unification' in judgment_texts:
                 out.remove('unification')
 
         if not with_inadmissible:
             # remove inadmissible because it is a formal reason and not that interesting semantically.
             # Facts are formulated/summarized in a way to justify the decision of inadmissibility
             # hard to know solely because of the facts (formal reasons, not visible from the facts)
-            if 'inadmissible' in judgments:
+            if 'inadmissible' in judgment_texts:
                 out.remove('inadmissible')
 
         # remove all labels which are complex combinations (reason: different questions => model cannot know which one to pick)
@@ -394,7 +400,11 @@ regions = {
 }
 
 
-def get_region(canton: str):
+def get_region(canton):
+    if isinstance(canton, float) or isinstance(canton, int):
+        if np.isnan(canton):
+            return None
+        canton = Canton(canton)
     if canton is None:
         return None
     for region, cantons in regions.items():

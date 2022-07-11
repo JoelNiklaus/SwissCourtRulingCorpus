@@ -39,7 +39,7 @@ class JudgmentDatasetCreator(DatasetCreator):
                                          self.with_inadmissible, self.make_single_label)
         df = df.dropna(subset=['judgments'])  # drop empty labels introduced by cleaning before
 
-        df = df.rename(columns={feature_col: "text", "judgments": "label"})  # normalize column names
+        df = df.rename(columns={"judgments": "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
 
