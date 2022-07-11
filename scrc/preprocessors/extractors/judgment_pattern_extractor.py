@@ -1,10 +1,8 @@
 from __future__ import annotations
 from ast import Set
-import configparser
-import datetime
-import os
 from pathlib import Path
 import re
+import sys
 from typing import Any, TYPE_CHECKING
 from nltk.tokenize import sent_tokenize
 
@@ -12,20 +10,15 @@ from nltk.tokenize import sent_tokenize
 
 import pandas as pd
 from sqlalchemy.engine.base import Engine
-from sqlalchemy.sql.expression import text
-from sqlalchemy.sql.schema import MetaData, Table
 from scrc.enums.judgment import Judgment
 from scrc.enums.language import Language
-from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from nltk import ngrams
 
 
-
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
-from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, \
+from scrc.utils.sql_select_utils import get_judgment_query, get_total_judgments, join_decision_and_language_on_parameter, \
     join_file_on_decision, where_decisionid_in_list, where_string_spider
     
 from scrc.preprocessors.extractors.spider_specific.judgment_extracting_functions import prepare_judgment_markers
@@ -59,17 +52,23 @@ class JudgmentExtractor(AbstractExtractor):
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         return f"spider='{spider}' AND rulings IS NOT NULL AND rulings <> ''"
     
-    def get_coverage(self, engine: Engine, spider: str):
-        """Splits the data into their respective parts and saves them to the table"""
+    def get_coverage(self, spider: str):
+            with self.get_engine(self.db_scrc).connect() as conn:
+                total_judgments = conn.execute(get_total_judgments(spider)).fetchone()
+                coverage_result = conn.execute(get_judgment_query(spider)).fetchone()
+                coverage =  round(coverage_result[0] / total_judgments[0]  * 100, 2)
+                self.logger.info(f'{spider}: Found judgment outcome for {coverage}% of the rulings')
     
-    def get_coverage(self, engine: Engine, spider: str):
-        """Splits the data into their respective parts and saves them to the table"""
+
         
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
-            self.init_dict()
-            self.process_one_spider(engine, spider)
-            self.mark_as_processed(self.processed_file_path, spider)
+            if len(sys.argv) > 1:
+                self.get_coverage(spider)
+            else:
+                self.init_dict()
+                self.process_one_spider(engine, spider)
+                self.mark_as_processed(self.processed_file_path, spider)
             
     def drop_rows(self, df: DataFrame):
         if 'totalcount' in df.columns:
