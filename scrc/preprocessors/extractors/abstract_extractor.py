@@ -7,13 +7,18 @@ from root import ROOT_DIR
 from scrc.enums.language import Language
 from scrc.utils.log_utils import get_logger
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
+import threading
+import concurrent.futures
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
 
 
 class AbstractExtractor(ABC, AbstractPreprocessor):
-    """Abstract Base Class used by Extractors to unify their behaviour"""
+    """Abstract Base Class used by Extractors to unify their behaviour
+    
+    Careful: Concurrency found in the process_one_spider function is not tested 100% and errors may be the fault of the concurrent implementation.
+    """
 
     # Basic logging information made to overwrite in subclasses
     logger_info = {
@@ -37,7 +42,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         """Splits the data into their respective parts and saves them to the table"""
         
     @abstractmethod
-    def get_coverage(self, engine: Engine, spider: str):
+    def get_coverage(self, spider: str):
         """Logs the coverage"""
 
     @abstractmethod
@@ -103,7 +108,16 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
                     f"There are no special functions for spider {spider} and the default spider does not work. "
                     f"{self.logger_info['no_functions']}")
 
+    def thread_process_spider(self, engine: Engine, spider: str, df: pd.DataFrame):
+        self.logger.info('Started executing the functions for a thread')
+        df = df.apply(self.process_one_df_row, axis="columns")
+        if not df.empty:
+            self.save_data_to_database(df, self.get_engine(self.db_scrc))
+            self.logger.info(f'One chunk of {len(df.index)} decisions saved')
+            self.log_progress(self.chunksize)
+
     def process_one_spider(self, engine: Engine, spider: str):
+        """ On error read class comment """
         self.logger.info(self.logger_info["start_spider"] + " " + spider)
 
         dfs = self.select_df(self.get_engine(self.db_scrc), spider)  # Get the data needed for the extraction
@@ -111,14 +125,24 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         # self.start_progress(engine, spider)
         # stream dfs from the db
         # dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
-        for df in dfs:  # For each chunk in the data: apply the extraction function and save the result
-            df = df.apply(self.process_one_df_row, axis="columns")
-            if not df.empty:
-                self.save_data_to_database(df, self.get_engine(self.db_scrc))
-                self.logger.info(f'One chunk of {len(df.index)} decisions saved')
-            self.log_progress(self.chunksize)
-        self.get_coverage(spider)
+        
+        if self.concurrent_extractor:
+            self.logger.info('Concurrent execution is not heavily tested and might lead to problems. Consider this on errors')
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                # max_workers 4 gave the best results (compared to lower and higher numbers), but it might vary if the load on the sandbox is different
+                for df in dfs:  # For each chunk in the data: apply the extraction function and save the result
+                    executor.submit(self.thread_process_spider, engine, spider, df)
+        else:
+            for df in dfs:  # For each chunk in the data: apply the extraction function and save the result
+                df = df.apply(self.process_one_df_row, axis="columns")
+                if not df.empty:
+                    self.save_data_to_database(df, self.get_engine(self.db_scrc))
+                    self.logger.info(f'One chunk of {len(df.index)} decisions saved')
+                self.log_progress(self.chunksize)
+            self.get_coverage(spider)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
+
+   
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
         """Processes one row of a raw df"""

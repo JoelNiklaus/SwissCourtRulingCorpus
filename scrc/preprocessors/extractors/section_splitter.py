@@ -146,9 +146,7 @@ class SectionSplitter(AbstractExtractor):
             stmt = t.delete().where(delete_stmt_decisions_with_df(df))
             conn.execute(stmt)
             
-            for idx, row in df.iterrows():
-                if idx % 50 == 0:
-                    self.logger.info(f'Saving decision {idx + 1} from chunk')
+            for _, row in df.iterrows():
                 if row['sections'] is None or row['sections'].keys is None:
                     continue
                 
