@@ -20,6 +20,10 @@ def extract_citations(search_string: str, language: str, filepath: str = ''):
             raise NotImplementedError("Not implemented the requested regexes")
         
     def delete_duplicates(citation_list):
+        """ 
+            Multiple Regex can find the same shortened version of citations, so they will be excluded. 
+            For example Art. 10 StGB could be caught by multiple regexes, so they get filtered out.
+        """
         return_set = list()
         return_set_texts = list()
         for item in citation_list:
@@ -29,6 +33,7 @@ def extract_citations(search_string: str, language: str, filepath: str = ''):
             return_set_texts.append(item['text'])
             
     def clean_citation_text(citation_text: str) -> str:
+        """ Strips the citation and fixes the problem that the law can be mentioned twice in the match. (Art. 147 Abs. 1 StGB   StGB) """
         citation_text = citation_text.strip()
         citation_text = re.sub(r'\s+', ' ', citation_text)
         citation_text_parts = citation_text.split()
