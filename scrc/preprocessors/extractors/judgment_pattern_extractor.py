@@ -59,11 +59,9 @@ class JudgmentExtractor(AbstractExtractor):
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         return f"spider='{spider}' AND rulings IS NOT NULL AND rulings <> ''"
     
-    def get_coverage(self, engine: Engine, spider: str):
+    def get_coverage(self, spider: str):
         """Splits the data into their respective parts and saves them to the table"""
-    
-    def get_coverage(self, engine: Engine, spider: str):
-        """Splits the data into their respective parts and saves them to the table"""
+
         
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:

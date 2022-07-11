@@ -50,6 +50,8 @@ class CitationExtractor(AbstractExtractor):
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
         return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}", f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
     
+    def get_coverage(self, spider: str):
+        pass
     
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):       
         

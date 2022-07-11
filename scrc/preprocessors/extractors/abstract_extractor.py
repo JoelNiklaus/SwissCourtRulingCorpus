@@ -37,7 +37,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         """Splits the data into their respective parts and saves them to the table"""
         
     @abstractmethod
-    def get_coverage(self, engine: Engine, spider: str):
+    def get_coverage(self, spider: str):
         """Logs the coverage"""
 
     @abstractmethod
