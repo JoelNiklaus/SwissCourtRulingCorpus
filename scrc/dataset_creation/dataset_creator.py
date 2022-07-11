@@ -138,8 +138,8 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.seed = 42
         self.minFeatureColLength = 100  # characters
-        self.debug_chunksize = int(2e2)
-        self.real_chunksize = int(2e5)
+        self.debug_chunksize = 100
+        self.real_chunksize = 1_000_000
 
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
