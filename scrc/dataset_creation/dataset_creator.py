@@ -247,13 +247,11 @@ class DatasetCreator(AbstractPreprocessor):
             table = f"{join_tables_on_decision(['file'])}"
             file_ids = ["'" + str(x) + "'" for x in decision_df['file_id'].tolist()]
             where = f"file.file_id IN ({','. join(file_ids)})"
-            file_df = next(self.select(engine, table, 'file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw', where, None, self.get_chunksize()))
+            file_df = next(self.select(engine, table, 'file.file_name, file.html_url, file.pdf_url', where, None, self.get_chunksize()))
             decision_df['file_name'] = file_df['file_name']
             decision_df['html_url'] = file_df['html_url']
             decision_df['pdf_url'] = file_df['pdf_url']
-            decision_df['html_raw'] = file_df['html_raw']
-            decision_df['pdf_raw'] = file_df['pdf_raw']
-            
+
             print('Loading Lower Court')
             table = f"{join_tables_on_decision(['lower_court'])}"
             where = f"lower_court.decision_id IN ({','. join(decision_ids)})"
