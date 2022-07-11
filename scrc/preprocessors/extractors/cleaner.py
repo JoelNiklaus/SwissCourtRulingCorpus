@@ -54,8 +54,8 @@ class Cleaner(AbstractExtractor):
             'no_functions': 'Not cleaning the decision.'
         }
         
-    def get_coverage(self, engine: Engine, spider: str):
-     """No coverage implemented"""
+    def get_coverage(self, spider: str):
+        self.logger.info('no coverage function implemented')
 
     def load_cleaning_regexes(self, file_name):
         """loads the cleaning regexes used for pdf files"""
