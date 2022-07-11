@@ -18,6 +18,7 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 """
 
 def check_if_convertible(laws, rulings, language: Language) -> Tuple[list, list]:
+    """ Test if the citations can be converted into the dataclasses. If not, then it is probable, that the citations are not correctly extracted (e.g. missing the law) and can be ignored """
     valid_laws = []
     valid_rulings = []
     language_str = language.value

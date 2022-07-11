@@ -301,7 +301,7 @@ class DatasetCreator(AbstractPreprocessor):
             if isinstance(column_data, str):
                 column_data = ast.literal_eval(column_data)
             for section in column_data:
-                if section['name'] in column:
+                if section['name'] == column:
                     return section['section_text']
 
         df[column] = sections.map(filter_column)

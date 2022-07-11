@@ -127,7 +127,9 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         # dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
         
         if self.concurrent_extractor:
+            self.logger.info('Concurrent execution is not heavily tested and might lead to problems. Consider this on errors')
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                # max_workers 4 gave the best results (compared to lower and higher numbers), but it might vary if the load on the sandbox is different
                 for df in dfs:  # For each chunk in the data: apply the extraction function and save the result
                     executor.submit(self.thread_process_spider, engine, spider, df)
         else:
