@@ -6,7 +6,7 @@
 */
 
 DROP TABLE IF EXISTS "language", canton, canton_name, spider, court, court_name, chamber, lower_court, "file", decision, 
-	judgment, judgment_map, citation_type, citation, section_type, "section", paragraph, num_tokens, file_number,
+	judgment, judgment_map, citation_type, citation, section_type, "section", num_tokens, file_number,
     judicial_person_type, person, judicial_person, party_type, party;
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -113,16 +113,6 @@ CREATE TABLE IF NOT EXISTS "section"(
   decision_id UUID NOT NULL REFERENCES  decision ON DELETE CASCADE,
   section_type_id INTEGER NOT NULL REFERENCES  section_type,
   section_text TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS paragraph(
-  paragraph_id SERIAL PRIMARY KEY,
-  section_id INTEGER REFERENCES "section",
-  decision_id UUID NOT NULL REFERENCES decision ON DELETE CASCADE,
-  paragraph_text TEXT NOT NULL,
-  first_level INTEGER, 
-  second_level INTEGER,
-  third_level INTEGER 
 );
 
 

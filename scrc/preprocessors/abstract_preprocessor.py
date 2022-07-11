@@ -46,6 +46,7 @@ class AbstractPreprocessor:
         self.chunksize = int(config['general']['chunksize'])
         self.rebuild_entire_database = config['general']['rebuild_entire_database'].lower() == 'true'
         self.process_new_files_only = config['general']['process_new_files_only'].lower() == 'true'
+        self.concurrent_extractor = config['general']['concurrent_extractor'].lower() == 'true'
 
         self.data_dir = self.create_dir(ROOT_DIR, config['dir']['data_dir'])
         self.progress_dir = self.create_dir(
@@ -222,7 +223,7 @@ class AbstractPreprocessor:
                 output_dir.mkdir(parents=True, exist_ok=True)
                 path = Path.joinpath(output_dir, filename)
             with path.open("a") as f:
-                df.to_json(f)
+                df.to_json(f, default_handler=str)
             return
 
         with engine.connect() as conn:

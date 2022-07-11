@@ -44,7 +44,10 @@ class ProceduralParticipationExtractor(AbstractExtractor):
         return {Section.HEADER: series['header'], Section.FACTS: series['facts'],
                 Section.CONSIDERATIONS: series['considerations'], Section.RULINGS: series['rulings'],
                 Section.FOOTER: series['footer']}
-
+        
+    def get_coverage(self, spider: str):
+        pass
+            
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing.
         e.g. data is required to be present for analysis"""
@@ -76,16 +79,17 @@ class ProceduralParticipationExtractor(AbstractExtractor):
             'representation_plaintiff': 3,
             'representation_defendant': 4
         """
-        for idx, row in df.iterrows():
-            with engine.connect() as conn:
-                t_person = Table('person', MetaData(), autoload_with=conn)
-                t_party = Table('party', MetaData(), autoload_with=conn)
+        with engine.connect() as conn:
+            t_person = Table('person', MetaData(), autoload_with=conn)
+            t_party = Table('party', MetaData(), autoload_with=conn)
 
-                # Delete person
-                # Delete and reinsert as no upsert command is available
-                stmt = t_party.delete().where(delete_stmt_decisions_with_df(df))
-                conn.execute(stmt)
-
+            # Delete person
+            # Delete and reinsert as no upsert command is available
+            stmt = t_party.delete().where(delete_stmt_decisions_with_df(df))
+            conn.execute(stmt)
+            
+            for _, row in df.iterrows():
+                if not row['parties']: continue
                 parties = json.loads(row['parties'])
 
                 # create all plaintiffs
@@ -102,6 +106,7 @@ class ProceduralParticipationExtractor(AbstractExtractor):
                         [{"decision_id": str(row['decision_id']), "person_id": person_id, "party_type_id": 1 + offset}])
                     conn.execute(stmt)
                     for representant in plaintiff.get('legal_counsel'):
+                        if not 'name' in representant or not representant['name']: continue
                         # Insert their representation into the person and party tables
                         representant_dict = {"name": representant['name'].strip(),
                                              "is_natural_person": representant['legal_type'] == 'natural person',

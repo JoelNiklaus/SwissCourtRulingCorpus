@@ -18,6 +18,7 @@
       - [Court Chambers](#court-chambers)
   - [Running long tasks](#running-long-tasks)
   - [SQL FAQ](#sql-faq)
+    - [Section Text](#section-text)
     - [Joining Tables on queries with decision table](#joining-tables-on-queries-with-decision-table)
       - [Language](#language)
       - [File](#file)
@@ -294,6 +295,10 @@ This section explains the methods of the sql_select_utils so they can be replica
       map_join('text', 'file_numbers', 'file_number')
    ```
 4. You should then get the output into your terminal
+
+### Section Text
+
+The paragraphs are stored in the section_text of the section, joined by a '\n' character. So if you need different paragraphs just split the section text by the newline character. 
 ### Joining Tables on queries with decision table
 Simplest query is `Select * FROM decision`, however it can be made more complex. Instead of querying all the fields (`*`, some fields can be specified e.g. decision.decision_id, it is needed to specify the table if the "FROM" table and the "JOIN" table have the same key.)
 #### Language

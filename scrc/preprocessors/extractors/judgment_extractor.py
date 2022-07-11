@@ -74,7 +74,7 @@ class JudgmentExtractor(AbstractExtractor):
             path = Path.joinpath(self.output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
 
             with path.open("a") as f:
-                df.to_json(f)
+                df.to_json(f, default_handler=str)
             return
         with engine.connect() as conn:
             t = Table('judgment_map', MetaData(), autoload_with=engine)
