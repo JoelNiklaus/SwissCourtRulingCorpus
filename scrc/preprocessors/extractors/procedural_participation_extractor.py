@@ -35,6 +35,9 @@ class ProceduralParticipationExtractor(AbstractExtractor):
             'no_functions': 'Not extracting the procedural participation.'
         }
 
+    def get_coverage(self, spider: str):
+        self.logger.info('no coverage function implemented')
+
     def get_database_selection_string(self, spider: str, lang: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         return f"spider='{spider}' AND header IS NOT NULL AND header <> ''"
@@ -44,9 +47,6 @@ class ProceduralParticipationExtractor(AbstractExtractor):
         return {Section.HEADER: series['header'], Section.FACTS: series['facts'],
                 Section.CONSIDERATIONS: series['considerations'], Section.RULINGS: series['rulings'],
                 Section.FOOTER: series['footer']}
-        
-    def get_coverage(self, spider: str):
-        pass
             
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing.

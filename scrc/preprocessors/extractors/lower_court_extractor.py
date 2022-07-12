@@ -33,6 +33,9 @@ class LowerCourtExtractor(AbstractExtractor):
             'processing_one': 'Extracting lower court informations from',
             'no_functions': 'Not extracting lower court informations.'
         }
+        
+    def get_coverage(self, spider: str):
+        self.logger.info('no coverage function implemented')
 
     def get_database_selection_string(self, spider: str, lang: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""

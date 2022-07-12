@@ -33,6 +33,9 @@ class CitationExtractor(AbstractExtractor):
             'processing_one': 'Extracting citations from',
             'no_functions': 'Not extracting citations.'
         }
+        
+    def get_coverage(self, engine: Engine, spider: str):
+     """No coverage implemented"""
 
     def get_required_data(self, series: pd.DataFrame) -> Union[bs4.BeautifulSoup, str, None]:
         """Returns the data required by the processing functions"""
