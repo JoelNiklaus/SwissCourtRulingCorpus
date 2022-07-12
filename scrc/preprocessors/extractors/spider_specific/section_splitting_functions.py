@@ -578,6 +578,30 @@ def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     paragraphs = get_paragraphs(divs)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def VS_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'^[I,i]n Sachen', r'^Sachverhalt:?$', r'Sachverhalt \(gekürzt\)', r'Gekürzter Sachverhalt', r'Sachverhalt und Verfahren', r'SACHVERHALT', r'^Procédure$', r'^Verfahren$'],
+            Section.CONSIDERATIONS: [r'^Erwägungen:?$', r'Aus den Erwägungen', 'Sachverhalt und Erwägungen', r'stellt fest und zieht in Erwägung', r'ERWÄGUNGEN'],
+            Section.RULINGS: [r'erkennt[:]?$', r'Demnach erkennt das Kantonsgericht:', r'Demnach wird erkannt',
+                              r'Demnach wird erkannt:', r'Demnach erkennt das Kantonsgericht', r'Das Kantonsgericht beschliesst', r'Das Kantonsgericht verfügt', r'DEMNACH WIRD ERKANNT:'],
+            Section.FOOTER: [r'no footer available']
+        },
+        Language.FR: {
+            Section.FACTS: [r'Faits$', r'Faits \(résumé\)', r'FAITS ET PROCEDURE', r'Faits et procédure', r'Statuant en faits', r'^Vu$'],
+            Section.CONSIDERATIONS: [r'Considérant en droit:?', r'Considérants \(extraits\)', r'^[C,c]onsidérant$', r'DROIT', r'^Droit$'],
+            Section.RULINGS: [r'[P,p]ar ces motifs,', r'^[P,p]rononce:?$', r'PRONONCE'],
+            Section.FOOTER: [r'no footer available']
+        }
+    }
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
 
 def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """

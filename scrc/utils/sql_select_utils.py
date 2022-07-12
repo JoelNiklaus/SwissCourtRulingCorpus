@@ -32,7 +32,8 @@ def coverage_query(spider: str, section_type: int, language: int):
             f"WHERE spider.name = '{spider}' "
             f"AND section_type_id = '{section_type}' "
             f"AND language.language_id = '{language}' "
-            f"AND section_text != '{{}}'")
+            f"AND section_text != '{{}}'"
+            f"AND section_text != '' ")
     
 def get_total_decisions(spider: str, language: int):
     return (f"SELECT count(*) FROM decision "
@@ -51,6 +52,7 @@ def get_judgment_query(spider):
             f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
             f"WHERE spider.name = '{spider}' "
             f"AND section_text != '{{}}' "
+            f"AND section_text != '' "
             f"AND s.section_type_id = 5 "
             f"AND j.judgment_id IS NOT NULL")
 
@@ -63,6 +65,7 @@ def get_total_judgments(spider):
         f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
         f"WHERE spider.name = '{spider}' "
         f"AND section_text != '{{}}' "
+        f"AND section_text != '' "
         f"AND s.section_type_id = 5 ")
 
 
