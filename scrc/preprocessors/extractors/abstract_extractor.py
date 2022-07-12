@@ -139,7 +139,7 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
                     self.save_data_to_database(df, self.get_engine(self.db_scrc))
                     self.logger.info(f'One chunk of {len(df.index)} decisions saved')
                 self.log_progress(self.chunksize)
-            self.get_coverage(spider)
+        self.get_coverage(spider)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
    
