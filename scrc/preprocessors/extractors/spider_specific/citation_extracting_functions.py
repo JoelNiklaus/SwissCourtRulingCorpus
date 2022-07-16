@@ -19,24 +19,25 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 
 def check_if_convertible(laws, rulings, language: Language) -> Tuple[list, list]:
     """ Test if the citations can be converted into the dataclasses. If not, then it is probable, that the citations are not correctly extracted (e.g. missing the law) and can be ignored """
-    valid_laws = []
-    valid_rulings = []
+    valid_laws = set()
+    valid_rulings = set()
     language_str = language.value
     for law in laws:
         try:
-            _ = LawCitation(law['text'], language_str, pd.read_json(ROOT_DIR / "corpora" / "lexfind.jsonl", lines=True))
-            valid_laws.append(law)          
-        except:
+            _ = LawCitation(law['text'], language_str, pd.read_json((ROOT_DIR / "corpora") / "lexfind.jsonl", lines=True))
+            valid_laws.add(law)          
+        except BaseException as e:
+            print(e)
             continue
         
     for ruling in rulings:
         try:
             _ = RulingCitation(ruling['text'], language_str)
-            valid_rulings.append(ruling)            
+            valid_rulings.add(ruling)            
         except:
             continue
         
-    return (valid_laws, valid_rulings)
+    return (list(valid_laws), list(valid_rulings))
 
 def XX_SPIDER(soup: Any, namespace: dict) -> Optional[dict]:
     valid_languages = [Language.DE, Language.IT, Language.FR]
