@@ -29,13 +29,15 @@ def CH_BGE(soup: Any, namespace: dict) -> Optional[str]:
     :return:            the string of found reference, 'no reference found' if no reference was extracted
     """
 
-    pattern = re.compile('\d\D?_\d{1,3}/\d{4}|\d\D?\.\d{1,3}/\d{4}|\d\D?\s\d{1,3}/\d{4}')
+    pattern = re.compile('\d\D?_\d{1,4}/\d{4}|\d\D?\.\d{1,4}/\d{4}|\d\D?\s\d{1,4}/\d{4}')
     bge_references = soup.find(string=re.compile(pattern))
     if bge_references:
         # only consider first entry
         bge_reference = re.search(pattern, bge_references).group()
         bge_reference = bge_reference.replace('_', ' ')
         bge_reference = bge_reference.replace('.', ' ')
+        # replace references with pattern like 1, 124/1996
+        bge_reference = bge_reference.replace(',', '')
         return bge_reference
     else:
         return 'no reference found'
