@@ -1,14 +1,12 @@
-from scrc.dataset_creation.dataset_creator import DatasetCreator
+from scrc.dataset_creation.citation_dataset_creator import CitationDatasetCreator
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
 import numpy as np
-from tqdm import tqdm
-from pandarallel import pandarallel
 import itertools
 from collections import Counter
+
 from sklearn.feature_extraction.text import TfidfTransformer
-from scrc.data_classes.ruling_citation import RulingCitation
-import pandas as pd
+
 
 
 
@@ -38,7 +36,7 @@ Check distribution of data sets
 """
 
 
-class CitationCriticalityDatasetCreator(DatasetCreator):
+class CitationCriticalityDatasetCreator(CitationDatasetCreator):
     """Creates a dataset containing bger cases and sets for each case a criticality label, based how often the case
     was cited in bger cases"""
 
@@ -47,15 +45,9 @@ class CitationCriticalityDatasetCreator(DatasetCreator):
         self.logger = get_logger(__name__)
         self.debug = True
         self.split_type = "date-stratified"
-        # Todo check if names for each criticality creator should be unique
-        self.dataset_name = "criticality_prediction"
+        self.dataset_name = "citation_criticality_prediction"
         self.feature_cols = ['text']  # ['facts', 'considerations', 'text']
-
         self.load_rulings()
-
-        # TODO what is this code doing?
-        pandarallel.initialize(progress_bar=True)
-        tqdm.pandas()
 
     def get_dataset(self, feature_col, lang, save_reports):
         """get all required data: all bge and bger cases and label bger cases"""
@@ -99,7 +91,6 @@ class CitationCriticalityDatasetCreator(DatasetCreator):
     def process_citation(self, cit_type, df, lang):
         """find for each bge all citations in other bger"""
         self.logger.info(f"Processing the {cit_type} citations.")
-        # TODO put used methods of Doc2DocIRDatasetCreator into abstract into parent DatasetCreator
         df[cit_type] = df.citations.parallel_apply(self.get_citations, type=cit_type, lang=lang)
 
         # we cannot use the ones which have no citations
@@ -128,65 +119,6 @@ class CitationCriticalityDatasetCreator(DatasetCreator):
         type_corpus_frequencies = dict(Counter(itertools.chain(*df[cit_type].tolist())))
         return type_corpus_frequencies
 
-    def get_citations(self, citations, type, lang):
-        cits = []
-        for citation in citations[type]:
-            cit = citation['text']
-            cit = ' '.join(cit.split())  # remove multiple whitespaces inside
-            try:
-                if type == "rulings":
-                    type_cit = RulingCitation(cit, lang)
-                else:
-                    raise ValueError("type must be either 'rulings' or 'laws'")
-            except ValueError as ve:
-                self.logger.debug(ve)
-                continue
-            # only actually include ruling citations that we can find in our corpus
-            if type == "laws" or (type == "rulings" and str(type_cit) in self.available_bges):
-                cits.append(type_cit)
-        if cits:  # only return something if we actually have citations
-            return cits
-
-    @staticmethod
-    def compute_relevance_score(cit, tf_idf_score):
-        """
-        Computes a relevance score for the citation between 0 and 1
-        """
-        return tf_idf_score
-
-    @staticmethod
-    def build_tf_matrix(corpus, vocabulary, type_df):
-        # build term frequency matrix
-        tf = np.zeros((len(corpus), len(vocabulary)))  # term frequencies: number of documents x number of citations
-
-        def fill_tf_matrix(x):
-            for cit, count in x[f"counter"].items():
-                tf[x.name, vocabulary.index(cit)] = count
-
-        type_df.progress_apply(fill_tf_matrix, axis=1)
-
-        # TODO can be deleted
-        # for doc_index, counter in tqdm(type_counter.iteritems(), total=len(corpus)):
-        #    for cit, count in counter.items():
-        #        cit_index = vocabulary.index(cit)
-        #        tf[doc_index][cit_index] = count
-        return tf
-
-    def load_rulings(self):
-        self.logger.info(f"Loading reference rulings")
-        self.available_bges = set()  # use set instead of list for faster lookup
-        rulings = pd.DataFrame()
-        for lang in self.languages:
-            # also for debugging we want the full list
-            cols = "language, canton, date, file_number, html_url, text"
-            df = next(self.select(self.get_engine(self.db_scrc), lang,
-                                  columns=cols, where="spider = 'CH_BGE'", chunksize=self.real_chunksize))
-            df.date = pd.to_datetime(df.date)
-            assert len(df.index) == len(df.file_number.unique())  # there should not be any duplicates
-            self.available_bges.update(df.file_number.tolist())
-            rulings = pd.concat([rulings, df], ignore_index=True)  # one rulings df for all languages
-
-        self.logger.info(f"Found {len(self.available_bges)} rulings")
 
 if __name__ == '__main__':
     config = get_config()
