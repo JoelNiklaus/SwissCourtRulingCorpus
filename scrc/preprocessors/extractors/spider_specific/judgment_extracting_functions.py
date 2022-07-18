@@ -134,26 +134,9 @@ def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     rulings = clean_text(rulings)
 
     judgments = get_judgments(rulings, namespace)
-    
-    # if not judgments:
-    #     message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
-    #     raise ValueError(message)
 
     judgments = verify_judgments(judgments, rulings, namespace)
     
-    return judgments
-
-def verify_judgments(judgments, rulings, namespace):
-    if not judgments:
-        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
-        raise ValueError(message)
-    elif len(judgments) > 1:
-        if Judgment.PARTIAL_APPROVAL in judgments:
-            # if partial_approval is found, it will find approval as well
-            judgments.discard(Judgment.APPROVAL)
-        if Judgment.PARTIAL_DISMISSAL in judgments:
-            # if partial_dismissal is found, it will find dismissal as well
-            judgments.discard(Judgment.DISMISSAL)
     return judgments
 
 def ZH_Baurekurs(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
@@ -219,8 +202,6 @@ def JU_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     
     return judgments
 
-
-
 def GE_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     """
     Extract judgment outcomes from the rulings
@@ -241,10 +222,6 @@ def GE_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     judgments = verify_judgments(judgments, rulings, namespace)
     
     return judgments
-
-
-
-
 
 def CH_EDOEB(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     """
@@ -355,8 +332,18 @@ def get_judgments(rulings: str, namespace: dict) -> set:
             judgments, rulings, namespace, judgment_markers)
     return judgments
 
-
-
+def verify_judgments(judgments, rulings, namespace):
+    if not judgments:
+        message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
+        raise ValueError(message)
+    elif len(judgments) > 1:
+        if Judgment.PARTIAL_APPROVAL in judgments:
+            # if partial_approval is found, it will find approval as well
+            judgments.discard(Judgment.APPROVAL)
+        if Judgment.PARTIAL_DISMISSAL in judgments:
+            # if partial_dismissal is found, it will find dismissal as well
+            judgments.discard(Judgment.DISMISSAL)
+    return judgments
 
 def unnumbered_rulings(rulings: str, namespace: dict):
     judgments = set()
@@ -393,7 +380,6 @@ def iterate_Judgments(ruling: str, judgments: set, judgment_markers: dict, numbe
     if not numberedRuling and positions:
         judgments = getFirstInstance(positions, judgments)
     return judgments
-
 
 def getFirstInstance(positions: dict, judgments: set) -> set:
     firstInstance = positions[0]
