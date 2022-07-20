@@ -47,13 +47,13 @@ class LawCitation(Citation):
         self.article = parts[1]  # should be the second part after "Art."
         abbreviation = parts[-1]  # should be the last part
 
-        law = law_abbrs[(law_abbrs.abbreviation == abbreviation) & (law_abbrs.language == language)]
+        law = law_abbrs[(law_abbrs.abbreviation.strip() == abbreviation) & (law_abbrs.language.strip() == language)]
         if len(law.index) == 0:
             # only actually include citations that we can find in our corpus
             raise ValueError(f"The abbreviation ({abbreviation}) cannot be found.")
         assert len(law.index) == 1
         sr_number = law.iloc[0].sr_number
-        abbreviations = law_abbrs[law_abbrs.sr_number == sr_number]
+        abbreviations = law_abbrs[law_abbrs.sr_number.strip() == sr_number]
         abbreviations = abbreviations[["language", "abbreviation"]].set_index("language").to_dict()['abbreviation']
 
         self.law = Law(sr_number, abbreviations)
