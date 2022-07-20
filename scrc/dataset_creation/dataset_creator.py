@@ -138,8 +138,8 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.seed = 42
         self.minFeatureColLength = 100  # characters
-        self.debug_chunksize = int(2e2)
-        self.real_chunksize = int(2e5)
+        self.debug_chunksize = 100
+        self.real_chunksize = 1_000_000
 
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
@@ -247,13 +247,11 @@ class DatasetCreator(AbstractPreprocessor):
             table = f"{join_tables_on_decision(['file'])}"
             file_ids = ["'" + str(x) + "'" for x in decision_df['file_id'].tolist()]
             where = f"file.file_id IN ({','. join(file_ids)})"
-            file_df = next(self.select(engine, table, 'file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw', where, None, self.get_chunksize()))
+            file_df = next(self.select(engine, table, 'file.file_name, file.html_url, file.pdf_url', where, None, self.get_chunksize()))
             decision_df['file_name'] = file_df['file_name']
             decision_df['html_url'] = file_df['html_url']
             decision_df['pdf_url'] = file_df['pdf_url']
-            decision_df['html_raw'] = file_df['html_raw']
-            decision_df['pdf_raw'] = file_df['pdf_raw']
-            
+
             print('Loading Lower Court')
             table = f"{join_tables_on_decision(['lower_court'])} LEFT JOIN canton ON lower_court.canton_id = canton.canton_id"
             where = f"lower_court.decision_id IN ({','. join(decision_ids)})"
