@@ -19,7 +19,7 @@ class CitationDatasetCreator(ABC, DatasetCreator):
     def __init__(self, config: dict):
         super().__init__(config)
 
-        self.dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
+        # self.dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
         pandarallel.initialize(progress_bar=True)
         tqdm.pandas()
