@@ -255,17 +255,17 @@ class DatasetCreator(AbstractPreprocessor):
             decision_df['pdf_raw'] = file_df['pdf_raw']
             
             print('Loading Lower Court')
-            table = f"{join_tables_on_decision(['lower_court'])}"
+            table = f"{join_tables_on_decision(['lower_court'])} LEFT JOIN canton ON lower_court.canton_id = canton.canton_id"
             where = f"lower_court.decision_id IN ({','. join(decision_ids)})"
             lower_court_select_fields = ("lower_court.date as origin_date,"
             "lower_court.court_id as origin_court, "
-            "lower_court.canton_id as origin_canton, "
             "lower_court.chamber_id as origin_chamber, "
-            "lower_court.file_number as origin_file_number")
+            "lower_court.file_number as origin_file_number, "
+            "canton.short_code as short_code")
             lower_court_df = next(self.select(engine, table, lower_court_select_fields, where, None, self.get_chunksize()))
             decision_df['origin_date'] = lower_court_df['origin_date']
             decision_df['origin_court'] = lower_court_df['origin_court']
-            decision_df['origin_canton'] = lower_court_df['origin_canton']
+            decision_df['origin_canton'] = lower_court_df['short_code']
             decision_df['origin_chamber'] = lower_court_df['origin_chamber']
             decision_df['origin_file_number'] = lower_court_df['origin_file_number']
             

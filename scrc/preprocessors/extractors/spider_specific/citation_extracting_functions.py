@@ -26,14 +26,16 @@ def check_if_convertible(laws, rulings, language: Language) -> Tuple[list, list]
     language_str = language.value
     for law in laws:
         try:
-            valid_laws.add(str(LawCitation(law['text'], language_str, available_laws )))
+            _ = LawCitation(law['text'], language_str, available_laws )
+            valid_laws.add(law)
         except BaseException as e:
             print(e)
             continue
         
     for ruling in rulings:
         try:
-            valid_rulings.add(str(RulingCitation(ruling['text'], language_str)))    
+            _ = RulingCitation(ruling['text'], language_str)
+            valid_rulings.add(ruling)
         except:
             continue
         
