@@ -17,6 +17,8 @@ The name of the functions should be equal to the spider! Otherwise, they won't b
 Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
 
+available_laws = pd.read_json((ROOT_DIR / "corpora") / "lexfind.jsonl", lines=True) # Doesnt include BGG, ATSG, LTF
+
 def check_if_convertible(laws, rulings, language: Language) -> Tuple[list, list]:
     """ Test if the citations can be converted into the dataclasses. If not, then it is probable, that the citations are not correctly extracted (e.g. missing the law) and can be ignored """
     valid_laws = set()
@@ -24,16 +26,14 @@ def check_if_convertible(laws, rulings, language: Language) -> Tuple[list, list]
     language_str = language.value
     for law in laws:
         try:
-            _ = LawCitation(law['text'], language_str, pd.read_json((ROOT_DIR / "corpora") / "lexfind.jsonl", lines=True))
-            valid_laws.add(law)          
+            valid_laws.add(str(LawCitation(law['text'], language_str, available_laws )))
         except BaseException as e:
             print(e)
             continue
         
     for ruling in rulings:
         try:
-            _ = RulingCitation(ruling['text'], language_str)
-            valid_rulings.add(ruling)            
+            valid_rulings.add(str(RulingCitation(ruling['text'], language_str)))    
         except:
             continue
         
