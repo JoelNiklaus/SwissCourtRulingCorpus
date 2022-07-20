@@ -232,8 +232,8 @@ class DatasetCreator(AbstractPreprocessor):
             self.logger.info("Retrieving the data from the database")
 
             where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
-            table_string ='decision d LEFT JOIN language ON language.language_id = d.language_id'
-            decision_df =  next(self.select(engine, table_string , 'd.*, extract(year from d.date) as year, language.iso_code as lang', where_string,
+            table_string = 'decision d LEFT JOIN language ON language.language_id = d.language_id'
+            decision_df = next(self.select(engine, table_string, 'd.*, extract(year from d.date) as year, language.iso_code as lang', where_string,
                                     chunksize=self.get_chunksize()))
             decision_ids = ["'" + str(x) + "'" for x in decision_df['decision_id'].tolist()]
             
@@ -278,7 +278,23 @@ class DatasetCreator(AbstractPreprocessor):
             where = f"section.decision_id IN ({','. join(decision_ids)})"
             section_df = next(self.select(engine, table, "sections", where, None, self.get_chunksize()))
             decision_df['sections'] = section_df['sections']
-            
+
+            print('Loading File Number')
+            table = f"{join_tables_on_decision(['file_number'])}"
+            where = f"file_number.decision_id IN ({','. join(decision_ids)})"
+            file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
+
+            def doubler(x):
+                a = str(pd.Series(x)[0])
+                a = a.replace("_", " ")
+                a = a.replace(".", " ")
+                a = a.rstrip()
+                a = a.lstrip()
+                return a
+
+            decision_df['file_number'] = file_number_df['file_numbers'].apply(doubler)
+            print(decision_df['file_number'])
+
             save_df_to_cache(decision_df, cache_dir)
             df = decision_df
         for feature_col in list(feature_col)[0].split('-'):
