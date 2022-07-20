@@ -1,5 +1,4 @@
 from scrc.dataset_creation.dataset_creator import DatasetCreator
-from scrc.dataset_creation.citation_dataset_creator import CriticalityDatasetCreator
 from root import ROOT_DIR
 from pathlib import Path
 from scrc.utils.main_utils import get_config
@@ -31,6 +30,10 @@ Check distribution of data sets
     - distribution among legal areas
     - distribution among cantons
     - is there bias detectable?
+    
+Error sources:
+    - Regex cannot find correct file number in header
+    - Regex found a wrong file
 """
 
 
@@ -46,37 +49,30 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "bge_criticality_prediction"
-        self.feature_cols = ['text']  # ['facts', 'considerations', 'text']
+        self.feature_cols = ['facts', 'considerations']
 
         # TODO what is this code doing?
         pandarallel.initialize(progress_bar=True)
         tqdm.pandas()
 
-    def get_dataset(self, feature_col, lang, save_reports):
+    def get_dataset(self, feature_col, save_reports):
         """get all bger cases and set labels"""
-
-        # TODO change how data is received, why is it not working?
-        # df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', lang, save_reports)
-        engine = self.get_engine(self.db_scrc)
-        df = self.query_bger(feature_col, engine, lang)
-
+        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'not needed', 'not needed')
         df = self.set_bge_criticality_label(df)
-
-        # TODO filter cases with too long / short input for model
-        # TODO need to drop something else?
-        # df = df.drop(['citations', 'counter', 'rulings'], axis=1)
-        # TODO rename neccessarry?
-        df = df.rename(columns={feature_col: "text"})  # normalize column names
-        df = df.rename(columns={'bge_label': "label"})
+        df = self.filter_cases(df, feature_col)
+        # rename columns
+        df.rename(columns={'bge_label': "label"}, inplace=True)
+        # TODO feature col is: facts-consideration -> how do we want to have dataset?
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
+
+    def filter_cases(self, df, feature_col):
+        # TODO filter cases with too long / short input for model, maybe done in get_df
+        return df
 
     def set_bge_criticality_label(self, df):
         """set for each bger ruling a label critical or non-critical depending on whether their
         file number was extracted in a bge"""
-        # Include all bger rulings whose file_number can be found in the header of a bge
-        # error sources:
-        # 1. Regex cannot find correct file number in header
         self.logger.info(f"Processing labeling of bge_criticality")
 
         bge_references_file_path: Path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
@@ -102,22 +98,6 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         extracted_and_found = list(critical_df.file_number.astype(str))
         new_list = [decision for decision in bge_references if decision not in extracted_and_found]
         self.logger.info(f"{len(new_list)} references were extracted but not found")
-
-    def query_bger(self, feature_col, engine, lang):
-        """get all bger form database"""
-        columns = ['id', 'chamber', 'date', 'extract(year from date) as year', f'{feature_col}', 'file_name', 'file_number']
-        try:
-            bger_df = next(self.select(engine, lang,
-                                      columns=",".join(columns),
-                                      where="court = 'CH_BGer'",
-                                      order_by="date",
-                                      chunksize=self.get_chunksize()))
-        except StopIteration:
-            raise ValueError("No bger rulings found")
-        # get rid of all dublicated cases
-        bger_df = bger_df.dropna(subset=['date', 'id'])
-        self.logger.info(f"Found {len(bger_df.index)} supreme bger rulings")
-        return bger_df
 
 
 if __name__ == '__main__':
