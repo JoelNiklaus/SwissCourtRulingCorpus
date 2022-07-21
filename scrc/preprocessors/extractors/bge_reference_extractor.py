@@ -66,8 +66,10 @@ class BgeReferenceExtractor(AbstractExtractor):
             # only add new content to textfile not overwriting
             if 'bge_reference' in row and row['bge_reference'] != 'no reference found':
                 bge_reference = str(row['bge_reference'])
+                # TODO Check if file_name is correct entity
+                bge_file_number = str(row['file_name'])
                 with processed_file_path.open("a") as f:
-                    f.write(f"{bge_reference}\n")
+                    f.write(f"{bge_file_number} {bge_reference}\n")
             else:
                 counter_not_extracted_bge = counter_not_extracted_bge + 1
                 read_date = str(row['file_name'])[-4:]
