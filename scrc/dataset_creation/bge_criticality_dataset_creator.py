@@ -78,7 +78,14 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         bge_references_file_path: Path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
         if not bge_references_file_path.exists():
             raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
-        bge_references = bge_references_file_path.read_text().strip().split("\n")
+        # TODO CHECK
+        references = {}
+        with bge_references_file_path.open("a") as f:
+            for line in f:
+                (k, v) = line.split()
+                references[int(k)] = v
+        bge_references = list(references.values())
+        # bge_references = bge_references_file_path.read_text().strip().split("\n")
         file_number_match = df.file_number.astype(str).isin(list(bge_references))
         critical_df = df[file_number_match]
         critical_df['bge_label'] = 'critical'

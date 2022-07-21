@@ -110,10 +110,8 @@ class CitationDatasetCreator(ABC, DatasetCreator):
             try:
                 if type == "rulings":
                     type_cit = RulingCitation(cit, lang)
-                elif type == "laws":
-                    type_cit = LawCitation(cit, lang, self.law_abbrs)
                 else:
-                    raise ValueError("type must be either 'rulings' or 'laws'")
+                    raise ValueError("type must be either 'rulings'")
             except ValueError as ve:
                 self.logger.debug(ve)
                 continue
