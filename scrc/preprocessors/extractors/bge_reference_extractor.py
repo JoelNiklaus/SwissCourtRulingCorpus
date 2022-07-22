@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from abc import ABC
 from typing import Any, TYPE_CHECKING, Union
 import bs4
 import pandas as pd
@@ -54,7 +56,6 @@ class BgeReferenceExtractor(AbstractExtractor):
                            where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}",
                            chunksize=self.chunksize)
 
-
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
         """Instead of saving data into database, references get written into a text file"""
         self.logger.info("save data in progress")
@@ -66,26 +67,22 @@ class BgeReferenceExtractor(AbstractExtractor):
             # only add new content to textfile not overwriting
             if 'bge_reference' in row and row['bge_reference'] != 'no reference found':
                 bge_reference = str(row['bge_reference'])
-                # TODO Check if file_name is correct entity
-                bge_file_number = str(row['file_name'])
+                bge_file_name = str(row['file_name'])
                 with processed_file_path.open("a") as f:
-                    f.write(f"{bge_file_number} {bge_reference}\n")
+                    f.write(f"{bge_file_name} {bge_reference}\n")
             else:
-                counter_not_extracted_bge = counter_not_extracted_bge + 1
-                read_date = str(row['file_name'])[-4:]
-                if read_date.isnumeric():
-                    if int(read_date) > 2006:
-                        counter_nebge_unclear = counter_nebge_unclear + 1
                 with not_processed_file_path.open("a") as f:
                     file_name = str(row['file_name'])
                     f.write(f"{file_name}\n")
-        self.logger.info(f"There were {counter_not_extracted_bge} bge found that were not extracted.")
-        self.logger.info(f"There were {counter_nebge_unclear} bge newer than 2006.")
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing.
         e.g. data is required to be present for analysis"""
         return bool(data)
+
+    def get_coverage(self, spider: str):
+        """No coverage implemented"""
+        pass
 
 
 if __name__ == '__main__':
