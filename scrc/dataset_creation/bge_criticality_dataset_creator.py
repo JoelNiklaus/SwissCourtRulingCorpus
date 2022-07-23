@@ -78,12 +78,15 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         bge_references_file_path: Path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
         if not bge_references_file_path.exists():
             raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
-        # TODO CHECK
         references = {}
-        with bge_references_file_path.open("a") as f:
+        with bge_references_file_path.open("r") as f:
             for line in f:
-                (k, v) = line.split()
-                references[int(k)] = v
+                (bge_file_number, chamber, text) = line.split()
+                # TODO check if it works always like this
+                # found bge_file_number with pattern like: CH_BGE_007_BGE-144-V-236_2018 convert to BGE 144 V 236
+                bge_file_number = bge_file_number.split('_', 5)[3]
+                bge_file_number = bge_file_number.replace('-', ' ')
+                references[bge_file_number] = f"{chamber} {text}"
         bge_references = list(references.values())
         # bge_references = bge_references_file_path.read_text().strip().split("\n")
         file_number_match = df.file_number.astype(str).isin(list(bge_references))
