@@ -4,10 +4,6 @@ from pathlib import Path
 from scrc.utils.main_utils import get_config
 from scrc.utils.log_utils import get_logger
 import numpy as np
-from tqdm import tqdm
-from pandarallel import pandarallel
-from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, \
-    where_string_spider, join_tables_on_decision
 
 """
 Dataset to be created:
@@ -46,7 +42,7 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-        self.debug = True
+        self.debug = False
         self.split_type = "date-stratified"
         self.dataset_name = "bge_criticality_prediction"
         self.feature_cols = ['facts', 'considerations']
@@ -94,6 +90,6 @@ if __name__ == '__main__':
     config = get_config()
 
     bge_criticality_dataset_creator = BgeCriticalityDatasetCreator(config)
-    bge_criticality_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)
+    bge_criticality_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=False, save_reports=False)
 
 
