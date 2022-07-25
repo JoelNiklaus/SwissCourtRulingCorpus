@@ -49,7 +49,7 @@ class CitationCriticalityDatasetCreator(CitationDatasetCreator):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-        self.debug = True
+        self.debug = False
         self.split_type = "date-stratified"
         self.dataset_name = "citation_criticality_prediction"
         self.feature_cols = ['facts', 'considerations']
@@ -59,6 +59,7 @@ class CitationCriticalityDatasetCreator(CitationDatasetCreator):
     def get_dataset(self, feature_col, save_reports):
         """get all required data: all bge and bger cases and label bger cases"""
         df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', save_reports)
+        print(f"df has {len(df.index)} different decision_id")
         df = self.set_citation_criticality_label(df, feature_col)
         # rename columns
         df = df.rename(columns={'citation_label': "label"})  # normalize column names
@@ -80,11 +81,73 @@ class CitationCriticalityDatasetCreator(CitationDatasetCreator):
         self.logger.info(f"# non-critical decisions: {len(non_critical_df.index)}")
         return critical_df.append(non_critical_df)
 
+    def create_critical_bge_list(self, df):
+        citations_df = self.count_citations_of_bger(df)
+
+        # apply for each row a function which returns True if citation amount is bigger than ???
+        critical_df = citations_df[citations_df['count'] > 0]
+
+        # create list of bge file numbers
+        critical_bger_list = critical_df['bger_reference'].tolist()
+        return critical_bger_list
+
+    def count_citations_of_bger(self, df):
+        """ create column for df where amount of citations in other cases is counted """
+        # get a dict where for each bge ruling is counted how often it was cited by other rulings
+        # dict is like {'BGE 125 II 265' : 2 , 'BGE 129 I 281 : 2}
+        type_corpus_frequencies_df = self.process_citation(df)
+        print(f"tcf_df has {len(type_corpus_frequencies_df.index)} different bge_file_numbers")
+
+        citation_count_df = self.extract_bge_references()
+        print(f"citation_df has {len(citation_count_df.index)} different bge_file_numbers")
+
+        # add new column 'count' to dataframe
+        citation_count_df['count'] = 0
+
+        # iterate over count values
+        a = type_corpus_frequencies_df['count'].unique()
+        new_df = pd.DataFrame(columns=citation_count_df.columns)
+        for i in a:
+            # filter type_corpus_frequencies_df for count = i
+            temp_freq_df = type_corpus_frequencies_df[type_corpus_frequencies_df['count'] == i]
+            file_number_match = citation_count_df.bge_file_number.astype(str).isin(temp_freq_df['bge_file_number'].astype("string").tolist())
+            df_temp = citation_count_df[file_number_match]
+            df_temp['count'] = i
+            new_df = pd.concat([new_df, df_temp])
+        return new_df
+
+    def extract_bge_references(self):
+        # get dict of bge references with corresponding bge file name
+        bge_references_file_path: Path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
+        if not bge_references_file_path.exists():
+            raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
+        references = {}
+        with bge_references_file_path.open("r") as f:
+            for line in f:
+                (bge_file_number, chamber, text) = line.split()
+                bge_file_number = bge_file_number.split('_', 5)[3]
+                bge_file_number = bge_file_number.replace('-', ' ')
+                references[bge_file_number] = f"{chamber} {text}"
+        # create data frame of dict
+        data = {
+            "bge_file_number": list(references.keys()),
+            "bger_reference": list(references.values())
+        }
+        df = pd.DataFrame.from_dict(data)
+        assert len(df.index) == len(df.bge_file_number.unique())
+        return df
+
     def process_citation(self, df):
         """find for each bge all citations in other bger"""
         self.logger.info(f"Processing the ruling citations.")
-        # TODO get lang!
-        df['cit_type'] = df.citations.parallel_apply(self.get_citations, type='rulings', lang='de')
+        # need to handle language seperately to add possible missing ruling string in right language
+        de_df = df[df['lang'] == 'de']
+        fr_df = df[df['lang'] == 'fr']
+        it_df = df[df['lang'] == 'it']
+        de_df['cit_type'] = df.citations.apply(self.get_citations, lang='de')
+        fr_df['cit_type'] = df.citations.apply(self.get_citations, lang='fr')
+        it_df['cit_type'] = df.citations.apply(self.get_citations, lang='it')
+        df = pd.concat([de_df, fr_df, it_df])
 
         # we cannot use the ones which have no citations
         # because we drop everything we lose some data, but it is easier, because we know that all the entries rulings citations
@@ -97,55 +160,11 @@ class CitationCriticalityDatasetCreator(CitationDatasetCreator):
         # counts how often a ruling is cited
         # assert no entry with 0 exists
         type_corpus_frequencies = dict(Counter(itertools.chain(*df['cit_type'].tolist())))
-        return type_corpus_frequencies
-
-    def count_citations_of_bger(self, df):
-        """ create column for df where amount of citations in other cases is counted """
-        df['citation_count'] = 0
-        # get a dict where for each bge ruling is counted how often it was cited by other rulings
-        # dict is like {'BGE 125 II 265' : 2 , 'BGE 129 I 281 : 2}
-        type_corpus_frequencies = self.process_citation(df)
-
-        # get dict of bge references with corresponding bge file name
-        bge_references_file_path: Path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
-        if not bge_references_file_path.exists():
-            raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
-        # TODO CHECK
-        references = {}
-        with bge_references_file_path.open("a") as f:
-            for line in f:
-                (k, v) = line.split()
-                references[int(k)] = v
-
-        # create data frame of dict
-        citations_count_df = pd.DataFrame(references)
-
-        # TODO make bge_file_number the index
-
-        # add new column 'count' to dataframe
-        citations_count_df['count'] = 0
-
-        # iterate through bge we found citations for
-        for key in type_corpus_frequencies:
-            # citations_count_df['count'] at index key = type_corpus_frequencies[key]
-            pass
-        return citations_count_df
-
-    def create_critical_bge_list(self, df):
-        citations_df = self.count_citations_of_bger(df)
-
-        # apply for each row a function which returns True if citation amount is bigger than ???
-
-        def critical(x):
-            if int(x) > 1:
-                return True
-            else:
-                return False
-
-        citations_df['important'] = citations_df['citation_count'].apply(critical)
-        # remove all entrys where important is False
-        # create list of bge file numbers
-        return list()
+        data = {
+            "bge_file_number": list(type_corpus_frequencies.keys()),
+            "count": list(type_corpus_frequencies.values())
+        }
+        return pd.DataFrame.from_dict(data)
 
     def test(self):
         series = pd.Series([{'name': 'ruling', 'text': 'BGE 125 II 265',
@@ -162,6 +181,7 @@ class CitationCriticalityDatasetCreator(CitationDatasetCreator):
         keys = type_corpus_frequencies.keys()
         print(keys)
         # works as expected
+
 
 if __name__ == '__main__':
     config = get_config()
