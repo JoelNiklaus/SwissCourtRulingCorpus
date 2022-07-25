@@ -4,6 +4,9 @@ from pathlib import Path
 from scrc.utils.main_utils import get_config
 from scrc.utils.log_utils import get_logger
 import numpy as np
+import math
+import json
+
 
 """
 Dataset to be created:
@@ -42,7 +45,7 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-        self.debug = False
+        self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "bge_criticality_prediction"
         self.feature_cols = ['facts', 'considerations']
@@ -52,11 +55,13 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'not needed', 'not needed')
         df = self.set_bge_criticality_label(df)
         df = self.filter_cases(df, feature_col)
-        labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
+        labels, _ = list(np.unique(np.hstack(df.bge_label), return_index=True))
         return df, labels
 
     def filter_cases(self, df, feature_col):
         # TODO filter cases with too long / short input for model, maybe done in get_df
+        # TODO get rid of colums which are not needed
+        # TODO get rid of cases where facts or considerations is empty
         return df
 
     def set_bge_criticality_label(self, df):
@@ -85,11 +90,45 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         self.logger.info(f"# non-critical decisions: {len(non_critical_df.index)}")
         return critical_df.append(non_critical_df)
 
+    def save_huggingface_dataset(self, lang_splits, feature_col_folder):
+        huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
+
+        for split in ['train', 'val', 'test']:
+            records = []
+            df = lang_splits[split]
+
+            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'],
+                                 df['origin_canton'], df['bge_label'], df['lang'], df['considerations'], df['facts'])
+
+            for case_id, year, legal_area, region, canton, bge_label, lang, consideration, fact in tuple_iterator:
+                if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
+                    canton = 'n/a'
+                if not isinstance(region, str) and (region is None or math.isnan(region)):
+                    region = 'n/a'
+                if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
+                    legal_area = 'n/a'
+                record = {
+                    'id': case_id,
+                    'year': year,
+                    'language': lang,
+                    'region': ' '.join(region.split('_')),
+                    'canton': canton,
+                    'legal area': ' '.join(legal_area.split('_')),
+                    'bge_label': bge_label,
+                    'considerations': consideration,
+                    'facts': fact
+                }
+
+                records.append(record)
+            with open(f'{huggingface_dir}/{split}.jsonl', 'w') as out_file:
+                for record in records:
+                    out_file.write(json.dumps(record) + '\n')
+
 
 if __name__ == '__main__':
     config = get_config()
 
     bge_criticality_dataset_creator = BgeCriticalityDatasetCreator(config)
-    bge_criticality_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=False, save_reports=False)
+    bge_criticality_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)
 
 
