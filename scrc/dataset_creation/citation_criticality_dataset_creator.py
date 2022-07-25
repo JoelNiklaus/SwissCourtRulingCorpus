@@ -1,19 +1,13 @@
 import pandas as pd
+import numpy as np
+import itertools
 
 from scrc.dataset_creation.citation_dataset_creator import CitationDatasetCreator
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
-import numpy as np
-import itertools
 from collections import Counter
 from root import ROOT_DIR
 from pathlib import Path
-
-
-
-from sklearn.feature_extraction.text import TfidfTransformer
-
-
 
 
 """
@@ -49,7 +43,7 @@ class CitationCriticalityDatasetCreator(CitationDatasetCreator):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-        self.debug = False
+        self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "citation_criticality_prediction"
         self.feature_cols = ['facts', 'considerations']
@@ -59,10 +53,7 @@ class CitationCriticalityDatasetCreator(CitationDatasetCreator):
     def get_dataset(self, feature_col, save_reports):
         """get all required data: all bge and bger cases and label bger cases"""
         df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', save_reports)
-        print(f"df has {len(df.index)} different decision_id")
         df = self.set_citation_criticality_label(df, feature_col)
-        # rename columns
-        df = df.rename(columns={'citation_label': "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.citation_label), return_index=True))
         return df, labels
 
@@ -71,12 +62,11 @@ class CitationCriticalityDatasetCreator(CitationDatasetCreator):
                 were cited in other cases """
         self.logger.info(f"Processing labeling of citation_criticality")
         bge_references = self.create_critical_bge_list(df)
-        # set labels critical as in bge_criticality_dataset_creator
         file_number_match = df.file_number.astype(str).isin(list(bge_references))
         critical_df = df[file_number_match]
-        critical_df['bge_label'] = 'critical'
+        critical_df['citation_label'] = 'critical'
         non_critical_df = df[~file_number_match]
-        non_critical_df['bge_label'] = 'non-critical'
+        non_critical_df['citation_label'] = 'non-critical'
         self.logger.info(f"# critical decisions: {len(critical_df.index)}")
         self.logger.info(f"# non-critical decisions: {len(non_critical_df.index)}")
         return critical_df.append(non_critical_df)
@@ -166,26 +156,9 @@ class CitationCriticalityDatasetCreator(CitationDatasetCreator):
         }
         return pd.DataFrame.from_dict(data)
 
-    def test(self):
-        series = pd.Series([{'name': 'ruling', 'text': 'BGE 125 II 265',
-                             'url': 'https://www.bger.ch/ext/eurospider/live/de/php/aza/http/index.php?lang=de&type=highlight_simple_query&page=8&from_date=09.06.2004&to_date=28.06.2004&sort=relevance&insertion_date=&top_subcollection_aza=all&query_words=&rank=0&azaclir=aza&highlight_docid=atf%3A%2F%2F125-II-265%3Ade&number_of_ranks=0#page265'},
-                            {'name': 'ruling', 'text': 'BGE 129 I 281',
-                             'url': 'https://www.bger.ch/ext/eurospider/live/de/php/aza/http/index.php?lang=de&type=highlight_simple_query&page=8&from_date=09.06.2004&to_date=28.06.2004&sort=relevance&insertion_date=&top_subcollection_aza=all&query_words=&rank=0&azaclir=aza&highlight_docid=atf%3A%2F%2F129-I-281%3Ade&number_of_ranks=0#page281'},
-                            {'name': 'ruling', 'text': '111 Ia 276',
-                             'url': 'https://www.bger.ch/ext/eurospider/live/de/php/aza/http/index.php?lang=de&type=highlight_simple_query&page=8&from_date=09.06.2004&to_date=28.06.2004&sort=relevance&insertion_date=&top_subcollection_aza=all&query_words=&ran'}])
-        reply = pd.Series([self.get_citations(series, 'rulings', 'de'), self.get_citations(series, 'rulings', 'de')])
-        print(reply)
-        reply_second = reply.apply(lambda x: dict(Counter(x)))
-        type_corpus_frequencies = dict(Counter(itertools.chain(*reply_second.tolist())))
-        print(type_corpus_frequencies)
-        keys = type_corpus_frequencies.keys()
-        print(keys)
-        # works as expected
-
 
 if __name__ == '__main__':
     config = get_config()
 
     citation_criticality_dataset_creator = CitationCriticalityDatasetCreator(config)
-    # citation_criticality_dataset_creator.test()
     citation_criticality_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=False, save_reports=False)
