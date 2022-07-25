@@ -10,6 +10,8 @@ from scrc.dataset_creation.dataset_creator import DatasetCreator
 import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
+import re
+import json
 
 
 class CitationDatasetCreator(ABC, DatasetCreator):
@@ -102,22 +104,29 @@ class CitationDatasetCreator(ABC, DatasetCreator):
         ax = citations[:top_n].plot.bar(use_index=True, y='frequency', rot=90)
         ax.get_figure().savefig(figure_path, bbox_inches="tight")
 
-    def get_citations(self, citations, type, lang):
+    def get_citations(self, citations_as_string, lang):
+        citations = list(eval(citations_as_string))
+        data = json.load(citations_as_string)
         cits = []
-        for citation in citations[type]:
-            cit = citation['text']
-            cit = ' '.join(cit.split())  # remove multiple whitespaces inside
+        for citation in citations:
             try:
-                if type == "rulings":
-                    type_cit = RulingCitation(cit, lang)
-                else:
-                    raise ValueError("type must be either 'rulings'")
+                cit = citation['text']
+                type = citation['name']
+                cit = ' '.join(cit.split())  # remove multiple whitespaces inside
+                try:
+                    if type == "ruling":
+                        file_number = self.get_file_number(cit, lang)
+                        type_cit = RulingCitation(file_number, lang)
+                        cits.append(type_cit)
+                    elif type == "law":
+                        pass
+                    else:
+                        raise ValueError("type must be 'rulings'")
+                except ValueError as ve:
+                    self.logger.debug(ve)
+                    continue
             except ValueError as ve:
-                self.logger.debug(ve)
-                continue
-            # only actually include ruling citations that we can find in our corpus
-            if type == "laws" or (type == "rulings" and str(type_cit) in self.available_bges):
-                cits.append(type_cit)
+                self.logger.info(citation)
         if cits:  # only return something if we actually have citations
             return cits
 
@@ -139,3 +148,21 @@ class CitationDatasetCreator(ABC, DatasetCreator):
         """
         # TODO add Ronja's criticality score
         return tf_idf_score
+
+    def get_file_number(self, type_cit, lang):
+        if str(type_cit) in self.available_bges:
+            return str(type_cit)
+        else:
+            bge = RulingCitation(type_cit, lang)
+            year = bge.year
+            volume = bge.volume
+            page_number = bge.page_number
+            origin_page_number = -1
+            if f"BGE {year} {volume}" == "BGE 147 III":
+                print(bge)
+            for match in self.available_bges:
+                if f"BGE {year} {volume}" in match:
+                    bge = RulingCitation(match, lang)
+                    if origin_page_number < bge.page_number <= page_number:
+                        origin_page_number = bge.page_number
+            return f"BGE {year} {volume} {origin_page_number}"
