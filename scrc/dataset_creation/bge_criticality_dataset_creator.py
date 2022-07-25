@@ -51,18 +51,11 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         self.dataset_name = "bge_criticality_prediction"
         self.feature_cols = ['facts', 'considerations']
 
-        # TODO what is this code doing?
-        pandarallel.initialize(progress_bar=True)
-        tqdm.pandas()
-
     def get_dataset(self, feature_col, save_reports):
         """get all bger cases and set labels"""
         df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'not needed', 'not needed')
         df = self.set_bge_criticality_label(df)
         df = self.filter_cases(df, feature_col)
-        # rename columns
-        df.rename(columns={'bge_label': "label"}, inplace=True)
-        # TODO feature col is: facts-consideration -> how do we want to have dataset?
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, labels
 
@@ -82,13 +75,11 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         with bge_references_file_path.open("r") as f:
             for line in f:
                 (bge_file_number, chamber, text) = line.split()
-                # TODO check if it works always like this
                 # found bge_file_number with pattern like: CH_BGE_007_BGE-144-V-236_2018 convert to BGE 144 V 236
                 bge_file_number = bge_file_number.split('_', 5)[3]
                 bge_file_number = bge_file_number.replace('-', ' ')
                 references[bge_file_number] = f"{chamber} {text}"
         bge_references = list(references.values())
-        # bge_references = bge_references_file_path.read_text().strip().split("\n")
         file_number_match = df.file_number.astype(str).isin(list(bge_references))
         critical_df = df[file_number_match]
         critical_df['bge_label'] = 'critical'
@@ -96,18 +87,7 @@ class BgeCriticalityDatasetCreator(DatasetCreator):
         non_critical_df['bge_label'] = 'non-critical'
         self.logger.info(f"# critical decisions: {len(critical_df.index)}")
         self.logger.info(f"# non-critical decisions: {len(non_critical_df.index)}")
-        self.calculate_label_coverage(bge_references, file_number_match, critical_df, df)
         return critical_df.append(non_critical_df)
-
-    def calculate_label_coverage(self, bge_references, file_number_match, critical_df, bger_df):
-        """Calculate some numbers on how many cases could be labeled correctly and hwo many are still missing"""
-        self.logger.info(f"there were {len(bge_references)} references extracted")
-        bge_references = set(bge_references)
-        self.logger.info(f"{len(bge_references)} of the entries were unique")
-        # get references which were extracted but not found in bger cases
-        extracted_and_found = list(critical_df.file_number.astype(str))
-        new_list = [decision for decision in bge_references if decision not in extracted_and_found]
-        self.logger.info(f"{len(new_list)} references were extracted but not found")
 
 
 if __name__ == '__main__':
@@ -115,4 +95,5 @@ if __name__ == '__main__':
 
     bge_criticality_dataset_creator = BgeCriticalityDatasetCreator(config)
     bge_criticality_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)
+
 
