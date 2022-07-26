@@ -1,15 +1,21 @@
 from logging import exception
 import unicodedata
 from typing import Optional, List, Dict, Union
+import sys
 
 import bs4
 import re
+
+from prometheus_client import Enum
+from sqlalchemy import false, true
 
 from scrc.enums.language import Language
 from scrc.enums.section import Section
 from scrc.utils.main_utils import clean_text
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_paragraphs_unified
+
+from scrc.preprocessors.extractors.spider_specific.judgment_extracting_functions import all_judgment_markers
 
 
 """
@@ -51,35 +57,238 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     return associate_sections(paragraphs, section_markers, namespace) """
 
 
-def CH_BGE(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+
+def GE_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     all_section_markers = {
+        Language.FR: {
+            Section.HEADER: [],
+            Section.FACTS: [r'EN FAIT', r'en fait'],
+            Section.CONSIDERATIONS: [r'EN DROIT', 'en droit'],
+            Section.RULINGS: [r'PAR CES MOTIFS', r'LA CHAMBRE ADMINISTRATIVE'],
+            Section.FOOTER: [r'La [g,G]reffière', r'la [G,g]reffière', r'Siégeant', r'Voie de recours', r'Le recours doit être', r'Le [G,g]reffier', r'Le [P,p]résident']
+        },
         Language.DE: {
+            Section.HEADER: [],
             Section.FACTS: [r'Tatbestand', r'Sachverhalt'],
             Section.CONSIDERATIONS: [r"Erwägung"],
             Section.RULINGS: [r"Demnach erkennt", r"Demnach beschliesst", r"Demnach wird beschlossen",
                               r"Demnach wird verfügt", r"Dispositiv"],
-            Section.FOOTER: [r""]
+            Section.FOOTER: [r'Rechtsmittellehre']
+        },
+        Language.EN: {
+            Section.HEADER: [],
+            Section.FACTS: [],
+            Section.CONSIDERATIONS: [],
+            Section.RULINGS: [],
+            Section.FOOTER: []
+        },
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def BE_Anwaltsaufsicht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'Erwägungen'],
+            Section.RULINGS: [r'Die Anwaltsaufsichtsbehörde entscheidet:'],
+            Section.FOOTER: [r'Der Präsident:', r'Hinweis: Dieser Entscheid ist rechtskräftig', r'Die Präsidentin', r'Rechtsmittelbelehrung']
+        },
+        Language.FR: {
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'Considérants:'],
+            Section.RULINGS: [r'Pour ces motifs,'],
+            Section.FOOTER: [r'Voies de recours']
         }
     }
 
     valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
-
-    divs = decision.find_all(
-        "div", class_="content")
-    paragraphs = get_paragraphs(divs)
+    
+    paragraphs = get_paragraphs_unified(decision)
 
     return associate_sections(paragraphs, section_markers, namespace)
 
-def GE_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+
+def BE_Weitere(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'Erwägung', r'Erwägungen', r'erwogen', r'Ausgangslage$'],
+            Section.RULINGS: [r'entscheidet', r'wird erkannt', r'erkannt :', r'erkannt:', r'III. Entscheid', r'[1-9] Entscheid'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung']
+        },
         Language.FR: {
-            Section.FACTS: [r'EN FAIT', r'en fait'],
-            Section.CONSIDERATIONS: [r'EN DROIT', 'en droit'],
-            Section.RULINGS: [r'PAR CES MOTIFS', r'LA CHAMBRE ADMINISTRATIVE'],
-            Section.FOOTER: [r'La [g,G]reffière', r'la [G,g]reffière', r'Siégeant', r'Voie de recours', r'Le recours doit être', r'Le [G,g]reffier', r'Le [P,p]résident']
+            Section.FACTS: [r'Faits', r'de fait', r'En fait:', r'les faits'],
+            Section.CONSIDERATIONS: [r'considère:', r'Considérants', r'En droit', r'Considérations sur le fond'],
+            Section.RULINGS: [r'Pour ces motifs', r'Frais de procédure', r'Par ces motifs'],
+            Section.FOOTER: [r'Voies de recours', r'Indication des voies de droit']
         }
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
+def AR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'Erwägungen'],
+            Section.RULINGS: [r'erkennt', r'beschliesst'],
+            Section.FOOTER: [r'La [g,G]reffière']
+        }
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    if isinstance(decision, str):
+        paragraphs = get_pdf_paragraphs(decision)
+    else:
+        paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
+def BE_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'den Akten entnommen'],
+            Section.CONSIDERATIONS: [r'Die Steuerrekurskommission zieht in Erwägung', 'en droit'],
+            Section.RULINGS: [r'Aus diesen Gründen wird erkannt:'],
+            Section.FOOTER: [r'IM NAMEN DER STEUERREKURSKOMMISSION DES KANTONS BERN']
+        },
+        Language.FR: {
+            Section.FACTS: [r'constate en fait'],
+            Section.CONSIDERATIONS: [r'considère en droit'],
+            Section.RULINGS: [r'Par ces motifs'],
+            Section.FOOTER: [r'AU NOM DE LA COMMISSION DES RECOURS EN MATIERE FISCALE DU CANTON DE BERNE', r'AU NOM DE LA COMMISSION DES RECOURS EN MATIÈRE FISCALE DU CANTON DE BERNE']
+        }
+    }
+    
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_pdf_paragraphs(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def GL_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'in Sachen', r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'Erwägung', r'Erwägungen', r'Betracht:?$'],
+            Section.RULINGS: [r'[D,d]emgemäss erkennt', r'erkennt sodann', r'Gericht[\s]*erkennt', r'Gericht beschliesst', r'zieht in Betracht', r'verfügt:?$', r'[D,d]emgemäss beschliesst', r'beschliesst:?$', r'erkennt:?$'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung:?$']
+        }
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'zieht i n E r w ä g u n g', r'Erwägungen', r'in Erwägung:'],
+            Section.RULINGS: [r'Demgemäss wird e r k a n n t', r'Demgemäss w i r d e r k a n n t', r'Demnach wird erkannt', r'Demgemäss wird erkannt', r'Demnach erkennt das Steuergericht:', r'Demgemäss erkennt das Steuergericht:', r'wird erkannt:', r'Es wird erkannt:'],
+            Section.FOOTER: [r'Rechtsmittelbelehrung', r'^Präsidentin$', r'^Präsident$', r'^Gerichtsschreiberin$']
+        }
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def AG_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [ r'^Sachverhalt', r'entnimmt den Akten:'],
+            Section.CONSIDERATIONS: [r'in Erwägung:', r'Aus den Erwägungen', r'^Erwägungen$'],
+            Section.RULINGS: [r'erkennt:?$', r'beschliesst:?$', r'entscheidet:?$'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung', r'Der Vizepräsident: Der Gerichtsschreiber:', r'Der Präsident: Die Gerichtsschreiberin:']
+        },
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def AG_Weitere(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [ r'^Sachverhalt', r'entnimmt den Akten:'],
+            Section.CONSIDERATIONS: [r'in Erwägung:', r'Aus den Erwägungen'],
+            Section.RULINGS: [r'erkennt:?$', r'beschliesst:?$', r'entscheidet:?$'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung', r'Der Vizepräsident: Der Gerichtsschreiber:', r'Der Präsident: Die Gerichtsschreiberin:']
+        },
+    }
+
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def CH_WEKO(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt$', r'in Sachen$', r'Ausgangslage$'],
+            Section.CONSIDERATIONS: [r'Erwägungen$'],
+            Section.RULINGS: [r'Dispositiv$', r'verfügt die WEKO', r'^[1-9] Ergebnis$', r'^[A-Z] Schlussfolgerungen$'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung:?$']
+        },
+        Language.FR: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Etat de fait$', r'in Sachen$'],
+            Section.CONSIDERATIONS: [r'Considérants$', r'CONSIDERANTS$'],
+            Section.RULINGS: [r'Dispositif$', r'DISPOSITIF$'],
+            Section.FOOTER: [r'Voie de droit:?$']
+        },
+        Language.EN: {
+            Section.HEADER: [],
+            Section.FACTS: [],
+            Section.CONSIDERATIONS: [],
+            Section.RULINGS: [],
+            Section.FOOTER: []
+        },
+        
     }
 
     valid_namespace(namespace, all_section_markers)
@@ -106,6 +315,12 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
                              r'Le président:', r'Le président: Le greffier:', r'La présidente: La greffière:',
                              r'La présidente:', r'Au nom du Tribunal administratif :', r'La présidente: Le greffier:',
                              r'Le président : Le greffier :']
+        },
+        Language.EN: {
+            Section.FACTS: [],
+            Section.CONSIDERATIONS: [],
+            Section.RULINGS: [],
+            Section.FOOTER: []
         }
     }
 
@@ -130,28 +345,37 @@ def TI_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
                 r'Considerato, in diritto', r'Considérant', r'En droit :',
                 r'constate ce qui suit en fait et en droit :', r'considerato, in diritto', r'^considerando$',
                 r'^In diritto:$'],
-            Section.RULINGS: [r'Per questi motivi,:', r'Per questi motivi', r'dichiara e pronuncia:', r'pronuncia',
-                              r'pronuncia:', r'Per i quali motivi,', r'Per i quali motivi', r'^decide:$',
-                              r'per questi motivi,'],
-            Section.FOOTER: [r'Il presidente: Il segretario:', r'Il segretario', r'Daniele Cattaneo Fabio Zocchetti',
-                             r'La segretaria', r'[Ii]l giudice', r'[Ll]a giudice',
-                             r'Il [P,p]residente', r'La [P,p]residente' r'Rimedi giuridici', r'Il vicepresidente.*',
-                             r'La vicepresidente.*', r'Copia per conoscenza:', r'per la Camera di diritto tributario',
-                             r'Il presidente La vicecancelliera', r'Il presidente: La segretaria:',
-                             r'La presidente Il segretario', r'La presidente La segretaria',
-                             r'Il presidente La cancelliera',
-                             r'\w*,\s(il\s?)?((\d?\d)|\d\s?(°))\s?(?:gen(?:naio)?|feb(?:braio)?|mar(?:zo)?|apr(?:ile)?|mag(?:gio)|giu(?:gno)?|lug(?:lio)?|ago(?:sto)?|set(?:tembre)?|ott(?:obre)?|nov(?:embre)?|dic(?:embre)?)\s?\d?\d?\d\d\s?([A-Za-z\/]{0,7}):?\s*$',
-                             r'Il presidente: Il segretario:', r'Rimedi giuridici']
+            Section.RULINGS: [r'Per questi motivi,:', r'Per questi motivi', r'dichiara e pronuncia:', r'pronuncia$',
+                              r'pronuncia:$', r'Per i quali motivi,', r'Per i quali motivi', r'^decide:$',
+                              r'per questi motivi,', r'pronuncia: 1\.'],
+            Section.FOOTER: [r'Per il Tribunale cantonale delle assicurazioni', r'Il presidente La segretaria', r'Per il Tribunale cantonale amministrativo', r'Per la seconda Camera civile del Tribunale d’appello', r'Il presidente La vicecancelliera']
+        },
+        Language.EN: {
+            Section.FACTS: [],
+            Section.CONSIDERATIONS: [],
+            Section.RULINGS: [],
+            Section.FOOTER: []
+        },
+        Language.FR: {
+            Section.FACTS: [],
+            Section.CONSIDERATIONS: [],
+            Section.RULINGS: [],
+            Section.FOOTER: []
+        },
+        Language.DE: {
+            Section.FACTS: [],
+            Section.CONSIDERATIONS: [],
+            Section.RULINGS: [],
+            Section.FOOTER: []
         }
+        
     }
 
     valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    divs = decision.find_all(
-        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
-    paragraphs = get_paragraphs(divs)
+    paragraphs = get_paragraphs_unified(decision)
 
     return associate_sections(paragraphs, section_markers, namespace)
 
@@ -242,114 +466,6 @@ def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     return associate_sections(paragraphs, section_markers, namespace)
 
 
-def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    """
-    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict (keys: section, values: list of paragraphs)
-    """
-    # Regular expressions adapted to each court separately
-    if namespace['court'] == 'BL_SG':
-        all_section_markers = {
-            Language.DE: {
-                Section.HEADER: [r'^(Rechtsprechung Steuergericht( Basel-Landschaft\s*)*)$',
-                                 r'^((Entscheid|Beschluss) vom \d*\. (Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) \d*)',
-                                 r'07-10(0|1) Abgrenzung Haupterwerb - Nebenerwerb', r'08-64 Verpflegungsmehrkosten',
-                                 r'08-125 Liegenschaftsunterhalt', r'07-104 Begründungspflicht',
-                                 r'07-025 Privater Schuldzinsabzug',
-                                 r'08-14(5|6) WIR-Geld', r'08-138 Aktienbewertung bei Ehegatten',
-                                 r'07-057 Besteuerung eines ohne festen Wohnsitz im Ausland lebenden Ehegatten',
-                                 r'06-16(7|8) Schneeballprinzip',
-                                 r'07-058 Besteuerung eines ohne festen Wohnsitz im Ausland lebenden Ehegatten',
-                                 r'07-026 Privater Schuldzinsabzug', r'06-066 Ermittlung des Hauptsteuerdomizils',
-                                 r'08-126 Erbschaftssteuer bei Ausrichtung eines Legats, rechtliches Gehör'],
-                Section.FACTS: [r'^(Sachverhalt:*)$', r'^(Aus dem Sachverhalt( \(Zusammenfassung\))*:)$',
-                                r'^(S a c h v e r h a l t :)', r'^(Aus dem Sachverhalt \(gekürzt\):)$'],
-                Section.CONSIDERATIONS: [r'Aus den Erwägungen\s*:*', r'^(Erwägungen:*\s*)$',
-                                         r'^(\s*[Ii]\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*(\s*e n)*\s*:*\s*)$',
-                                         r'^(Das Steuergericht zieht\s*i\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*:*\s*)$',
-                                         r'Der Präsident des Steuergerichts zieht in Erwägung :'],
-                Section.RULINGS: [
-                    r'^(D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:*\s*)$',
-                    r'(Demgemäss|Demnach) erkennt das Steuergericht:',
-                    r'^(w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:\s*)$'],
-                Section.FOOTER: [r'^(Rechtsmittelbelehrung)$']
-            }
-        }
-    elif namespace['court'] == 'BL_ZMG':
-        all_section_markers = {
-            Language.DE: {
-                Section.HEADER: [r'^(Zwangsmassnahmengericht Basel-Landschaft www.bl.ch\/zmg)$',
-                                 r'^(Entscheid des Zwangsmassnahmengerichts vom 13.09.2016 (350 16 419))'],
-                Section.FACTS: [r'^(Betreffend)', r'^(Sachverhalt)$'],
-                Section.CONSIDERATIONS: [r'^(In Erwägung(,)* dass(,|:)*)$', r'^((I. )*Erwägungen:*\s*)$'],
-                Section.RULINGS: [r'^(Es\swird\se\s*n\s*t\s*s\s*c\s*h\s*i\s*e\s*d\s*e\s*n\s*:)',
-                                  r'^(wird\s*e\s*n\s*t\s*s\s*c\s*h\s*i\s*e\s*d\s*e\s*n\s*:)',
-                                  r'^(e n t s c h i e d e n :)$'],
-                Section.FOOTER: [r'^(Rechtsmittelbelehrung)$']
-            }
-        }
-    elif namespace['court'] == 'BL_KG':
-        all_section_markers = {
-            Language.DE: {
-                Section.HEADER: [r'^((Beschluss|Entscheid|Urteil) des Kantonsgerichts Basel-Landschaft, )',
-                                 r'^(Rechtsprechung des Kantonsgerichts)$'],
-                Section.FACTS: [r'^(Betreff)', r'^(Gegenstand)', r'^(Sachverhalt:*)$'],
-                Section.CONSIDERATIONS: [
-                    r'^((Das|Die) (Kantonsgericht|Steuergericht) zieht\s*i\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*:*\s*)$',
-                    r'^((Die|Der) Präsident(in)* zieht\s*i\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*:\s*)$',
-                    r'^(In Erwägung(,)* dass(,|:)*)$',
-                    r'^(Erwägungen\s*)$', r'^(In Erwägung(,)* dass(,|:)*)$', r'^(Auszug aus den Erwägungen:*)$',
-                    r'^(Aus den Erwägungen:*)$', r'^(Erwägung)$',
-                    r'(Der|Die) Präsident(in)* hat\s*i\s*n\s*E\s&r\s*w\s*ä\s*g\s*u\s*n\s*g\s*,\s*',
-                    r'Das Kantonsgericht hat i n E r w ä g u n g ,'],
-                Section.RULINGS: [r'^(D\s*e\s*m\s*n\s*a\s*c\s*h\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:*\s*)$',
-                                  r'^(D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:*\s*)$',
-                                  r'^((Es)*\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:\s*)$',
-                                  r'^(Demnach wird beschlossen:)$', r'^(Demgemäss wird v e r f ü g t:\s*)$',
-                                  r'^(Demgemäss wird b e s c h l o s s e n :)$',
-                                  r'^(e\s*r\s*k\s*a\s*n\s*n\s*t\s*:\s*)$', r'://:'],
-                Section.FOOTER: [r'^(Rechtsmittelbelehrung)$']
-            }
-        }
-    elif namespace['court'] == 'BL_EG':
-        all_section_markers = {
-            Language.DE: {
-                Section.HEADER: [r'^(Rechtsprechung Enteignungsgericht)$',
-                                 r'^(Entscheid des Steuer- und Enteignungsgerichts Basel-Landschaft,)$',
-                                 r'12-09 Landabzug im Rahmen einer Baulandumlegung \/ Ermittlung der Entschädi',
-                                 r'11-05 Enteignung nachbarrechtlicher Abwehransprüche\/ Bindung an die Erwägun-',
-                                 r'12-07 Übereinstimmung einer im Strassenreglement aufgeführten Qualifikation einer',
-                                 r'12-08 Strassenbeitrag \/ Sondervorteil aufgrund Randsteine, Entwässerung, Stras-'],
-                Section.FACTS: [r'^(Aus dem Sachverhalt:)$', r'^(Gegenstand)'],
-                Section.CONSIDERATIONS: [r'^(Aus den Erwägungen:)$',
-                                         r'^(\s*[Ii]\s*n\s*E\s*r\s*w\s*ä\s*g\s*u\s*n\s*g\s*(\s*e n)*\s*:*\s*)$'],
-                Section.RULINGS: [
-                    r'^(D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*e\s*r\s*k\s*a\s*n\s*n\s*t\s*:*\s*)$',
-                    r'^(wird erkannt:)$',
-                    r'^(D\s*e\s*m\s*g\s*e\s*m\s*ä\s*s\s*s\s*w\s*i\s*r\s*d\s*v\s*e\s*r\s*f\s*ü\s*g\s*t\s*:\s*)$'],
-                Section.FOOTER: [r'^(Rechtsmittelbelehrung)$']
-            }
-        }
-    else:
-        message = f"({namespace['id']}): We got stuck at court {namespace['court']}. Please check! "
-
-    if 'html_url' in namespace and namespace['html_url']:
-        valid_namespace(namespace, all_section_markers)
-        section_markers = prepare_section_markers(
-            all_section_markers, namespace)
-        divs = decision.findAll("div", {'id': 'content-content'})
-        paragraphs = get_paragraphs(divs)
-    elif 'pdf_url' in namespace and namespace['pdf_url']:
-        if namespace['language'] not in all_section_markers:
-            message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-            raise ValueError(message)
-        section_markers = prepare_section_markers(
-            all_section_markers, namespace)
-        paragraphs = get_pdf_paragraphs(decision)
-
-    return associate_sections(paragraphs, section_markers, namespace)
-
 
 def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
         Dict[Section, List[str]]]:
@@ -396,18 +512,10 @@ def GR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     """
     all_section_markers = {
         Language.DE: {
-            Section.HEADER: [
-                r'(Entscheid|Urteil|Verfügung|Beschluss)\s*(vom)*\s*\d*\.*\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)*\s*\d*',
-                r'Revisionsurteil', r'Strafmandat'],
-            Section.FACTS: [r'Sachverhalt(:)*', r'betreffend\s*\w*'],
-            Section.CONSIDERATIONS: [r'(I|II)*\.*\s*Erwägungen(:)*',
-                                     r'^((Die|De|Das|Aus|In)*\s*\w+\s*(zieht in )*Erwägung(en)*\s*\,*(:)*)',
-                                     r'Begründung:'],
-            Section.RULINGS: [r'Demnach wird (verfügt|erkannt)(:)*', r'entschieden:$',
-                              r'^(Demnach (erkennt|verfügt) (das|die|der) (Gericht|Beschwerdekammer|Einzelrichter|Einzelrichterin|Kantonsgerichtsausschuss|Kantonsgerichtspräsidium|Vorsitzende|Schuldbetreibungs)\s*:)',
-                              r'erkannt(:)*$',
-                              r'Demnach (beschliesst|erkennt) die(\sII\.)* (Justizaufsichts|Zivil)kammer :',
-                              r'Demnach erkennt die (I*\.)* Strafkammer\s*:', r'verfügt\s*(:)*$'],
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt:?$', r'betreffend\s*\w*$' r'hat sich ergeben:?', r'in Sachen$'],
+            Section.CONSIDERATIONS: [r'Erwägungen:?$', r'zieht in Erwägung:?$', r'In Erwägung,'],
+            Section.RULINGS: [r'^Demnach erkennt', r'wird erkannt:?$', r'^erkannt:?$', r'^Demnach verfügt', r'^verfügt:$', r'^erkannt :$', r'^verfügt :$', r'wird verfügt:$' ],
             Section.FOOTER: [
                 r'Für den Kantonsgerichtsausschuss von Graubünden']
         },
@@ -470,6 +578,30 @@ def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     paragraphs = get_paragraphs(divs)
     return associate_sections(paragraphs, section_markers, namespace)
 
+def VS_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'^[I,i]n Sachen', r'^Sachverhalt:?$', r'Sachverhalt \(gekürzt\)', r'Gekürzter Sachverhalt', r'Sachverhalt und Verfahren', r'SACHVERHALT', r'^Procédure$', r'^Verfahren$'],
+            Section.CONSIDERATIONS: [r'^Erwägungen:?$', r'Aus den Erwägungen', 'Sachverhalt und Erwägungen', r'stellt fest und zieht in Erwägung', r'ERWÄGUNGEN'],
+            Section.RULINGS: [r'erkennt[:]?$', r'Demnach erkennt das Kantonsgericht:', r'Demnach wird erkannt',
+                              r'Demnach wird erkannt:', r'Demnach erkennt das Kantonsgericht', r'Das Kantonsgericht beschliesst', r'Das Kantonsgericht verfügt', r'DEMNACH WIRD ERKANNT:'],
+            Section.FOOTER: [r'no footer available']
+        },
+        Language.FR: {
+            Section.FACTS: [r'Faits$', r'Faits \(résumé\)', r'FAITS ET PROCEDURE', r'Faits et procédure', r'Statuant en faits', r'^Vu$'],
+            Section.CONSIDERATIONS: [r'Considérant en droit:?', r'Considérants \(extraits\)', r'^[C,c]onsidérant$', r'DROIT', r'^Droit$'],
+            Section.RULINGS: [r'[P,p]ar ces motifs,', r'^[P,p]rononce:?$', r'PRONONCE'],
+            Section.FOOTER: [r'no footer available']
+        }
+    }
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
 
 def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     """
@@ -481,6 +613,7 @@ def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     # (?:C|c) is much faster for case insensitivity than [Cc] or (?i)c
     all_section_markers = {
         Language.DE: {
+            Section.FACTS: [r'no fact section'],
             Section.CONSIDERATIONS: [r'nachdem sich ergeben', r'nachdem sich ergeben und in Erwägung:', 'in Erwägung'],
             Section.RULINGS: [r'^erkennt[:]?$', r'^beschlossen[:]?$', r'^verfügt[:]?$', r'^erkannt[:]?$',
                               r'erkannt und beschlossen[:]?$', r'beschlossen und erkannt[:]?$'],
@@ -491,9 +624,7 @@ def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    divs = decision.find_all(
-        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
-    paragraphs = get_paragraphs(divs)
+    paragraphs = get_paragraphs_unified(decision)
 
     return associate_sections(paragraphs, section_markers, namespace)
 
@@ -719,7 +850,9 @@ def valid_namespace(namespace: dict, all_section_markers):
     """
     if namespace['language'] not in all_section_markers:
         message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        # Should exit exec here
         raise ValueError(message)
+
 
 
 def prepare_section_markers(all_section_markers, namespace: dict) -> Dict[Section, str]:
@@ -733,12 +866,317 @@ def prepare_section_markers(all_section_markers, namespace: dict) -> Dict[Sectio
     section_markers = dict(
         map(lambda kv: (kv[0], '|'.join(kv[1])), section_markers.items()))
     for section, regexes in section_markers.items():
-        section_markers[section] = unicodedata.normalize('NFKD', regexes)
+        section_markers[section] = unicodedata.normalize('NFC', regexes)
     return section_markers
 
 
+def FR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'Erwägungen', r' zieht in Erwägung,'],
+            Section.RULINGS: [r'erkennt:$',r'erkennt der Hof:', r'entscheidet:$'],
+            Section.FOOTER: [r'Gegen diesen Entscheid kann innerhalb', r'Dieses Urteil kann innert', r'Gegen die Festsetzung der Höhe der Verfahrenskosten', r'Gegen diesen Entscheid kann innert 30 Tagen', r'innert 30 Tagen']
+        },
+        Language.FR: {
+            Section.HEADER: [],
+            Section.FACTS: [r'considérant en fait', r'^attendu$'],
+            Section.CONSIDERATIONS: [r'considérant en fait et en droit', r'en droit$', r'^considérant$'],
+            Section.RULINGS: [r'la Cour arrête', r'prononce:$', r'la Chambre arrête', r'arrête:?$'],
+            Section.FOOTER: [r'Cet arrêt peut faire', r'Cette décision peut', r'Siégeant', r'Voie de recours', r'Le recours doit être', r'dans un délai de 30 jours', r'dans les 30 jours']
+        },
+    }
+ 
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def OW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.RULINGS: [],
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'den Erwägungen', r'In Erwägung:', r'Erwägungen:', r'vorstehenden Erwägungen'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung']
+        },
+    }
+ 
+
+    custom_order = [Section.RULINGS, Section.FACTS, Section.CONSIDERATIONS]
+    
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace, custom_order)
+
+def CH_EDOEB(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'in Sachen', r'Sachverhalt', r'und Öffentlichkeitsbeauftragte stellt fest'],
+            Section.CONSIDERATIONS: [r'Erwägungen',  r'Erwägung'],
+            Section.RULINGS: [r'[A,a]ufgrund dieser Erwägungen empfiehlt'],
+            Section.FOOTER: [r'Rechtsmittelbelehrung']
+        },
+        Language.FR: {
+            Section.HEADER: [],
+            Section.FACTS: [r'données et à la transparence constate'],
+            Section.CONSIDERATIONS: [r'Considérants formels :', r'considère ce qui suit :'],
+            Section.RULINGS: [r'recommande ce qui suit'],
+            Section.FOOTER: [r'Rechtsmittelbelehrung']
+        },
+        Language.IT: {
+            Section.HEADER: [],
+            Section.FACTS: [r'federale della protezione dei dati e della trasparenza accerta quanto segue'],
+            Section.CONSIDERATIONS: [r'protezione dei dati e della trasparenza considera quanto'],
+            Section.RULINGS: [r'trasparenza formula le seguenti raccomandazioni'],
+            Section.FOOTER: [r'Rechtsmittelbelehrung']
+        },
+        Language.EN: {
+            Section.HEADER: [],
+            Section.FACTS: [],
+            Section.CONSIDERATIONS: [],
+            Section.RULINGS: [],
+            Section.FOOTER: []
+        },
+    }
+ 
+    
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
+def SH_OG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'Aus den Erwägungen'],
+            Section.RULINGS: [r'no rulings section'],
+            Section.FOOTER: [r'Rechtsmittelbelehrung']
+        },
+    }
+    
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def VD_FindInfo(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.FR: {
+            Section.HEADER: [],
+            Section.FACTS: [r'En fait', r'E n f a i t', r'EN FAIT', r'Vu l\'enquête'],
+            Section.CONSIDERATIONS: [r'E n d r o i t', r'En droit', r'En fait et en droit'],
+            Section.RULINGS: [r'ces motifs,$'],
+            Section.FOOTER: [r'l\'envoi de photocopies.',r'Le greffier', r'L\'arrêt qui précède, dont la rédaction a été approuvée à huis', r'La greffière', r'L’arrêt est exécutoire']
+        },
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'Aus den Erwägungen'],
+            Section.RULINGS: [r'no rulings section'],
+            Section.FOOTER: [r'Rechtsmittelbelehrung']
+        },
+    }
+    
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def LU_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'no fact section'],
+            Section.RULINGS: [r'^Entscheid:$'],
+            Section.CONSIDERATIONS: [r'Aus den Erwägungen'],
+            Section.FOOTER: [r'no footer section']
+        },
+    }
+    
+    custom_order = [Section.HEADER, Section.FACTS, Section.RULINGS, Section.CONSIDERATIONS, Section.FOOTER]
+    
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace, custom_order)
+
+
+def JU_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.FR: {
+            Section.HEADER: [],
+            Section.FACTS: [r'EN FAIT', r'En fait', r'Vu l[e,a]'],
+            Section.RULINGS: [r'PAR CES MOTIFS'],
+            Section.CONSIDERATIONS: [r'En droit', r'EN DROIT'],
+            Section.FOOTER: [r'AU NOM DE LA COUR ADMINISTRATIVE', r'Communication concernant les moyens de recours']
+        },
+    }
+    
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def CH_BVGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt', r'Das Bundesverwaltungsgericht stellt fest,'],
+            Section.CONSIDERATIONS: [r'zieht in Erwägung', r'stellt fest und erwägt'],
+            Section.RULINGS: [r'Demnach erkennt das Bundesverwaltungsgericht'],
+            Section.FOOTER: [r'Der vorsitzende Richter: Der Gerichtsschreiber:', r'Der vorsitzende Richter: Die Gerichtsschreiberin:', r'Dieses Urteil geht an:', r'Gegen diesen Entscheid kann innert 30 Tagen nach', r'^Rechtsmittelbelehrung:$']
+        },
+        Language.FR: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt', r'Das Bundesverwaltungsgericht stellt fest,'],
+            Section.CONSIDERATIONS: [r'et considérant', r'Droit :$'],
+            Section.RULINGS: [r'Par ces motifs, le Tribunal administratif fédéral prononce', r'Tribunal administratif fédéral prononce'],
+            Section.FOOTER: [r'Indication des voies de droit :', r'Le juge unique : Le greffier :', r'Voies de droit:', r'La présidente du collège : Le greffier :', r'La juge unique : Le greffier :']
+        },
+        Language.IT: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Fatti:', r'Ritenuto in fatto', r'Visto:?$'],
+            Section.RULINGS: [r'Per questi motivi, il Tribunale amministrativo federale', r'Per questi motivi, il Tribunale amministrativo federale pronuncia'],
+            Section.CONSIDERATIONS: [r'Ritenuto in fatto e considerato in diritto:', r'Diritto:', r'e considerato', r'Considerando in diritto'],
+            Section.FOOTER: [r'Il presidente del collegio:', r'La presidente del collegio:', r'Rimedi di diritto', r'Data di spedizione:']
+        },
+        Language.EN: {
+            Section.HEADER: [],
+            Section.FACTS: [],
+            Section.CONSIDERATIONS: [],
+            Section.RULINGS: [],
+            Section.FOOTER: []
+        },
+    }
+    
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
+def GR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt', r'hat sich ergeben:'],
+            Section.CONSIDERATIONS: [r'zieht in Erwägung', r'Aus den Erwägungen:'],
+            Section.RULINGS: [r'Demnach erkennt', r'Demnach wird erkannt', r'^erkennt:$', r'wird erkannt:$', r'^verfügt:$', r'Demnach wird verfügt:'],
+            Section.FOOTER: [r'\[Rechtsmittelbelehrung\]', r'(Rechtsmittelbelehrung)']
+        },
+        Language.IT: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Fattispecie', r'Ritenuto in fatto', r'Fattispecie'],
+            Section.CONSIDERATIONS: [r'Considerando in diritto:', r'Droit :$', r'Considerandi'],
+            Section.RULINGS: [r'Per questi motivi', r'Tribunale decide:'],
+            Section.FOOTER: [r'Indication des voies de droit :', r'Le juge unique : Le greffier :', r'Voies de droit:', r'La présidente du collège : Le greffier :', r'La juge unique : Le greffier :']
+        },  
+    }
+    
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def NE_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.FR: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Résumé'],
+            Section.CONSIDERATIONS: [r'C O N S I D E R A N T', r'C O N S I D E RA N T', r'CO N S I D E R A N T', r'en droit', r'e n  d r o i t'],
+            Section.RULINGS: [r'Par ces motifs',r'Par cesmotifs'],
+            Section.FOOTER: [r'Le greffier',r'AU NOM DU TRIBUNAL ADMINISTRATIF', r'^Neuchâtel, le ']
+        }
+    }
+ 
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+    
+
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
+def SG_Publikationen(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt', r'in Sachen', r'Aus dem Sachverhalt:', r'Zum Sachverhalt:', r'hat das Verwaltungsgericht festgestellt:', r'Das Verwaltungsgericht stellt fest:'],
+            Section.CONSIDERATIONS: [r'Erwägungen', r'in Erwägung', r'Darüber zieht das Verwaltungsgericht in Erwägung:', r'Der Abteilungspräsident erwägt:'],
+            Section.RULINGS: [r'zu Recht erkannt:',r'Demnach erkennt das Verwaltungsgericht zu Recht:', r'Demnach erkennt das Verwaltungsgericht auf dem Zirkulationsweg zu Recht:', r'Demnach hat das Verwaltungsgericht zu Recht erkannt:', r'Der Abteilungspräsident verfügt:', r'Der Präsident verfügt:'
+                              , r'zu Recht:$', r'verfügt:$', r'Entscheid:$', r'entschieden:$', r'^Entscheid$' ],
+            Section.FOOTER: [r'Rechtsmittelbelehrung']
+        }
+    }
+ 
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+    
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def SG_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'Sachverhalt:?$', r'in Sachen$', r'Das Verwaltungsgericht stellt fest:', r'hat das Verwaltungsgericht festgestellt:'],
+            Section.CONSIDERATIONS: [r'^Erwägungen:?$', r'^Erwägung$', r'Darüber wird in Erwägung gezogen:', r'Darüber zieht das Verwaltungsgericht in Erwägung:', r'Aus den Erwägungen:', r'hat das Versicherungsgericht in Erwägung gezogen:', r'Der Abteilungspräsident erwägt:', r'in Erwägung gezogen:'],
+            Section.RULINGS: [r'^Entscheid:?$', r'^entschieden:?$', r'^erkannt:?$', r'zu Recht erkannt:', r'zu Recht:$', r'zu Recht erkannt:$', r'^beschlossen$', r'festgestellt und erkannt:?$', r'verfügt:$', r'beschlossen und erkannt:?$', r'beschlossen:$', r'Demgemäss hat das Versicherungsgericht entschieden:' ],
+            Section.FOOTER: [r'Rechtsmittelbelehrung']
+        }
+    }
+ 
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+    
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
+
+
 def associate_sections(paragraphs: List[str], section_markers, namespace: dict,
-                       sections: List[Section] = list(Section)):
+                       sections: List[Section] = list(Section), current_section = Section.HEADER):
     """
     Associate sections to paragraphs
     :param paragraphs:      list of paragraphs
@@ -747,7 +1185,6 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict,
     :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
     """
     paragraphs_by_section = {section: [] for section in sections}
-    current_section = Section.HEADER  # Document starts with the header function
     for paragraph in paragraphs:
         # update the current section if a marker of a different section matched
         current_section = update_section(
@@ -771,6 +1208,9 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict,
     return paragraphs_by_section
 
 
+
+
+
 def update_section(current_section: Section, paragraph: str, section_markers, sections: List[Section]) -> Section:
     """
     Update the current section if it changed
@@ -781,7 +1221,7 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
     :return:                the updated section
     """
     paragraph = unicodedata.normalize(
-        'NFKD', paragraph)  # if we don't do this, we get weird matching behaviour
+        'NFC', paragraph)  # if we don't do this, we get weird matching behaviour
     if current_section == Section.FOOTER:
         return current_section  # we made it to the end, hooray!
     next_section_index = sections.index(current_section) + 1
@@ -794,9 +1234,120 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
     return current_section  # stay at the old section
 
 
-# This needs special care
-# def CH_BGE(decision: Any, namespace: dict) -> Optional[dict]:
-#    return CH_BGer(decision, namespace)
+
+def CH_BGE(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'Erwägungen', r'in Erwägung:', r'Erwägung:'],
+            Section.RULINGS: [r'Dispositiv', r'Demnach erkennt', r'Demnach beschliesst', r'wird beschlossen:', r'wird verfügt:', r'erkannt:'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung']
+        },
+        Language.FR: {
+            Section.FACTS: [r'Sachverhalt', r'Résumé des faits'],
+            Section.CONSIDERATIONS: [r'Erwägungen', r'Extrait des considérants', r'Considérant en droit', r'Extraits des considérants', r'motifs suivants'],
+            Section.RULINGS: [r'Dispositiv', r'Par ces motifs', r'motifs suivants'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung']
+        },
+        Language.IT: {
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'Erwägungen'],
+            Section.RULINGS: [r'Dispositiv'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung']},
+        Language.EN: {
+            Section.HEADER: [],
+            Section.FACTS: [],
+            Section.CONSIDERATIONS: [],
+            Section.RULINGS: [],
+            Section.FOOTER: []
+        },
+    }
+ 
+    
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+    
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def AI_Aktuell(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'no facts section'],
+            Section.CONSIDERATIONS: [r'^Erwägungen:?$'],
+            Section.RULINGS: [r'no ruling section'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung']
+        }
+    }
+ 
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+    
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def AI_Bericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'no facts section'],
+            Section.CONSIDERATIONS: [r'^Erwägungen:?$', r'Aus den Erwägungen der Standeskommission:'],
+            Section.RULINGS: [r'no ruling section'],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung']
+        }
+    }
+ 
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+    
+    return associate_sections(paragraphs, section_markers, namespace)
+
+def AR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
+    all_section_markers = {
+        Language.DE: {
+            Section.HEADER: [],
+            Section.FACTS: [r'^Sachverhalt:?$'],
+            Section.CONSIDERATIONS: [r'^Erwägungen:?$', r'Aus den Erwägungen:'],
+            Section.RULINGS: [r'erkennt das Obergericht:', r'erkennt:?$', r'beschliesst:?$', r'beschliesst das Obergericht:',],
+            Section.FOOTER: [r'^Rechtsmittelbelehrung', r'4. Rechtsmittel:', r'Der Obergerichtsvizepräsident:', r'Der Obergerichtspräsident:']
+        }
+    }
+ 
+    valid_namespace(namespace, all_section_markers)
+
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+    
+    return associate_sections(paragraphs, section_markers, namespace)
+
+
+def find_ruling(namespace, sections):
+    section_markers = prepare_section_markers(all_judgment_markers, namespace)
+    latestSection = Section.HEADER
+    index = -1
+    for section in Section:
+        if section is not Section.FOOTER:
+            if len(sections[section]) > 0:
+                latestSection = section
+    for idx, paragraph in enumerate(reversed(sections[latestSection])):
+        for key in section_markers:
+            marker = section_markers[key]
+            if re.search(marker, paragraph):
+                index = idx
+    sections[Section.RULINGS] = sections[latestSection][index:]
+    del sections[latestSection][index:]
+    return sections
+            
+    
 
 
 def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
@@ -913,122 +1464,23 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
     all_section_markers = {
         Language.DE: {
             # "header" has no markers!
-            Section.FACTS: [r'Sachverhalt:', r'^[\s]*Sachverhalt[\s]*$', r'Unter Hinweis darauf,'],
-            Section.CONSIDERATIONS: [r'in Erwägung,', r'zieht in Erwägung:', r'Erwägungen:'],
+            Section.FACTS: [r'Sachverhalt:'],
+            Section.CONSIDERATIONS: [r'in Erwägung', r'Erwägungen:'],
             Section.RULINGS: [r'Das Gericht (erkennt|beschliesst|verfügt):',
                               r'(Der|Die) Einzelrichter(in)? (erkennt|beschliesst|verfügt):',
                               r'(beschliesst|erkennt) das Gericht:', r'und erkennt sodann:',
                               r'(Der|Die) Referent(in)? (erkennt|beschliesst|verfügt):'],
-            # this court only sometimes has a footer
-            Section.FOOTER: [r'Im Namen des Sozialversicherungsgerichts',
-                             r'^[\s]*Sozialversicherungsgericht des Kantons Zürich[\s]*$']
+            Section.FOOTER: [r'Gegen diesen Entscheid kann']
         }
     }
 
     valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
-
-    # This should be the div closest to the content:
-    content = decision.find("div", id="view:_id1:inputRichText1")
-    multiple_results = False
-    # Sometimes there is no content:
-    if len(content.contents) == 0:
-        return
-    # Ideally, the content is directly below the above div, but if not:
-    if len(content.contents) <= 5:
-        # The main content should have more than 5 children:
-        div = content.find('div')
-        if div and len(div.contents) >= 5:
-            # There's a div with enough children to be the main content:
-            # But maybe there's more than one:
-            content_list = [tag for tag in content.find_all(
-                "div") if len(tag.contents) > 1]
-            if content_list and len(content_list) > 1 and not content.find_all(class_="domino-par--indent"):
-                multiple_results = True
-            elif content.find_all(class_="domino-par--indent"):
-                content_list = [tag for tag in content.find_all(
-                    "div", class_="domino-par--indent", recursive=False) if len(tag.contents) > 1]
-                multiple_results = True
-            # If there's only one:
-            else:
-                content = div
-                assert len(content.contents) >= 5
-        elif not div:
-            # If the div doesn't exist, there should be a ul directly below the id:
-            content = content.find(
-                "ul", class_="domino-par--indent", recursive=False)
-            assert len(content) >= 5
-        elif div and len(div.contents) == 1 and not div.find_all(class_="domino-par--indent"):
-            # Possibly there's a div with the content directly below the div
-            div2 = div.find('div', recursive=False)
-            if div2 and len(div2.contents) >= 5:
-                content = div2
-            else:
-                pass
-        elif div and len(div.contents) < 5:
-            # The relevant content has class 'domino-par--indent' and the following style:
-            content_list = [tag for tag in content.find_all(
-                class_="domino-par--indent", attrs={'style': 'padding-left: 62pt'}) if len(tag.contents) > 1]
-            if len(content_list) > 0:
-                multiple_results = True
-            else:
-                # Sometimes the relevant content has this style
-                content_list = [tag for tag in content.find_all(
-                    class_="domino-par--indent", attrs={'style': 'padding-left: 85pt'}) if len(tag.contents) > 1]
-                if len(content_list) > 0:
-                    multiple_results = True
-                else:
-                    # Sometimes there is no style but this is less precise
-                    content_list = [tag for tag in content.find_all(
-                        class_="domino-par--indent") if len(tag.contents) > 1]
-                    multiple_results = True
-
-    def get_paragraphs(content):
-        """
-        Get the paragraphs from a piece of html content
-        :param soup:    the content parsed by bs4
-        :return:        a list of paragraphs
-        """
-        paragraphs = []
-        heading, paragraph = None, None
-        for element in content:
-            if isinstance(element, bs4.element.Tag):
-                text = str(element.string)
-                # This is a hack to also get tags which contain other tags such as links to BGEs
-                if text.strip() == 'None':
-                    # replace br tags with spaces and insert spaces before div end tags
-                    # without this, words might get stuck together
-                    html_string = str(element)
-                    html_string = html_string.replace('<br>', ' ').replace(
-                        '<br/>', ' ').replace('<br />', ' ').replace('</div>', ' </div>')
-                    element = bs4.BeautifulSoup(html_string, 'html.parser')
-                    text = element.get_text()
-                # get numerated titles such as 1. or A.
-                if "." in text and len(text) < 5:
-                    heading = text  # set heading for the next paragraph
-                else:
-                    if heading is not None:  # if we have a heading
-                        paragraph = heading + " " + text  # add heading to text of the next paragraph
-                    else:
-                        paragraph = text
-                    heading = None  # reset heading
-                # only clean and append non-empty paragraphs
-                if paragraph not in ['', ' ', None]:
-                    paragraph = clean_text(paragraph)
-                    paragraphs.append(paragraph)
-        return paragraphs
-
-    if content:
-        paragraphs = []
-        if multiple_results:
-            for el in content_list:
-                paragraphs += get_paragraphs(el)
-        else:
-            paragraphs = get_paragraphs(content)
-        return associate_sections(paragraphs, section_markers, namespace)
-    else:
-        return
+    
+    paragraphs = get_paragraphs_unified(decision)
+    
+    return associate_sections(paragraphs, section_markers, namespace)
 
 
 def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -1084,7 +1536,15 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
                 r'Demgemäss[\s|(&nbsp;)]*die Kammer:', r'Der Abteilungspräsident verfügt:', r'^[\s]*verfügt[:]?[\s]*$',
                 r'^[\s]*entschieden:[\s]*$', r'^[\s]*und (entscheidet|erkennt):[\s]*$'],
             # this court generally has no footer
-            Section.FOOTER: [r'Im Namen des Verwaltungsgerichts']
+            Section.FOOTER: [r'Rechtsmittelbelehrung']
+        },
+            Language.FR: {
+            # "header" has no markers!
+            Section.FACTS: [r'En fait'],
+            Section.CONSIDERATIONS: ['En droit'],
+            Section.RULINGS: ['Par ces motifs:'],
+            # this court generally has no footer
+            Section.FOOTER: [r'Voie de recours']
         }
     }
 
@@ -1136,61 +1596,29 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
 
 # returns dictionary with section names as keys and lists of paragraphs as values
 
-
 def BE_BVD(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    # split sections by given regex, compile regex to cache them
-    regexes = {
-        Language.DE: re.compile(
-            r'(.*?)(Sachverhalt(?:\n  \n|\n\n|\n \n| \n\n).*?)(Erwägungen(?: \n\n|\n\n).*?)(Entscheid(?:\n\n| \n\n1).*?)((?:Eröffnung(?:\n\n|\n-)|[Zz]u eröffnen:).*)',
-            re.DOTALL),
-        Language.FR: re.compile(
-            r'(.*?)(Faits\n\n.*?)(Considérants\n\n.*?)(Décision\n\n.*?)(Notification\n\n|A notifier:\n.*)', re.DOTALL)
+    all_section_markers = {
+        Language.DE: {
+            Section.FACTS: [r'Sachverhalt'],
+            Section.CONSIDERATIONS: [r'II. Erwägungen'],
+            Section.RULINGS: [r'III. Entscheid'],
+            Section.FOOTER: [r'IV. Eröffnung']
+        },
+        Language.FR: {
+            Section.FACTS: [r'I. Faits'],
+            Section.CONSIDERATIONS: [ r'II. Considérants'],
+            Section.RULINGS: [r'III. Décision'],
+            Section.FOOTER: [r'IV. Notification']
+        },
     }
+    
+    valid_namespace(namespace, all_section_markers)
 
-    valid_namespace(namespace, regexes)
-    regex = regexes[namespace['language']]
-    match = re.search(regex, decision)
-    matches = []
-
-    if match is None:
-        # if sachverhalt and erwägungen are in the same section, add them to both sections
-        if re.search('Sachverhalt und Erwägungen\n', decision, re.M):
-            edge_case_regex = re.compile(
-                r'(.*?)(Sachverhalt und Erwägungen(?: \n\n|\n\n).*?)(Entscheid(?:\n\n| \n\n1).*?)((?:Eröffnung(?:\n\n|\n-)|[Zz]u eröffnen:).*)',
-                re.DOTALL)
-            match = re.search(edge_case_regex, decision)
-            if match is None:
-                # TODO: change to pdf_url once supported
-                raise ValueError(
-                    f"Could not find sections for decision {namespace['id']}")
-
-            matches = list(match.groups())
-            # add sachverhalt and erwägungen to both sections
-            matches = [matches[0], matches[1]] + matches[1:]
-        else:
-            raise ValueError(
-                f"Could not find sections for decision{namespace['id']}")
-    else:
-        matches = list(match.groups())
-
-    # split paragraphs
-    sections = {}
-    for section, section_text in zip(list(Section), matches):
-
-        split = re.split('(\\n\d\. \w+\\n)', section_text)
-        # paragraphs are now split into title, paragraph header (e.g. '\n1. '), paragraph text
-        title = split[0]
-        # join header and text pairs back together (1+2, 3+4, 5+6, ...) if we found multiple (>2) paragraphs
-        paired = []
-        if len(split) > 2:
-            paired = [split[i] + split[i + 1]
-                      for i in range(1, len(split) - 1, 2)]
-        else:
-            paired = list(''.join(split[1:]))
-
-        sections[section] = [title] + paired
-
-    return sections
+    section_markers = prepare_section_markers(all_section_markers, namespace)
+    
+    paragraphs = get_paragraphs_unified(decision)
+    
+    return associate_sections(paragraphs, section_markers, namespace)
 
 
 def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -1228,6 +1656,7 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
         Language.DE: {
             # "header" has no markers!
             # "facts" are not present either in this court, leave them out
+            Section.FACTS: [r'no facts section available'],
             Section.CONSIDERATIONS: [r'^Erwägungen:|^Erwägungen$', r'Auszug aus den Erwägungen', r'Formelles$',
                                      '^Sachverhalt(?: |:)'],
             Section.RULINGS: [r'^Die (?:Aufsichtsbehörde|Kammer) entscheidet:', r'(?:^|\. )Dispositiv',
@@ -1235,7 +1664,7 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
                               r'^Die Beschwerdekammer in Strafsachen (?:beschliesst|hat beschlossen):',
                               r'^Das Gericht beschliesst:',
                               r'^Die Verfahrensleitung verfügt:', r'^Der Vizepräsident entscheidet:',
-                              r'^Das Handelsgericht entscheidet:', r'^Die \d. Strafkammer beschliesst:'],
+                              r'^Das Handelsgericht entscheidet:', r'^Die \d. Strafkammer beschliesst:', r'Die \d. Strafkammer erkennt:', r'Das Gericht entscheidet:'],
             # "Weiter wird verfügt:" often causes problems with summarys in the considerations section, leave it out
             Section.FOOTER: [r'^Zu eröffnen:', r'\d\. Zu eröffnen:', r'^Schriftlich zu eröffnen:$',
                              r'^Rechtsmittelbelehrung', r'^Hinweis:']  # r'^Weiter wird verfügt:'
@@ -1243,6 +1672,7 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
         Language.FR: {
             # "header" has no markers!
             # "facts" are not present either in this court, leave them out
+                        Section.FACTS: [r'no facts section available'],
             Section.CONSIDERATIONS: [r'^Considérants(?: :|:)?',
                                      r'^Extrait des (?:considérations|considérants)(?: :|:)'],
             Section.RULINGS: [r'^La Chambre de recours pénale décide(?: :|:)', r'^Dispositif'],
@@ -1255,44 +1685,12 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ', ' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:
-                paragraphs.append(paragraph)
-        return paragraphs
 
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
 
     # pass custom sections without facts
     sections = associate_sections(
-        paragraphs, section_markers, namespace, list(Section.without_facts()))
-
-    # regularly happens that the decision is within the CONSIDERATIONS section, so if no rulings are found by the
-    # section_markers we try to extract the rulings from the considerations section instead
-    if sections[Section.RULINGS] == [] and sections[Section.CONSIDERATIONS] != []:
-        # got no rulings, use the chance that the ruling is in the considerations section, traverse backwards to find it
-        for index, paragraph in enumerate(reversed(sections[Section.CONSIDERATIONS])):
-            # make sure the paragraph contains some ruling keywords
-            keywords = r"abzuweisen|Abweisung der Beschwerde|gutzuheissen|Beschwerde gutgeheissen|rechtsgenüglich begründet|" \
-                       r"Beschwerde [\w\s]* als begründet\.|obsiegend"
-            if re.findall(keywords, paragraph):
-                # if res contains some ruling keywords it is the decision, remove it from considerations, add it to rulings
-                # add everything after it to the ruling as well
-                sections[Section.RULINGS] = sections[Section.CONSIDERATIONS][index:]
-                sections[Section.CONSIDERATIONS] = sections[Section.CONSIDERATIONS][:index]
-                break
+        paragraphs, section_markers, namespace)
 
     return sections
 
@@ -1304,6 +1702,7 @@ def CH_BPatG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Option
     all_section_markers = {
         Language.DE: {
             # Section.FACTS: [], # no facts in this court
+            Section.FACTS: [],
             Section.CONSIDERATIONS: [
                 r'^(?:Das Bundespatentgericht|(?:Der|Das) Präsident|Die Gerichtsleitung|Das Gericht|Der (?:Einzelrichter|Instruktionsrichter))' \
                 r' zieht in Erwägung(?:,|:)',
@@ -1316,17 +1715,20 @@ def CH_BPatG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Option
         },
         Language.FR: {
             # Section.FACTS: [], # no facts in this court
+            Section.FACTS: [],
             Section.CONSIDERATIONS: [r'Le Tribunal fédéral des brevets considère(?: :|:|,)',
                                      r'Le [pP]résident considère(?: :|:|,)'],
             Section.RULINGS: [r'Le Tribunal fédéral des brevets décide:', r'Le [pP]résident (décide|reconnaît):'],
             Section.FOOTER: [r'Voies de droit:']
         },
         Language.IT: {
+            Section.FACTS: [],
             # Section.FACTS: [], # no facts in this court
             Section.CONSIDERATIONS: [r'Considerando in fatto e in diritto:'],
             Section.RULINGS: [r'Per questi motivi, il giudice unico pronuncia:'],
             Section.FOOTER: [r'Rimedi giuridici:']
-        }
+        },
+            
     }
 
     valid_namespace(namespace, all_section_markers)
@@ -1357,5 +1759,4 @@ def CH_BPatG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Option
 
     paragraphs = get_paragraphs(decision)
 
-    # pass custom sections without facts
-    return associate_sections(paragraphs, section_markers, namespace, list(Section.without_facts()))
+    return associate_sections(paragraphs, section_markers, namespace)

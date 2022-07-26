@@ -16,7 +16,7 @@ from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, \
+from scrc.utils.sql_select_utils import coverage_query, delete_stmt_decisions_with_df, get_total_decisions, join_decision_and_language_on_parameter, \
     where_decisionid_in_list, where_string_spider
 
 if TYPE_CHECKING:
@@ -66,7 +66,6 @@ class SectionSplitter(AbstractExtractor):
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None and len(
             self.decision_ids) > 0 else ""
-        
         return self.select(engine,
                            f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')} " \
                                "LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id " \
@@ -80,10 +79,10 @@ class SectionSplitter(AbstractExtractor):
         # TODO precompute this in previous step after section splitting for each section
         # calculate both the num_tokens for regular words and subwords for the feature_col (not only the entire text)
         spacy_tokenizer, bert_tokenizer = self.tokenizers.get(Language(df['language'][0]))
-
         for _, row in df.iterrows():
-            if not row['sections'] or not isinstance(row['sections'], str):
-                return {}  # if there was no data, don't do anything
+            if not row['sections'] or not isinstance(row['sections'], dict):
+                continue  # if there was no data, don't do anything
+
             if len(row['sections']) > 0:
                 # The fulltext equals all other sections combined
                 row['sections'][Section.FULLTEXT] = ['\n'.join(row['sections'][section]) for section in row['sections']]
@@ -94,11 +93,31 @@ class SectionSplitter(AbstractExtractor):
             return '\n'.join(series[section])
 
         for section in Section:
+            if section == Section.FACTS:
+                print('')
             df[section.name] = df['sections'].apply(lambda row: get_section_from_df(row, section))
             df[section.name+'_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[section.name], batch_size=100)]
-            df[section.name+'_bert'] = [len(input_id) for input_id in bert_tokenizer(df[section.name].tolist()).input_ids]
-            
+            df[section.name+'_bert'] = [len(input_id) for input_id in bert_tokenizer(df[section.name].tolist()).input_ids]   
         return df
+    
+    def get_coverage(self, spider):
+        with self.get_engine(self.db_scrc).connect() as conn:
+            for lang_key in Language:
+                language_key = Language.get_id_value(lang_key.value)
+                if language_key != -1:
+                    total_result = conn.execute(get_total_decisions(spider, language_key)).fetchone()
+                    if total_result[0] != 0:
+                        self.logger.info(f'Your coverage for {lang_key} of {spider}:')
+                        for section_key in Section:
+                            if section_key.value != 1:
+                                coverage_result = conn.execute(coverage_query(spider, section_key.value, language_key)).fetchone()
+                                coverage =  round(coverage_result[0] / total_result[0]  * 100, 2)
+                                if not coverage_result[0]:
+                                    self.logger.info(f'No sections found for: {section_key}')
+                                else:
+                                    self.logger.info(f'{section_key} is {coverage}%')
+                                          
+                            
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
 
@@ -107,9 +126,8 @@ class SectionSplitter(AbstractExtractor):
             path = Path.joinpath(self.output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
 
             with path.open("a") as f:
-                df.to_json(f)
+                df.to_json(f, default_handler=str)
             return
-
         df = df.loc[df['language'] != '--']
         if df.empty:
             return
@@ -119,7 +137,6 @@ class SectionSplitter(AbstractExtractor):
         with self.get_engine(self.db_scrc).connect() as conn:
             # Load the different tables
             t = Table('section', MetaData(), autoload_with=engine)
-            t_paragraph = Table('paragraph', MetaData(), autoload_with=engine)
             t_num_tokens = Table('num_tokens', MetaData(), autoload_with=engine)
 
             # Delete and reinsert as no upsert command is available. This pattern is used multiple times in this method
@@ -128,12 +145,8 @@ class SectionSplitter(AbstractExtractor):
                 return
             stmt = t.delete().where(delete_stmt_decisions_with_df(df))
             conn.execute(stmt)
-            stmt = t_paragraph.delete().where(delete_stmt_decisions_with_df(df))
-            conn.execute(stmt)
             
-            for idx, row in df.iterrows():
-                if idx % 50 == 0:
-                    self.logger.info(f'Saving decision {idx + 1} from chunk')
+            for _, row in df.iterrows():
                 if row['sections'] is None or row['sections'].keys is None:
                     continue
                 
@@ -142,11 +155,12 @@ class SectionSplitter(AbstractExtractor):
                     if decision_id_str == '':
                         continue
                     section_type_id = k.value
+                    row['sections'][k] = [paragraph for paragraph in row['sections'][k] if len(paragraph) > 0]
                     # insert section
                     section_dict = {
                         "decision_id": decision_id_str,
                         "section_type_id": section_type_id,
-                        "section_text": row['sections'][k]
+                        "section_text": '\n'.join(row['sections'][k])
                     }
                     stmt = t.insert().returning(text("section_id")).values([section_dict])
                     section_id = conn.execute(stmt).fetchone()['section_id']
@@ -161,27 +175,10 @@ class SectionSplitter(AbstractExtractor):
                     stmt = t_num_tokens.insert().values([tokens_per_section])
                     conn.execute(stmt)
 
-                    # Add all paragraphs
-                    paragraph_dicts = []
-                    for paragraph in row['sections'][k]:
-                        paragraph = paragraph.strip()
-                        if len(paragraph) == 0: continue
-                        paragraph_dict = {
-                            'section_id': str(section_id), 
-                            "decision_id": decision_id_str,
-                            'paragraph_text': paragraph,
-                            'first_level': None,
-                            'second_level': None,
-                            'third_level': None
-                        }
-                        paragraph_dicts.append(paragraph_dict)
-                    if len(paragraph_dicts) > 0:
-                        stmt = t_paragraph.insert().values(paragraph_dicts)
-                        conn.execute(stmt)
-
     def read_column(self, engine: Engine, spider: str, name: str, lang: str) -> pd.DataFrame:
         query = f"SELECT count({name}) FROM {lang} WHERE {self.get_database_selection_string(spider, lang)} AND {name} <> ''"
         return pd.read_sql(query, engine.connect())['count'][0]
+    
 
     def log_coverage_from_json(self, engine: Engine, spider: str, lang: str, batch_info: dict) -> None:
         """ log_coverage for users without database write privileges, parses results from json logs
