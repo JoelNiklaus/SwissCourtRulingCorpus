@@ -36,6 +36,7 @@ if __name__ == '__main__':
                         filepath_dataset= FILEPATH_DATASET_P.format(l)
                     dataset = filter_dataset(db_stream(l, int(sys.argv[2]), ids_scrc), int(sys.argv[2]))
                     write_JSONL(filepath_dataset.format(l), dataset)
+            # For new cases ids_scrc is set to all the accepted cases ids in the dataset
             if sys.argv[1] == "-new":
                 for l in LANGUAGES:
                     filepath_dataset = FILEPATH_DATASET_JE.format(l)

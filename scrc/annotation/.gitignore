@@ -8,7 +8,7 @@ judgment_explainability/annotations/*.jsonl
 judgment_explainability/annotations/*.db
 judgment_explainability/annotations/analysis/*.csv
 judgment_explainability/annotations/analysis/*.json
-judgment_explainability/annotations/analysis/merge.py
+judgment_explainability/annotations/analysis/*.xlsx
 judgment_prediction/datasets
 prodigy_dataset_creation/dataset_scrc
 prodigy_dataset_creation/sjp
