@@ -15,9 +15,9 @@ from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import clean_text, get_config
-from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, join_decision_on_parameter, where_decisionid_in_list, where_string_spider
+from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, join_decision_on_parameter, join_tables_on_decision, where_decisionid_in_list, where_string_spider
 
-# TODO Adrian passt so an, dass der AbstractExtractor gebraucht werden kann als Superklasse
+
 class Cleaner(AbstractExtractor):
     """
     Cleans the different courts from unnecessary strings to improve further processing.
@@ -37,19 +37,25 @@ class Cleaner(AbstractExtractor):
     """
 
     def __init__(self, config: dict):
-        super().__init__(config, function_name='cleaning_functions', col_name='text', col_type='text')
+        super().__init__(config, 
+                         function_name='cleaning_functions',
+                         col_name='text', 
+                         col_type='text')
         self.cleaning_regexes = self.load_cleaning_regexes(config['files']['cleaning_regexes'])
-        self.processed_file_path = self.data_dir / "spiders_cleaned.txt"
+        self.processed_file_path = self.progress_dir / "spiders_cleaned.txt"
 
         self.logger_info = {
-        'start': 'Started cleaning decisions', 
-        'finished': 'Finished cleaning decisions', 
-        'start_spider': 'Started cleaning decisions for spider', 
-        'finish_spider': 'Finished cleaning decisions for spider', 
-        'saving': 'Saving chunk of cleaned decisions',
-        'processing_one': 'Cleaning the decision',
-        'no_functions': 'Not cleaning the decision.'
+            'start': 'Started cleaning decisions',
+            'finished': 'Finished cleaning decisions',
+            'start_spider': 'Started cleaning decisions for spider',
+            'finish_spider': 'Finished cleaning decisions for spider',
+            'saving': 'Saving chunk of cleaned decisions',
+            'processing_one': 'Cleaning the decision',
+            'no_functions': 'Not cleaning the decision.'
         }
+        
+    def get_coverage(self, spider: str):
+        self.logger.info('no coverage function implemented')
 
     def load_cleaning_regexes(self, file_name):
         """loads the cleaning regexes used for pdf files"""
@@ -63,7 +69,7 @@ class Cleaner(AbstractExtractor):
         self.logger.info("Started cleaning raw court rulings")
         processed_file_path = self.progress_dir / "spiders_cleaned.txt"
 
-        if self.ignore_cache:
+        if self.rebuild_entire_database:
             processed_file_path.unlink()
         if decision_ids is not None:
             self.decision_ids = decision_ids
@@ -73,7 +79,11 @@ class Cleaner(AbstractExtractor):
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
-        return self.select(engine, f"file {join_decision_on_parameter('file_id', 'file.file_id')}", 'decision_id,file_id,html_raw,pdf_raw', where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
+        
+        tables = f"file {join_decision_on_parameter('file_id', 'file.file_id')} LEFT JOIN section ON section.decision_id = decision.decision_id"
+        columns = f"decision.decision_id,file.file_id,file_name,html_raw,pdf_raw,'{spider}' as spider, section_id"
+        where_string = f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}"
+        return self.select(engine, tables, columns, where=where_string, chunksize=self.chunksize)
 
     def get_required_data(self, series: pd.DataFrame) -> Any:
         return series['spider']
@@ -82,22 +92,23 @@ class Cleaner(AbstractExtractor):
         """Override if data has to conform to a certain condition before processing. 
         e.g. data is required to be present for analysis"""
         return True
-    
+
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
         df['section_type_id'] = 1 # Set the Section type to full text
-        self.update(engine, df, 'section', ['decision_id', 'section_type_id', 'section_text'], self.output_dir)
+        self.update(engine, df, 'section', ['section_text'], self.output_dir, index_name='section_id')
 
     def process_one_spider(self, engine, spider):
         """Cleans one spider csv file"""
         self.logger.info(f"Started cleaning {spider}")
 
-            
-        self.start_progress(engine, spider, engine)
+        #self.start_progress(engine, spider, engine)
         dfs = self.select_df(engine, spider)  # stream dfs from the db
         for df in dfs:
             # according to docs you should aim for a partition size of 100MB
+            df['section_text'] = ''
             ddf = dd.from_pandas(df, npartitions=self.num_cpus)
-            ddf = ddf.apply(self.process_one_df_row, axis='columns', meta=ddf)  # apply cleaning function to each row
+            # apply cleaning function to each row
+            ddf = ddf.apply(self.process_one_df_row, axis='columns', meta=ddf)
             with ProgressBar():
                 df = ddf.compute(scheduler='processes')
             self.save_data_to_database(df, engine)
@@ -109,8 +120,7 @@ class Cleaner(AbstractExtractor):
         """Cleans one row of a raw df"""
         self.logger.debug(
             f"{self.logger_info['processing_one']} {series['file_name']}")
-        namespace = series[
-            ['file_id', 'pdf_url', 'html_url']].to_dict()
+        namespace = series.reindex(['file_id', 'pdf_url', 'html_url']).to_dict()
         spider = self.get_required_data(series)
 
         html_clean, pdf_clean = '', ''
@@ -127,12 +137,13 @@ class Cleaner(AbstractExtractor):
             pdf_clean = self.clean_pdf(spider, pdf_raw, namespace)
 
         # Combine columns into one easy to use text column (prioritize html content if both exist)
-        series['text'] = np.where(html_clean != '', html_clean, pdf_clean)
-        if series['text'] == '':
+        series['section_text'] = np.where(html_clean != '', html_clean, pdf_clean)
+        if series['section_text'] == '':
             # series['text'] = np.nan  # set to nan, so that it can be removed afterwards
             self.logger.warning(f"No raw text available for court decision {series['file_id']}")
 
-        series.text = str(series.text)  # otherwise we get an error when we want to save it into the db
+        # otherwise we get an error when we want to save it into the db
+        series.section_text = str(series.section_text)
 
         return series
 
@@ -153,7 +164,8 @@ class Cleaner(AbstractExtractor):
         else:
             cleaning_function = getattr(self.processing_functions,
                                         spider)  # retrieve cleaning function by spider
-            soup = cleaning_function(soup, namespace)  # invoke cleaning function with soup and namespace
+            # invoke cleaning function with soup and namespace
+            soup = cleaning_function(soup, namespace)
 
         # we cannot just remove tables because sometimes the content of the entire court decision is inside a table (GL_Omni)
         # for table in soup.find_all("table"):
@@ -175,8 +187,10 @@ class Cleaner(AbstractExtractor):
                 for key in namespace.keys():
                     # IMPORTANT: regex quantifiers (e.g. {4}) could be replaced by string format. => check first
                     if key in pattern:  # only format when the key is in the pattern.
-                        pattern.format(**namespace)  # add the namespace to the pattern
-                cleaned_text = re.sub(pattern, regex['replacement'], text)  # perform the replacement
+                        # add the namespace to the pattern
+                        pattern.format(**namespace)
+                # perform the replacement
+                cleaned_text = re.sub(pattern, regex['replacement'], text)
             return cleaned_text
 
 

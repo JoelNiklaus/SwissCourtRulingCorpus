@@ -201,6 +201,7 @@ def CH_BGer(header: str, namespace: dict) -> Optional[str]:
     header = header.replace('Appenzell A. Rh.', 'Appenzell Ausserrhoden')
     header = header.replace('Waadt', 'Waadtland')
     header = header.replace('Basilea-Città', 'Basilea Città')
+    header = header.replace('St. Gallen', 'St.Gallen')
 
     lower_court = None
     # lower_court_file_number = get_lower_court_file_number(header, namespace)

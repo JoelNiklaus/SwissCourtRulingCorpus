@@ -2,7 +2,7 @@
 
 - [Contributors](#contributors)
   - [Sandbox Setup](#sandbox-setup)
-    - [Local setup](#local-setup)
+  - [Local setup](#local-setup)
   - [Developing](#developing)
     - [Before starting](#before-starting)
     - [Coding](#coding)
@@ -18,6 +18,7 @@
       - [Court Chambers](#court-chambers)
   - [Running long tasks](#running-long-tasks)
   - [SQL FAQ](#sql-faq)
+    - [Section Text](#section-text)
     - [Joining Tables on queries with decision table](#joining-tables-on-queries-with-decision-table)
       - [Language](#language)
       - [File](#file)
@@ -35,6 +36,10 @@
     - [Selecting "everything"](#selecting-everything)
       - [tables](#tables)
       - [fields](#fields)
+      - [Setup database from scratch](#setup-database-from-scratch)
+  - [Common Errors](#common-errors)
+    - [PermissionError: [Errno 13] Permission denied: '/tmp/tika.log'](#permissionerror-errno-13-permission-denied-tmptikalog)
+    - [idle_in_transaction_session_timeout](#idle_in_transaction_session_timeout)
   - [Questions?](#questions)
 
 ## Sandbox Setup
@@ -77,7 +82,7 @@ cp -R /home/fdn-admin/SwissCourtRulingCorpus/data/progress ~/SwissCourtRulingCor
 ln -s /home/fdn-admin/SwissCourtRulingCorpus/data/spiders ~/SwissCourtRulingCorpus/data/spiders
 ```
 
-### Local setup
+## Local setup
 
 1. Fork the repository by clicking on the 'Fork' button on the repository's page. This creates a copy of the code under
    your GitHub user account.
@@ -95,13 +100,14 @@ git remote add upstream https://github.com/JoelNiklaus/SwissCourtRulingCorpus.gi
 git checkout -b a-descriptive-name-for-my-changes
 ```
 4. Install all dependencies. To do this we recommend using [conda]('https://docs.conda.io/projects/conda/en/latest/index.html) named `scrc` in which you can import the `env.yml` file found in the root directory of this project.
-5. Install postgres on your system to host your own database (~26GB). You can then import the backup from the sandbox server (follow steps 2 and 3 of Sandbox setup). A backup of the database is found at `/database/scrc.gz`, however a new one could be made with `sudo -u postgres pg_dump scrc | gzip -9 > scrc.gz`. Locally you can import this database using 
+5. Install postgres on your system to host your own database (~26GB). You can then import the backup from the sandbox server (follow steps 2 and 3 of Sandbox setup to connect to the sandbox). A backup of the database is found at `/database/scrc.gz`, however a new one could be made with `sudo -u postgres pg_dump scrc | gzip -9 > scrc.gz`. Locally you can import this database using 
    ```
    scp username@fdn-sandbox3.inf.unibe.ch:/database/scrc.gz ./scrc.gz
    dropdb scrc && createdb scrc
    gunzip < scrc.gz | psql scrc 
    ```
-6. You might want to replicate steps 6 and 7 using a scp to copy the folders to your local setup.
+   If you do not want to use the backup but generate the database from scratch follow the steps outlined in [Setup database from scratch](#setup-database-from-scratch)
+6. You might want to replicate steps 6 and 7 of the sandbox setup using scp to copy the folders to your local setup.
 
 
 ## Developing
@@ -264,7 +270,6 @@ when we encounter a different court to take these alternative regular expression
 example of court chambers being applied in a section splitting task for
 this [specific spider](https://github.com/JoelNiklaus/SwissCourtRulingCorpus/blob/3a177d02cdd87eba07aa4d3bca4e2fb52995cb18/scrc/preprocessors/extractors/spider_specific/section_splitting_functions.py#L112-L190)
 .
-
 ## Running long tasks
 
 Some tasks may take a very long time to run. This means if you just start it in the terminal, the terminal will
@@ -275,6 +280,7 @@ following: https://www.hamvocke.com/blog/a-quick-and-easy-guide-to-tmux/
 
 ## SQL FAQ
 
+An image with the current database table setup is stored under [database_creation](./database_creation/DB_Schema.png).
 This section explains the methods of the sql_select_utils so they can be replicated as SQL Queries. If you want to check for what a specific case return sand it is not explained in here, then you can retrieve the result easily:
 1. Change to the default project path and open a python interpreter
    ```bash
@@ -289,6 +295,10 @@ This section explains the methods of the sql_select_utils so they can be replica
       map_join('text', 'file_numbers', 'file_number')
    ```
 4. You should then get the output into your terminal
+
+### Section Text
+
+The paragraphs are stored in the section_text of the section, joined by a '\n' character. So if you need different paragraphs just split the section text by the newline character. 
 ### Joining Tables on queries with decision table
 Simplest query is `Select * FROM decision`, however it can be made more complex. Instead of querying all the fields (`*`, some fields can be specified e.g. decision.decision_id, it is needed to specify the table if the "FROM" table and the "JOIN" table have the same key.)
 #### Language
@@ -366,6 +376,16 @@ The tables added are:
 #### fields
 The second entry in the table returns the fields
 ```d.*, extract(year from d.date) as year, judgments, citations, file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw, sections, paragraphs, file_numbers, lower_court.date as origin_date, lower_court.court_id as origin_court, lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, lower_court.file_number as origin_file_number```
+
+#### Setup database from scratch
+Use the file `drop_and_create_tables.sql` to drop the tables and set them up again, then use the `setup_values.sql` to insert basic values into the freshly generated tables again. If you want to have a more up-to-date version of the setup values, then you have to create the table code which should be more up-to-date with the setup_values_creation.py.
+
+## Common Errors
+### PermissionError: [Errno 13] Permission denied: '/tmp/tika.log'
+Remove the tika.log file in `/tmp` using `sudo rm /tmp/tika.log`.
+
+### idle_in_transaction_session_timeout
+This is a postgres error that can be resolved by updating the configuration, such that the idle_in_transaction_session_timout is disabled. To do this open the postgres console and execute `SET idle_in_transaction_session_timeout TO '0'`, which should be the default state.
 ## Questions?
 
 Do not hesitate to contact Adrian Joerg or Joel Niklaus via email: {firstname}.{lastname}@inf.unibe.ch

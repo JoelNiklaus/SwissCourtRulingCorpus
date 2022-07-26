@@ -3,28 +3,33 @@ from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Set, TYPE_CHECKING, Tuple
 import pandas as pd
 from root import ROOT_DIR
-from scrc.enums.court import Court
 
 from scrc.enums.language import Language
 from scrc.utils.log_utils import get_logger
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
+import threading
+import concurrent.futures
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
 
 
 class AbstractExtractor(ABC, AbstractPreprocessor):
-    """Abstract Base Class used by Extractors to unify their behaviour"""
+    """Abstract Base Class used by Extractors to unify their behaviour
+    
+    Careful: Concurrency found in the process_one_spider function is not tested 100% and errors may be the fault of the concurrent implementation.
+    """
 
     # Basic logging information made to overwrite in subclasses
     logger_info = {
-        "start": "Started extracting", # Used at the start of the extraction
-        "finished": "Finished extracting", # Used at the end of the extraction
-        "start_spider": "Started extracting for spider", # Used when a new spider is starting extraction
-        "finish_spider": "Finished extracting for spider", # Used when a spider is finished extracting
-        "saving": "Saving extracted part", # Used when saving extracted data to database
-        "processing_one": "Extracting court decision", # Used to log when a single instance is being processed
-        "no_functions": "Not processing", # Used when the extraction is skipped because there are no functions for the spider
+        "start": "Started extracting",  # Used at the start of the extraction
+        "finished": "Finished extracting",  # Used at the end of the extraction
+        "start_spider": "Started extracting for spider",  # Used when a new spider is starting extraction
+        "finish_spider": "Finished extracting for spider",  # Used when a spider is finished extracting
+        "saving": "Saving extracted part",  # Used when saving extracted data to database
+        "processing_one": "Extracting court decision",  # Used to log when a single instance is being processed
+        "no_functions": "Not processing",
+        # Used when the extraction is skipped because there are no functions for the spider
     }
     processed_file_path = None
 
@@ -35,6 +40,10 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     @abstractmethod
     def save_data_to_database(self, series: pd.DataFrame, engine: Engine):
         """Splits the data into their respective parts and saves them to the table"""
+        
+    @abstractmethod
+    def get_coverage(self, spider: str):
+        """Logs the coverage"""
 
     @abstractmethod
     def select_df(self, engine: Engine, spider: str):
@@ -60,9 +69,12 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     def start(self, decision_ids: Optional[List] = None):
         """ Starting point for the extraction, calls the loop which processes each spider. Decision_ids can be specified to only process a subset of the data """
         self.logger.info(self.logger_info["start"])
-        if self.ignore_cache:
-            self.processed_file_path.unlink() # Delete the progress file if it exists to start from scratch
-        self.decision_ids = decision_ids
+        if self.rebuild_entire_database:
+            self.processed_file_path.unlink()  # Delete the progress file if it exists to start from scratch
+        if self.process_new_files_only:
+            self.decision_ids = decision_ids
+        else:
+            self.decision_ids = None  # means: process all decision ids
         spider_list, message = self.get_processed_spiders()
         self.logger.info(message)
 
@@ -86,7 +98,8 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
             try:
-                if not hasattr(self.processing_functions, spider): # if there is no special funciton for the spider the default gets used
+                # if there is no special function for the spider the default gets used
+                if not hasattr(self.processing_functions, spider):
                     self.logger.debug(f"Using default function for {spider}")
                 self.process_one_spider(engine, spider)
                 self.mark_as_processed(self.processed_file_path, spider)
@@ -95,35 +108,54 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
                     f"There are no special functions for spider {spider} and the default spider does not work. "
                     f"{self.logger_info['no_functions']}")
 
+    def thread_process_spider(self, engine: Engine, spider: str, df: pd.DataFrame):
+        self.logger.info('Started executing the functions for a thread')
+        df = df.apply(self.process_one_df_row, axis="columns")
+        if not df.empty:
+            self.save_data_to_database(df, self.get_engine(self.db_scrc))
+            self.logger.info(f'One chunk of {len(df.index)} decisions saved')
+            self.log_progress(self.chunksize)
+
     def process_one_spider(self, engine: Engine, spider: str):
+        """ On error read class comment """
         self.logger.info(self.logger_info["start_spider"] + " " + spider)
 
-        dfs = self.select_df(self.get_engine(self.db_scrc), spider) # Get the data needed for the extraction
+        dfs = self.select_df(self.get_engine(self.db_scrc), spider)  # Get the data needed for the extraction
         # TODO make quick request to see if there are decisions at all: if not, skip lang so no confusing report is printed
-        #self.start_progress(engine, spider)
+        # self.start_progress(engine, spider)
         # stream dfs from the db
-        #dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
-        for df in dfs: # For each chunk in the data: apply the extraction function and save the result
-            df = df.apply(self.process_one_df_row, axis="columns")
-            self.save_data_to_database(df, self.get_engine(self.db_scrc))
-            self.logger.info('One chunk saved')
-            # self.log_progress(self.chunksize)
-
+        # dfs = self.select(engine, lang, where=where, chunksize=self.chunksize)
+        
+        if self.concurrent_extractor:
+            self.logger.info('Concurrent execution is not heavily tested and might lead to problems. Consider this on errors')
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                # max_workers 4 gave the best results (compared to lower and higher numbers), but it might vary if the load on the sandbox is different
+                for df in dfs:  # For each chunk in the data: apply the extraction function and save the result
+                    executor.submit(self.thread_process_spider, engine, spider, df)
+        else:
+            for df in dfs:  # For each chunk in the data: apply the extraction function and save the result
+                df = df.apply(self.process_one_df_row, axis="columns")
+                if not df.empty:
+                    self.save_data_to_database(df, self.get_engine(self.db_scrc))
+                    self.logger.info(f'One chunk of {len(df.index)} decisions saved')
+                self.log_progress(self.chunksize)
+        self.get_coverage(spider)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
+
+   
 
     def process_one_df_row(self, series: pd.DataFrame) -> pd.DataFrame:
         """Processes one row of a raw df"""
         namespace = dict()
         # Add the data to the namespace object which is passed to the extraction function
-        if 'html_url' in series:
-            namespace['html_url'] = series.get('html_url').strip()
-        if 'pdf_url' in series:
-            namespace['pdf_url'] = series.get('pdf_url').strip()
+        namespace['html_url'] = series.get('html_url')
+        namespace['pdf_url'] = series.get('pdf_url')
+        namespace['date'] = series.get('date')
         namespace['language'] = Language(series['language'])
         namespace['id'] = series['decision_id']
 
-        if 'court_id' in series:
-            namespace['court'] = Court(series['court_id']).name
+        if 'court_string' in series:
+            namespace['court'] = series.get('court_string')
         data = self.get_required_data(series)
         if not data:
             return series
@@ -137,8 +169,9 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
         if not self.check_condition_before_process(spider, data, namespace):
             return None
         try:
-            extracting_functions = getattr(self.processing_functions, spider, getattr(
-                self.processing_functions, 'XX_SPIDER')) # Get the function for the spider or the default function
+            # Get the function for the spider or the default function
+            default = getattr(self.processing_functions, 'XX_SPIDER')
+            extracting_functions = getattr(self.processing_functions, spider, default)
             # invoke function with data and namespace
             return extracting_functions(data, namespace)
         except ValueError as e:
