@@ -30,13 +30,6 @@ def get_stream(stream):
 
 
 def add_options(stream):
-    # Helper function to add options to every task in a stream
-    options = [
-        {"id": "happy", "text": "😀 happy"},
-        {"id": "sad", "text": "😢 sad"},
-        {"id": "angry", "text": "😠 angry"},
-        {"id": "neutral", "text": "😶 neutral"},
-    ]
     for task in stream:
         task["options"] = options
         yield task

@@ -42,7 +42,6 @@ def facts_annotation(language:str ):
   # Load the spaCy model for tokenization.
   nlp = spacy.load("{}_core_news_sm".format(language))
   stream = JSONL("./judgment_explainability/datasets/annotation_input_set_{}.jsonl".format(language))
-
   dataset = "annotations_{}".format(language)
   port = ports[language]
 

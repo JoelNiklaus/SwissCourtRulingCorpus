@@ -40,11 +40,15 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
 
 
     "inspect-facts-annotation")
+    printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
+    docker exec -it -d prodigy_v1_nina prodigy "$task" fr lynn -F ./judgment_explainability/recipes/inspect_facts_annotation.py
     for VARIABLE in angela lynn thomas
       do
         printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
-        docker exec -it -d prodigy_v1_nina prodigy "$task" de $VARIABLE -F ./judgment_explainability/recipes/inspect_facts_annotation.py
+        docker exec -it d prodigy_v1_nina prodigy "$task" de $VARIABLE -F ./judgment_explainability/recipes/inspect_facts_annotation.py
       done
+
+
 
     ;;
 

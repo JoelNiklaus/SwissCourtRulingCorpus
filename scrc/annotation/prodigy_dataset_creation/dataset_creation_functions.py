@@ -9,6 +9,7 @@ import psycopg2
 # Load environment variable from .env
 from dotenv import load_dotenv
 from psycopg2 import sql
+from collections import Counter
 
 load_dotenv()
 DB_USER = os.getenv("DB_USER")
@@ -35,17 +36,20 @@ PATTERNS = {"de": "[u|U]rteil \w+ \d+?.? \w+ \d{4}",
             "fr": "([a|A]rrêt \w+ \d+?.? \w+ \d{4})|([a|A]rrêt \w+ \d+?er \w+ \d{4})",
             "it": "([s|S]entenza \w+ \d+?.? \w+ \d{4})|([s|S]entenza \w+'\d+?.? \w+ \d{4})"}
 
-# Writes a JSONL file from dictionary list.
 def write_JSONL(filename: str, data: list):
+    """
+    Writes a JSONL file from dictionary list.
+    """
     with open(filename, 'w') as outfile:
         for entry in data:
             json.dump(entry, outfile)
             outfile.write('\n')
     print("Successfully saved file " + filename)
 
-
-# Reads JSONL file and returns a dataframe
 def read_JSONL(filename: str) -> list:
+    """
+    Reads JSONL file and returns a dataframe
+    """
     with open(filename, "r") as json_file:
         json_list = list(json_file)
     a_list = []
@@ -56,27 +60,32 @@ def read_JSONL(filename: str) -> list:
 
     return a_list
 
-
-# Reads CSV file sets index to "id" and returns a DataFrame.
 def read_csv(filepath: str) -> pandas.DataFrame:
+    """
+    Reads CSV file sets index to "id" and returns a DataFrame.
+    """
     df = pd.read_csv(filepath)
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
     df = df.set_index("id")
     return df
 
-
 def set_id_scrc(df: pd.DataFrame, mode: int) -> numpy.ndarray:
+    """
+    Returns a list of all used ids
+    """
     if mode != 1:
         df = df[df["answer"] != "accept"]
     return df["id_scrc"].values
 
 
-# Joins to dataframes according to their ids.
-# Drops rows of False prediction (except in italian dataset).
-# Drops duplicated, redundant and Nan columns.
-# Checks legal area.
-# returns joined DataFrame.
+
 def join_dataframes(df_1: pandas.DataFrame, df_2: pandas.DataFrame, lang: str, mode: int) -> pandas.DataFrame:
+    """
+    Joins to dataframes according to their ids.
+    Drops rows of False prediction in german.
+    Drops duplicated, redundant and Nan columns.
+    Checks legal area and returns joined DataFrame.
+    """
     df = df_1.join(df_2, lsuffix='_caller', rsuffix='_other')
     df = df.sort_values("is_correct", ascending=False)
     if lang == LANGUAGES[0] and mode == 0:
@@ -93,35 +102,37 @@ def join_dataframes(df_1: pandas.DataFrame, df_2: pandas.DataFrame, lang: str, m
 def filter_dataset(data: list, mode: int) -> list:
     """
     Filters dictionary list using unique tuple as condition.
-    Returns filtered dictionary list.
+    Returns filtered and validated dictionary list.
     """
     tuples = set()
     filtered_dataset = []
+    # Adds only unique tuples to set and appends corresponding data to filtered list
     for d in data:
         t = (d["year"], d["legal_area"], d["judgment"])
         if mode == 1:
-            t = (d["year"], d["legal_area"], d["judgment"], d["is_correct"])
+            t = (d["year"], d["legal_area"], d["judgment"], str(d["is_correct"]))
         if t not in tuples:
             tuples.add(t)
             filtered_dataset.append(d)
 
 
-    validate_filtering(sorted(tuples), filtered_dataset, mode)
+    validate_filtering(data,sorted(tuples), filtered_dataset, mode)
     return filtered_dataset
 
-def validate_filtering(tuple_list: list, filtered_list: list, mode: int):
+def validate_filtering(original_data: list,tuple_list: list, filtered_list: list, mode: int):
     """
-    Asserts uniqueness of dataset entries
-    Checks if every year has a complete set of 6 rulings
-    Asserts a list length smaller than NUMBER_OF_RULINGS_PER_LANGUAGE
+    Asserts uniqueness of dataset entries.
+    Checks if every year has a complete set of 6 or 12 rulings.
+    If a year is incomplete fill_incomplete_sets() is triggered.
+    Asserts a list length smaller than NUMBER_OF_RULINGS_PER_LANGUAGE.
     """
+    # For mode 0 there are six ruling per year for mode 1 12
     i = 0
     j = 5
     steps = 6
     if mode == 1:
         j = 11
         steps = 12
-        filtered_list += [''] * (NUMBER_OF_RULINGS_PER_LANGUAGE_prediction - len(filtered_list))
     incomplete_set_years = []
     try:
         assert len(tuple_list) == len(set(tuple_list))
@@ -129,6 +140,7 @@ def validate_filtering(tuple_list: list, filtered_list: list, mode: int):
         print("Dataset was not filtered correctly: Contains duplicates.")
     try:
         while i < len(tuple_list):
+            # Checks cases per year
             if tuple_list[i][0] == tuple_list[i + j][0]:
                 print("Set {} complete!".format(tuple_list[i][0]))
                 i += steps
@@ -137,6 +149,11 @@ def validate_filtering(tuple_list: list, filtered_list: list, mode: int):
                 if tuple_list[i][0] != tuple_list[i + 1][0]:
                     print("Set {} not complete!".format(tuple_list[i][0]))
                     incomplete_set_years.append(tuple_list[i][0])
+
+        if len(incomplete_set_years) > 0:
+            fill_incomplete_sets(original_data, filtered_list, tuple_list, mode)
+
+
         if mode == 0:
             assert len(filtered_list) == NUMBER_OF_RULINGS_PER_LANGUAGE_explainability
         if mode == 1:
@@ -147,10 +164,16 @@ def validate_filtering(tuple_list: list, filtered_list: list, mode: int):
             len(filtered_list)))
         for t in tuple_list:
             for y in incomplete_set_years:
+                print(incomplete_set_years)
                 if y == t[0]:
                     print(t)
 
 def filter_new_cases(df: pd.DataFrame, data: list) -> list:
+    """
+    Gets the not accepted cases from the dataset.
+    Replaces cases with new cases having the same properties.
+    Returns filtered dataset with new cases.
+    """
     tuples = set()
     filtered_dataset = []
     df = df[df["answer"] != "accept"]
@@ -162,18 +185,59 @@ def filter_new_cases(df: pd.DataFrame, data: list) -> list:
         if t in tuples:
             filtered_dataset.append(d)
             tuples.remove(t)
+
     return filtered_dataset
 
+def fill_incomplete_sets(original_data: list, filtered_dataset: list, current_tuples: list, mode: int):
+    """
+    Fills incomplete year dataset by first adding cases regardless of 'if_correct' parameter.
+    If there are not enough cases (12) to pass validation, more cases are added by disregarding the judgement.
+    Validates dataset.
+    """
+    # Iteration 0: Fills years with different legal_area and judgment but with duplicated is_correct.
+    iteration = 0
+    if iteration == 0:
+        for d in original_data:
+
+            t = (d["year"], d["legal_area"], d["judgment"], "None")
+            if t not in current_tuples and d not in filtered_dataset:
+                t_1, t_2 = (d["year"], d["legal_area"], d["judgment"], "False"), (
+                d["year"], d["legal_area"], d["judgment"], "True")
+                if t_1 not in current_tuples or t_2 not in current_tuples:
+                    current_tuples.append(t)
+                    filtered_dataset.append(d)
+        iteration =+ 1
+    # Iteration 1: Fills years with different legal_area but with duplicated judgment and is_correct.
+    if iteration == 1:
+        for d in original_data:
+            t = (d["year"], d["legal_area"], "None", "None")
+            if t not in current_tuples and d not in filtered_dataset:
+                t_1, t_2 = (d["year"], d["legal_area"], "approval", "False"), (
+                d["year"], d["legal_area"], "approval", "True")
+                t_3, t_4 = (d["year"], d["legal_area"], "dismissal", "False"), (
+                d["year"], d["legal_area"], "dismissal", "True")
+                # Checks if there are not already enough cases (12)
+                if t_1 not in current_tuples or t_2 not in current_tuples or t_3 not in current_tuples or t_4 not in current_tuples:
+                    if Counter(elem[0] for elem in current_tuples)[t[0]]< 12:
+                        current_tuples.append(t)
+                        filtered_dataset.append(d)
+
+    validate_filtering(original_data, sorted(current_tuples), filtered_dataset,mode)
 
 def header_preprocessing(h: str, pattern: str) -> str:
+    """
+    Extracts string from header according to regex pattern
+    """
     result = re.search(pattern, h)
     if result is not None:
         return result.group(0)
     else:
         return h
 
-
 def add_sections(section: str) -> str:
+    """
+    Adds section according to regex pattern.
+    """
     return re.sub("((\ )(?=A\.[a-z]{1}\. {1})|(\ )(?=[B-Z]{1}\. {1}))", "\n", section)
 
 
