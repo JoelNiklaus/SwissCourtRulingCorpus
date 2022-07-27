@@ -190,37 +190,40 @@ class DatasetCreator(AbstractPreprocessor):
         else:
             self.logger.info("All parts have been computed already.")
 
-    def save_huggingface_dataset(self, lang_splits, feature_col_folder):
+    def save_huggingface_dataset(self, splits, feature_col_folder):
+        """
+        save data as huggingface dataset with columns: 'id', 'year': year, 'language',
+        region', 'canton', 'legal area', 'bge_label', 'considerations' and 'facts'
+        ATTENTION: only works for feature_cols = [considerations, facts]
+        :param splits:                  specifying splits of dataset
+        :param feature_col_folder:      name of folder
+        """
         huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
-
         for split in ['train', 'val', 'test']:
             records = []
-            df = lang_splits[split]
+            df = splits[split]
 
-            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'],
-                                 df['origin_canton'], df['label'], df['lang'])
-            """
-            for feature_col in self.feature_cols:
-                new_col = df[{feature_col}]  # any number of lists
-                tuple_iterator = [(*z, j) for z, j in zip(tuple_iterator, new_col)]
-            """
-            # TODO iterate also through feature cols
-            for case_id, year, legal_area, region, canton, label, lang in tuple_iterator:
+            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'], df['citation_label'],
+                                 df['origin_canton'], df['bge_label'], df['lang'], df['considerations'], df['facts'])
+
+            for case_id, year, legal_area, region, citation_label, canton, bge_label, lang, consideration, fact in tuple_iterator:
                 if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
                     canton = 'n/a'
                 if not isinstance(region, str) and (region is None or math.isnan(region)):
                     region = 'n/a'
                 if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
                     legal_area = 'n/a'
-                # TODO solve problem with feature-cols
                 record = {
                     'id': case_id,
                     'year': year,
                     'language': lang,
-                    'region': ' '.join(region.split('_')),
+                    'region': region,
                     'canton': canton,
-                    'legal area': ' '.join(legal_area.split('_')),
-                    'label': label
+                    'legal area': legal_area,
+                    'bge_label': bge_label,
+                    'citation_label': citation_label,
+                    'considerations': consideration,
+                    'facts': fact
                 }
 
                 records.append(record)

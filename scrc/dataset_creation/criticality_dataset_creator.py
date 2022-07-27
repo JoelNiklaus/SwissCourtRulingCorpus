@@ -2,8 +2,6 @@ import ast
 import pandas as pd
 import itertools
 import numpy as np
-import math
-import json
 
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.data_classes.ruling_citation import RulingCitation
@@ -19,13 +17,11 @@ Dataset to be created:
 - contains supreme court cases  
 - cols = year, legal_area, origin_region, origin_canton, considerations, facts, language, citation_label, bge_label
 - only cases where feature_col =(facts, considerations) text has good length
-- Dataset description:
-    - train.jsonl:
-        contains only the train split of queries.jsonl (years 2000 - 2014)
-    - val.jsonl:
-        contains only the validation split of queries.jsonl (years 2015 - 2016)
-    - test.jsonl:
-        contains only the test split of queries.jsonl (years 2017 - 2021)
+- Dataset Split description:
+    - train 70%
+    - val 10%
+    - test 20%
+    - To consider: shuffle data or order by date?
 Set Labels
     - BGE criticality
         - get list of extrcted bger_file_numbers
@@ -53,7 +49,7 @@ class CriticalityDatasetCreator(DatasetCreator):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-        self.debug = False
+        self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         self.feature_cols = ['facts', 'considerations']
@@ -73,7 +69,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         bge_list = self.get_bge_criticality_list()
         df = self.set_criticality_label(df, bge_list, 'bge_label')
         criticality_list = self.get_citations_criticality_list(df)
-        df = self.set_criticality_label(df, criticality_list, 'criticality_label')
+        df = self.set_criticality_label(df, criticality_list, 'citation_label')
         df = self.filter_cases(df)
         bge_labels, _ = list(np.unique(np.hstack(df.bge_label), return_index=True))
         return df, bge_labels
@@ -84,11 +80,17 @@ class CriticalityDatasetCreator(DatasetCreator):
         :param df:      dataframe of all bger cases
         :return:        filtered dataframe
         """
-        # TODO change drop to column names in case df columns get's back in a different order
-        #  df.drop('decision_id, axis=1) does not work why?
-        df.drop(df.iloc[:, 15:20], inplace=True, axis=1)
-        df.drop(df.iloc[:, 8:14], inplace=True, axis=1)
-        df.drop(df.iloc[:, 1:6], inplace=True, axis=1)
+        columns = list(df.columns)
+        columns.remove('year')
+        columns.remove('legal_area')
+        columns.remove('origin_region')
+        columns.remove('origin_canton')
+        columns.remove('bge_label')
+        columns.remove('citation_label')
+        columns.remove('lang')
+        columns.remove('considerations')
+        columns.remove('facts')
+        df.drop(columns, axis=1, inplace=True)
         # TODO filter cases with too long / short input for model, maybe done in get_df
         return df
 
@@ -100,9 +102,9 @@ class CriticalityDatasetCreator(DatasetCreator):
         :param label:               name of label in df
         :return:                    labeled dataframe
         """
-        file_number_match = df.file_number.astype(str).isin(criticality_list)
+        file_number_match = df.file_number.astype(str).isin(list(criticality_list))
         df.loc[file_number_match, label] = 'critical'
-        df.loc[file_number_match, label] = 'non-critical'
+        df.loc[~file_number_match, label] = 'non-critical'
         self.logger.info(f"There are {len(df[file_number_match])} critical and {len(df[~file_number_match])} non-critical bger cases.")
         return df
 
@@ -125,7 +127,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         :return:        dataframe containing bger_references and bge_file_numbers
         """
         # get dict of bge references with corresponding bge file name
-        bge_references_file_path: Path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
+        bge_references_file_path: Path = ROOT_DIR / 'data' / 'datasets' / "bge_references_found.txt"
         if not bge_references_file_path.exists():
             raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
         references = {}
@@ -273,47 +275,8 @@ class CriticalityDatasetCreator(DatasetCreator):
                         new_page_number = tmp.page_number
             return RulingCitation(f"{year} {volume} {new_page_number}", 'de')
 
-    def save_huggingface_dataset(self, splits, feature_col_folder):
-        """
-        save data as huggingface dataset with columns: 'id', 'year': year, 'language',
-        region', 'canton', 'legal area', 'bge_label', 'considerations' and 'facts'
-        :param splits:                  specifying splits of dataset
-        :param feature_col_folder:      name of folder
-        """
-        huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
-        for split in ['train', 'val', 'test']:
-            records = []
-            df = splits[split]
-
-            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'],
-                                 df['origin_canton'], df['bge_label'], df['lang'], df['considerations'], df['facts'])
-
-            for case_id, year, legal_area, region, canton, bge_label, lang, consideration, fact in tuple_iterator:
-                if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
-                    canton = 'n/a'
-                if not isinstance(region, str) and (region is None or math.isnan(region)):
-                    region = 'n/a'
-                if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
-                    legal_area = 'n/a'
-                record = {
-                    'id': case_id,
-                    'year': year,
-                    'language': lang,
-                    'region': ' '.join(region.split('_')),
-                    'canton': canton,
-                    'legal area': ' '.join(legal_area.split('_')),
-                    'bge_label': bge_label,
-                    'considerations': consideration,
-                    'facts': fact
-                }
-
-                records.append(record)
-            with open(f'{huggingface_dir}/{split}.jsonl', 'w') as out_file:
-                for record in records:
-                    out_file.write(json.dumps(record) + '\n')
-
     def check_extracted_bger_references(self):
-        bge_references_file_path: Path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
+        bge_references_file_path: Path = ROOT_DIR / 'data' / 'datasets' / "bge_references_found.txt"
         if not bge_references_file_path.exists():
             raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
         references = {}
@@ -339,7 +302,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.logger.info(
             f"There are {len(references.keys())} BGE where bger references could be extracted, {len(set(references.keys()))} unique.")
 
-        bge_references_file_path: Path = ROOT_DIR / 'data' / 'progress' / "bge_not_extracted.txt"
+        bge_references_file_path: Path = ROOT_DIR / 'data' / 'datasets' / "bge_not_extracted.txt"
         references = {}
         i = 0
         with bge_references_file_path.open("r") as f:
@@ -348,6 +311,7 @@ class CriticalityDatasetCreator(DatasetCreator):
                 if year >= 133:
                     i = i+1
         self.logger.info(f"in total there are {i} cases which are not extracted which are from 2007 or 2008.")
+        # TODO check if citations get extracted and correctly referenced
 
 
 if __name__ == '__main__':

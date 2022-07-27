@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-from abc import ABC
 from typing import Any, TYPE_CHECKING, Union
 import bs4
 import pandas as pd
@@ -59,10 +57,8 @@ class BgeReferenceExtractor(AbstractExtractor):
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
         """Instead of saving data into database, references get written into a text file"""
         self.logger.info("save data in progress")
-        processed_file_path = ROOT_DIR / 'data' / 'progress' / "bge_references_found.txt"
-        not_processed_file_path = ROOT_DIR / 'data' / 'progress' / "bge_not_extracted.txt"
-        counter_not_extracted_bge = 0
-        counter_nebge_unclear = 0
+        processed_file_path = ROOT_DIR / 'data' / 'datasets' / "bge_references_found.txt"
+        not_processed_file_path = ROOT_DIR / 'data' / 'datasets' / "bge_not_extracted.txt"
         for _, row in df.iterrows():
             # only add new content to textfile not overwriting
             if 'bge_reference' in row and row['bge_reference'] != 'no reference found':

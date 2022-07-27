@@ -1,5 +1,6 @@
 import itertools
 from collections import Counter
+import ast
 
 from bs4 import BeautifulSoup
 
@@ -300,24 +301,33 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         ax = citations[:top_n].plot.bar(use_index=True, y='frequency', rot=90)
         ax.get_figure().savefig(figure_path, bbox_inches="tight")
 
-    def get_citations(self, citations, type, lang):
+    def get_citations(self, citations_as_string, type, lang):
+        # TODO this code will not work as intended:
+        #  - iteration over all citation types, additional check neccessarry.
+        #  - all file_numbers in available_bges start with BGE never ATF or DTF
+        #  - conseder using one method get_citations for criticality and doc2doc
         cits = []
-        for citation in citations[type]:
-            cit = citation['text']
-            cit = ' '.join(cit.split())  # remove multiple whitespaces inside
-            try:
-                if type == "rulings":
-                    type_cit = RulingCitation(cit, lang)
-                elif type == "laws":
-                    type_cit = LawCitation(cit, lang, self.law_abbrs)
-                else:
-                    raise ValueError("type must be either 'rulings' or 'laws'")
-            except ValueError as ve:
-                self.logger.debug(ve)
-                continue
-            # only actually include ruling citations that we can find in our corpus
-            if type == "laws" or (type == "rulings" and str(type_cit) in self.available_bges):
-                cits.append(type_cit)
+        try:
+            citations = ast.literal_eval(citations_as_string)  # parse dict string to dict again
+            for citation in citations:
+                cit = citation['text']
+                cit = ' '.join(cit.split())  # remove multiple whitespaces inside
+                try:
+                    if type == "rulings":
+                        type_cit = RulingCitation(cit, lang)
+                    elif type == "laws":
+                        type_cit = LawCitation(cit, lang, self.law_abbrs)
+                    else:
+                        raise ValueError("type must be either 'rulings' or 'laws'")
+                except ValueError as ve:
+                    self.logger.debug(ve)
+                    continue
+        except ValueError as ve:
+            self.logger.debug(ve)
+        # only actually include ruling citations that we can find in our corpus
+        if type == "laws" or (type == "rulings" and str(type_cit) in self.available_bges):
+            cits.append(type_cit)
+
         if cits:  # only return something if we actually have citations
             return cits
 
