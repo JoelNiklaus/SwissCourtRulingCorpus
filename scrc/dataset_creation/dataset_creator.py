@@ -195,36 +195,40 @@ class DatasetCreator(AbstractPreprocessor):
 
         for split in ['train', 'val', 'test']:
             records = []
-            for lang in self.languages:
-                # df = pd.read_csv(f'{feature_col_folder}/{lang}/{split}.csv', index_col='id')
-                df = lang_splits[lang][split]
+            df = lang_splits[split]
 
-                tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'],
-                                     df['origin_canton'], df['label'], df['text'])
-                for case_id, year, legal_area, region, canton, label, text in tuple_iterator:
-                    if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
-                        canton = 'n/a'
-                    if not isinstance(region, str) and (region is None or math.isnan(region)):
-                        region = 'n/a'
-                    if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
-                        legal_area = 'n/a'
-                    record = {
-                        'id': case_id,
-                        'year': year,
-                        'language': lang,
-                        'region': ' '.join(region.split('_')),
-                        'canton': canton,
-                        'legal area': ' '.join(legal_area.split('_')),
-                        'label': label,
-                        'text': text,
-                    }
+            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'],
+                                 df['origin_canton'], df['label'], df['lang'])
+            """
+            for feature_col in self.feature_cols:
+                new_col = df[{feature_col}]  # any number of lists
+                tuple_iterator = [(*z, j) for z, j in zip(tuple_iterator, new_col)]
+            """
+            # TODO iterate also through feature cols
+            for case_id, year, legal_area, region, canton, label, lang in tuple_iterator:
+                if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
+                    canton = 'n/a'
+                if not isinstance(region, str) and (region is None or math.isnan(region)):
+                    region = 'n/a'
+                if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
+                    legal_area = 'n/a'
+                # TODO solve problem with feature-cols
+                record = {
+                    'id': case_id,
+                    'year': year,
+                    'language': lang,
+                    'region': ' '.join(region.split('_')),
+                    'canton': canton,
+                    'legal area': ' '.join(legal_area.split('_')),
+                    'label': label
+                }
 
-                    records.append(record)
+                records.append(record)
             with open(f'{huggingface_dir}/{split}.jsonl', 'w') as out_file:
                 for record in records:
                     out_file.write(json.dumps(record) + '\n')
 
-    def get_df(self, engine, feature_col, label_col, save_reports):
+    def get_df(self, engine, feature_col):
     
         cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
         df = retrieve_from_cache_if_exists(cache_dir)
@@ -293,7 +297,6 @@ class DatasetCreator(AbstractPreprocessor):
                 return a
 
             decision_df['file_number'] = file_number_df['file_numbers'].apply(doubler)
-            print(decision_df['file_number'])
 
             save_df_to_cache(decision_df, cache_dir)
             df = decision_df
