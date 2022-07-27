@@ -198,15 +198,15 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
                 arts["text"].append(None)
         return pd.DataFrame(arts)
 
-    def get_dataset(self, feature_col, lang, save_reports):
-        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', lang, save_reports)
+    def get_dataset(self, feature_col, save_reports):
+        df = self.get_df(self.get_engine(self.db_scrc), feature_col)
 
         # df['types'] = df.citations.apply(lambda x: np.unique([cit['type'] for cit in x['rulings']]))
         # df = df[df.types.map(len) >= 1]  # we only want the decisions which actually cite something
         # df = df.query('"bge" in types')  # ensure that we only have BGE citations
 
-        df = self.process_citation_type("rulings", df, lang)
-        df = self.process_citation_type("laws", df, lang)
+        df = self.process_citation_type("rulings", df)
+        df = self.process_citation_type("laws", df)
 
         df = df.apply(self.mask_citations, feature_col=feature_col, axis='columns')
 
@@ -240,10 +240,11 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
             series[feature_col] = series[feature_col].replace(ruling['text'], ruling_mask_token)
         return series
 
-    def process_citation_type(self, cit_type, df, lang):
+    def process_citation_type(self, cit_type, df):
         self.logger.info(f"Processing the {cit_type} citations.")
-        df[cit_type] = df.citations.parallel_apply(self.get_citations, type=cit_type, lang=lang)
-
+        df.loc[df['lang'] == 'de', 'ruling_citation'] = df.citations.apply(self.get_citations, type=cit_type, lang='de')
+        df.loc[df['lang'] == 'fr', 'ruling_citation'] = df.citations.apply(self.get_citations, type=cit_type, lang='fr')
+        df.loc[df['lang'] == 'it', 'ruling_citation'] = df.citations.apply(self.get_citations, type=cit_type, lang='it')
         # we cannot use the ones which have no citations
         # because we drop everything we lose some data, but it is easier, because we know that all the entries have both laws citations and rulings citations
         # reset the index so that we don't get out of bounds errors
