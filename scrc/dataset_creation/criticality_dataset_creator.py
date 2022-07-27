@@ -49,7 +49,7 @@ class CriticalityDatasetCreator(DatasetCreator):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-        self.debug = True
+        self.debug = False
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         self.feature_cols = ['facts', 'considerations']
