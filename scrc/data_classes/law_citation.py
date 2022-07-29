@@ -17,6 +17,11 @@ class LawCitation(Citation):
     comparison_attributes = attrgetter("law", "article", "paragraph", "numeral")
 
     def __init__(self, citation_str, language, law_abbrs):
+        """ 
+            law_abbrs may contain data that is not properly cleaned and start with a space. Therefore
+            it is necessary to strip the fields you want to extract.
+        """
+        
         self.language = language
         if language == "de":
             self.article_str = "Art."
@@ -47,13 +52,13 @@ class LawCitation(Citation):
         self.article = parts[1]  # should be the second part after "Art."
         abbreviation = parts[-1]  # should be the last part
 
-        law = law_abbrs[(law_abbrs.abbreviation.strip() == abbreviation) & (law_abbrs.language.strip() == language)]
+        law = law_abbrs[(law_abbrs.abbreviation.str.strip() == abbreviation) & (law_abbrs.language.str.strip() == language)]
         if len(law.index) == 0:
             # only actually include citations that we can find in our corpus
             raise ValueError(f"The abbreviation ({abbreviation}) cannot be found.")
         assert len(law.index) == 1
         sr_number = law.iloc[0].sr_number
-        abbreviations = law_abbrs[law_abbrs.sr_number.strip() == sr_number]
+        abbreviations = law_abbrs[law_abbrs.sr_number.str.strip() == sr_number]
         abbreviations = abbreviations[["language", "abbreviation"]].set_index("language").to_dict()['abbreviation']
 
         self.law = Law(sr_number, abbreviations)

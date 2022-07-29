@@ -21,21 +21,20 @@ available_laws = pd.read_json((ROOT_DIR / "corpora") / "lexfind.jsonl", lines=Tr
 
 def check_if_convertible(laws, rulings, language: Language) -> Tuple[list, list]:
     """ Test if the citations can be converted into the dataclasses. If not, then it is probable, that the citations are not correctly extracted (e.g. missing the law) and can be ignored """
-    valid_laws = set()
-    valid_rulings = set()
+    valid_laws = list()
+    valid_rulings = list()
     language_str = language.value
     for law in laws:
         try:
             _ = LawCitation(law['text'], language_str, available_laws )
-            valid_laws.add(law)
+            valid_laws.append(law)
         except BaseException as e:
-            print(e)
             continue
         
     for ruling in rulings:
         try:
             _ = RulingCitation(ruling['text'], language_str)
-            valid_rulings.add(ruling)
+            valid_rulings.append(ruling)
         except:
             continue
         
