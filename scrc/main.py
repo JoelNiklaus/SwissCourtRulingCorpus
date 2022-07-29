@@ -64,9 +64,6 @@ def process_scrc(config):
 
 
 def create_specialized_datasets(config):
-    # TODO for identifying decisions in the datasets it would make sense to assign them a uuid.
-    #  This could be based on other properties. We just need to make sure that we don't have any duplicates
-
     judgment_dataset_creator = JudgmentDatasetCreator(config)
     judgment_dataset_creator.create_dataset()
 
