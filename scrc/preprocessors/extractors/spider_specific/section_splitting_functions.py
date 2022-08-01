@@ -677,7 +677,7 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
             # "title": ['Urteil vom', 'Beschluss vom', 'Entscheid vom'],
             # "judges": ['Besetzung', 'Es wirken mit', 'Bundesrichter'],
             # "parties": ['Parteien', 'Verfahrensbeteiligte', 'In Sachen'],
-            Section.TOPIC: ['Gegenstand', 'betreffend'],
+            Section.TOPIC: [r'Gegenstand', r'betreffend'],
             Section.FACTS: [r'Sachverhalt:', r'hat sich ergeben', r'Nach Einsicht', r'A\.-'],
             Section.CONSIDERATIONS: [r'Erwägung:', r'[Ii]n Erwägung', r'Erwägungen:'],
             Section.RULINGS: [r'erkennt d[\w]{2} Präsident', r'Demnach (erkennt|beschliesst)', r'beschliesst.*:\s*$',
