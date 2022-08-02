@@ -16,3 +16,4 @@ class Chamber(Enum):
     CH_BGer_015 = 101
     CH_BGer_016 = 102
     CH_BGer_999 = 103
+    CH_BGer_011 = 405

@@ -19,8 +19,15 @@ Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8
 
 
 def XX_SPIDER(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-    pass
+    header = sections[Section.HEADER]
+
+    information_start_regex, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name = get_regex()
+
+    header = get_participation_from_header(header, information_start_regex, namespace)
+    party = get_procedural_participation(header, namespace, second_party_start_regex, representation_start, party_gender, lawyer_representation, lawyer_name)
+
+    return party.toJSON()
+
 
 
 def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
@@ -32,6 +39,7 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     """
     header = sections[Section.HEADER]
 
+    # Define all needed regexes at the top of the file.
     information_start_regex = r'Parteien|Verfahrensbeteiligte|[Ii]n Sachen|Parties|Participants à la procédure|formée? par|[Dd]ans la cause|Parti|Partecipanti al procedimento|Visto il ricorso.*?da'
     second_party_start_regex = [
         r'gegen',
@@ -67,6 +75,7 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
         Language.IT: r'(lic\.?\s?|iur\.?\s?|dott\.\s?)*[A-Z].*?(?=,)'
     }
 
+    # Matching starts from the start_pos and ends at end_pos if they exist. Makes false positives less likely by restricting the search.
     start_pos = re.search(information_start_regex, header) or re.search(r'Gerichtsschreiber.*?\.', header) or re.search(
         r'[Gg]reffi[eè]re?.*?\S{2,}?\.', header)
     if start_pos:
@@ -83,6 +92,7 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
     if end_pos:
         header = header[:end_pos.span()[0]]
 
+    # Join the individual regexes into one for each category.
     representation_start = '|'.join(representation_start)
     for key in lawyer_representation:
         lawyer_representation[key] = '|'.join(lawyer_representation[key])
@@ -90,19 +100,19 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
         party_gender[key] = '|'.join(party_gender[key])
 
     def search_lawyers(text: str) -> List[LegalCounsel]:
+        """ Returns a list of legal counsels found in text given as argument. """
         lawyers: List[LegalCounsel] = []
         for (gender, current_regex) in lawyer_representation.items():
             pos = re.search(current_regex, text)
             if pos:
-                lawyer = LegalCounsel(name = "")
-
+                lawyer = LegalCounsel(name = "") # Instantiate a new lawyer object
                 if not namespace['language'] == Language.IT:
                     lawyer.gender = gender
-                name_match = re.search(lawyer_name[namespace['language']], text[pos.span()[1]:])
-                if name_match and not text[pos.span()[1]] == ',':
-                    lawyer.name = name_match.group()
+                name_match = re.search(lawyer_name[namespace['language']], text[pos.span()[1]:]) # Tries to match the name of the lawyer
+                if name_match and not text[pos.span()[1]] == ',': 
+                    lawyer.name = name_match.group() 
                 else:
-                    name_match = re.search(lawyer_name[namespace['language']], text[:pos.span()[0]])
+                    name_match = re.search(lawyer_name[namespace['language']], text[:pos.span()[0]]) 
                     lawyer.name = name_match.group() if name_match else None
                 lawyer.legal_type = LegalType.NATURAL_PERSON
                 lawyers.append(lawyer)
@@ -111,30 +121,31 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
 
     def add_representation(text: str) -> List[LegalCounsel]:
         representations = []
-        start_positions = tuple(re.finditer(representation_start, text))
+        start_positions = tuple(re.finditer(representation_start, text)) # Positions in the text on which the representation starts
         if not start_positions:
             return []
 
         for match_index in range(len(start_positions)):
+            # Specify the start and end positions of the text containing the representation.
             start_pos = start_positions[match_index].span()[1]
             if match_index + 1 < len(start_positions):
-                end_pos = start_positions[match_index + 1].span()[0]
+                end_pos = start_positions[match_index + 1].span()[0] # End position is the start position of the next representation
             else:
-                end_pos = len(text)
+                end_pos = len(text) # If no more representations are found, end position is the end of the text.
             current_text = text[start_pos:end_pos]
-            lawyers = search_lawyers(current_text)
+            lawyers = search_lawyers(current_text) # Extract the list of legal counsel from the text
             if lawyers:
                 representations.extend(lawyers)
                 continue
 
-            name_match = re.search(r'[A-Z][\w\s\.\-\']*(?=,)', current_text)
+            name_match = re.search(r'[A-Z][\w\s\.\-\']*(?=,)', current_text) # Retrieve the name of the representation
             if name_match:
                 name = name_match.group()
-                if name.startswith('Me'):
+                if name.startswith('Me'): # Do not include the 'Me' in the name
                     lawyer = LegalCounsel(name[2:], legal_type=LegalType.NATURAL_PERSON)
                     representations.append(lawyer)
                     continue
-                lawyer = LegalCounsel(name, legal_type=LegalType.LEGAL_ENTITY)
+                lawyer = LegalCounsel(name, legal_type=LegalType.LEGAL_ENTITY) # Instantiate a new legal counsel object
                 representations.append(lawyer)
                 continue
             name_match = re.search(r'[A-Z][\w\s\.\-\']*', current_text)
@@ -150,34 +161,34 @@ def CH_BGer(sections: Dict[Section, str], namespace: dict) -> Optional[str]:
         current_person = ProceedingsParty(name = "")
         result: List[ProceedingsParty] = []
         try:
-            current_person.name = re.search(r'[A-Z1-9].*?(?=(,)|(.$)| Beschwerde)', text).group().strip()
+            current_person.name = re.search(r'[A-Z1-9].*?(?=(,)|(.$)| Beschwerde)', text).group().strip() # Retrieve the name of the party
         except AttributeError:
             return result
 
-        if re.match(r'[1-9IVX]+\.(?!_)', current_person.name):
+        if re.match(r'[1-9IVX]+\.(?!_)', current_person.name): # There is a list of persons in the text
             people_string = re.split(r'[1-9IVX]+\. ', text)
             for string in people_string[1:]:
-                result.extend(get_party(string))
+                result.extend(get_party(string)) # Call this funciton for each individual person in the list
 
             for idx in range(len(result)):
-                result[idx].gender = None
+                result[idx].gender = None # Gender cannot be specified by the text as this is a list of people
             return result
-        if re.match(r'([A-Z]\.)?[A-Z]\._$', current_person.name):
-            for gender, current_regex in party_gender.items():
+        if re.match(r'([A-Z]\.)?[A-Z]\._$', current_person.name): # This looks like a real name and is probably a natural person
+            for gender, current_regex in party_gender.items(): # Try to receive the gender of the person
                 if re.search(current_regex, text):
                     if not namespace['language'] == Language.IT:
                         current_person.gender = gender
-                    current_person.legal_type = LegalType.NATURAL_PERSON
+                    current_person.legal_type = LegalType.NATURAL_PERSON 
                     result.append(current_person)
                     return result
             current_person.legal_type = LegalType.NATURAL_PERSON
             result.append(current_person)
             return result
-        current_person.legal_type = LegalType.LEGAL_ENTITY
+        current_person.legal_type = LegalType.LEGAL_ENTITY # Doesn't look like a natural person, just insert the whole text as the name
         result.append(current_person)
         return result
 
-    header_parts = re.split('|'.join(second_party_start_regex), header)
+    header_parts = re.split('|'.join(second_party_start_regex), header) # Split up the header into the plaintiff and the defendant parts
     if len(header_parts) < 2:
         raise ValueError(f"({namespace['id']}): Header malformed for: {namespace['html_url'] or namespace['pdf_url']}")
     party = ProceduralParticipation()

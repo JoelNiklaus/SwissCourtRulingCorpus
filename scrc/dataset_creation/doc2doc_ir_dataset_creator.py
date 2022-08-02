@@ -1,5 +1,6 @@
 import itertools
 from collections import Counter
+import ast
 
 from bs4 import BeautifulSoup
 
@@ -18,18 +19,14 @@ from scrc.utils.main_utils import get_config, string_contains_one_of_list
 
 """
 BGE volumes
-
 Bände und Sachgebiete bis 1994 (Jahrgänge 111 bis 120):
-
 Ia Verfassungsrecht
 Ib Verwaltungsrecht und Internationales öffentliches Recht
 II Zivilrecht
 III Betreibungs- und Konkursrecht
 IV Strafrecht und Strafvollzug
 V Sozialversicherungsrecht
-
 Bände und Sachgebiete seit 1995 (Jahrgang 121):
-
 I Verfassungsrecht
 II Verwaltungsrecht und Internationales öffentliches Recht
 III Zivilrecht, Schuldbetreibungs- und Konkursrecht
@@ -43,29 +40,51 @@ Two collections: rulings and law articles
 - hard task: IR task with specific law article
 - easy task: IR task with only laws
 - multiple choice qa: instead of whole collection of rulings/laws: give 5 options, one relevant and 4 irrelevant
-
 Story: we want to solve hard task, but we might be very bad at it yet: propose easier tasks to make progress
-
 Experiments:
 are we better in different legal areas / regions etc.
-
 TODO:
 how long are the documents
 how many citations do the documents have (for both laws and rulings) ==> histogram
 distribution of the time difference between published document and cited document
 try to find out how multilingual this corpus is: how many times does a German decision cite an Italian ruling?
-
 find out which laws are cited most often: ask lawyers to classify laws into legal areas
 train legal area classifier: ==> classify BGEs into legal areas automatically (Dominik)
-
 Frage an Thomas: werden verschiedene BGE Bände zitiert in einem Urteil?
 Antwort: Ja
 """
 
 
+# TODO Compute statistics for sections: how many found, token length distributions
+# TODO Use Codalab for next benchmark paper: https://codalab.org/
+# TODO add uuid to the dataset export for easy identification
+# TODO consider using haystack/FARM for IR experiments
+
 class Doc2DocIRDatasetCreator(DatasetCreator):
     """
     Creates a dataset for information retrieval with the citations serving as ground truth for relevance scores
+    """
+
+    """
+    Dataset description:
+    documents:
+        laws.jsonl:
+            contains all the law articles that can be retrieved (one article per line)
+        rulings.jsonl:
+            contains all the reference rulings that can be retrieved (one ruling per line)
+    queries:
+        queries.jsonl:
+            contains the court decisions that are fed into the model as queries (one query per line)
+            the decisions contain metadata such as language, date, chamber, origin region
+            the labels (relevant documents) are listed in the fields "rulings_relevanes" and "laws_relevances" with the number (0 for lowest relevance - 1 for highest relevance) representing the relevance of the given document
+            laws can be matched by the sr-number and the article number and rulings can be matched by the year, volume and page number
+        train.jsonl:
+            contains only the train split of queries.jsonl (years 2000 - 2014)
+        val.jsonl:
+            contains only the validation split of queries.jsonl (years 2015 - 2016)
+        test.jsonl:
+            contains only the test split of queries.jsonl (years 2017 - 2021)
+
     """
 
     # usefulness of law articles still unclear.
@@ -171,15 +190,15 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
                 arts["text"].append(None)
         return pd.DataFrame(arts)
 
-    def get_dataset(self, feature_col, lang, save_reports):
-        df = self.get_df(self.get_engine(self.db_scrc), feature_col, 'citations', lang, save_reports)
+    def get_dataset(self, feature_col, save_reports):
+        df = self.get_df(self.get_engine(self.db_scrc), feature_col)
 
         # df['types'] = df.citations.apply(lambda x: np.unique([cit['type'] for cit in x['rulings']]))
         # df = df[df.types.map(len) >= 1]  # we only want the decisions which actually cite something
         # df = df.query('"bge" in types')  # ensure that we only have BGE citations
 
-        df = self.process_citation_type("rulings", df, lang)
-        df = self.process_citation_type("laws", df, lang)
+        df = self.process_citation_type("rulings", df)
+        df = self.process_citation_type("laws", df)
 
         df = df.apply(self.mask_citations, feature_col=feature_col, axis='columns')
 
@@ -197,7 +216,6 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
 
         # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
 
-
         df = df.rename(columns={feature_col: "text"})  # normalize column names
         df['label'] = df.rulings  # the label is just the rulings for now
         return df, self.available_bges
@@ -214,10 +232,11 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
             series[feature_col] = series[feature_col].replace(ruling['text'], ruling_mask_token)
         return series
 
-    def process_citation_type(self, cit_type, df, lang):
+    def process_citation_type(self, cit_type, df):
         self.logger.info(f"Processing the {cit_type} citations.")
-        df[cit_type] = df.citations.parallel_apply(self.get_citations, type=cit_type, lang=lang)
-
+        df.loc[df['lang'] == 'de', 'ruling_citation'] = df.citations.apply(self.get_citations, type=cit_type, lang='de')
+        df.loc[df['lang'] == 'fr', 'ruling_citation'] = df.citations.apply(self.get_citations, type=cit_type, lang='fr')
+        df.loc[df['lang'] == 'it', 'ruling_citation'] = df.citations.apply(self.get_citations, type=cit_type, lang='it')
         # we cannot use the ones which have no citations
         # because we drop everything we lose some data, but it is easier, because we know that all the entries have both laws citations and rulings citations
         # reset the index so that we don't get out of bounds errors
@@ -273,24 +292,33 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         ax = citations[:top_n].plot.bar(use_index=True, y='frequency', rot=90)
         ax.get_figure().savefig(figure_path, bbox_inches="tight")
 
-    def get_citations(self, citations, type, lang):
+    def get_citations(self, citations_as_string, type, lang):
+        # TODO this code will not work as intended:
+        #  - iteration over all citation types, additional check neccessarry.
+        #  - all file_numbers in available_bges start with BGE never ATF or DTF
+        #  - conseder using one method get_citations for criticality and doc2doc
         cits = []
-        for citation in citations[type]:
-            cit = citation['text']
-            cit = ' '.join(cit.split())  # remove multiple whitespaces inside
-            try:
-                if type == "rulings":
-                    type_cit = RulingCitation(cit, lang)
-                elif type == "laws":
-                    type_cit = LawCitation(cit, lang, self.law_abbrs)
-                else:
-                    raise ValueError("type must be either 'rulings' or 'laws'")
-            except ValueError as ve:
-                self.logger.debug(ve)
-                continue
-            # only actually include ruling citations that we can find in our corpus
-            if type == "laws" or (type == "rulings" and str(type_cit) in self.available_bges):
-                cits.append(type_cit)
+        try:
+            citations = ast.literal_eval(citations_as_string)  # parse dict string to dict again
+            for citation in citations:
+                cit = citation['text']
+                cit = ' '.join(cit.split())  # remove multiple whitespaces inside
+                try:
+                    if type == "rulings":
+                        type_cit = RulingCitation(cit, lang)
+                    elif type == "laws":
+                        type_cit = LawCitation(cit, lang, self.law_abbrs)
+                    else:
+                        raise ValueError("type must be either 'rulings' or 'laws'")
+                except ValueError as ve:
+                    self.logger.debug(ve)
+                    continue
+        except ValueError as ve:
+            self.logger.debug(ve)
+        # only actually include ruling citations that we can find in our corpus
+        if type == "laws" or (type == "rulings" and str(type_cit) in self.available_bges):
+            cits.append(type_cit)
+
         if cits:  # only return something if we actually have citations
             return cits
 

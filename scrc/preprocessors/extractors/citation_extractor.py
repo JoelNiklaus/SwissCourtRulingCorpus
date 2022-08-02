@@ -13,6 +13,7 @@ from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, where_decisionid_in_list, where_string_spider
 
+# TODO train ML system on CH_BGer for citation extraction as an alternative (a distilled model for fast inference on CPU)
 
 class CitationExtractor(AbstractExtractor):
     """
@@ -32,6 +33,9 @@ class CitationExtractor(AbstractExtractor):
             'processing_one': 'Extracting citations from',
             'no_functions': 'Not extracting citations.'
         }
+        
+    def get_coverage(self, spider: str):
+        self.logger.info('no coverage function implemented')
 
     def get_required_data(self, series: pd.DataFrame) -> Union[bs4.BeautifulSoup, str, None]:
         """Returns the data required by the processing functions"""
@@ -49,19 +53,28 @@ class CitationExtractor(AbstractExtractor):
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
         return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}", f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
     
-    
-    def save_data_to_database(self, df: pd.DataFrame, engine: Engine):       
-        for idx, row in df.iterrows():
-            with engine.connect() as conn:
-                t = Table('citation', MetaData(), autoload_with=engine)
-                # Delete and reinsert as no upsert command is available
-                stmt = t.delete().where(delete_stmt_decisions_with_df(df))
-                engine.execute(stmt)
+    def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
+        with engine.connect() as conn:
+            t = Table('citation', MetaData(), autoload_with=engine)
+            # Delete and reinsert as no upsert command is available
+            stmt = t.delete().where(delete_stmt_decisions_with_df(df))
+            engine.execute(stmt)
+            
+            for _, row in df.iterrows():
                 for k in row['citations'].keys():
                     citation_type_id = CitationType(k).value
+                    citations_to_insert = []
                     for citation in row['citations'][k]:
-                        stmt = t.insert().values([{"decision_id": str(row['decision_id']), "citation_type_id": citation_type_id, "url": citation.get("url"), "text": citation["text"]}])
-                        engine.execute(stmt)
+                        citation_dict = {
+                            "decision_id": str(row['decision_id']),
+                            "citation_type_id": citation_type_id,
+                            "url": citation.get("url"),
+                            "text": citation["text"]
+                        }
+                        citations_to_insert.append(citation_dict)
+                    if len(citations_to_insert) == 0: continue
+                    stmt = t.insert().values(citations_to_insert)
+                    engine.execute(stmt)
 
 if __name__ == '__main__':
     config = get_config()

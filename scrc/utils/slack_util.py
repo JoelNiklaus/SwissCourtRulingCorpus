@@ -9,6 +9,7 @@ slack_token = os.getenv('SLACK_TOKEN')
 
 
 def post_message_to_slack(text):
+    """Sends a message to slack"""
     return requests.post(f'https://hooks.slack.com/services/{slack_token}', json.dumps({
         'text': text,
     }))

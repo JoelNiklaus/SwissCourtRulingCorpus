@@ -6,7 +6,7 @@
 */
 
 DROP TABLE IF EXISTS "language", canton, canton_name, spider, court, court_name, chamber, lower_court, "file", decision, 
-	judgment, judgment_map, citation_type, citation, section_type, "section", paragraph, num_tokens, file_number,
+	judgment, judgment_map, citation_type, citation, section_type, "section", num_tokens, file_number,
     judicial_person_type, person, judicial_person, party_type, party;
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -51,16 +51,6 @@ CREATE TABLE IF NOT EXISTS chamber(
   chamber_string TEXT NOT NULL UNIQUE
 );
 
-CREATE TABLE IF NOT EXISTS lower_court(
-  lower_court_id SERIAL PRIMARY KEY,
-  court_id INTEGER REFERENCES court,
-  canton_id INTEGER REFERENCES canton,
-  chamber_id INTEGER REFERENCES chamber,
-  "date" DATE,
-  file_number TEXT,
-  decision_id INTEGER NOT NULL REFERENCES decision
-);
-
 CREATE TABLE IF NOT EXISTS "file"(
   file_id SERIAL PRIMARY KEY,
   file_name TEXT NOT NULL,
@@ -71,12 +61,22 @@ CREATE TABLE IF NOT EXISTS "file"(
 );
 
 CREATE TABLE IF NOT EXISTS decision(
-  decision_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  decision_id UUID PRIMARY KEY,
   language_id INTEGER NOT NULL REFERENCES "language",
   chamber_id INTEGER REFERENCES chamber,
   file_id INTEGER NOT NULL REFERENCES "file",
   "date" DATE,
   topic TEXT
+);
+
+CREATE TABLE IF NOT EXISTS lower_court(
+  lower_court_id SERIAL PRIMARY KEY,
+  court_id INTEGER REFERENCES court,
+  canton_id INTEGER REFERENCES canton,
+  chamber_id INTEGER REFERENCES chamber,
+  "date" DATE,
+  file_number TEXT,
+  decision_id INTEGER NOT NULL REFERENCES decision
 );
 
 CREATE TABLE IF NOT EXISTS judgment(
@@ -115,20 +115,10 @@ CREATE TABLE IF NOT EXISTS "section"(
   section_text TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS paragraph(
-  paragraph_id SERIAL PRIMARY KEY,
-  section_id INTEGER REFERENCES "section",
-  decision_id UUID NOT NULL REFERENCES decision ON DELETE CASCADE,
-  paragraph_text TEXT NOT NULL,
-  first_level INTEGER, 
-  second_level INTEGER,
-  third_level INTEGER 
-);
-
 
 CREATE TABLE IF NOT EXISTS num_tokens(
   num_tokens_id SERIAL PRIMARY KEY,
-  section_id INTEGER NOT NULL REFERENCES "section",
+  section_id INTEGER NOT NULL REFERENCES "section" ON DELETE CASCADE,
   num_tokens_spacy INTEGER,
   num_tokens_bert INTEGER
 );
