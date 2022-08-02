@@ -1,5 +1,5 @@
 """
-- Cohen’s Kappa, Fleiss’s, Krippendorff’s Alpha
+- Krippendorff’s Alpha
 - ROUGE-L, ROUGE-1, ROUGE-2 (Lin, 2004)
 - BLEU (Papineni et al., 2001) (unigram and bigram averaging)
 - METEOR (Lavie and Agarwal, 2007)
@@ -10,8 +10,6 @@
 the annotation is also possible.
 
 Sources for Metrics:
-- https://scikit-learn.org/stable/modules/generated/sklearn.metrics.cohen_kappa_score.html#sklearn.metrics.cohen_kappa_score
-- https://scikit-learn.org/stable/modules/model_evaluation.html#cohen-kappa
 - https://www.statsmodels.org/stable/_modules/statsmodels/stats/inter_rater.html
 - https://pypi.org/project/rouge-score/
 - https://www.journaldev.com/46659/bleu-score-in-python
@@ -19,6 +17,7 @@ Sources for Metrics:
 - https://pypi.org/project/bert-score/
 - https://github.com/neulab/BARTScore
 - https://pyshark.com/jaccard-similarity-and-jaccard-distance-in-python/
+- https://www.geeksforgeeks.org/maximum-number-of-overlapping-intervals/
 
 
 
@@ -46,6 +45,7 @@ AGGREGATIONS = ["mean", "max", "min"]
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
+
 
 def extract_dataset() -> dict:
     """
@@ -85,6 +85,7 @@ def extract_dataset() -> dict:
                 pass
     return datasets
 
+
 def to_csv(filepath: Path, df: pd.DataFrame):
     """
     Creates a csv from Dataframe
@@ -108,8 +109,6 @@ def dump_user_input(dataset_dict: dict):
             pass
 
 
-
-
 def dump_case_not_accepted(dataset_dict: dict):
     """
     Dumps all the all not accepted cases as csv.
@@ -125,12 +124,10 @@ def dump_case_not_accepted(dataset_dict: dict):
             pass
 
 
-
-
-def process_dataset(datasets: dict, lang:str):
+def process_dataset(datasets: dict, lang: str):
     """
     Gets language spans and token Dataframes.
-
+    @todo finish documentation
 
     """
     annotations = datasets["annotations_{}".format(lang)][
@@ -152,19 +149,21 @@ def process_dataset(datasets: dict, lang:str):
                 globals()[f"{label.lower().replace(' ', '_')}_{lang}"] = normalize_person_tokens(
                     globals()[f"{label.lower().replace(' ', '_')}_{lang}"], pers, lang, LANGUAGES_NLTK[lang])
 
-            # Merges Dataframe with cohen kappa score dataframe
+            o = calculate_overlap_min_max(globals()[f"{label.lower().replace(' ', '_')}_{lang}"], lang)
             globals()[f"{label.lower().replace(' ', '_')}_{lang}"] = globals()[
-                f"{label.lower().replace(' ', '_')}_{lang}"].merge(
-                calculate_cohen_kappa(globals()[f"{label.lower().replace(' ', '_')}_{lang}"]),
-                on='annotations_{}'.format("de"),
-                how='left')
+                f"{label.lower().replace(' ', '_')}_{lang}"].merge(o, on='annotations_{}'.format("de"),
+                                                                   how='outer')
+
             for agg in AGGREGATIONS:
-                apply_aggregation(globals()[f"{label.lower().replace(' ', '_')}_{lang}"], "cohen_kappa_scores",
+                apply_aggregation(globals()[f"{label.lower().replace(' ', '_')}_{lang}"], "overlap_maximum",
+                                  agg)
+                apply_aggregation(globals()[f"{label.lower().replace(' ', '_')}_{lang}"], "overlap_minimum",
                                   agg)
 
             to_csv(Path("{}.csv".format(f"{label.lower().replace(' ', '_')}_{lang}")),
                    globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
             print("Saved {}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}"))
+
 
 def extract_values_from_column(annotations: pandas.DataFrame, col_1: str, col_2: str) -> pandas.DataFrame:
     """
@@ -178,8 +177,9 @@ def extract_values_from_column(annotations: pandas.DataFrame, col_1: str, col_2:
     annotations_col = annotations_col.drop([col_1], axis=1)
     return annotations_col.join(df_col)
 
+
 def get_span_df(annotations_spans: pandas.DataFrame, annotations_tokens: pandas.DataFrame, span: str, lang: str) -> (
-pandas.DataFrame):
+        pandas.DataFrame):
     """
     Extract all rows where span_label matches the span given as parameter (e.g. span = "Lower court").
     Queries list of values from chosen rows and creates list of token numbers (token ids) of span start and end number.
@@ -207,6 +207,7 @@ pandas.DataFrame):
     spans = pd.concat(spans_list)
     return spans
 
+
 def get_annotator_set(annotator_name: str, tokens: pandas.DataFrame, lang: str) -> pandas.DataFrame:
     """
     Copies entries from Dataframe from specific annotator.
@@ -226,6 +227,7 @@ def get_annotator_set(annotator_name: str, tokens: pandas.DataFrame, lang: str) 
     annotator = annotator.drop_duplicates()
     annotator["tokens_id"] = annotator["tokens_id"].astype(str).str.split(",")
     return annotator
+
 
 def remove_duplicate(list_dublicate: list) -> list:
     """
@@ -262,7 +264,8 @@ def get_normalize_tokens_dict(df: pandas.DataFrame) -> pandas.DataFrame:
     """
     normalized_tokens = []
     df_copy = df.copy()
-    df["tokens_text"] = df_copy["tokens_text_{}".format(PERSONS[0])].astype(str) + " " + df_copy["tokens_text_{}".format(PERSONS[1])].astype(
+    df["tokens_text"] = df_copy["tokens_text_{}".format(PERSONS[0])].astype(str) + " " + df_copy[
+        "tokens_text_{}".format(PERSONS[1])].astype(
         str) + " " + df_copy["tokens_text_{}".format(PERSONS[2])].astype(str)
     for sentence in df["tokens_text"].values:
         tokens = nltk.word_tokenize(sentence, language='german')
@@ -297,7 +300,51 @@ def normalize_person_tokens(df: pandas.DataFrame, pers: str, lang: str, lang_nlt
     return df
 
 
-def calculate_cohen_kappa(label_df: pandas.DataFrame) -> pandas.DataFrame:
+def calculate_overlap_min_max(label_df: pandas.DataFrame, lang: str) -> pandas.DataFrame:
+    """
+    Gets value_list containing all normalized token lists per id for a language.
+    Creates dictionary and gets combinations of the token value_lists.
+    For each combination of two lists finds the maximal overlapping sequence (e.g. [1,2,3] and [2,3,4] -> [2,3]).
+    Asserts max length is less than or equal to smallest sample (maximum of overlapping section is section itself).
+    Calculates the overlapping maximum and minimum score using the length of this sequence divided by the maximum or minimum of the sample sets.
+    If there is no overlap or the sample content is Nan ([10000]) the overlap_maximum and overlap_minimum equals 0.
+    Adds the overlap_maximum and overlap_minimum scores to the dict and adds this dict to a list.
+    Creates a DataFrame from the list and returns it.
+    """
+    overlap_min_max_list = []
+    for value_list in label_df[['annotations_{}'.format(lang), "normalized_tokens_angela", "normalized_tokens_lynn",
+                                "normalized_tokens_thomas", 'normalized_tokens_dict']].values:
+        overlap_min_max = {'annotations_{}'.format(lang): value_list[0], "overlap_maximum": [],
+                           "overlap_minimum": []}
+        combinations = get_combinations(value_list[1:-1])
+        for comb in combinations:
+            overlap_list = []
+            comb = sorted(comb, key=len)
+            len_min_comb, len_max_comb = len(comb[0]), len(comb[1])
+            i = 1
+            while i <= len(comb[0]):
+                if ''.join(str(i) for i in comb[0][:i]) in ''.join(str(i) for i in comb[1]):
+                    i = i + 1
+                    overlap_list.append(comb[0][:i])
+                # Section is finished, slice list and check again
+                else:
+                    comb[0] = comb[0][i:]
+                    i = 1
+            if len(overlap_list) == 0 or comb == [[10000], [10000]]:
+                overlap_min_max["overlap_maximum"] += [0]
+                overlap_min_max["overlap_minimum"] += [0]
+            else:
+                overlap_max = max(len(elem) for elem in overlap_list)
+                assert overlap_max <= len_min_comb
+                overlap_min_max["overlap_maximum"] += [overlap_max / len_max_comb]
+                overlap_min_max["overlap_minimum"] += [overlap_max / len_min_comb]
+        overlap_min_max_list.append(overlap_min_max)
+    overlap_min_max_df = pd.DataFrame.from_records(overlap_min_max_list)
+
+    return overlap_min_max_df
+
+
+def calculate_cohen_kappa(label_df: pandas.DataFrame, lang: str) -> pandas.DataFrame:
     """
     Gets value_list containing all normalized token lists per id for a language.
     Creates dictionary and gets combinations of the token value_lists.
@@ -309,16 +356,17 @@ def calculate_cohen_kappa(label_df: pandas.DataFrame) -> pandas.DataFrame:
     cohen_kappa_scores_list = []
     for value_list in label_df[['annotations_{}'.format(lang), "normalized_tokens_angela", "normalized_tokens_lynn",
                                 "normalized_tokens_thomas", 'normalized_tokens_dict']].values:
-        for i in range(1, len(value_list) - 2):
-            cohen_kappa_scores = {'annotations_{}'.format(lang): value_list[0], "cohen_kappa_scores": []}
-            combinations = get_combinations(value_list[1:-1])
-            for comb in combinations:
-                if len(comb[0]) != 1 and len(comb[1]) != 1:
-                    list_a, list_b = normalize_list_length(comb[0], comb[1], value_list[-1])
-                    cohen_kappa_scores["cohen_kappa_scores"] += [cohen_kappa_score(list_a, list_b)]
-        cohen_kappa_scores_list.append(cohen_kappa_scores)
+        cohen_kappa_scores = {'annotations_{}'.format(lang): value_list[0], "cohen_kappa_scores": []}
+        combinations = get_combinations(value_list[1:-1])
+        for comb in combinations:
+            if len(comb[0]) != 1 and len(comb[1]) != 1:
+                list_a, list_b = normalize_list_length(comb[0], comb[1], value_list[-1])
+                cohen_kappa_scores["cohen_kappa_scores"] += [cohen_kappa_score(list_a, list_b)]
+    cohen_kappa_scores_list.append(cohen_kappa_scores)
     cohen_kappa_scores_df = pd.DataFrame.from_records(cohen_kappa_scores_list)
+
     return cohen_kappa_scores_df
+
 
 def get_combinations(value_list: list) -> list:
     """
@@ -331,6 +379,8 @@ def get_combinations(value_list: list) -> list:
                 combinations.append(subset)
 
     return combinations
+
+
 def normalize_list_length(list_1: list, list_2: list, token_dict: dict) -> (list, list):
     """
     Appends "Nan" to normalize list length (make them same length).
@@ -359,18 +409,14 @@ def apply_aggregation(df: pandas.DataFrame, column_name, aggregation: str):
     return df
 
 
-
-
 if __name__ == '__main__':
     extracted_datasets = extract_dataset()
-    dump_user_input(extracted_datasets)
-    dump_case_not_accepted(extracted_datasets)
-
+    # dump_user_input(extracted_datasets)
+    # dump_case_not_accepted(extracted_datasets)
 
     for l in LANGUAGES:
         try:
-            process_dataset(extracted_datasets,l)
+            process_dataset(extracted_datasets, l)
         except KeyError as err:
             print(err)
             pass
-
