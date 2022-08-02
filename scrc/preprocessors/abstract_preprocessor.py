@@ -81,7 +81,7 @@ class AbstractPreprocessor:
             ROOT_DIR, config['dir']['spider_specific_dir'])
         self.output_dir = self.create_dir(
             self.data_dir, config['dir']['output_subdir'])
-        
+
         self.legal_info_dir = self.create_dir(
             ROOT_DIR, config['dir']['legal_info_dir'])
 
@@ -114,7 +114,7 @@ class AbstractPreprocessor:
     def load_functions(self, config, type):
         """loads the cleaning functions used for html files"""
         function_file = self.spider_specific_dir / \
-            config['files'][type]  # mainly used for html courts
+                        config['files'][type]  # mainly used for html courts
         spec = importlib.util.spec_from_file_location(type, function_file)
         functions = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(functions)
@@ -123,7 +123,7 @@ class AbstractPreprocessor:
     @staticmethod
     def mark_as_processed(processed_file_path: Path, part: str) -> None:
         with processed_file_path.open("a") as f:
-            f.write(part + "\n")
+            f.write(f"{part} + \n")
 
     def compute_remaining_spiders(self, processed_file_path: Path):
         """This can be used to save progress in between runs in case something fails"""
@@ -180,7 +180,6 @@ class AbstractPreprocessor:
     def select(engine, table, columns="*", where=None, order_by=None, chunksize=1000, log_query=False):
         """
         This is the utility function to stream entries from the database.
-
         :param engine:          the db engine to work upon
         :param table:           the table (language) to select
         :param columns:         the columns to retrieve (comma separated list)
@@ -202,7 +201,8 @@ class AbstractPreprocessor:
                 yield chunk_df
 
     @staticmethod
-    def update(engine, df: pd.DataFrame, table: str, columns: list, output_dir: Path, filename: Optional[str] = None, index_name: Optional[str] = None):
+    def update(engine, df: pd.DataFrame, table: str, columns: list, output_dir: Path, filename: Optional[str] = None,
+               index_name: Optional[str] = None):
         """
         Updates the given columns in a table with the data provided by the df
         :param engine:              the db engine to work upon
@@ -275,7 +275,7 @@ class AbstractPreprocessor:
             tuples = list(df.itertuples(index=False))
             # batch_size = max(int(len(texts) / self.num_cpus), 1) # a high batch_size can lead to lots of allocated memory
             docs = tqdm(nlp.pipe(tuples, n_process=-1, batch_size=1,
-                        as_tuples=True), total=len(tuples))
+                                 as_tuples=True), total=len(tuples))
             num_tokens = []
             logger.info("Saving spacy docs to disk")
             for doc, id in docs:

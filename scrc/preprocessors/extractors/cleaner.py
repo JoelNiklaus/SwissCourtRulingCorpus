@@ -76,7 +76,7 @@ class Cleaner(AbstractExtractor):
         spider_list, message = self.compute_remaining_spiders(processed_file_path)
         self.logger.info(message)
 
-    def select_df(self, engine: str, spider: str) -> str:
+    def select_df(self, engine: Engine, spider: str):
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
         
