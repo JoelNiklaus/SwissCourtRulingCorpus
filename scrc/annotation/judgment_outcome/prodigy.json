@@ -1,5 +1,5 @@
 {
-  "port": 8080,
+  "port": 18080,
   "host": "0.0.0.0",
   "db": "postgresql",
   "db_settings": {
