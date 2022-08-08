@@ -47,15 +47,11 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
         printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
         docker exec -it d prodigy_v1_nina prodigy "$task" de $VARIABLE -F ./judgment_explainability/recipes/inspect_facts_annotation.py
       done
-
-
-
     ;;
 
   "review")
     printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
-    docker exec -it -d prodigy_v1_nina prodigy "$task" gold_annotations_de annotations_de-angela,annotations_de-lynn,annotations_de-thomas -l "Supports judgment","Opposes judgment","Lower court" -v spans_manual --auto-accept
-
+    docker exec -it -d prodigy_v1_nina prodigy "$task" gold_annotations_de annotations_de-angela,annotations_de-lynn,annotations_de-thomas -l "Supports judgment","Opposes judgment","Lower court","Neutral" -v spans_manual --auto-accept
     ;;
     "judgment-prediction")
   for VARIABLE in de fr it
@@ -72,7 +68,8 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
     done
    ;;
   "drop")
-  for VARIABLE in annotations_de-nina annotations_de-ninaa annotations_de-ninaaa annotations_it-nina annotations_fr-nina
+  for VARIABLE in annotations_de-nina annotations_de-ninaa annotations_de-ninaaa annotations_it-nina annotations_fr-nina gold_annotations_de-nina gold_annotations_de-test
+
     do
       docker exec prodigy_v1_nina prodigy "$task" $VARIABLE
     done
