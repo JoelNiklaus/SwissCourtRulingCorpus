@@ -1,51 +1,55 @@
-from pathlib import Path
-from pprint import pprint
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
+
+import pandas as pd
+from scrc.data_classes.law_citation import LawCitation
+from scrc.data_classes.ruling_citation import RulingCitation
 from scrc.enums.citation_type import CitationType
-import json
-import regex
+
+# Make sure to install the citation_instraction package: cd citation_extraction/ && pip install -e .
+from citation_extraction import extract_citations
 
 from root import ROOT_DIR
+from scrc.enums.language import Language
 
 """
 This file is used to extract citations from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
-Overview of spiders still todo: https://docs.google.com/spreadsheets/d/1FZmeUEW8in4iDxiIgixY4g0_Bbg342w-twqtiIu8eZo/edit#gid=0
 """
+
+# IMPORTANT: make sure the lexfind.jsonl file exists and has enough content (roughly 2GB)
+available_laws = pd.read_json((ROOT_DIR / "corpora") / "lexfind.jsonl", lines=True)  # Doesn't include BGG, ATSG, LTF
+
+
+def check_if_convertible(laws, rulings, language: Language) -> Tuple[list, list]:
+    """ Test if the citations can be converted into the dataclasses. If not, then it is probable, that the citations are not correctly extracted (e.g. missing the law) and can be ignored """
+    valid_laws = list()
+    valid_rulings = list()
+    language_str = language.value
+    for law in laws:
+        try:
+            _ = LawCitation(law['text'], language_str, available_laws)
+            valid_laws.append(law)
+        except BaseException as e:
+            continue
+
+    for ruling in rulings:
+        try:
+            _ = RulingCitation(ruling['text'], language_str)
+            valid_rulings.append(ruling)
+        except:
+            continue
+
+    return (list(valid_laws), list(valid_rulings))
 
 
 def XX_SPIDER(soup: Any, namespace: dict) -> Optional[dict]:
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
-    pass
+    valid_languages = [Language.DE, Language.IT, Language.FR]
+    if namespace['language'] not in [Language.DE, Language.IT, Language.FR]:
+        raise ValueError(f"This function is only implemented for the languages {valid_languages} so far.")
+    citations = extract_citations(soup, (namespace['language'].value))
+    laws, rulings = check_if_convertible(citations.get('laws'), citations.get('rulings'), namespace['language'])
+    return {CitationType.LAW: laws, CitationType.RULING: rulings}
 
-
-def SH_OG(soup: Any, namespace: dict) -> Optional[dict]:
-    print(soup)
-
-    soup += """
-    dass der vorliegende Begründungsmangel offensichtlich ist, weshalb auf die Beschwerde in Anwendung von Art. 108 Abs. 1 lit. b BGG nicht einzutreten ist, 
-dass von der Erhebung von Gerichtskosten für das bundesgerichtliche Verfahren umständehalber abzusehen ist (Art. 66 Abs. 1 Satz 2 BGG), 
-dass in den Fällen des Art. 108 Abs. 1 BGG das vereinfachte Verfahren zum Zuge kommt und die Abteilungspräsidentin zuständig ist,  
-"""
-
-    def get_combined_regexes(regex_dict, language):
-        return regex.compile("|".join([entry["regex"] for entry in regex_dict[language] if entry["regex"]]))
-
-    language = 'de'
-    citation_regexes = json.loads((ROOT_DIR / 'legal_info' / 'citation_regexes.json').read_text())
-    pprint(citation_regexes)
-    print("BGE")
-    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['BGE'], language), soup):
-        print(match)
-    print("Bger")
-    for match in regex.findall(get_combined_regexes(citation_regexes['ruling']['Bger'], language), soup):
-        print(match)
-    print("law")
-    for match in regex.findall(get_combined_regexes(citation_regexes['law'], language), soup):
-        print(match)
-    exit()
-
-# TODO regexes überprüfen mit Zitierungen des Bundesgerichts
 
 def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
     """
@@ -64,8 +68,10 @@ def CH_BGer(soup: Any, namespace: dict) -> Optional[dict]:
 
     for bge in soup.find_all("a", class_=bge_key):
         if bge.string:  # make sure it is not empty or None
-            rulings.append({"type": "bge", "url": bge['href'], "text": bge.string})
+            rulings.append(
+                {"type": "bge", "url": bge['href'], "text": bge.string})
 
+    laws, rulings = check_if_convertible(laws, rulings, namespace['language'])
     return {CitationType.LAW: laws, CitationType.RULING: rulings}
 
 # This needs special care

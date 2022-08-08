@@ -19,8 +19,8 @@ from scrc.utils.log_utils import get_logger
 import json
 from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache
 
-from scrc.utils.sql_select_utils import get_legal_area, legal_areas, get_region, \
-    select_paragraphs_with_decision_and_meta_data, where_string_spider
+from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision, legal_areas, get_region, \
+    select_sections_with_decision_and_meta_data, where_string_spider
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -88,8 +88,8 @@ Datasets to be created:
     - Features:
         - largest openly published corpus of court decisions
     - Why?: train Swiss Legal BERT
-    
-    
+
+
 - To maybe be considered later 
     - Section splitting: 
         - comment: if it can be split with regexes => not interesting
@@ -107,13 +107,18 @@ Datasets to be created:
             - Zero/One/Few Shot
         - Why?: learn temporal data shift
         - not sure if interesting
-    
 
 Features:
 - Time-stratified: train, val and test from different time ranges to simulate more realistic test scenario
 - multilingual: 3 languages
 - diachronic: more than 20 years
 - very diverse: 3 languages, 26 cantons, 112 courts, 287 chambers, most if not all legal areas and all Swiss levels of appeal
+"""
+
+"""
+Further projects: (inspired by https://arxiv.org/pdf/2106.10776.pdf)
+Investigate Legal Citation Prediction as a Natural Language Generation Problem
+Citation Prediction only on context of the citation not on the entire document (simulating the writing of a decision by a clerk)
 """
 
 
@@ -132,15 +137,15 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.seed = 42
         self.minFeatureColLength = 100  # characters
-        self.debug_chunksize = int(2e2)
-        self.real_chunksize = int(2e5)
+        self.debug_chunksize = 100
+        self.real_chunksize = 1_000_000
 
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
         self.feature_cols = ["text"]  # to be overridden
 
     @abc.abstractmethod
-    def get_dataset(self, feature_col, lang, save_reports):
+    def get_dataset(self, feature_col, save_reports):
         pass
 
     def get_chunksize(self):
@@ -158,101 +163,171 @@ class DatasetCreator(AbstractPreprocessor):
 
         dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
 
-        # TODO not one dataset per feature col, but put all feature cols into the same dataset
         processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created.txt"
-        datasets, message = self.compute_remaining_parts(processed_file_path, self.feature_cols)
+        datasets, message = self.compute_remaining_parts(processed_file_path, ["-".join(self.feature_cols)])
         self.logger.info(message)
 
+        # Check these todos on the judgment_dataset_creator
+        # TODO not one dataset per feature col, but put all feature cols always as lists of paragraphs (facts, considerations, etc.) into the same dataset
         # TODO put all languages into the same dataset
+        # TODO check if all columns are fetched correctly (num_tokens_bert, etc.)
 
         if datasets:
-            lang_splits = {lang: dict() for lang in self.languages}
-            for feature_col in datasets:
-                self.logger.info(f"Processing dataset feature col {feature_col}")
-                feature_col_folder = self.create_dir(dataset_folder, feature_col)
-                for lang in self.languages:
-                    self.logger.info(f"Processing language {lang}")
-                    lang_folder = self.create_dir(feature_col_folder, lang)
-                    df, labels = self.get_dataset(feature_col, lang, save_reports)
-                    df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset to make sampling easier
-                    splits = self.save_dataset(df, labels, lang_folder, self.split_type,
-                                               sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
-                    lang_splits[lang] = splits
+            feature_cols = datasets
+            feature_col_folder = self.create_dir(dataset_folder, "-".join(feature_cols))
 
-                if huggingface:
-                    self.logger.info("Generating huggingface dataset")
-                    self.save_huggingface_dataset(lang_splits, feature_col_folder)
+            df, labels = self.get_dataset(feature_cols, save_reports)
+            df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset to make sampling easier
+            splits = self.save_dataset(df, labels, feature_col_folder, self.split_type,
+                                       sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
 
-                self.mark_as_processed(processed_file_path, feature_col)
+            if huggingface:
+                self.logger.info("Generating huggingface dataset")
+                self.save_huggingface_dataset(splits, feature_col_folder)
+
+            self.mark_as_processed(processed_file_path, feature_cols)
         else:
             self.logger.info("All parts have been computed already.")
 
-    def save_huggingface_dataset(self, lang_splits, feature_col_folder):
+    def save_huggingface_dataset(self, splits, feature_col_folder):
+        """
+        save data as huggingface dataset with columns: 'id', 'year': year, 'language',
+        region', 'canton', 'legal area', 'bge_label', 'considerations' and 'facts'
+        ATTENTION: only works for feature_cols = [considerations, facts]
+        :param splits:                  specifying splits of dataset
+        :param feature_col_folder:      name of folder
+        """
         huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
-
         for split in ['train', 'val', 'test']:
             records = []
-            for lang in self.languages:
-                # df = pd.read_csv(f'{feature_col_folder}/{lang}/{split}.csv', index_col='id')
-                df = lang_splits[lang][split]
+            df = splits[split]
 
-                tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'],
-                                     df['origin_canton'], df['label'], df['text'])
-                for case_id, year, legal_area, region, canton, label, text in tuple_iterator:
-                    if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
-                        canton = 'n/a'
-                    if not isinstance(region, str) and (region is None or math.isnan(region)):
-                        region = 'n/a'
-                    if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
-                        legal_area = 'n/a'
-                    record = {
-                        'id': case_id,
-                        'year': year,
-                        'language': lang,
-                        'region': ' '.join(region.split('_')),
-                        'canton': canton,
-                        'legal area': ' '.join(legal_area.split('_')),
-                        'label': label,
-                        'text': text,
-                    }
+            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'], df['citation_label'],
+                                 df['origin_canton'], df['bge_label'], df['lang'], df['considerations'], df['facts'])
 
-                    records.append(record)
+            for case_id, year, legal_area, region, citation_label, canton, bge_label, lang, consideration, fact in tuple_iterator:
+                if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
+                    canton = 'n/a'
+                if not isinstance(region, str) and (region is None or math.isnan(region)):
+                    region = 'n/a'
+                if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
+                    legal_area = 'n/a'
+                record = {
+                    'id': case_id,
+                    'year': year,
+                    'language': lang,
+                    'region': region,
+                    'canton': canton,
+                    'legal area': legal_area,
+                    'bge_label': bge_label,
+                    'citation_label': citation_label,
+                    'considerations': consideration,
+                    'facts': fact
+                }
+
+                records.append(record)
             with open(f'{huggingface_dir}/{split}.jsonl', 'w') as out_file:
                 for record in records:
                     out_file.write(json.dumps(record) + '\n')
 
-    def get_df(self, engine, feature_col, label_col, lang, save_reports):
-       
+    def get_df(self, engine, feature_col):
 
-        table_string, field_string = select_paragraphs_with_decision_and_meta_data()
-        # TODO spider testing
-        where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
         cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
         df = retrieve_from_cache_if_exists(cache_dir)
         if df.empty:
             self.logger.info("Retrieving the data from the database")
-            df = next(self.select(engine, table_string, field_string, where_string, order_by='year',
-                                  chunksize=self.get_chunksize()))
-            save_df_to_cache(df, cache_dir)
-        
-        df = self.clean_df(df, feature_col)
+
+            where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
+            table_string = 'decision d LEFT JOIN language ON language.language_id = d.language_id'
+            decision_df = next(
+                self.select(engine, table_string, 'd.*, extract(year from d.date) as year, language.iso_code as lang',
+                            where_string,
+                            chunksize=self.get_chunksize()))
+            decision_ids = ["'" + str(x) + "'" for x in decision_df['decision_id'].tolist()]
+
+            print('Loading Judgments')
+            table = f"{join_tables_on_decision(['judgment'])}"
+            where = f"judgment_map.decision_id IN ({','.join(decision_ids)})"
+            judgments_df = next(self.select(engine, table, "judgments", where, None, self.get_chunksize()))
+            decision_df['judgments'] = judgments_df['judgments']
+
+            print('Loading File')
+            table = f"{join_tables_on_decision(['file'])}"
+            file_ids = ["'" + str(x) + "'" for x in decision_df['file_id'].tolist()]
+            where = f"file.file_id IN ({','.join(file_ids)})"
+            file_df = next(self.select(engine, table, 'file.file_name, file.html_url, file.pdf_url', where, None,
+                                       self.get_chunksize()))
+            decision_df['file_name'] = file_df['file_name']
+            decision_df['html_url'] = file_df['html_url']
+            decision_df['pdf_url'] = file_df['pdf_url']
+
+            print('Loading Lower Court')
+
+            table = f"{join_tables_on_decision(['lower_court'])}"
+            where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
+            lower_court_select_fields = ("lower_court.date as origin_date,"
+                                         "lower_court.court_id as origin_court, "
+                                         "lower_court.canton_id as origin_canton, "
+                                         "lower_court.chamber_id as origin_chamber, "
+                                         "lower_court.file_number as origin_file_number")
+            lower_court_df = next(
+                self.select(engine, table, lower_court_select_fields, where, None, self.get_chunksize()))
+            decision_df['origin_date'] = lower_court_df['origin_date']
+            decision_df['origin_court'] = lower_court_df['origin_court']
+            decision_df['origin_canton'] = lower_court_df['short_code']
+            decision_df['origin_chamber'] = lower_court_df['origin_chamber']
+            decision_df['origin_file_number'] = lower_court_df['origin_file_number']
+
+            print('Loading Citation')
+            table = f"{join_tables_on_decision(['citation'])}"
+            where = f"citation.decision_id IN ({','.join(decision_ids)})"
+            citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()))
+            decision_df['citations'] = citations_df['citations']
+
+            print('Loading Section')
+            table = f"{join_tables_on_decision(['num_tokens'])}"
+            where = f"section.decision_id IN ({','.join(decision_ids)})"
+            section_df = next(self.select(engine, table, "sections", where, None, self.get_chunksize()))
+            decision_df['sections'] = section_df['sections']
+
+            print('Loading File Number')
+            table = f"{join_tables_on_decision(['file_number'])}"
+            where = f"file_number.decision_id IN ({','.join(decision_ids)})"
+            file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
+
+            def doubler(x):
+                a = str(pd.Series(x)[0])
+                a = a.replace("_", " ")
+                a = a.replace(".", " ")
+                a = a.rstrip()
+                a = a.lstrip()
+                return a
+
+            decision_df['file_number'] = file_number_df['file_numbers'].apply(doubler)
+
+            save_df_to_cache(decision_df, cache_dir)
+            df = decision_df
+        for feature_col in list(feature_col)[0].split('-'):
+            df = self.clean_df(df, feature_col)
         df['legal_area'] = df.chamber_id.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
 
         self.logger.info("Finished loading the data from the database")
 
         return df
-    
 
     def clean_df(self, df, column):
         # replace empty and whitespace strings with nan so that they can be removed
         sections = df['sections']
+
         def filter_column(column_data):
-            if not isinstance(column_data, str): return np.nan
-            column_data = ast.literal_eval(column_data)
+            if not isinstance(column_data, str) and not isinstance(column_data, list): return np.nan
+            if isinstance(column_data, str):
+                column_data = ast.literal_eval(column_data)
             for section in column_data:
                 if section['name'] == column:
                     return section['section_text']
+
         df[column] = sections.map(filter_column)
         df[column] = df[column].replace(r'^\s+$', np.nan, regex=True)
         df[column] = df[column].replace('', np.nan)
@@ -308,7 +383,7 @@ class DatasetCreator(AbstractPreprocessor):
 
     def prepare_kaggle_splits(self, splits):
         self.logger.info("Saving the data in kaggle format")
-        # deepcopy splits so we don't mess with the original dict
+        # deepcopy splits, so we don't mess with the original dict
         kaggle_splits = copy.deepcopy(splits)
         # create solution file
         kaggle_splits['solution'] = kaggle_splits['test'].drop('text', axis='columns')  # drop text
@@ -565,6 +640,7 @@ class DatasetCreator(AbstractPreprocessor):
         :param split:   the exact split (how much of the data goes into train, val and test respectively)
         :return:
         """
+        # TODO revise this for datasets including cantonal data and include year 2021
         last_year = 2020  # disregard partial year 2021
         first_year = 2000  # before the data is quite sparse and there might be too much differences in the language
         num_years = last_year - first_year + 1

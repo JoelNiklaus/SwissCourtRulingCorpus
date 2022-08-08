@@ -1,5 +1,4 @@
-
-from typing import List, Dict
+from scrc.preprocessors.create_court_and_chamber_tables import CreateCourtAndChamberTables
 from scrc.preprocessors.language_identifier import LanguageIdentifier
 from scrc.preprocessors.name_to_gender import NameToGender
 from scrc.preprocessors.extractors.procedural_participation_extractor import ProceduralParticipationExtractor
@@ -50,7 +49,7 @@ def main():
     config = get_config()
     process_scrc(config)
 
-    process_external_corpora(config)
+    # process_external_corpora(config)
 
 
 def process_scrc(config):
@@ -61,13 +60,10 @@ def process_scrc(config):
     """
     construct_base_dataset(config)
 
-    create_specialized_datasets(config)
+    # create_specialized_datasets(config)
 
 
 def create_specialized_datasets(config):
-    # TODO for identifying decisions in the datasets it would make sense to assign them a uuid.
-    #  This could be based on other properties. We just need to make sure that we don't have any duplicates
-
     judgment_dataset_creator = JudgmentDatasetCreator(config)
     judgment_dataset_creator.create_dataset()
 
@@ -78,25 +74,28 @@ def create_specialized_datasets(config):
     criticality_dataset_creator.create_dataset()
 
 
-def construct_base_dataset(config):   
-    
-    
+def construct_base_dataset(config):
+    """
+    If you want to test a single spider all the way through,
+    delete the spider folder inside the directory data/spiders
+    """
+
     scraper = Scraper(config)
-    new_files = scraper.download_subfolders(base_url + "docs/")
-    
-    # TODO: Decide whether it should really go after file list from scraper or with the old technique
-    text_to_database = TextToDatabase(config, new_files_only=True)
-    list_of_files: List[Dict] = text_to_database.build_dataset()
-    
-    # TODO: Decide whether it should really go after file list from scraper or with the old technique
+    scraper.download_subfolders(base_url + "docs/")
+
+    create_court_and_chamber_tables = CreateCourtAndChamberTables(config)
+    create_court_and_chamber_tables.start()
+
+    text_to_database = TextToDatabase(config)
+    text_to_database.build_dataset()
+
     language_identifier = LanguageIdentifier(config)
-    decision_ids = language_identifier.start() 
-    
+    decision_ids = language_identifier.start()
+
     cleaner = Cleaner(config)
     cleaner.clean(decision_ids)
- 
-    
-    section_splitter = SectionSplitter(config, False)
+
+    section_splitter = SectionSplitter(config)
     section_splitter.start(decision_ids)
 
     citation_extractor = CitationExtractor(config)
@@ -114,14 +113,17 @@ def construct_base_dataset(config):
     procedural_participation_extractor = ProceduralParticipationExtractor(config)
     procedural_participation_extractor.start(decision_ids)
 
-    #name_to_gender = NameToGender(config)
-    #name_to_gender.start()
+    # calls a free API which only has limited access
+    name_to_gender = NameToGender(config)
+    name_to_gender.start()
 
-    nlp_pipeline_runner = NlpPipelineRunner(config)
-    nlp_pipeline_runner.run_pipeline()
+    # TODO this should be adapted or can even be removed
+    # nlp_pipeline_runner = NlpPipelineRunner(config)
+    # nlp_pipeline_runner.run_pipeline()
 
-    count_computer = CountComputer(config)
-    count_computer.run_pipeline()
+    # TODO this should be adapted or can even be removed
+    # count_computer = CountComputer(config)
+    # count_computer.run_pipeline()
 
 
 def process_external_corpora(config):
