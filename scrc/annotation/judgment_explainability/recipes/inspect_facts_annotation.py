@@ -12,7 +12,7 @@ from psycopg2 import sql
 from typing import List, Optional
 import os
 from prodigy.components.db import connect
-ports ={"angela_de":11001, "lynn_de":11002, "thomas_de":11003, "lynn_fr": 12001, "angela_it": 13001}
+ports ={"angela_de":11001, "lynn_de":11002, "thomas_de":11003, "lynn_fr": 12001, "lynn_it": 13001}
 
 # helper function for recipe command line input
 def split_string(string):

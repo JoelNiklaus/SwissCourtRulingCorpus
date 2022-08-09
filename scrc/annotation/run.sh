@@ -29,23 +29,41 @@ fi
 
 if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
   case "$task" in
+    "all-tasks")
+    for VARIABLE in de fr it
+      do
+        printf "${SUCCESS}Starting facts-annotation command in container, to stop use Ctrl+C.\n${NC}"
+        docker exec -it -d prodigy_v1_nina prodigy facts-annotation $VARIABLE -F ./judgment_explainability/recipes/facts_annotation.py
+        printf "${SUCCESS}Starting judgment-prediction command in container, to stop use Ctrl+C.\n${NC}"
+        docker exec  -it -d prodigy_v1_nina prodigy judgment-prediction $VARIABLE -F ./judgment_prediction/recipes/judgment_prediction.py
+      done
+    for VARIABLE in angela lynn thomas
+      do
+        printf "${SUCCESS}Starting inspect-facts-annotation command in container, to stop use Ctrl+C.\n${NC}"
+        docker exec -it -d prodigy_v1_nina prodigy inspect-facts-annotation de $VARIABLE -F ./judgment_explainability/recipes/inspect_facts_annotation.py
+      done
+    printf "${SUCCESS}Starting inspect-facts-annotation command in container, to stop use Ctrl+C.\n${NC}"
+    docker exec -it -d prodigy_v1_nina prodigy inspect-facts-annotation fr lynn -F ./judgment_explainability/recipes/inspect_facts_annotation.py
+    printf "${SUCCESS}Starting inspect-facts-annotation command in container, to stop use Ctrl+C.\n${NC}"
+    docker exec -it -d prodigy_v1_nina prodigy inspect-facts-annotation it lynn -F ./judgment_explainability/recipes/inspect_facts_annotation.py
+    printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
+    docker exec -it -d prodigy_v1_nina prodigy "$task" gold_annotations_de annotations_de-angela,annotations_de-lynn,annotations_de-thomas -l "Supports judgment","Opposes judgment","Lower court","Neutral" -v spans_manual --auto-accept
+
+    ;;
     "facts-annotation")
     for VARIABLE in de fr it
       do
         printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
         docker exec -it -d prodigy_v1_nina prodigy "$task" $VARIABLE -F ./judgment_explainability/recipes/facts_annotation.py
       done
-
       ;;
-
-
     "inspect-facts-annotation")
     printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
     docker exec -it -d prodigy_v1_nina prodigy "$task" fr lynn -F ./judgment_explainability/recipes/inspect_facts_annotation.py
     for VARIABLE in angela lynn thomas
       do
         printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
-        docker exec -it d prodigy_v1_nina prodigy "$task" de $VARIABLE -F ./judgment_explainability/recipes/inspect_facts_annotation.py
+        docker exec -it -d prodigy_v1_nina prodigy "$task" de $VARIABLE -F ./judgment_explainability/recipes/inspect_facts_annotation.py
       done
     ;;
 
@@ -60,6 +78,7 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
       docker exec  -it -d prodigy_v1_nina prodigy "$task" $VARIABLE -F ./judgment_prediction/recipes/judgment_prediction.py
     done
   ;;
+
   "db-out")
   for VARIABLE in annotations_de annotations_de-angela annotations_de-lynn annotations_de-thomas annotations_fr annotations_fr-lynn annotations_it-angela annotations_it annotations_de_inspect annotations_de_inspect-lynn annotations_de_inspect-thomas
 
