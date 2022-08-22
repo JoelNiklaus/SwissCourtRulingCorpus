@@ -46,8 +46,8 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
     docker exec -it -d prodigy_v1_nina prodigy inspect-facts-annotation fr lynn -F ./judgment_explainability/recipes/inspect_facts_annotation.py
     printf "${SUCCESS}Starting inspect-facts-annotation command in container, to stop use Ctrl+C.\n${NC}"
     docker exec -it -d prodigy_v1_nina prodigy inspect-facts-annotation it lynn -F ./judgment_explainability/recipes/inspect_facts_annotation.py
-    printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
-    docker exec -it -d prodigy_v1_nina prodigy "$task" gold_annotations_de annotations_de-angela,annotations_de-lynn,annotations_de-thomas -l "Supports judgment","Opposes judgment","Lower court","Neutral" -v spans_manual --auto-accept
+    printf "${SUCCESS}Starting review command in container, to stop use Ctrl+C.\n${NC}"
+    docker exec -it -d prodigy_v1_nina prodigy review gold_annotations_de annotations_de-angela,annotations_de-lynn,annotations_de-thomas -l "Supports judgment","Opposes judgment","Lower court","Neutral" -v spans_manual --auto-accept --show-skipped
 
     ;;
     "facts-annotation")
@@ -69,7 +69,7 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
 
   "review")
     printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
-    docker exec -it -d prodigy_v1_nina prodigy "$task" gold_annotations_de annotations_de-angela,annotations_de-lynn,annotations_de-thomas -l "Supports judgment","Opposes judgment","Lower court","Neutral" -v spans_manual --auto-accept
+    docker exec -it -d prodigy_v1_nina prodigy "$task" gold_annotations_de annotations_de-angela,annotations_de-lynn,annotations_de-thomas -l "Supports judgment","Opposes judgment","Lower court","Neutral" -v spans_manual --auto-accept --show-skipped
     ;;
     "judgment-prediction")
   for VARIABLE in de fr it
