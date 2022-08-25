@@ -4,8 +4,8 @@
   "db": "sqlite",
   "db_settings": {
     "sqlite": {
-      "name": "annotations.db",
-      "path": "./annotations"
+      "name": "prodigy_results.db",
+      "path": "./"
     }},
   "feed_overlap": true,
   "show_stats": true,

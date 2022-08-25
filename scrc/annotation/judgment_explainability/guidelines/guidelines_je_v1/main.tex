@@ -1,0 +1,79 @@
+%% Full length research paper template
+%% Created by Simon Hengchen and Nilo Pedrazzini for the Journal of Open Humanities Data (https://openhumanitiesdata.metajnl.com)
+
+\documentclass{article}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{johd}
+
+\title{Annotation Guidlines for Explainability Annotations for Legal Judgment Prediction in Switzerland}
+
+\author{Nina Baumgartner}
+
+\date{} %leave blank
+
+\begin{document}
+\subtitle{Annotation Goal}
+Recently presented a dataset for legal Judgment prediction including 85K Swiss Federal Supreme Court decisions. The model predicting the judgment outcome achieved up to 80\% Macro-F1 Score. But still the inner workings are a blackbox and are thus not intepretable. We have now constructed a dataset of 36 cases for 3 languages (beschreiben), which subsequently should be annotated by 3 law sudents for explanability. 
+Why explainability is important erklären.
+
+- comment in comment section if there are errors
+- What parts of facts section is important for the judgment outcome
+- Syntax syntax is the name given to the structure
+associated with a sentence. and semantics
+We want to use keywords or
+
+\title{Model}
+For the following discussion, we will define a model as consisting of a
+vocabulary of terms, T, the relations between these terms, R, and their interpretation,
+I. So, a model, M, can be seen as a triple, M = <T,R,I>.
+For the legal judgment predication we have a binary classification task with the cathegories (dissmissal, approval). These label are assigned by a court on the basis of the facts.
+Model Joel
+ \[
+T = {Judgment, approval, dissmissal}
+R = {Judgment::= approval|dissmissal}
+I = {approval="request is deemed valid", dissmissal ="request is denied"}
+\]
+Model task, which fact section are important for the judgment
+\[
+T = {Facts_Section, Supports judgment,Opposes verdict}
+R = {Facts_Section::= Supports judgment|Opposes verdict}
+I = {Supports judgment="this section/term supports the judgment",Opposes verdict="this section/term opposes verdict"}
+\]
+\title{Annotate with the Specification}
+
+MAMA (Model-Annotate-Model-Annotate)
+These annotation guidelines will help you identify the important elements (terms and sections) of the facts of the 36 court decisions in this dataset. With the two tags ``Supports judgment`` and ``Opposes verdict`` you will label a word or phrase in the sentence of the facts and therefore indicating what they denote (Semantic typing). Your annotation will focus on consuming tags. A consuming tag refers to a metadata tag that has real content from the dataset associated with it. With your annotation you will give insight in the parts of the facts that support support or oppose the judgment.
+
+
+For example given the following facts section
+```
+Auf dem Weg zu Gertrude kommt Hamlet an der Kammer von Claudius vorbei, der kniend in ein Gebet vertieft ist. Hamlet schleicht sich von hinten an Claudius an und hebt seinen Dolch, um Claudius zu töten. Im letzten Moment widersteht er dieser Gelegenheit – wenn er Claudius mitten im Gebet tötet, würde dieser ja schnurstracks ins Paradies kommen.
+```
+We assume that after examination of these facts the court will come to the following conclusion: PH has committed attempted intentional homicide according to Art. 111 StGB in connection with Art. 22 Abs.1 StGB. The judgment would therefore be "approval".
+
+``hebt seinen Dolch, um Claudius zu töten``(Supports judgment)
+``widersteht er dieser Gelegenheit``
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\nocite{*}
+
+\maketitle
+\bibliographystyle{johd}
+\bibliography{bib}
+
+
+\end{document}

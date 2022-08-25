@@ -12,7 +12,7 @@ from psycopg2 import sql
 from typing import List, Optional
 import os
 from prodigy.components.db import connect
-ports ={"angela":11001, "lynn":11002, "thomas":11003,"fr": 12001, "it": 13001}
+ports ={"angela_de":11001, "lynn_de":11002, "thomas_de":11003, "lynn_fr": 12001, "lynn_it": 13001}
 
 # helper function for recipe command line input
 def split_string(string):
@@ -29,11 +29,11 @@ def split_string(string):
 def inspect_facts_annotation(language:str,annotator:str ):
   # define labels for annotation
   labels = ["Supports judgment","Opposes judgment","Lower court"]
-  stream = JSONL("./annotations/annotations_{}-{}.jsonl".format(language,annotator))
+  stream = JSONL("./judgment_explainability/annotations/annotations_{}-{}.jsonl".format(language,annotator))
 
 
   dataset = "annotations_{}_inspect".format(language)
-  port = ports[annotator]
+  port = ports[annotator+"_{}".format(language)]
 
   return {
     "dataset": dataset ,# Name of dataset_scrc to save annotations
