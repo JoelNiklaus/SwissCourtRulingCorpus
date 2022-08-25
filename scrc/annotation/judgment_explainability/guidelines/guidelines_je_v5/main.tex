@@ -1,0 +1,313 @@
+%% Full length research paper template
+%% Created by Simon Hengchen and Nilo Pedrazzini for the Journal of Open Humanities Data (https://openhumanitiesdata.metajnl.com)
+
+\documentclass{article}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{johd}
+\graphicspath{ {./images/} }
+
+
+\title{Annotation Guidelines for Explainability Annotations for Legal Judgment Prediction in Switzerland}
+
+\author{Nina Baumgartner}
+
+\date{} %leave blank
+\begin{document}
+
+\maketitle
+\section{Introduction}
+\subsection{Annotation Goal}
+Recently  \citet{Niklaus_2021} presented a diachronic multilingual (German, French, Italian) dataset for \textsc{Legal Judgment Prediction} LJP including 85k Swiss Federal Supreme Court decisions. Using Hierarchical BERT, they achieved a Macro-F1 Score of up to 70\%, considering penal law exclusively, they even achieved a score of up to 80\%. To use \textsc{Artificial Intelligence} (AI) safely in high stakes domains such as law we need explanations on how these decisions are made. To investigate explainabilty in the legal area of AI we want to gather some human and model-generated explanation of decision from the \textsc{SwissJudgmentPrediction} (SJP) corpus.
+
+This annotation task has the goal to gather the human part of the explanation. With your annotation you will give your insight as a legal expert and tag parts of the facts with specific labels. These guidelines should help you to identify the important parts of the facts and create consistent annotations. They are based on the work of \cite{Reiter+2020+193+202}, \cite{Leitner_2019} and \cite{pustejovsky2012natural}. They are a work-in-progress in collaboration with Lynn Grau, Angela Stefanelli and Thomas Lüthi.
+
+\subsection{Dataset}
+The SJP dataset is split into training, validation and testing set. For this annotation task a balanced subset of the SJP containing 108 cases taken from the test and validation set was created. The dataset is deemed balanced because the 108 cases are equally distributed among the three languages contained in the Swiss judicial system German, French and Italian. Each language set contains six cases over six years (2015 until 2020). With each year having two cases per legal area\footnote{The chosen legal areas are categorized as penal law, social law and civil law}: One with the verdict approved and one with the verdict dismissed. In addition, preference was given to cases where the model decided the correct judgment form the facts given to it, with some outliers in the French and Italian subset.
+
+\subsection{Disclaimer}
+This document is a work-in-progress. If you have questions or find any errors in these instructions while doing the annotations please feel free to contact the maintainer. Please help with collecting examples to complete these guidelines.
+
+\section{The Annotation Cycle}
+To produce quality annotations and guidelines, which make the annotation task scalable and reproducible the annotations have to be done in cycles. \cite{pustejovsky2012natural} call this process the MAMA (Model-Annotate-Model-Annotate) cycle (see Figure \ref{MAMA_cycle} for details). 
+
+Using the annotation guidelines to identify the right parts of the text, multiple annotations by multiple individual annotators are done on the same input. Then these annotations are analyzed and the guidelines adapted accordingly to provide consistency in the annotations. Therefore, it is important that for this first few cycles the annotations are done individually. Later the gold standard annotation for this corpus emerge from this process. \cite{pustejovsky2012natural} describe gold standard annotations as the final version of the annotations, which uses the most up-to-date guidelines and has everything labeled correctly. For this work these gold standard annotation will be done as a team. For the practical aspect of this process please reference section \ref{1_cycle},  \ref{2_cycle}, \ref{f_cycle}. 
+
+\begin{figure}[H]
+    \makebox[\textwidth]{\fbox{\includegraphics[height=150px]{Bachelorthesis/Annotationguidelines/images/PustejovskyStubbs2013.jpg}}}
+     \caption{The inner workings of the MAMA cycle \citep{pustejovsky2012natural}.}
+     \label{MAMA_cycle}
+\end{figure}
+
+\section{Annotation Entities}
+Although you will only be annotating the fact section of a ruling, you will have access to the full document (via a link on Prodigy) and the judgment will be clearly indicated on the prodigy interface. You can and should use these other resources as an indicator on which part of the facts are of greatest importance.
+
+\subsection{Sentences and Sub-Sentences}
+\cite{TMTE_2021} identify three types of explanations in the \textsc{Explainable Natural Language Processing} (ExNLP) literature: highlights, free-text, and structured explanations. The explainability annotations for this task focus mainly on highlights with some addition of free-text explanations. 
+
+To add highlights you will label sentences or sub-sentences as supporting or opposing the judgment. For this task we define a sentence as a self-contained linguistic unit consisting of multiple words, terminated with a period, semicolon, colon, question mark or exclamation mark. A entire sentence is the largest entity to be annotated. A sentence can consist of multiple sub-sentences usually separated with a "and" or a comma. It is possible that a sentence contains two sub-sentences opposing each other, which should be consequently annotated with different labels. These sub-sentences are the smallest units that should be annotated. So single words or expressions should never be annotated. We hope that by choosing those units it is possible to indicate what the different parts of the sentences denote in the context of the judgment and to subsequently better explain the decisions of the model.
+
+\subsection{Lower Court}
+In addition to sentences you will also have to annotate the last lower court of each case. As seen in Figure \ref{rubrum} the Rubrum of the ruling indicates the last lower court. The last lower court is composed of the name of the court e.g. "Verwaltungsgericht" and the location "Kanton Luzern". Please annotate all instances of the lower court where it appears as a complete constellation. So for example if "Verwaltungsgericht des Kanton Luzern" appears multiple times in the facts please label it each time. Please Note that you should only annotate the lower court itself please do not label prepositions like "beim" or "zum" or verbs like "sprach" which are often found next to the lower court.
+
+\begin{figure}[H]
+    \makebox[\textwidth]{\fbox{\includegraphics[width=\textwidth]{Bachelorthesis/Annotationguidelines/images/rubrum_09-04-2018-9C_220-2017_label}}}
+     \caption{Screenshot of a Rubrum with the lower court highlighted Judgment (of the Federal Court) \citeauthor{9C-424-2017}. }
+     \label{rubrum}
+\end{figure}
+
+\section{Annotation Categories}
+To annotate the sentences of each fact section you will be using two labels,  \emph{Supports judgment} and \emph{Opposes verdict}. You should also highlight the lower court for each judgement. In addition, you will be given several options for dealing with problematic cases, which should help to improve the dataset, these guidelines and the annotations themselves.
+
+\subsection{Supports Judgment}
+This label is used when a sentence or sub-sentence supports the judgment. Every sub-sentence that supports the judgment should be annotated.
+%\todo 1 Add an example
+
+\subsection{Opposes Judgment}
+This label is used when a sentence or sub-sentence opposes the judgment. Every sub-sentence that opposes the judgment should be annotated. 
+%\todo 2 Add an example
+
+\subsection{Lower Court}
+This label is used to highlight the last lower court of the case. To label the last lower court highlight the name and the location of the court  as one instance (see Figure \ref{lower-court}).
+\begin{figure}[H]
+    \makebox[\textwidth]{\includegraphics[width=\textwidth]{Bachelorthesis/Annotationguidelines/images/prodigy-lower-court.png}}
+     \caption{Example of a highlighted lower court in Prodigy.}
+     \label{lower-court}
+\end{figure}
+
+
+\subsection{Neutral}
+Every not-labeled sub-sentence is considered neutral. This is not a label per se but merely how the system interprets words or sentences which are not assigned one of the labels above. It is important for the analysis that even the neutral sentences are annotated which in our case means to omit them.
+
+One example in German of an neutral expression which should not be tagged with a label is the word \emph{"Sachverhalt:"}. This word only indicates the beginning of the fact section and should be left out as a neutral part of the facts because it does not give us any further information on the explainability of the judgment. 
+
+Another example of a neutral part of the facts are the section indicators labeled with capital letters (e.g. \epmh{A., B., A.a., A.b and so on}). Note that witnesses, accused persons and other involved parties are also labeled with uppercase letters and should be annotated if part of a sentence (see \ref{uppercase} below as illustration).
+\begin{figure}[H]
+    \makebox[\textwidth]{\includegraphics[width=\textwidth]{Bachelorthesis/Annotationguidelines/images/uppercase_letters_example.png}}
+     \caption{Example an annotation where the uppercase letters are first wrongly (marked red)  and then correctly annotated (marked green). }
+     \label{uppercase}
+\end{figure}
+
+
+
+\subsection{Problematic Cases}
+Problematic cases can occur. For now, we differentiate between three possible types of such cases.
+
+\subsubsection{Rejected Cases}
+If a case is badly tokenized\footnote{Tokenized means that the system did not properly separate the words.} or there is another formal error it should be rejected. Please state your reasoning in the comment window using the comment pattern below and reference the \nameref{reject-ignore-case} section of this document for the details on how to properly reject a case. Figure \ref{reject_case} is an example of a case with formal errors. 
+\begin{figure}[H]
+    \makebox[\textwidth]{\includegraphics[width=\textwidth]{Bachelorthesis/Annotationguidelines/images/reject_case.png}}
+     \caption{Example of a case containing a formal error which should be rejected. Here the title was parsed incorrectly, the judgment is missing and the facts are tokenized wrongly and incomplete.}
+     \label{reject_case}
+\end{figure}
+
+\subsubsection{Ignored Cases}
+If a case is to short or otherwise unfit for the annotation it should be ignored. To ignore it please state your reasoning in the comment section and follow the steps explained in the \nameref{reject-ignore-case} section of this document below. 
+
+An example of a case which was ignored from a annotator is the Judgment (of the Federal Court) \citeauthor{8C-641-2019} (please reference whole case online via link). The annotator which ignored this case explained his reasoning as follow in the free text explanation: 
+\begin{quote}
+"Before the Federal Court, only the question of party compensation was in dispute. The underlying facts, however, actually have nothing to do with the court's decision."
+\end{quote}
+This argumentation can be supported with the following parts of the facts section from \citeauthor{8C-641-2019}:
+\begin{quote}
+"B. [...] Allerdings verpflichtete [das Verwaltungsgericht des Kantons Bern] die \colorbox{GreenYellow}{Suva-MV,} \colorbox{GreenYellow}{A.\_\_\_\_\_\_\_\_} \colorbox{GreenYellow}{eine Parteientschädigung} in der Höhe
+von Fr. 3610.15 [...]  \colorbox{GreenYellow}{zu bezahlen}.
+
+C. Die Suva-MV erhebt Beschwerde in öffentlich-rechtlichen Angelegenheiten und beantragt sinngemäss, der angefochtene Entscheid sei bezüglich der Zusprache der \colorbox{GreenYellow}{Parteientschädigung} \colorbox{GreenYellow}{aufzuheben}.
+A.\_\_\_\_\_\_\_\_ beantragt, auf die Beschwerde sei nicht einzutreten, eventuell sei sie abzuweisen."
+\end{quote}
+\subsubsection{Other Problematic Cases}
+There might be cases without formal errors where you have difficulties to annotate (neither reject nor ignore). In such cases, please annotate to the best of your ability and explain your reasoning in the comment section.
+\pagebreak
+\subsubsection{Comment Structure}
+\begin{mdframed}[frametitle={Comment for rejecting and ignoring case}]
+\emph{Number of case – Annotators name}
+
+\begin{itemize}
+	\item Why did you ignore/reject this case?
+\end{itemize}	
+\end{mdframed}
+
+\begin{mdframed}[frametitle={Comment for generally problematic case}]
+\emph{Number of case – Annotators name}
+
+\begin{itemize}
+	\item Why is this case problematic and difficult to annotate?
+
+\item How did you decide on your annotation?
+\end{itemize}
+\end{mdframed}
+
+\section{Implementation: How to Annotate the Dataset using Prodigy}
+This section explains how to use the annotation tool Prodigy\footnote{\href{https://prodi.gy/}{https://prodi.gy/}}. We built a custom recipe for this task which lets you annotate the facts section of a given court decision.
+
+\subsection{Access}
+The Prodigy instance can only be accessed via the University of Bern network. If you want to annotate from home you must use the VPN of the University of Bern\footnote{\href{https://serviceportal.unibe.ch/sp?id=kb_article_view&sysparm_article=KB0010032}{https://serviceportal.unibe.ch/sp?id=kb_article_view&sysparm_article=KB0010032}}.
+
+If you are connected to the university network you can access Prodigy via one of URLs in the following three sections. Before you can start you will be asked to provide a \emph{username} and a \emph{password}, which will be give to you by the maintainer of the annotation process. After the login procedure you should now see an overview of the case and you can start with your annotation.
+
+\subsubsection{First cycle}\label{1_cycle}
+The following links will be used for your pilot annotations (first iteration). If you completed the annotation on this dataset ignored and rejected cases will be replaced with other cases having the same legal area, year and judgment. This process is ongoing until we reach 36 accepted cases. 
+\begin{itemize}
+\item German case annotations:
+\begin{itemize}
+\item Angela: \href{http://fdn-sandbox3.inf.unibe.ch:11000/?session=angela}{http://fdn-sandbox3.inf.unibe.ch:11000/?session=angela}
+    \item Lynn: \href{http://fdn-sandbox3.inf.unibe.ch:11000/?session=lynn}{http://fdn-sandbox3.inf.unibe.ch:11000/?session=lynn}
+    \item Thomas: \href{http://fdn-sandbox3.inf.unibe.ch:11000/?session=thomas}{http://fdn-sandbox3.inf.unibe.ch:11000/?session=thomas}
+\end{itemize}
+    \item French case annotations: \href{http://fdn-sandbox3.inf.unibe.ch:12000/}{http://fdn-sandbox3.inf.unibe.ch:12000/}
+    \item Italian case annotations: \href{http://fdn-sandbox3.inf.unibe.ch:13000/}{http://fdn-sandbox3.inf.unibe.ch:13000/}
+\end{itemize}
+Note that sessions can be added dynamically by adding the suffix {\color{blue}/?session=SessionName} to the url.
+
+\subsubsection{Further Cycles and Corrections}\label{2_cycle}
+If you have completed all the pending annotations on the above URLs Prodigy will display a message saying no task available. This is your indicator to continue to this part of the annotations. Reference the Guideline for recent changes and adapt your annotations accordingly. You can repeat this process with a new session as often as you want (see session management example below).
+\begin{itemize}
+\item German case annotations:
+\begin{itemize}
+\item Angela: \href{http://fdn-sandbox3.inf.unibe.ch:11001/?session=angela}{http://fdn-sandbox3.inf.unibe.ch:11001/?session=angela}
+    \item Lynn: \href{http://fdn-sandbox3.inf.unibe.ch:11002/?session=lynn}{http://fdn-sandbox3.inf.unibe.ch:11002/?session=lynn}
+    \item Thomas: \href{http://fdn-sandbox3.inf.unibe.ch:11003/?session=thomas}{http://fdn-sandbox3.inf.unibe.ch:11003/?session=thomas}
+
+\end{itemize}
+\item French case annotations: \href{http://fdn-sandbox3.inf.unibe.ch:12001/?session=lynn}{http://fdn-sandbox3.inf.unibe.ch:12000/?session=lynn}
+    \item Italian case annotations: \href{http://fdn-sandbox3.inf.unibe.ch:13001/?session=angela}{http://fdn-sandbox3.inf.unibe.ch:13000/?session=angela}
+\end{itemize}
+
+
+
+
+If you need to do multiple corrections on the same case please add a number behind you link as seen below to distinguish between the sessions:
+
+\begin{itemize}
+\item Session 1: \href{http://fdn-sandbox3.inf.unibe.ch:11001/?session=angela1}{http://fdn-sandbox3.inf.unibe.ch:11001/?session=angela1}
+\item Session 2: \href{http://fdn-sandbox3.inf.unibe.ch:11001/?session=angela2}{http://fdn-sandbox3.inf.unibe.ch:11001/?session=angela2}
+\end{itemize}
+
+
+\subsubsection{Final Gold Standard Annotations}\label{f_cycle}
+After some iterations you and the other annotator will get together and decide on the final annotation using the below link.
+\begin{itemize}
+\item German gold standard annotations:
+\begin{itemize}
+\item \href{http://fdn-sandbox3.inf.unibe.ch:8080/?session=gold}{http://fdn-sandbox3.inf.unibe.ch:8080/?session=gold}
+\end{itemize}
+\end{itemize}
+
+%\todo 3 Add explanation on how to use Prodigy interface for this part.
+
+\subsection{Annotate a Sub-Sentence}
+To label a phrase with a tag, highlight it with your cursor and choose the corresponding label. To delete a tag simply click on the tagged words again. As seen in Figure \ref{sentence_annotation} the two label appear in two different colors. By hovering over an annotated section the delete toggle appears.
+
+\begin{figure}[H]
+    \makebox[\textwidth]{\includegraphics[width=\textwidth]{Bachelorthesis/Annotationguidelines/images/sentence_annotation.png}}
+     \caption{Screenshot of sentence labeling in prodigy.}
+     \label{sentence_annotation}
+\end{figure}
+
+
+If you are happy with your annotation you can accept it by clicking on the green check labeled with [1] in Figure \ref{overview} and save it by pressing the save button in the left corner referenced by the number [2].
+To see your progress you can look at the information displayed on the left (see number [3] on Figure \ref{overview}). If you want to access the original document you can click on the link in the right corner (see number [4]). Please do not forget to safe your progress using the save button [2].
+
+If you want to skip a case, because you already annotated it. Please use the accept button [1] to get to the next case.
+\pagebreak
+\begin{figure}[h]
+    \makebox[\textwidth]{\includegraphics[width=\textwidth]{overview}}
+     \caption{Screenshot of the case overview on prodigy}
+     \label{overview}
+\end{figure}
+
+
+\subsection{Reject or Ignore a Case}
+\label{reject-ignore-case}
+To reject a case state your reasoning in the comment section and press the red cross to reject it. To ignore it, press the blue button with the stop signal after commenting. Do not forget to save your progress. Figure \ref{reject_ignore} shows the interface of the comment section and the ignore and reject buttons. 
+
+\begin{figure}[H]
+    \makebox[\textwidth]{\includegraphics[width=\textwidth]{Bachelorthesis/Annotationguidelines/images/reject_ignore.png}}
+     \caption{Reject and Ignore buttons}
+     \label{reject_ignore}
+\end{figure}
+
+\pagebreak
+\section{Change Log}
+This change log documents the progress of these guidelines. When adapting these guideline please also add a new entry to the changelog using the following structure
+\begin{mdframed}[frametitle={Template}]
+\emph{Date – Title of changes}
+\begin{itemize}
+	\item Which parts were changed this iteration?
+    \item Why was this part changed?
+\end{itemize}
+\end{mdframed}
+\begin{mdframed}[frametitle={}]
+\emph{10.04.2022 – Formal changes after first feedback}
+\begin{itemize}
+	\item Which parts were changed this iteration? 
+	\begin{itemize}
+	    \item Changed E. Leitner reference to the published article.
+	    \item Corrected some spelling errors.
+	    \item Integrated the figures into the text of the guidelines.
+	    \item Changed label "opposes verdict" to "opposes judgment"
+	\end{itemize} 
+    \item Why was this part changed?
+    
+    With this first adaption of the guidelines we mainly worked on some formal errors to standardize the format and clarify the instruction (especially with integrating the figures into the text). The label was changed to make the annotation and their interpretation more consistent.
+
+\end{itemize}
+\end{mdframed}
+\begin{mdframed}
+\emph{23.04.2022 – Changes to Prodigy setup and new label}
+\begin{itemize}
+	\item Which parts were changed this iteration? 
+	\begin{itemize}
+	    \item Named multi-user sessions where added to the Prodigy setup, which changed the annotators URLs in this document.
+	    \item The label lower court was added as a new annotation category and subsequently to the prodigy setup. Explanation how and when to use it were added to section 2 and 3.
+	    \item Directions on how to skip already annotated cases were added. To section 4.2
+	\end{itemize} 
+    \item Why was this part changed?
+    
+    The named multi-user session was a pending part of the prodigy setup, which is now resolved. The URLs of the annotators had to be adapted accordingly. After a meeting with the lawyer and annotator Thomas Lüthi, we decided on adding the new label "lower court", to highlight it as a separate entity additionally to the existing two labels. 
+    Correct sessions where not yet implemented in the first setup of Prodigy used for some annotations, for this reason directions on how to skip a case a already annotated case were added.
+    
+\end{itemize}
+\end{mdframed}
+\pagebreak
+\begin{mdframed}
+\emph{12.05.2022 – Changes to Prodigy setup, introduction revision, explanation of the annotation cycle }
+\begin{itemize}
+	\item Which parts were changed in this iteration? 
+	\begin{itemize}
+	    \item The Prodigy setup was extended to enable the iterative work on the annotations. Therefore, an explanation on when to use which link was added. In addition explanation on the annotation cycle itself where added.
+	    \item Updated images because Prodigy Interface changed
+	    \item After writing the proposal of the thesis corresponding to these guidelines the introduction was adapted accordingly.
+	    \item Ignored Case example was added
+	\end{itemize} 
+    \item Why was this part changed
+    
+    Enabling the iterative process is an important step to provide quality annotations and guidelines. Therefore after the setup was implemented the guidelines had to be adapted. The images had to be updated because they where no longer up to date and to provide consistency in these guidelines. To give the annotator a better understanding of the task the introduction was updated with some input from the proposal. After analysing the currently done annotation a example of a ignored case could be added to these guidelines.
+    
+\end{itemize}
+\end{mdframed}
+\begin{mdframed}
+\emph{21.07.2022 – Language extensions, clarification of the instructions}
+\begin{itemize}
+	\item Which parts were changed in this iteration? 
+	\begin{itemize}
+	    \item Extensions to French and Italian in the iterative annotation cycle in the implementation part of these guidelines.
+	    \item Added some clarification to the lower court label which also specifies how often it should be annotated.
+	    \item Added the section dividing capital letters as a new neutral element.
+	    
+	\end{itemize} 
+    \item Why was this part changed
+    
+    Enabling the iterative process is an important step to provide quality annotations and guidelines. Therefore after the setup was implemented in Italian and French the guidelines had to be adapted. After reviewing first results of the annotation done using these guidelines some clarification for more consistent annotation where added. The new neutral element and clarification in the lower court section will help to prevent distortion in the annotator agreement caused by minor shifts of the start of the label. The clarification that all lower court instances appearing in complete form should be annotated, was added so that the annotation where most similar to the models output (the model will extract all instances of lower court).
+\end{itemize}
+\end{mdframed}
+
+\bibliographystyle{johd}
+\pagebreak
+\bibliography{bib}
+\listoffigures
+
+
+\end{document}

@@ -1,0 +1,36 @@
+\setlength{\paperwidth}{21cm}   % A4
+\setlength{\paperheight}{29.7cm}% A4
+\setlength\topmargin{-0.5cm}    
+\setlength\oddsidemargin{0cm}   
+\setlength\textheight{24.7cm} 
+\setlength\textwidth{16.0cm}
+\setlength\columnsep{0.6cm}  
+\newlength\titlebox 
+\setlength\titlebox{5cm}
+\setlength\headheight{5pt}   
+\setlength\headsep{0pt}
+\pagestyle{plain}
+\usepackage{color}
+\usepackage[natbibapa]{apacite}
+\usepackage{xurl}
+\usepackage[colorlinks,citecolor=blue,urlcolor=blue, linkcolor=blue, bookmarks=false,hypertexnames=true]{hyperref}
+\usepackage{url}
+%\usepackage{libertine}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{doi} % hyperlink URLs
+\renewcommand{\doi}{DOI:~}
+
+\newcommand\outauthor{
+	\begin{tabular}[t]{c}
+		\bf\@author
+	\end{tabular}}
+	
+%Add keyword command
+\providecommand{\keywords}[1]
+{\small\textbf{Keywords:} #1
+}
+
+\providecommand{\authorroles}[1]
+{\small\textbf{Author roles:} #1
+}

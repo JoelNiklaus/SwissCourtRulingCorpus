@@ -36,6 +36,7 @@ else
 fi
 echo "Starting container in idle mode..."
 docker run -d \
+  --restart unless-stopped \
   --name prodigy_v1_nina \
   --network="host" \
   -e DB_USER=$DB_USER \
