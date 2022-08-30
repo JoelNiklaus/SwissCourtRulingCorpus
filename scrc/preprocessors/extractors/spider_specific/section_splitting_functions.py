@@ -40,6 +40,7 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     """ all_section_markers = {
         Language.DE: {
             Section.FACTS: [r'Tatbestand', r'Sachverhalt'],
+            Section.TOPIC: [r'Gegenstand', r'betreffend', r"Betreff", r"wegen"],
             Section.CONSIDERATIONS: [r"Erwägung"],
             Section.RULINGS: [r"Demnach erkennt", r"Demnach beschliesst", r"Demnach wird beschlossen", r"Demnach wird verfügt", r"Dispositiv"],
             Section.FOOTER: [r""]
