@@ -40,6 +40,7 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     """ all_section_markers = {
         Language.DE: {
             Section.FACTS: [r'Tatbestand', r'Sachverhalt'],
+            Section.TOPIC: [r'Gegenstand', r'betreffend', r"Betreff", r"wegen"],
             Section.CONSIDERATIONS: [r"Erwägung"],
             Section.RULINGS: [r"Demnach erkennt", r"Demnach beschliesst", r"Demnach wird beschlossen", r"Demnach wird verfügt", r"Dispositiv"],
             Section.FOOTER: [r""]
@@ -677,7 +678,7 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
             # "title": ['Urteil vom', 'Beschluss vom', 'Entscheid vom'],
             # "judges": ['Besetzung', 'Es wirken mit', 'Bundesrichter'],
             # "parties": ['Parteien', 'Verfahrensbeteiligte', 'In Sachen'],
-            # "topic": ['Gegenstand', 'betreffend'],
+            Section.TOPIC: [r'Gegenstand', r'betreffend', r"Betreff", r"wegen"],
             Section.FACTS: [r'Sachverhalt:', r'hat sich ergeben', r'Nach Einsicht', r'A\.-'],
             Section.CONSIDERATIONS: [r'Erwägung:', r'[Ii]n Erwägung', r'Erwägungen:'],
             Section.RULINGS: [r'erkennt d[\w]{2} Präsident', r'Demnach (erkennt|beschliesst)', r'beschliesst.*:\s*$',
@@ -688,6 +689,7 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
                 r'Im Namen des']
         },
         Language.FR: {
+            Section.TOPIC: [r'Objet'],
             Section.FACTS: [r'Faits\s?:', r'en fait et en droit', r'(?:V|v)u\s?:', r'A.-'],
             Section.CONSIDERATIONS: [r'Considérant en (?:fait et en )?droit\s?:', r'(?:C|c)onsidérant(s?)\s?:',
                                      r'considère'],
@@ -698,6 +700,7 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
             ]
         },
         Language.IT: {
+            Section.TOPIC: [r'Oggetto'],
             Section.FACTS: [r'(F|f)att(i|o)\s?:'],
             Section.CONSIDERATIONS: [r'(C|c)onsiderando', r'(D|d)iritto\s?:', r'Visto:', r'Considerato'],
             Section.RULINGS: [r'(P|p)er questi motivi'],
@@ -714,8 +717,8 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
     divs = decision.find_all("div", class_="content")
     # we expect maximally two divs with class content
     assert len(divs) <= 2
-
     paragraphs = get_paragraphs(decision)
+
     return associate_sections(paragraphs, section_markers, namespace)
 
 
