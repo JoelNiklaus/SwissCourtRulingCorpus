@@ -57,9 +57,10 @@ def process_dataset(datasets: dict, lang: str):
         original_facts_row = label_df.copy()
         original_facts_row = original_facts_row.drop_duplicates(subset=["id_csv"], inplace=False, keep='first').drop("facts", axis=1).rename(columns={"text": "facts"})
         original_facts_row["explainability_label"] = "Baseline"
+        original_facts_row["occluded_text"] = "None"
         label_df = label_df.append(original_facts_row)
         label_df = label_df[['id_csv', 'year','facts','label','language','origin_region','origin_canton','legal_area',
-                                                                           'explainability_label']]
+                                                                           'explainability_label', 'occluded_text']]
 
         label_df.drop_duplicates(inplace=True)
         label_df = label_df.sort_values(by=["id_csv"]).reset_index().rename(columns={'origin_region':'region','origin_canton':'canton'})
@@ -131,6 +132,7 @@ def get_white_space_dicts(df: pd.DataFrame)-> pd.DataFrame:
 
 def occlude_text(df: pd.DataFrame) -> pd.DataFrame:
     text_list = []
+    occlusion_list =[]
     for index, row in df.iterrows():
         occlusion_string =""
         if type(row['spans']) == list:
@@ -142,8 +144,10 @@ def occlude_text(df: pd.DataFrame) -> pd.DataFrame:
                     occlusion_string = occlusion_string + token
             row["text"] = row["text"].replace(occlusion_string, "[tokens removed] ")
             assert row["text"].find("[tokens removed]")!=-1
+        occlusion_list.append(occlusion_string)
         text_list.append(row["text"])
     df["facts"] = text_list
+    df["occluded_text"] = occlusion_list
     return df.drop(["text"], axis=1)
 
 
@@ -155,7 +159,6 @@ if __name__ == '__main__':
             occlusion_test_set = pd.DataFrame()
             for label in LABELS:
                 occlusion_test_set = occlusion_test_set.append(globals()[f"{label.lower().replace(' ', '_')}_{l}"])
-            print(occlusion_test_set)
             write_JSONL(f"occlusion_test_set_{l}.jsonl", occlusion_test_set.reset_index().to_dict("records"))
         except KeyError as err:
             print(err)
