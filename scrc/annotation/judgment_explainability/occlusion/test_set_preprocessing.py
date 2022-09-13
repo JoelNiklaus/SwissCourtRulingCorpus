@@ -10,6 +10,7 @@ Json structure
   "canton": "be",
   "legal area": "penal law"
 }
+@Todo Clean this up and and add comments
 """
 
 import ast
@@ -18,11 +19,10 @@ import pandas as pd
 GOLD_SESSIONS = {"de":"gold_final", "fr":"gold_nina", "it":"gold_nina"}
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment", "Neutral"]
 CSV_PATHS = {"de":"../../prodigy_dataset_creation/dataset_scrc/de/test.csv" , "fr":"../../prodigy_dataset_creation/dataset_scrc/fr/test.csv", "it":"../../prodigy_dataset_creation/dataset_scrc/it/test.csv"}
-from scrc.annotation.judgment_explainability.annotations.analysis.preprocessing_functions \
-    import LANGUAGES, extract_dataset,get_tokens_dict ,extract_values_from_column, get_span_df, group_columns
+from scrc.annotation.judgment_explainability.annotations.preprocessing_functions \
+    import LANGUAGES, extract_dataset,get_tokens_dict ,extract_values_from_column, get_span_df, group_columns, read_csv, write_JSONL
 
 
-from scrc.annotation.prodigy_dataset_creation.dataset_creation_functions import read_csv
 # Sets pandas print options
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
@@ -51,11 +51,12 @@ def process_dataset(datasets: dict, lang: str):
         label_df = label_df.merge(tokens_ws, on="id_scrc", how="inner")
         label_df = occlude_text(label_df)
         label_df["explainability_label"] = label
-        label_df["language"] = label
+        label_df["language"] = lang
 
         label_df = label_df.merge(dataset_information,on="id_csv", how="inner")
         original_facts_row = label_df.copy()
         original_facts_row = original_facts_row.drop_duplicates(subset=["id_csv"], inplace=False, keep='first').drop("facts", axis=1).rename(columns={"text": "facts"})
+        original_facts_row["explainability_label"] = "Baseline"
         label_df = label_df.append(original_facts_row)
         label_df = label_df[['id_csv', 'year','facts','label','language','origin_region','origin_canton','legal_area',
                                                                            'explainability_label']]
@@ -63,10 +64,7 @@ def process_dataset(datasets: dict, lang: str):
         label_df.drop_duplicates(inplace=True)
         label_df = label_df.sort_values(by=["id_csv"]).reset_index().rename(columns={'origin_region':'region','origin_canton':'canton'})
 
-        globals()[f"{label.lower().replace(' ', '_')}_{lang}"] = label_df.drop(["index"], axis=1)
-
-        print(globals()[f"{label.lower().replace(' ', '_')}_{lang}"]["facts"].values)
-
+        globals()[f"{label.lower().replace(' ', '_')}_{lang}"]=label_df.drop(["index"], axis=1).to_dict("records")
 
 def get_span_token_df(tokens:pd.DataFrame, lang) -> pd.DataFrame:
     tokens = group_columns(tokens, lang)
@@ -154,9 +152,16 @@ if __name__ == '__main__':
     for l in LANGUAGES:
         try:
             process_dataset(extracted_datasets, l)
+            occlusion_test_set = pd.DataFrame()
+            for label in LABELS:
+                occlusion_test_set = occlusion_test_set.append(globals()[f"{label.lower().replace(' ', '_')}_{l}"])
+            print(occlusion_test_set)
+            write_JSONL(f"occlusion_test_set_{l}.jsonl", occlusion_test_set.reset_index().to_dict("records"))
         except KeyError as err:
             print(err)
             pass
+
+
 
 
 

@@ -10,7 +10,7 @@ import psycopg2
 from dotenv import load_dotenv
 from psycopg2 import sql
 from collections import Counter
-
+from scrc.annotation.judgment_explainability.annotations.preprocessing_functions import read_csv
 load_dotenv()
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
@@ -35,39 +35,6 @@ PREDICTIONS_TEST_PATHS = ["3/de/predictions_test.csv", "3/fr/predictions_test.cs
 PATTERNS = {"de": "[u|U]rteil \w+ \d+?.? \w+ \d{4}",
             "fr": "([a|A]rrêt \w+ \d+?.? \w+ \d{4})|([a|A]rrêt \w+ \d+?er \w+ \d{4})",
             "it": "([s|S]entenza \w+ \d+?.? \w+ \d{4})|([s|S]entenza \w+'\d+?.? \w+ \d{4})"}
-
-def write_JSONL(filename: str, data: list):
-    """
-    Writes a JSONL file from dictionary list.
-    """
-    with open(filename, 'w') as outfile:
-        for entry in data:
-            json.dump(entry, outfile)
-            outfile.write('\n')
-    print("Successfully saved file " + filename)
-
-def read_JSONL(filename: str) -> list:
-    """
-    Reads JSONL file and returns a dataframe
-    """
-    with open(filename, "r") as json_file:
-        json_list = list(json_file)
-    a_list = []
-    for json_str in json_list:
-        result = json.loads(json_str)
-        a_list.append(result)
-        assert isinstance(result, dict)
-
-    return a_list
-
-def read_csv(filepath: str) -> pandas.DataFrame:
-    """
-    Reads CSV file sets index to "id" and returns a DataFrame.
-    """
-    df = pd.read_csv(filepath)
-    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-    df = df.set_index("id")
-    return df
 
 def set_id_scrc(df: pd.DataFrame, mode: int) -> numpy.ndarray:
     """

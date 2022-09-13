@@ -1,20 +1,19 @@
-import itertools
 import json
 import re
 from pathlib import Path
 from random import randint
 
-import nltk
 import pandas
 import pandas as pd
-from sklearn.metrics import cohen_kappa_score
 
+# Constant variable definitions
 LANGUAGES = ["de", "fr", "it"]
 LANGUAGES_NLTK = {"de": "german", "fr": "french", "it": "italian"}
 PERSONS = ["angela", "lynn", "thomas"]
 SESSIONS = ["angela", "lynn", "thomas", "gold_final", "gold_nina"]
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
 AGGREGATIONS = ["mean", "max", "min"]
+
 
 
 def extract_dataset(filepath_a, filepath_b) -> dict:
@@ -26,36 +25,58 @@ def extract_dataset(filepath_a, filepath_b) -> dict:
     """
     datasets = {}
     for language in LANGUAGES:
-        a_list = []
         try:
-            with open(filepath_a.format(language, language), "r") as json_file:
-                json_list = list(json_file)
-                for json_str in json_list:
-                    result = json.loads(json_str)
-                    a_list.append(result)
-                    assert isinstance(result, dict)
-                    # List of dict to dataframe
-                    dfItem = pd.DataFrame.from_records(a_list)
-                    dfItem = dfItem.set_index("id_scrc")
-                    dfItem.index.name = "annotations_{}".format(language)
-                    datasets["annotations_{}".format(language)] = dfItem
+            json_list = read_JSONL(filepath_a.format(language, language))
+            # List of dict to dataframe
+            dfItem = pd.DataFrame.from_records(json_list)
+            dfItem = dfItem.set_index("id_scrc")
+            dfItem.index.name = "annotations_{}".format(language)
+            datasets["annotations_{}".format(language)] = dfItem
         except FileNotFoundError:
             pass
         for session in SESSIONS:
-            a_list = []
             try:
-                with open(filepath_b.format(language,language, session), "r") as json_file:
-                    json_list = list(json_file)
-                    for json_str in json_list:
-                        result = json.loads(json_str)
-                        a_list.append(result)
-                        assert isinstance(result, dict)
-                        dfItem = pd.DataFrame.from_records(a_list)
-                        dfItem.index.name = "annotations_{}-{}".format(language, session)
-                        datasets["annotations_{}-{}".format(language, session)] = dfItem
+                json_list = read_JSONL(filepath_b.format(language, language, session))
+                dfItem = pd.DataFrame.from_records(json_list)
+                dfItem.index.name = "annotations_{}-{}".format(language, session)
+                datasets["annotations_{}-{}".format(language, session)] = dfItem
             except FileNotFoundError:
                 pass
     return datasets
+
+def read_JSONL(filename: str) -> list:
+    """
+    Reads JSONL file and returns a dataframe
+    """
+    with open(filename, "r") as json_file:
+        json_list = list(json_file)
+    a_list = []
+    for json_str in json_list:
+        result = json.loads(json_str)
+        a_list.append(result)
+        assert isinstance(result, dict)
+
+    return a_list
+
+def write_JSONL(filename: str, data: list):
+    """
+    Writes a JSONL file from dictionary list.
+    """
+    with open(filename, 'w') as outfile:
+        for entry in data:
+            json.dump(entry, outfile)
+            outfile.write('\n')
+    print("Successfully saved file " + filename)
+
+
+def read_csv(filepath: str) -> pd.DataFrame:
+    """
+    Reads CSV file sets index to "id" and returns a DataFrame.
+    """
+    df = pd.read_csv(filepath)
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+    df = df.set_index("id")
+    return df
 
 def dump_user_input(dataset_dict: dict):
     """
@@ -71,7 +92,6 @@ def dump_user_input(dataset_dict: dict):
             print("Saved {}.csv successfully!".format(dataset_dict[data].index.name + "_user_input"))
         except KeyError:
             pass
-
 
 def dump_case_not_accepted(dataset_dict: dict):
     """
@@ -96,6 +116,11 @@ def to_csv(filepath: Path, df: pd.DataFrame):
     df.to_csv(filepath)
 
 def get_tokens_dict(df: pandas.DataFrame, col_1: str, col_2: str, new_col: str) -> pandas.DataFrame:
+    """
+    Joins two columns of a dataframe to dictionary string (str({row[col_1]: row[col_2]})).
+    Appends strings to list.
+    Returns Dataframe with new column from list.
+    """
     dict_list = []
     for index, row in df.iterrows():
         token_dict = str({row[col_1]: row[col_2]})
@@ -145,6 +170,11 @@ def get_span_df(annotations_spans: pandas.DataFrame, annotations_tokens: pandas.
     return spans, token_numbers
 
 def group_columns(df: pandas.DataFrame, lang: str) -> pandas.DataFrame:
+    """
+    Groups columns tokens_text, tokens_id and tokens_dict by same index (e.g. annotations_de).
+    Each column is joint differently (e.g. tokens_dict joint as string dictionary).
+    Returns Dataframe.
+    """
     df['tokens_text'] = df.groupby(['annotations_{}'.format(lang)])['tokens_text'].transform(
         lambda x: ' '.join(x))
     df['tokens_id'] = df.groupby(['annotations_{}'.format(lang)])['tokens_id'].transform(

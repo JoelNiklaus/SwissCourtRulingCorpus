@@ -8,9 +8,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from dataset_creation_functions import LANGUAGES, \
-    read_JSONL, write_JSONL, db_stream, filter_dataset, filter_new_cases, \
-    set_id_scrc
+from prodigy_dataset_creation_functions import LANGUAGES,db_stream, filter_dataset, filter_new_cases,set_id_scrc
+
+from scrc.annotation.judgment_explainability.annotations.preprocessing_functions import read_JSONL, write_JSONL
 
 FILEPATH_ANNOTATION = "../judgment_explainability/annotations/annotations_{}.jsonl"
 FILEPATH_DATASET_JE = "../judgment_explainability/datasets/annotation_input_set_{}.jsonl"
