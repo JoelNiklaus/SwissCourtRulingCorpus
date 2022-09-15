@@ -18,36 +18,20 @@ Sources for Metrics:
 - https://github.com/neulab/BARTScore
 - https://pyshark.com/jaccard-similarity-and-jaccard-distance-in-python/
 - https://www.geeksforgeeks.org/maximum-number-of-overlapping-intervals/
-
-
-
-
-
 """
 import itertools
-import json
-import re
 from pathlib import Path
-from random import randint
-
-import nltk
 import pandas as pd
 from sklearn.metrics import cohen_kappa_score
-
-from scrc.annotation.judgment_explainability.annotations.analysis.preprocessing_functions import LANGUAGES, LANGUAGES_NLTK, PERSONS,\
-LABELS, AGGREGATIONS,  extract_dataset,dump_user_input,dump_case_not_accepted,to_csv ,get_tokens_dict, extract_values_from_column, get_span_df, \
-    group_columns
+import nltk
 nltk.download('punkt')
 
 
-# Sets pandas print options
-pd.set_option('display.max_rows', None)
-pd.set_option('display.max_columns', None)
-pd.set_option('display.width', None)
 
-
-
-
+from scrc.annotation.judgment_explainability.annotations.preprocessing_functions import LANGUAGES, LANGUAGES_NLTK, \
+    PERSONS, \
+    LABELS, AGGREGATIONS, extract_dataset, to_csv, get_tokens_dict, extract_values_from_column, get_span_df, \
+    group_columns
 
 
 def process_dataset(datasets: dict, lang: str):
@@ -63,7 +47,7 @@ def process_dataset(datasets: dict, lang: str):
     for label in LABELS:
         label_list = []
         label_df = get_span_df(annotations_spans, annotations_tokens, label, lang)[0]
-        label_df = get_tokens_dict(label_df,"tokens_id","tokens_text", "tokens_dict")
+        label_df = get_tokens_dict(label_df, "tokens_id", "tokens_text", "tokens_dict")
         for pers in PERSONS:
             globals()[f"{label.lower().replace(' ', '_')}_{lang}_{pers}"] = get_annotator_df(pers, label_df,
                                                                                              lang)
@@ -87,9 +71,10 @@ def process_dataset(datasets: dict, lang: str):
                                   agg)
                 apply_aggregation(globals()[f"{label.lower().replace(' ', '_')}_{lang}"], "overlap_minimum",
                                   agg)
-            to_csv(Path("{}/{}.csv".format(lang,f"{label.lower().replace(' ', '_')}_{lang}")),
+            to_csv(Path("{}/{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}")),
                    globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
             print("Saved {}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}"))
+
 
 def get_annotator_df(annotator_name: str, tokens: pd.DataFrame, lang: str) -> pd.DataFrame:
     """
@@ -104,11 +89,10 @@ def get_annotator_df(annotator_name: str, tokens: pd.DataFrame, lang: str) -> pd
     annotator = tokens[
         tokens['_annotator_id'] == "annotations_{}-{}".format(lang, annotator_name)].drop_duplicates().copy()
     annotator = group_columns(annotator, lang)
-    annotator = annotator[['annotations_{}'.format(lang), 'tokens_text', 'tokens_id','tokens_dict']]
+    annotator = annotator[['annotations_{}'.format(lang), 'tokens_text', 'tokens_id', 'tokens_dict']]
     annotator = annotator.drop_duplicates()
     annotator["tokens_id"] = annotator["tokens_id"].astype(str).str.split(",")
     return annotator
-
 
 
 def remove_duplicate(list_duplicate: list) -> list:
@@ -134,7 +118,7 @@ def merge_label_df(df_list: list, person_suffixes: list, lang: str):
     df = pd.merge(merged_df, df_list[i + 2], on="annotations_{}".format(lang), how="outer").fillna("Nan").rename(
         columns={"tokens_text": "tokens_text_{}".format(person_suffixes[i + 2]),
                  "tokens_id": "tokens_id_{}".format(person_suffixes[i + 2]),
-                 "tokens_dict":"tokens_dict_{}".format(person_suffixes[i + 2])})
+                 "tokens_dict": "tokens_dict_{}".format(person_suffixes[i + 2])})
     return df
 
 
@@ -147,7 +131,8 @@ def get_normalize_tokens_dict(df: pd.DataFrame) -> pd.DataFrame:
     """
     normalized_tokens = []
     df_copy = df.copy()
-    for token_dicts in df_copy[[f"tokens_dict_{PERSONS[0]}", f"tokens_dict_{PERSONS[1]}", f"tokens_dict_{PERSONS[2]}"]].values:
+    for token_dicts in df_copy[
+        [f"tokens_dict_{PERSONS[0]}", f"tokens_dict_{PERSONS[1]}", f"tokens_dict_{PERSONS[2]}"]].values:
         tokens = []
         for token_dict in token_dicts:
             if token_dict != "Nan":
@@ -298,10 +283,9 @@ def apply_aggregation(df: pd.DataFrame, column_name, aggregation: str):
 
 
 if __name__ == '__main__':
-    extracted_datasets = extract_dataset("../{}/annotations_{}.jsonl","../{}/annotations_{}-{}.jsonl")
-    #dump_user_input(extracted_datasets)
-    #dump_case_not_accepted(extracted_datasets)
-
+    extracted_datasets = extract_dataset("../{}/annotations_{}.jsonl", "../{}/annotations_{}-{}.jsonl")
+    # dump_user_input(extracted_datasets)
+    # dump_case_not_accepted(extracted_datasets)
     for l in LANGUAGES:
         try:
             process_dataset(extracted_datasets, l)

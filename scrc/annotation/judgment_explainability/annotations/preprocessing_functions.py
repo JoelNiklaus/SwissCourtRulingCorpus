@@ -15,7 +15,6 @@ LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
 AGGREGATIONS = ["mean", "max", "min"]
 
 
-
 def extract_dataset(filepath_a, filepath_b) -> dict:
     """
     Tries to extracts data from JSONL file to a dictionary list.
@@ -44,6 +43,7 @@ def extract_dataset(filepath_a, filepath_b) -> dict:
                 pass
     return datasets
 
+
 def read_JSONL(filename: str) -> list:
     """
     Reads JSONL file and returns a dataframe
@@ -57,6 +57,7 @@ def read_JSONL(filename: str) -> list:
         assert isinstance(result, dict)
 
     return a_list
+
 
 def write_JSONL(filename: str, data: list):
     """
@@ -78,6 +79,7 @@ def read_csv(filepath: str) -> pd.DataFrame:
     df = df.set_index("id")
     return df
 
+
 def dump_user_input(dataset_dict: dict):
     """
     Dumps all the user inputs as csv.
@@ -85,13 +87,14 @@ def dump_user_input(dataset_dict: dict):
     """
     for data in dataset_dict:
         try:
-            lang = re.search("de|fr|it",str(data)).group(0)
+            lang = re.search("de|fr|it", str(data)).group(0)
             user_input = dataset_dict[data][dataset_dict[data]["user_input"] != ""]
-            to_csv(Path("{}/{}_user_input.csv".format(lang,dataset_dict[data].index.name) ),
+            to_csv(Path("{}/{}_user_input.csv".format(lang, dataset_dict[data].index.name)),
                    user_input[['id_scrc', '_annotator_id', "user_input"]])
             print("Saved {}.csv successfully!".format(dataset_dict[data].index.name + "_user_input"))
         except KeyError:
             pass
+
 
 def dump_case_not_accepted(dataset_dict: dict):
     """
@@ -102,11 +105,12 @@ def dump_case_not_accepted(dataset_dict: dict):
         try:
             lang = re.search("de|fr|it", str(data)).group(0)
             case_not_accepted = dataset_dict[data][dataset_dict[data]["answer"] != "accept"]
-            to_csv(Path("{}/{}_ig_re.csv".format(lang,dataset_dict[data].index.name)),
+            to_csv(Path("{}/{}_ig_re.csv".format(lang, dataset_dict[data].index.name)),
                    case_not_accepted[['id_scrc', '_annotator_id', "user_input"]])
             print("Saved {}.csv successfully!".format(dataset_dict[data].index.name + "_ig_re"))
         except KeyError:
             pass
+
 
 def to_csv(filepath: Path, df: pd.DataFrame):
     """
@@ -114,6 +118,7 @@ def to_csv(filepath: Path, df: pd.DataFrame):
     """
     filepath.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(filepath)
+
 
 def get_tokens_dict(df: pandas.DataFrame, col_1: str, col_2: str, new_col: str) -> pandas.DataFrame:
     """
@@ -129,6 +134,7 @@ def get_tokens_dict(df: pandas.DataFrame, col_1: str, col_2: str, new_col: str) 
     df[new_col] = dict_list
     return df
 
+
 def extract_values_from_column(annotations: pandas.DataFrame, col_1: str, col_2: str) -> pandas.DataFrame:
     """
     Extracts values from list of dictionaries in columns (by explode), resets index and drops col_2.
@@ -141,7 +147,9 @@ def extract_values_from_column(annotations: pandas.DataFrame, col_1: str, col_2:
     annotations_col = annotations_col.drop([col_1], axis=1)
     return annotations_col.join(df_col)
 
-def get_span_df(annotations_spans: pandas.DataFrame, annotations_tokens: pandas.DataFrame, span: str, lang: str) -> (pandas.DataFrame, list):
+
+def get_span_df(annotations_spans: pandas.DataFrame, annotations_tokens: pandas.DataFrame, span: str, lang: str) -> (
+pandas.DataFrame, list):
     """
     Extract all rows where span_label matches the span given as parameter (e.g. span = "Lower court").
     Queries list of values from chosen rows and creates list of token numbers (token ids) of span start and end number.
@@ -169,6 +177,7 @@ def get_span_df(annotations_spans: pandas.DataFrame, annotations_tokens: pandas.
     spans = pd.concat(spans_list)
     return spans, token_numbers
 
+
 def group_columns(df: pandas.DataFrame, lang: str) -> pandas.DataFrame:
     """
     Groups columns tokens_text, tokens_id and tokens_dict by same index (e.g. annotations_de).
@@ -182,5 +191,3 @@ def group_columns(df: pandas.DataFrame, lang: str) -> pandas.DataFrame:
     df['tokens_dict'] = df.groupby([f'annotations_{lang}'])['tokens_dict'].transform(
         lambda x: "{{{}}}".format(','.join(x.astype(str)).replace("{", "").replace("}", "")))
     return df
-
-
