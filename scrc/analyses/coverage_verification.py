@@ -1,13 +1,20 @@
 
+from enum import Enum
 from sqlite3 import Connection
-from symbol import stmt
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
-from sqlalchemy.sql.schema import Table, MetaData
-from sqlalchemy.sql import select, func
+from scrc.enums.section import Section
+from docx import Document
+from docx.enum.text import WD_COLOR_INDEX
 
 
+class Color(Enum):
+    HEADER = WD_COLOR_INDEX.YELLOW
+    FACTS = WD_COLOR_INDEX.GREEN
+    CONSIDERATIONS = WD_COLOR_INDEX.BLUE
+    RULINGS = WD_COLOR_INDEX.RED
+    FOOTER = WD_COLOR_INDEX.VIOLET
 
 
 class CoverageVerification(AbstractPreprocessor):
@@ -15,7 +22,6 @@ class CoverageVerification(AbstractPreprocessor):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-        self.decision = []
         self.logger_info = {
             'start': 'Started coverage verification',
             'finished': 'Finished coverage verification',
@@ -24,26 +30,68 @@ class CoverageVerification(AbstractPreprocessor):
         }
     
     def start(self):
-        self.get_random_decisions()
+        document = Document()
+        self.init_engine(document)
         
-        
-    def get_random_decisions(self):
+    def init_engine(self, document):
         engine = self.get_engine(self.db_scrc)
         with engine.connect() as conn:
-            d = Table('decision', MetaData(), autoload_with = engine)
-            stmt = select(d.columns.decision_id).order_by(func.random()).limit(50)
-            result = conn.execute(stmt)
-            for res in result:
-                self.get_sections(res, d, conn, engine)
+            for x in range(0, 20):
+                self.get_random_decision(conn, document)
+            document.save('newtest.docx')     
+
+            
+    def get_random_decision(self, conn: Connection, document):
+        result = conn.execute(self.random_decision_query('CH_BGer'))
+        for res in result:
+            section_dict = self.get_sections(res, conn)
+            if not self.valid_decision(section_dict['sections']):
+                self.get_random_decision(conn, document)
+            else: 
+                self.append_to_doc(section_dict, document)
                 
-    def get_sections(self, decision_id: str, d_table: Table, conn: Connection, engine):
-        d = Table('decision', MetaData(), autoload_with = engine)
-        result = conn.execute(stmt)
-
-
-        
-        
+    def get_sections(self, result: str, conn: Connection,):
+        section_dict = {'sections': {}, 'id': result[0]}
+        result = conn.execute(self.section_query(result[0]))
+        for res in result:
+            section_dict['sections'][Section(res.section_type_id).name] = res.section_text
+        return section_dict
     
+    def valid_decision(self, sections):
+        count = 0
+        for section in sections:
+            if sections[section] != '':
+                count += 1
+        return count > 2
+        
+    def append_to_doc(self, section_dict: dict, document: Document):
+        document.add_paragraph(str(section_dict['id']))
+        sorted_list = sorted(list(section_dict['sections'].items()), key=lambda x: Section[x[0]].value)
+        for element in sorted_list:
+            p = document.add_paragraph()
+            r = p.add_run(element[1]).font
+            r.highlight_color = Color[element[0]].value
+        return document 
+    
+    def append_paragraph(self, section_text: str, section_type, document: Document):
+        p = document.add_paragraph()
+        r = p.add_run(section_text).font     
+        r.highlight_color = Color[section_type].value 
+        return document
+
+    def section_query(self, decision_id):
+        return (f"SELECT * FROM section "
+                f"WHERE section.decision_id = '{decision_id}' "
+                f"AND section.section_type_id != 1"
+                f"AND section.section_type_id != 3")
+        
+    def random_decision_query(self, spider: str):
+        return (f"SELECT * FROM decision "
+                f"INNER JOIN chamber ON decision.chamber_id = chamber.chamber_id "
+                f"INNER JOIN spider ON chamber.spider_id = spider.spider_id "
+                f"WHERE spider.name = '{spider}' "
+                f"ORDER BY RANDOM() LIMIT 1")
+        
         
 if __name__ == '__main__':
     config = get_config()
