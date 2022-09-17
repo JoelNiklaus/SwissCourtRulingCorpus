@@ -1,5 +1,6 @@
 
 from enum import Enum
+from pathlib import Path
 from sqlite3 import Connection
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
@@ -28,25 +29,29 @@ class CoverageVerification(AbstractPreprocessor):
             'start_spider': 'Started coverage verification for spider',
             'finish_spider': 'Finished coverage verification for spider',
         }
+        self.processed_file_path = self.progress_dir / "coverage_verification.txt"
+
     
     def start(self):
         document = Document()
         self.init_engine(document)
         
     def init_engine(self, document):
+        spider_list, message = self.compute_remaining_spiders(self.processed_file_path)
         engine = self.get_engine(self.db_scrc)
         with engine.connect() as conn:
-            for x in range(0, 20):
-                self.get_random_decision(conn, document)
-            document.save('newtest.docx')     
+            for spider in spider_list:  
+                for x in range(0, 20):
+                    self.get_random_decision(conn, document, spider)
+                document.save(self.get_path(spider))     
 
             
-    def get_random_decision(self, conn: Connection, document):
-        result = conn.execute(self.random_decision_query('CH_BGer'))
+    def get_random_decision(self, conn: Connection, document, spider):
+        result = conn.execute(self.random_decision_query(spider))
         for res in result:
             section_dict = self.get_sections(res, conn)
             if not self.valid_decision(section_dict['sections']):
-                self.get_random_decision(conn, document)
+                self.get_random_decision(conn, document, spider)
             else: 
                 self.append_to_doc(section_dict, document)
                 
@@ -91,6 +96,12 @@ class CoverageVerification(AbstractPreprocessor):
                 f"INNER JOIN spider ON chamber.spider_id = spider.spider_id "
                 f"WHERE spider.name = '{spider}' "
                 f"ORDER BY RANDOM() LIMIT 1")
+        
+    def get_path(self, spider: str):
+        filepath = Path(
+        f'data/verification/{spider}.docx')
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        return filepath
         
         
 if __name__ == '__main__':

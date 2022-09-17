@@ -565,7 +565,7 @@ def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
             Section.CONSIDERATIONS: [r'^Begründung:\s*$', r'Erwägung(en)?:?\s*$', r'^Entscheidungsgründe$',
                                      r'[iI]n Erwägung[:,]?\s*$'],
             Section.RULINGS: [r'Demgemäss erkennt d[\w]{2}', r'erkennt d[\w]{2} [A-Z]\w+:',
-                              r'Appellationsgericht (\w+ )?(\(\w+\) )?erkennt', r'^und erkennt:$', r'erkennt:\s*$'],
+                              r'Appellationsgericht (\w+ )?(\(\w+\) )?erkennt', r'^und erkennt:$', r'erkennt:\s*$', 'Demnach wird erkannt:'],
             Section.FOOTER: [r'^Rechtsmittelbelehrung$',
                              r'AUFSICHTSKOMMISSION', r'APPELLATIONSGERICHT']
         }
