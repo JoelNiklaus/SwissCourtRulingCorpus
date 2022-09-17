@@ -89,7 +89,7 @@ class TextToDatabase(AbstractPreprocessor):
         return all_processed_files
     
     def filter_by_text_length(self, spider_dict_list: dict):
-        filtered = [x for x in spider_dict_list if (len(x['pdf_raw']) > 500 or len(x['html_raw']) > 500)]
+        filtered = [x for x in spider_dict_list if (len(x['pdf_raw']) > 1000 or len(x['html_raw']) > 1000)]
         return filtered
                 
 
@@ -97,6 +97,7 @@ class TextToDatabase(AbstractPreprocessor):
         """ Builds a dataset for a spider """
         spider_dir = self.spiders_dir / spider
         self.logger.info(f"Building spider dataset for {spider}")
+        # spider_dict_list = self.filter_by_text_length(self.build_spider_dict_list(spider_dir, spider))
         spider_dict_list = self.build_spider_dict_list(spider_dir, spider)
 
         self.logger.info("Building pandas DataFrame from list of dicts")
