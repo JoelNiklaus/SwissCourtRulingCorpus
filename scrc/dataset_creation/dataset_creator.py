@@ -202,10 +202,10 @@ class DatasetCreator(AbstractPreprocessor):
             records = []
             df = splits[split]
 
-            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'], df['citation_label'],
-                                 df['origin_canton'], df['bge_label'], df['lang'], df['considerations'], df['facts'])
+            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'],
+                                 df['origin_canton'], df['label'], df['lang'], df['considerations'], df['facts'])
 
-            for case_id, year, legal_area, region, citation_label, canton, bge_label, lang, consideration, fact in tuple_iterator:
+            for case_id, year, legal_area, region, canton, label, lang, consideration, fact in tuple_iterator:
                 if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
                     canton = 'n/a'
                 if not isinstance(region, str) and (region is None or math.isnan(region)):
@@ -219,8 +219,7 @@ class DatasetCreator(AbstractPreprocessor):
                     'region': region,
                     'canton': canton,
                     'legal area': legal_area,
-                    'bge_label': bge_label,
-                    'citation_label': citation_label,
+                    'label': label,
                     'considerations': consideration,
                     'facts': fact
                 }
@@ -262,7 +261,6 @@ class DatasetCreator(AbstractPreprocessor):
             decision_df['pdf_url'] = file_df['pdf_url']
 
             print('Loading Lower Court')
-
             table = f"{join_tables_on_decision(['lower_court'])}"
             where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
             lower_court_select_fields = ("lower_court.date as origin_date,"
@@ -274,7 +272,7 @@ class DatasetCreator(AbstractPreprocessor):
                 self.select(engine, table, lower_court_select_fields, where, None, self.get_chunksize()))
             decision_df['origin_date'] = lower_court_df['origin_date']
             decision_df['origin_court'] = lower_court_df['origin_court']
-            decision_df['origin_canton'] = lower_court_df['short_code']
+            decision_df['origin_canton'] = lower_court_df['origin_canton']
             decision_df['origin_chamber'] = lower_court_df['origin_chamber']
             decision_df['origin_file_number'] = lower_court_df['origin_file_number']
 
@@ -295,15 +293,7 @@ class DatasetCreator(AbstractPreprocessor):
             where = f"file_number.decision_id IN ({','.join(decision_ids)})"
             file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
 
-            def doubler(x):
-                a = str(pd.Series(x)[0])
-                a = a.replace("_", " ")
-                a = a.replace(".", " ")
-                a = a.rstrip()
-                a = a.lstrip()
-                return a
-
-            decision_df['file_number'] = file_number_df['file_numbers'].apply(doubler)
+            decision_df['file_number'] = file_number_df['file_numbers']
 
             save_df_to_cache(decision_df, cache_dir)
             df = decision_df
@@ -313,7 +303,6 @@ class DatasetCreator(AbstractPreprocessor):
         df['origin_region'] = df.origin_canton.apply(get_region)
 
         self.logger.info("Finished loading the data from the database")
-
         return df
 
     def clean_df(self, df, column):
@@ -331,8 +320,26 @@ class DatasetCreator(AbstractPreprocessor):
         df[column] = sections.map(filter_column)
         df[column] = df[column].replace(r'^\s+$', np.nan, regex=True)
         df[column] = df[column].replace('', np.nan)
-        df = df.dropna(subset=[column])  # drop null values not recognized by sql where clause
-        df = df.reset_index(drop=True)  # reindex to get nice indices
+
+        def filter_column(column_data):
+            if not isinstance(column_data, str) and not isinstance(column_data, list): return np.nan
+            if isinstance(column_data, str):
+                column_data = ast.literal_eval(column_data)
+            for section in column_data:
+                if section['name'] == column:
+                    return section['num_tokens_bert']
+        df[f"{column}_num_tokens_bert"] = sections.map(filter_column)
+
+        def filter_column(column_data):
+            if not isinstance(column_data, str) and not isinstance(column_data, list): return np.nan
+            if isinstance(column_data, str):
+                column_data = ast.literal_eval(column_data)
+            for section in column_data:
+                if section['name'] == column:
+                    return section['num_tokens_spacy']
+        df[f"{column}_num_tokens_spacy"] = sections.map(filter_column)
+
+        # TODO do this only if that's the case for all feature_cols!!
         if self.split_type == "date-stratified":
             df = df.dropna(subset=['year'])  # make sure that each entry has an associated year
         df.year = df.year.astype(int)  # convert from float to nicer int
@@ -349,7 +356,7 @@ class DatasetCreator(AbstractPreprocessor):
         """
         creates all the files necessary for a kaggle dataset from a given df
         :param df:          needs to contain the columns text and label
-        :param labels:      all the labels
+        :param labels:      list of all the labels
         :param folder:      where to save the files
         :param split_type:  "date-stratified" or "random"
         :param split:       how to split the data into train, val and test set: needs to sum up to 1
@@ -359,7 +366,6 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         splits = self.create_splits(df, split, split_type, include_all=save_reports)
-        self.save_labels(labels, folder / 'labels.json')
         self.save_splits(splits, labels, folder, save_reports=save_reports)
 
         if sub_datasets:
@@ -428,19 +434,21 @@ class DatasetCreator(AbstractPreprocessor):
                     if split not in save_csvs:
                         continue  # Only save if the split is in the list
                 self.logger.info("Saving csv file")
-                df.to_csv(folder / f'{split}.csv', index_label='id')
+                df.to_csv(folder / f'{split}.csv', index_label='id', index=False)
 
     def create_splits(self, df, split, split_type, include_all=False):
+        # TODO add secret test for date_stratified
         self.logger.info("Splitting data into train, val and test set")
         if split_type == "random":
             train, val, test = self.split_random(df, split)
+            secret_test = pd.DataFrame()
         elif split_type == "date-stratified":
-            train, val, test = self.split_date_stratified(df, split)
+            train, val, test, secret_test = self.split_date_stratified(df, split)
         else:
             raise ValueError("Please supply a valid split_type")
-        splits = {'train': train, 'val': val, 'test': test}
+        splits = {'train': train, 'val': val, 'test': test, 'secret_test': secret_test}
         if include_all:
-            splits['all'] = pd.concat([train, val, test])  # we need to update it since some entries have been removed
+            splits['all'] = pd.concat([train, val, test, secret_test])  # we need to update it since some entries have been removed
 
         return splits
 
@@ -530,38 +538,44 @@ class DatasetCreator(AbstractPreprocessor):
         self.plot_labels(df, split_folder)
 
     @staticmethod
-    def plot_barplot_attribute(df, split_folder, attribute):
+    def plot_barplot_attribute(df, split_folder, attribute, label=""):
         """
         Plots the distribution of the attribute of the decisions in the given dataframe
         :param df:              the dataframe containing the legal areas
         :param split_folder:    where to save the plots and csv files
         :param attribute:       the attribute to barplot
+        :param label:           defines if only critical data of a label is considered
         :return:
         """
         attribute_df = df[attribute].value_counts().to_frame()
         total = len(df.index)
         # we deleted the ones where we did not find any attribute: also mention them in this table
         uncategorized = total - attribute_df[attribute].sum()
-        attribute_df.at['uncategorized', attribute] = uncategorized
-        attribute_df.at['all', attribute] = total
+        # attribute_df.at['uncategorized', attribute] = uncategorized
+        # attribute_df.at['all', attribute] = total
         attribute_df = attribute_df.reset_index(level=0)
         attribute_df = attribute_df.rename(columns={'index': attribute, attribute: 'number of decisions'})
         attribute_df['number of decisions'] = attribute_df['number of decisions'].astype(int)
         attribute_df['percent'] = round(attribute_df['number of decisions'] / total, 4)
 
-        attribute_df.to_csv(split_folder / f'{attribute}_distribution.csv')
+        if attribute == 'counter':
+            attribute_df[attribute] = attribute_df[attribute].astype(float)
+        attribute_df.sort_values(by=[attribute], inplace=True)
 
-        attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
-        fig = px.bar(attribute_df, x=attribute, y="number of decisions")
-        fig.write_image(split_folder / f'{attribute}_distribution-histogram.png')
+        attribute_df.to_csv(split_folder / f'{attribute}_{label}_distribution.csv')
+
+        # attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
+        fig = px.bar(attribute_df, x=attribute, y="number of decisions", title=f'{attribute}_{label}_distribution-histogram')
+        fig.write_image(split_folder / f'{attribute}_{label}_distribution-histogram.png')
         plt.clf()
 
     @staticmethod
-    def plot_labels(df, split_folder):
+    def plot_labels(df, split_folder, label_name='label'):
         """
         Plots the label distribution of the decisions in the given dataframe
         :param df:              the dataframe containing the labels
         :param split_folder:    where to save the plots and csv files
+        :param label_name:      name of the original label
         :return:
         """
         # compute label imbalance
@@ -572,24 +586,25 @@ class DatasetCreator(AbstractPreprocessor):
         counter_dict = dict(Counter(np.hstack(df.label)))
         counter_dict['all'] = sum(counter_dict.values())
         label_counts = pd.DataFrame.from_dict(counter_dict, orient='index', columns=['num_occurrences'])
-        label_counts['percent'] = round(label_counts['num_occurrences'] / counter_dict['all'], 4)
-        label_counts.to_csv(split_folder / 'label_distribution.csv', index_label='label')
+        label_counts.loc[:, 'percent'] = round(label_counts['num_occurrences'] / counter_dict['all'], 4)
+        label_counts.to_csv(split_folder / f"{label_name}_distribution.csv", index_label='label')
 
         ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
-        ax.get_figure().savefig(split_folder / 'label_distribution.png', bbox_inches="tight")
+        ax.get_figure().savefig(split_folder / f"{label_name}_distribution.png", bbox_inches="tight")
         plt.clf()
 
     @staticmethod
-    def plot_input_length(df, split_folder):
+    def plot_input_length(df, split_folder, feature_col='text'):
         """
         Plots the input length of the decisions in the given dataframe
         :param df:              the dataframe containing the decision texts
         :param split_folder:    where to save the plots and csv files
+        :param feature_col:     spezifies feature_col
         :return:
         """
         # compute median input length
         input_length_distribution = df[['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
-        input_length_distribution.to_csv(split_folder / 'input_length_distribution.csv', index_label='measure')
+        input_length_distribution.to_csv(split_folder / f'{feature_col}_input_length_distribution.csv', index_label='measure')
 
         # bin outliers together at the cutoff point
         cutoff = 4000
@@ -606,17 +621,17 @@ class DatasetCreator(AbstractPreprocessor):
         plot.set(xticks=list(range(0, 4500, 500)))
         plt.ylabel('Number of court cases')
         plt.legend(["BERT", "SpaCy"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
-        plot.savefig(split_folder / 'input_length_distribution-histogram.png', bbox_inches="tight")
+        plot.savefig(split_folder / f'{feature_col}_input_length_distribution-histogram.png', bbox_inches="tight")
         plt.clf()
 
         plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer", kind="ecdf", legend=False)
         plt.ylabel('Number of court cases')
         plt.legend(["BERT", "SPaCy"], loc='lower right', title='Tokenizer')
-        plot.savefig(split_folder / 'input_length_distribution-cumulative.png', bbox_inches="tight")
+        plot.savefig(split_folder / f'{feature_col}_input_length_distribution-cumulative.png', bbox_inches="tight")
         plt.clf()
 
         plot = sns.displot(cut_df, x="num_tokens_spacy", y="num_tokens_bert")
-        plot.savefig(split_folder / 'input_length_distribution-bivariate.png', bbox_inches="tight")
+        plot.savefig(split_folder / f'{feature_col}_input_length_distribution-bivariate.png', bbox_inches="tight")
         plt.clf()
 
     @staticmethod
@@ -627,10 +642,17 @@ class DatasetCreator(AbstractPreprocessor):
         :param file_name:   where to save the labels
         :return:
         """
-        labels_dict = dict(enumerate(labels))
-        json_labels = {"id2label": labels_dict, "label2id": {y: x for x, y in labels_dict.items()}}
-        with open(file_name, 'w', encoding='utf-8') as f:
-            json.dump(json_labels, f, ensure_ascii=False, indent=4)
+        assert len(labels) <= 2
+        i = 1
+        for entry in labels:
+            entry = list(entry)
+            labels_dict = dict(enumerate(entry))
+            json_labels = {"id2label": labels_dict, "label2id": {y: x for x, y in labels_dict.items()}}
+            if len(labels) != 1:
+                file_name = f"labels_{i}.json"
+                i = i + 1
+            with open(f"{file_name}", 'w', encoding='utf-8') as f:
+                json.dump(json_labels, f, ensure_ascii=False, indent=4)
 
     @staticmethod
     def split_date_stratified(df, split):
@@ -641,25 +663,13 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         # TODO revise this for datasets including cantonal data and include year 2021
-        last_year = 2020  # disregard partial year 2021
-        first_year = 2000  # before the data is quite sparse and there might be too much differences in the language
-        num_years = last_year - first_year + 1
 
-        test_years = int(split[2] * num_years)
-        val_years = int(split[1] * num_years)
+        train = df[df.year.isin(range(2000, 2016))]  # 16 Jahre
+        val = df[df.year.isin(range(2016, 2018))]  # 2 Jahre
+        test = df[df.year.isin(range(2018, 2021))]  # 3 Jahre
+        secret_test = df[df.year.isin(range(2021, 2023))]  # 2 Jahre
 
-        test_start_year = last_year - test_years + 1
-        val_start_year = test_start_year - val_years
-
-        test_range = range(test_start_year, last_year + 1)  # 2000 - 2014
-        val_range = range(val_start_year, test_start_year)  # 2015 - 2016
-        train_range = range(first_year, val_start_year)  # 2017 - 2020
-
-        test = df[df.year.isin(test_range)]
-        val = df[df.year.isin(val_range)]
-        train = df[df.year.isin(train_range)]
-
-        return train, val, test
+        return train, val, test, secret_test
 
     def split_random(self, df, split):
         """
