@@ -248,7 +248,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         citations_df = self.process_citations(df)
 
         # report number of citations
-        folder: Path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction'
+        folder: Path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
         split_folder = self.create_dir(folder, f'reports/citations_amount')
         citations_df = citations_df.dropna(subset=['counter'])
         temp_df = citations_df.copy()
@@ -451,13 +451,13 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def report_citations_count(self, df, counts):
         # report distribution of citation, here because it's deleted from df later.
-        folder: Path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction'
+        folder: Path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
         split_folder = self.create_dir(folder, f'reports/citation_{counts}')
         df['year'] = df.year.astype(str)
         self.plot_barplot_attribute(df, split_folder, 'year')
 
     def print_not_found_list(self, not_found_list, label):
-        file_path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / 'facts-considerations' / 'reports' / "not_found_references.txt"
+        file_path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols) / 'reports' / "not_found_references.txt"
         if not file_path.exists():
             raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
         with file_path.open("a") as f:
