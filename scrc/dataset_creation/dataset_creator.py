@@ -417,7 +417,7 @@ class DatasetCreator(AbstractPreprocessor):
         :param save_csvs:       whether to save csv files
         :return:
         """
-        self.save_labels(labels, folder / 'labels.json')
+        self.save_labels(labels, folder)
         for split, df in splits.items():
             if len(df.index) < 2:
                 self.logger.info(f"Skipping split {split} because "
@@ -635,11 +635,11 @@ class DatasetCreator(AbstractPreprocessor):
         plt.clf()
 
     @staticmethod
-    def save_labels(labels, file_name):
+    def save_labels(labels, folder):
         """
         Saves the labels and the corresponding ids as a json file
         :param labels:      the labels dict
-        :param file_name:   where to save the labels
+        :param folder:   where to save the labels
         :return:
         """
         assert len(labels) <= 2
@@ -649,10 +649,13 @@ class DatasetCreator(AbstractPreprocessor):
             labels_dict = dict(enumerate(entry))
             json_labels = {"id2label": labels_dict, "label2id": {y: x for x, y in labels_dict.items()}}
             if len(labels) != 1:
-                file_name = f"labels_{i}.json"
+                file_name = folder / f"labels_{i}.json"
                 i = i + 1
+            else:
+                file_name = folder / "labels.json"
             with open(f"{file_name}", 'w', encoding='utf-8') as f:
                 json.dump(json_labels, f, ensure_ascii=False, indent=4)
+
 
     @staticmethod
     def split_date_stratified(df, split):

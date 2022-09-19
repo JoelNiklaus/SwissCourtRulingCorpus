@@ -41,7 +41,7 @@ class JudgmentDatasetCreator(DatasetCreator):
 
         df = df.rename(columns={"judgments": "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
-        return df, labels
+        return df, [labels]
 
 
 if __name__ == '__main__':
