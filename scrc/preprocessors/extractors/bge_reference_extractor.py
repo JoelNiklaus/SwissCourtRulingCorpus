@@ -62,10 +62,14 @@ class BgeReferenceExtractor(AbstractExtractor):
         for _, row in df.iterrows():
             # only add new content to textfile not overwriting
             if 'bge_reference' in row and row['bge_reference'] != 'no reference found':
-                bge_reference = str(row['bge_reference'])
-                bge_file_name = str(row['file_name'])
-                with processed_file_path.open("a") as f:
-                    f.write(f"{bge_file_name} {bge_reference}\n")
+                bge_references = str(row['bge_reference'])
+                bge_references = bge_references.split("-")
+                for item in bge_references:
+                    if item != "":
+                        bge_file_name = str(row['file_name'])
+                        with processed_file_path.open("a") as f:
+                            f.write(f"{bge_file_name} {item}\n")
+
             else:
                 with not_processed_file_path.open("a") as f:
                     file_name = str(row['file_name'])
