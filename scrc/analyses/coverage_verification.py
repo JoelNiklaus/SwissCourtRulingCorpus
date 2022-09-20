@@ -7,7 +7,6 @@ from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
 from scrc.enums.section import Section
 from docx import Document
-from docx.enum.text import WD_COLOR_INDEX
 
 
 class Color(Enum):
@@ -19,7 +18,8 @@ class Color(Enum):
 
 
 class CoverageVerification(AbstractPreprocessor):
-    "Ouputs docx files of court rulings with highlighted paragraphs of each section recognized aswell as the sentence which indicated the ruling outcome"
+    """Ouputs docx files of court rulings with highlighted paragraphs of each section recognized aswell as the sentence which indicated the ruling outcome. 
+    To run simply execute python -m scrc.analyses.coverage_verification and make sure coverage_verification.txt exists."""
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
