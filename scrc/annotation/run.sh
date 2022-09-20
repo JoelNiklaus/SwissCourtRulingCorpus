@@ -115,7 +115,6 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
       docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./judgment_explainability/annotations/it/gold/$VARIABLE.jsonl
     done
    ;;
-
   "drop")
   for VARIABLE in
     do
