@@ -1179,7 +1179,7 @@ def SG_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
 
 
 def associate_sections(paragraphs: List[str], section_markers, namespace: dict,
-                       sections: List[Section] = list(Section), current_section = Section.HEADER):
+                       sections: List[Section] = list(Section.without_topic()), current_section = Section.HEADER):
     """
     Associate sections to paragraphs
     :param paragraphs:      list of paragraphs

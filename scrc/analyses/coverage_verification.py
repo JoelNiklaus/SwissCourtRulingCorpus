@@ -11,11 +11,11 @@ from docx.enum.text import WD_COLOR_INDEX
 
 
 class Color(Enum):
-    HEADER = WD_COLOR_INDEX.YELLOW
-    FACTS = WD_COLOR_INDEX.GREEN
-    CONSIDERATIONS = WD_COLOR_INDEX.BLUE
-    RULINGS = WD_COLOR_INDEX.RED
-    FOOTER = WD_COLOR_INDEX.VIOLET
+    HEADER = 7
+    FACTS = 8
+    CONSIDERATIONS = 10
+    RULINGS = 16
+    FOOTER = 3
 
 
 class CoverageVerification(AbstractPreprocessor):
@@ -36,24 +36,29 @@ class CoverageVerification(AbstractPreprocessor):
         document = Document()
         self.init_engine(document)
         
+        
     def init_engine(self, document):
         spider_list, message = self.compute_remaining_spiders(self.processed_file_path)
+        self.logger.info(message)
         engine = self.get_engine(self.db_scrc)
         with engine.connect() as conn:
-            for spider in spider_list:  
+            for spider in spider_list:
                 for x in range(0, 20):
-                    self.get_random_decision(conn, document, spider)
+                    self.get_random_decision(conn, document, spider, 0)
                 document.save(self.get_path(spider))     
 
             
-    def get_random_decision(self, conn: Connection, document, spider):
+    def get_random_decision(self, conn: Connection, document, spider, try_count):
         result = conn.execute(self.random_decision_query(spider))
         for res in result:
             section_dict = self.get_sections(res, conn)
-            if not self.valid_decision(section_dict['sections']):
-                self.get_random_decision(conn, document, spider)
+            if not self.valid_decision(section_dict['sections']) and try_count <= 5:
+                try_count += 1
+                self.get_random_decision(conn, document, spider, try_count)
+            elif try_count > 5:
+                return
             else: 
-                self.append_to_doc(section_dict, document)
+                self.append_to_doc(section_dict, document, conn)
                 
     def get_sections(self, result: str, conn: Connection,):
         section_dict = {'sections': {}, 'id': result[0]}
@@ -69,14 +74,28 @@ class CoverageVerification(AbstractPreprocessor):
                 count += 1
         return count > 2
         
-    def append_to_doc(self, section_dict: dict, document: Document):
+    def append_to_doc(self, section_dict: dict, document: Document, conn: Connection):
         document.add_paragraph(str(section_dict['id']))
         sorted_list = sorted(list(section_dict['sections'].items()), key=lambda x: Section[x[0]].value)
+        ruling = self.get_ruling_outcome(str(section_dict['id']), conn)
         for element in sorted_list:
             p = document.add_paragraph()
-            r = p.add_run(element[1]).font
+            r = p.add_run(f"{element[0]}: {element[1]}").font
             r.highlight_color = Color[element[0]].value
+            if element[0] == 'RULINGS' and ruling:
+                p = document.add_paragraph()
+                r = p.add_run(ruling.text).bold = True         
         return document 
+    
+    def get_ruling_outcome(self, decision_id: str, conn: Connection):
+        return conn.execute(self.ruling_outcome_query(decision_id)).fetchone()
+        
+    
+    def ruling_outcome_query(self, decision_id: str):
+        return (f"SELECT * FROM judgment "
+                f"INNER JOIN judgment_map ON judgment.judgment_id = judgment_map.judgment_id "
+                f"INNER JOIN decision ON judgment_map.decision_id = decision.decision_id "
+                f"WHERE decision.decision_id = '{decision_id}'")
     
     def append_paragraph(self, section_text: str, section_type, document: Document):
         p = document.add_paragraph()

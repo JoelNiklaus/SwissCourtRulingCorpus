@@ -14,3 +14,8 @@ class Section(Enum):
     @classmethod
     def without_facts(cls):
         return cls.HEADER, cls.HEADER,cls.CONSIDERATIONS, cls.RULINGS, cls.FOOTER
+    
+    @classmethod
+    def without_topic(cls):
+        return cls.FULLTEXT, cls.HEADER, cls.FACTS, cls.CONSIDERATIONS, cls.RULINGS, cls.FOOTER
+    

@@ -65,7 +65,7 @@ class JudgmentExtractor(AbstractExtractor):
         return self.select(engine,
                            f"section {join_decision_and_language_on_parameter('decision_id', 'section.decision_id')} {join_file_on_decision()}",
                            f"section.decision_id, section_text, '{spider}' as spider, iso_code as language, html_url",
-                           where=f"section.section_type_id = 5 AND section.decision_id IN {where_string_spider('decision_id', spider)} {only_given_decision_ids_string}",
+                           where=f"section.section_type_id = 6 AND section.decision_id IN {where_string_spider('decision_id', spider)} {only_given_decision_ids_string}",
                            chunksize=self.chunksize)
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
