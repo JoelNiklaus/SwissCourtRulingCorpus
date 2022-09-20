@@ -60,8 +60,8 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
     "inspect-facts-annotation")
     printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
     docker exec -it -d prodigy_v1_nina prodigy "$task" fr lynn -F ./judgment_explainability/recipes/inspect_facts_annotation.py
-    docker exec -it -d prodigy_v1_nina prodigy "$task" it lynn -F ./judgment_explainability/recipes/inspect_facts_annotation.py
     printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
+    docker exec -it -d prodigy_v1_nina prodigy "$task" it lynn -F ./judgment_explainability/recipes/inspect_facts_annotation.py
     for VARIABLE in angela lynn thomas
       do
         printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
@@ -69,9 +69,17 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
       done
     ;;
 
-  "review")
+  "review-de")
     printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
-    docker exec -it -d prodigy_v1_nina prodigy "$task" gold_annotations_de annotations_de-angela,annotations_de-lynn,annotations_de-thomas -l "Supports judgment","Opposes judgment","Lower court","Neutral" -v spans_manual --auto-accept --show-skipped
+    docker exec -it -d prodigy_v1_nina prodigy review gold_annotations_de annotations_de_inspect-lynn,gold_annotations_de-gold_final_v3 -l "Supports judgment","Opposes judgment","Lower court","Neutral" -v spans_manual --show-skipped
+    ;;
+  "review-fr")
+    printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
+    docker exec -it -d prodigy_v1_nina prodigy review gold_annotations_fr annotations_fr_inspect-lynn -l "Supports judgment","Opposes judgment","Lower court","Neutral" -v spans_manual --show-skipped
+    ;;
+  "review-it")
+    printf "${SUCCESS}Starting $task command in container, to stop use Ctrl+C.\n${NC}"
+    docker exec -it -d prodigy_v1_nina prodigy review gold_annotations_it annotations_it-lynn,gold_annotations_it-gold_nina -l "Supports judgment","Opposes judgment","Lower court","Neutral" -v spans_manual --show-skipped
     ;;
     "judgment-prediction")
   for VARIABLE in de fr it
@@ -82,14 +90,34 @@ if [ "$(docker ps -q -f name=prodigy_v1_nina)" ]; then
   ;;
 
   "db-out")
-  for VARIABLE in annotations_de annotations_de-angela annotations_de-lynn annotations_de-thomas annotations_fr annotations_fr-lynn annotations_it-angela annotations_it-lynn annotations_it annotations_de_inspect annotations_de_inspect-lynn annotations_de_inspect-thomas annotations_fr_inspect-lynn gold_annotations_de gold_annotations_de-gold_final gold_annotations_de-gold
+  for VARIABLE in annotations_de annotations_de-angela annotations_de-lynn annotations_de-thomas annotations_de_inspect annotations_de_inspect-lynn annotations_de_inspect-thomas
     do
-      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./judgment_explainability/annotations/$VARIABLE.jsonl
+      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./judgment_explainability/annotations/de/$VARIABLE.jsonl
+    done
+    for VARIABLE in gold_annotations_de gold_annotations_de-gold_final
+    do
+      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./judgment_explainability/annotations/de/gold/$VARIABLE.jsonl
+    done
+    for VARIABLE in annotations_fr annotations_fr-lynn annotations_fr_inspect annotations_fr_inspect-lynn
+    do
+      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./judgment_explainability/annotations/fr/$VARIABLE.jsonl
+    done
+        for VARIABLE in gold_annotations_fr gold_annotations_fr-gold_nina
+    do
+      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./judgment_explainability/annotations/fr/gold/$VARIABLE.jsonl
+    done
+    for VARIABLE in annotations_it annotations_it-lynn annotations_it-angela annotations_it_inspect annotations_it_inspect-lynn
+    do
+      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./judgment_explainability/annotations/it/$VARIABLE.jsonl
+    done
+        for VARIABLE in gold_annotations_it gold_annotations_it-gold_nina
+    do
+      docker exec prodigy_v1_nina prodigy "$task" $VARIABLE > ./judgment_explainability/annotations/it/gold/$VARIABLE.jsonl
     done
    ;;
-  "drop")
-  for VARIABLE in de BGer annotations_de-nina annotations_de-ninaa annotations_de-ninaaa annotations_it-nina annotations_fr-nina gold_annotations_de-nina gold_annotations_de-test
 
+  "drop")
+  for VARIABLE in
     do
       docker exec prodigy_v1_nina prodigy "$task" $VARIABLE
     done

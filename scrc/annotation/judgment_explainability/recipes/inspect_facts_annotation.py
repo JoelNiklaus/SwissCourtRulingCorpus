@@ -29,7 +29,7 @@ def split_string(string):
 def inspect_facts_annotation(language:str,annotator:str ):
   # define labels for annotation
   labels = ["Supports judgment","Opposes judgment","Lower court"]
-  stream = JSONL("./judgment_explainability/annotations/annotations_{}-{}.jsonl".format(language,annotator))
+  stream = JSONL("./judgment_explainability/annotations/{}/annotations_{}-{}.jsonl".format(language,language,annotator))
 
 
   dataset = "annotations_{}_inspect".format(language)
