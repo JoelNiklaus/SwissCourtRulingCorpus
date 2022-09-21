@@ -60,7 +60,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
-        self.feature_cols = ['facts', 'considerations']
+        self.feature_cols = ['facts']
         self.available_bges = self.load_rulings()
         self.references_df = self.extract_bge_references()
         self.citation_amount = [1000, 100, 10, 1]  # sorted, the highest number first!
@@ -368,19 +368,64 @@ class CriticalityDatasetCreator(DatasetCreator):
                 return RulingCitation(f"{year} {volume} {new_page_number}", 'de')
             return found_citation
 
-    def save_report(self, folder, split, df):
+    def save_huggingface_dataset(self, splits, feature_col_folder):
+        """
+        save data as huggingface dataset with columns: 'id', 'year': year, 'language',
+        region', 'canton', 'legal area', 'bge_label', 'considerations' and 'facts'
+        ATTENTION: only works for feature_cols = [considerations, facts]
+        :param splits:                  specifying splits of dataset
+        :param feature_col_folder:      name of folder
+        """
+        huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
+        for split in ['train', 'val', 'test']:
+            records = []
+            df = splits[split]
+            i = 0
+            # ATTENTION this works only for 1 or 2 entries in feature_col
+            if len(self.feature_cols) > 1:
+                i = 1
+            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'], df['citation_label'],
+                                 df['origin_canton'], df['bge_label'], df['lang'], df[self.feature_cols[0]],
+                                 df[self.feature_cols[i]])
+
+            for case_id, year, legal_area, region, citation_label, canton, bge_label, lang, a, b in tuple_iterator:
+                if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
+                    canton = 'n/a'
+                if not isinstance(region, str) and (region is None or math.isnan(region)):
+                    region = 'n/a'
+                if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
+                    legal_area = 'n/a'
+                record = {
+                    'id': case_id,
+                    'year': year,
+                    'language': lang,
+                    'region': region,
+                    'canton': canton,
+                    'legal area': legal_area,
+                    'bge_label': bge_label,
+                    'citation_label': citation_label,
+                }
+                record[self.feature_cols[0]] = a
+                if i == 1:
+                    record[self.feature_cols[1]] = b
+
+                records.append(record)
+            with open(f'{huggingface_dir}/{split}.jsonl', 'w') as out_file:
+                for record in records:
+                    out_file.write(json.dumps(record) + '\n')
+
+    def plot_custom(self, df, split_folder, folder):
         """
         Saves statistics about the dataset in the form of csv tables and png graphs.
         :param folder:  the base folder to save the report to
-        :param split:   the name of the split
-        :param df:      the df containing the dataset
+        :param split_folder:   the name of the split
+        :param df:              the df containing the dataset
         :return:
         """
-        split_folder = self.create_dir(folder, f'reports/{split}')
+
         barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
 
         for attribute in barplot_attributes:
-            self.plot_barplot_attribute(df, split_folder, attribute)
             self.plot_barplot_attribute(df[df['bge_label'] == 'critical'], split_folder, attribute, 'bge')
             for i in self.citation_amount:
                 self.plot_barplot_attribute(df[df['citation_label'] == f"critical-{i}"], split_folder, attribute,

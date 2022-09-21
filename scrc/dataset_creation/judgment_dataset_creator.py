@@ -43,9 +43,11 @@ class JudgmentDatasetCreator(DatasetCreator):
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return df, [labels]
 
+    def plot_custom(self, df, split_folder, folder):
+        self.plot_labels(df, split_folder, label_name='label')
 
 if __name__ == '__main__':
     config = get_config()
 
     judgment_dataset_creator = JudgmentDatasetCreator(config)
-    judgment_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)
+    judgment_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=True)

@@ -205,11 +205,11 @@ class DatasetCreator(AbstractPreprocessor):
             # ATTENTION this works only for 1 or 2 entries in feature_col
             if len(self.feature_cols) > 1:
                 i = 1
-            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'], df['citation_label'],
-                                 df['origin_canton'], df['bge_label'], df['lang'], df[self.feature_cols[0]],
+            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'],
+                                 df['origin_canton'], df['label'], df['lang'], df[self.feature_cols[0]],
                                  df[self.feature_cols[i]])
 
-            for case_id, year, legal_area, region, citation_label, canton, bge_label, lang, a, b in tuple_iterator:
+            for case_id, year, legal_area, region, canton, label, lang, a, b in tuple_iterator:
                 if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
                     canton = 'n/a'
                 if not isinstance(region, str) and (region is None or math.isnan(region)):
@@ -223,8 +223,7 @@ class DatasetCreator(AbstractPreprocessor):
                     'region': region,
                     'canton': canton,
                     'legal area': legal_area,
-                    'bge_label': bge_label,
-                    'citation_label': citation_label,
+                    'label': label,
                 }
                 record[self.feature_cols[0]] = a
                 if i == 1:
@@ -539,14 +538,17 @@ class DatasetCreator(AbstractPreprocessor):
         """
         split_folder = self.create_dir(folder, f'reports/{split}')
 
-        self.plot_custom(df, split_folder)
-
         barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
         for attribute in barplot_attributes:
             self.plot_barplot_attribute(df, split_folder, attribute)
 
-        self.plot_input_length(df, split_folder)
-        self.plot_labels(df, split_folder)
+        for feature_col in self.feature_cols:
+            dict = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',
+                    f'{feature_col}_num_tokens_spacy': 'num_tokens_spacy'}
+            self.plot_input_length(df.rename(columns=dict), split_folder, feature_col=feature_col)
+
+        self.plot_custom(df, split_folder, folder)
+
 
     @staticmethod
     def plot_barplot_attribute(df, split_folder, attribute, label=""):
@@ -706,5 +708,5 @@ class DatasetCreator(AbstractPreprocessor):
         return train, val, test
 
     @abc.abstractmethod
-    def plot_custom(self, df, split_folder):
+    def plot_custom(self, df, split_folder, folder):
         raise NotImplementedError("This method should be implemented in the subclass.")
