@@ -57,7 +57,7 @@ class CriticalityDatasetCreator(DatasetCreator):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-        self.debug = False
+        self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         self.feature_cols = ['facts', 'considerations']
@@ -149,7 +149,6 @@ class CriticalityDatasetCreator(DatasetCreator):
         df = pd.concat(df_list)
 
         df = self.clean_criticality_df(df)
-        # TODO give back both labels
         bge_labels, _ = list(np.unique(np.hstack(df.bge_label), return_index=True))
         citation_labels, _ = list(np.unique(np.hstack(df.citation_label), return_index=True))
         label_list = [bge_labels, citation_labels]
@@ -165,8 +164,11 @@ class CriticalityDatasetCreator(DatasetCreator):
         # huggingface: year, legal-area, origin-region, origin-canton, bge-label, citation-label, lang, cons, facts
         # plots: legal_area, origin_region, origin_canton, origin_court, origin_chamber
         needed_cols = ['year', 'legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'lang',
-                       'bge_label', 'citation_label', 'considerations', 'facts', 'facts_num_tokens_bert',
-                       'facts_num_tokens_spacy', 'considerations_num_tokens_bert', 'considerations_num_tokens_spacy']
+                       'bge_label', 'citation_label']
+        for feature_col in self.feature_cols:
+            needed_cols.append(f"{feature_col}")
+            needed_cols.append(f"{feature_col}_num_tokens_spacy")
+            needed_cols.append(f"{feature_col}_num_tokens_bert")
         for item in needed_cols:
             columns.remove(item)
         df.drop(columns, axis=1, inplace=True)
@@ -187,14 +189,13 @@ class CriticalityDatasetCreator(DatasetCreator):
 
         df.origin_canton = df.origin_canton.apply(get_canton_value)
 
-        df['facts_length'] = df['facts'].astype(str).apply(len)
-        match = df['facts_length'] > self.minFeatureColLength
-        df.loc[~match, 'facts'] = np.nan
-        df['considerations_length'] = df['considerations'].astype(str).apply(len)
-        match = df['considerations_length'] > self.minFeatureColLength
-        df.loc[~match, 'considerations'] = np.nan
+        for feature_col in self.feature_cols:
+            df[f'{feature_col}_length'] = df[feature_col].astype(str).apply(len)
+            match = df[f'{feature_col}_length'] > self.minFeatureColLength
+            df.loc[~match, feature_col] = np.nan
+
         a = len(df.index)
-        df = df.dropna(subset=['facts', 'considerations'], how='all')
+        df = df.dropna(subset=self.feature_cols, how='all')
         self.logger.info(f"There were {a-len(df.index)} cases dropped because all feature cols were too short.")
         df = df.reset_index(drop=True)  # reindex to get nice indices
         df = self.filter_columns(df)
@@ -367,47 +368,6 @@ class CriticalityDatasetCreator(DatasetCreator):
                 return RulingCitation(f"{year} {volume} {new_page_number}", 'de')
             return found_citation
 
-    def save_huggingface_dataset(self, splits, feature_col_folder):
-        """
-        save data as huggingface dataset with columns: 'id', 'year': year, 'language',
-        region', 'canton', 'legal area', 'bge_label', 'considerations' and 'facts'
-        ATTENTION: only works for feature_cols = [considerations, facts]
-        :param splits:                  specifying splits of dataset
-        :param feature_col_folder:      name of folder
-        """
-        huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
-        for split in ['train', 'val', 'test']:
-            records = []
-            df = splits[split]
-
-            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'], df['citation_label'],
-                                 df['origin_canton'], df['bge_label'], df['lang'], df['considerations'], df['facts'])
-
-            for case_id, year, legal_area, region, citation_label, canton, bge_label, lang, consideration, fact in tuple_iterator:
-                if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
-                    canton = 'n/a'
-                if not isinstance(region, str) and (region is None or math.isnan(region)):
-                    region = 'n/a'
-                if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
-                    legal_area = 'n/a'
-                record = {
-                    'id': case_id,
-                    'year': year,
-                    'language': lang,
-                    'region': region,
-                    'canton': canton,
-                    'legal area': legal_area,
-                    'bge_label': bge_label,
-                    'citation_label': citation_label,
-                    'considerations': consideration,
-                    'facts': fact
-                }
-
-                records.append(record)
-            with open(f'{huggingface_dir}/{split}.jsonl', 'w') as out_file:
-                for record in records:
-                    out_file.write(json.dumps(record) + '\n')
-
     def save_report(self, folder, split, df):
         """
         Saves statistics about the dataset in the form of csv tables and png graphs.
@@ -422,17 +382,14 @@ class CriticalityDatasetCreator(DatasetCreator):
         for attribute in barplot_attributes:
             self.plot_barplot_attribute(df, split_folder, attribute)
             self.plot_barplot_attribute(df[df['bge_label'] == 'critical'], split_folder, attribute, 'bge')
-            self.plot_barplot_attribute(df[df['citation_label'] == 'critical-1000'], split_folder, attribute, 'citation_1000')
-            self.plot_barplot_attribute(df[df['citation_label'] == 'critical-100'], split_folder, attribute, 'citation_100')
-            self.plot_barplot_attribute(df[df['citation_label'] == 'critical-10'], split_folder, attribute, 'citation_10')
-            self.plot_barplot_attribute(df[df['citation_label'] == 'critical-1'], split_folder, attribute, 'citation_1')
+            for i in self.citation_amount:
+                self.plot_barplot_attribute(df[df['citation_label'] == f"critical-{i}"], split_folder, attribute,
+                                            f"citation_{i}")
 
-        dict = {'facts_num_tokens_bert': 'num_tokens_bert',
-                'facts_num_tokens_spacy': 'num_tokens_spacy'}
-        self.plot_input_length(df.rename(columns=dict), split_folder, feature_col='facts')
-        dict = {'considerations_num_tokens_bert': 'num_tokens_bert',
-                'considerations_num_tokens_spacy': 'num_tokens_spacy'}
-        self.plot_input_length(df.rename(columns=dict), split_folder, feature_col='considerations')
+        for feature_col in self.feature_cols:
+            dict = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',
+                    f'{feature_col}_num_tokens_spacy': 'num_tokens_spacy'}
+            self.plot_input_length(df.rename(columns=dict), split_folder, feature_col=feature_col)
 
         # plot labels, need to rename column to use function
         self.plot_labels(df.rename(columns={'bge_label': 'label'}, inplace=False), split_folder, label_name='bge_label')
@@ -459,8 +416,9 @@ class CriticalityDatasetCreator(DatasetCreator):
     def print_not_found_list(self, not_found_list, label):
         file_path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols) / 'reports' / "not_found_references.txt"
         if not file_path.exists():
-            raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
-        with file_path.open("a") as f:
+            path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
+            self.create_dir(path, 'reports')
+        with open(file_path, 'a') as f:
             f.write(f"List of not found references for {label}:\n")
             for item in not_found_list:
                 f.write(f"{item}\n")

@@ -198,14 +198,18 @@ class DatasetCreator(AbstractPreprocessor):
         :param feature_col_folder:      name of folder
         """
         huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
-        for split in ['train', 'val', 'test']:
+        for split in ['train', 'val', 'test', 'secret_test']:
             records = []
             df = splits[split]
+            i = 0
+            # ATTENTION this works only for 1 or 2 entries in feature_col
+            if len(self.feature_cols) > 1:
+                i = 1
+            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'], df['citation_label'],
+                                 df['origin_canton'], df['bge_label'], df['lang'], df[self.feature_cols[0]],
+                                 df[self.feature_cols[i]])
 
-            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'],
-                                 df['origin_canton'], df['label'], df['lang'], df['considerations'], df['facts'])
-
-            for case_id, year, legal_area, region, canton, label, lang, consideration, fact in tuple_iterator:
+            for case_id, year, legal_area, region, citation_label, canton, bge_label, lang, a, b in tuple_iterator:
                 if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
                     canton = 'n/a'
                 if not isinstance(region, str) and (region is None or math.isnan(region)):
@@ -219,10 +223,12 @@ class DatasetCreator(AbstractPreprocessor):
                     'region': region,
                     'canton': canton,
                     'legal area': legal_area,
-                    'label': label,
-                    'considerations': consideration,
-                    'facts': fact
+                    'bge_label': bge_label,
+                    'citation_label': citation_label,
                 }
+                record[self.feature_cols[0]] = a
+                if i == 1:
+                    record[self.feature_cols[1]] = b
 
                 records.append(record)
             with open(f'{huggingface_dir}/{split}.jsonl', 'w') as out_file:
