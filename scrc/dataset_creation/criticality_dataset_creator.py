@@ -57,7 +57,7 @@ class CriticalityDatasetCreator(DatasetCreator):
     def __init__(self, config: dict):
         super().__init__(config)
         self.logger = get_logger(__name__)
-        self.debug = True
+        self.debug = False
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         self.feature_cols = ['facts', 'considerations']
@@ -284,7 +284,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         df = df.dropna(subset=['ruling_citation']).reset_index(drop=True)
         self.logger.info(f"There were {a - len(df.index)} cases where no bge citations were found")
         self.logger.info(f"Building the term-frequency matrix.")
-        df[f"counter"] = df['ruling_citation'].apply(lambda x: dict(Counter(x)))
+        df['counter'] = df['ruling_citation'].apply(lambda x: dict(Counter(x)))
 
         # counts how often a ruling is cited
         # assert no entry with 0 exists

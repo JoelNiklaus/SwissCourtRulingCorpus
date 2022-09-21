@@ -292,8 +292,13 @@ class DatasetCreator(AbstractPreprocessor):
             table = f"{join_tables_on_decision(['file_number'])}"
             where = f"file_number.decision_id IN ({','.join(decision_ids)})"
             file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
-
-            decision_df['file_number'] = file_number_df['file_numbers']
+            # we get a list of file_numbers but only want one, all entries are the same but different syntax
+            def get_one_file_number(column_data):
+                file_number = str(next(iter(column_data or []), None))
+                file_number = file_number.replace(" ", "_")
+                file_number = file_number.replace(".", "_")
+                return file_number
+            decision_df['file_number'] = file_number_df['file_numbers'].map(get_one_file_number)
 
             save_df_to_cache(decision_df, cache_dir)
             df = decision_df
@@ -551,20 +556,24 @@ class DatasetCreator(AbstractPreprocessor):
         total = len(df.index)
         # we deleted the ones where we did not find any attribute: also mention them in this table
         uncategorized = total - attribute_df[attribute].sum()
-        # attribute_df.at['uncategorized', attribute] = uncategorized
-        # attribute_df.at['all', attribute] = total
+        attribute_df.at['uncategorized', attribute] = uncategorized
+        attribute_df.at['all', attribute] = total
         attribute_df = attribute_df.reset_index(level=0)
         attribute_df = attribute_df.rename(columns={'index': attribute, attribute: 'number of decisions'})
         attribute_df['number of decisions'] = attribute_df['number of decisions'].astype(int)
         attribute_df['percent'] = round(attribute_df['number of decisions'] / total, 4)
 
+        temp_df = attribute_df.iloc[-2:]
+        attribute_df = attribute_df.iloc[:-2]
         if attribute == 'counter':
             attribute_df[attribute] = attribute_df[attribute].astype(float)
         attribute_df.sort_values(by=[attribute], inplace=True)
+        attribute_df = pd.concat([attribute_df, temp_df], axis=0)
 
         attribute_df.to_csv(split_folder / f'{attribute}_{label}_distribution.csv')
-
-        # attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
+        # need to make sure to use right type
+        attribute_df[attribute] = attribute_df[attribute].astype(str)
+        attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
         fig = px.bar(attribute_df, x=attribute, y="number of decisions", title=f'{attribute}_{label}_distribution-histogram')
         fig.write_image(split_folder / f'{attribute}_{label}_distribution-histogram.png')
         plt.clf()
