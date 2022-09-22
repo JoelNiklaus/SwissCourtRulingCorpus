@@ -14,6 +14,7 @@ judgment_explainability/annotations/analysis/de/
 judgment_explainability/annotations/analysis/fr/
 judgment_explainability/annotations/analysis/it
 judgment_explainability/occlusion/*.jsonl
+judgment_explainability/occlusion/*.zip
 judgment_prediction/datasets
 prodigy_dataset_creation/dataset_scrc
 prodigy_dataset_creation/sjp

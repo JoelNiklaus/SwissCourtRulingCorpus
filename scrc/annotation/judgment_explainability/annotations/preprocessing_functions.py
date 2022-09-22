@@ -2,18 +2,18 @@ import json
 import re
 from pathlib import Path
 from random import randint
-
+import ast
 import pandas
 import pandas as pd
 
 # Constant variable definitions
 LANGUAGES = ["de", "fr", "it"]
-LANGUAGES_NLTK = {"de": "german", "fr": "french", "it": "italian"}
 PERSONS = ["angela", "lynn", "thomas"]
 SESSIONS = ["angela", "lynn", "thomas", "gold_final", "gold_nina"]
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
 AGGREGATIONS = ["mean", "max", "min"]
 
+pd.options.mode.chained_assignment = None  # default='warn'
 
 def extract_dataset(filepath_a, filepath_b) -> dict:
     """
@@ -191,3 +191,25 @@ def group_columns(df: pandas.DataFrame, lang: str) -> pandas.DataFrame:
     df['tokens_dict'] = df.groupby([f'annotations_{lang}'])['tokens_dict'].transform(
         lambda x: "{{{}}}".format(','.join(x.astype(str)).replace("{", "").replace("}", "")))
     return df
+
+def string_to_dict(df: pd.DataFrame, col_name) -> pd.DataFrame:
+    """
+    Transforms column of string dictionary to column of dictionary.
+    Returns Dataframe.
+    """
+    dict_list = []
+    for token_dict in df[col_name].values:
+        if type(token_dict) == str and token_dict != "Nan":
+            token_dict = ast.literal_eval(token_dict)
+        dict_list.append(token_dict)
+    df[col_name] = dict_list
+    return df
+
+
+def get_white_space_dicts(ws: pd.DataFrame, index: str) -> pd.DataFrame:
+    """
+    @Todo
+    """
+    ws = get_tokens_dict(ws, 'tokens_id', 'tokens_ws', 'id_ws_dict')[[index, 'id_ws_dict']]
+    ws['tokens_ws_dict'] = ws.groupby([index])['id_ws_dict'].transform(lambda x: "{{{}}}".format(','.join(x.astype(str)).replace("{", "").replace("}", "")))
+    return ws.drop('id_ws_dict', axis=1).drop_duplicates()

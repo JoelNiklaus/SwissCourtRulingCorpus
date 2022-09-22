@@ -13,7 +13,7 @@ Json structure
 @Todo Clean this up and and add comments
 """
 
-import ast
+
 
 import pandas as pd
 
@@ -21,13 +21,13 @@ import pandas as pd
 GOLD_SESSIONS = {"de": "gold_final", "fr": "gold_nina", "it": "gold_nina"}
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment", "Neutral"]
 CSV_PATH = "../../prodigy_dataset_creation/dataset_scrc/{}/test.csv"
-OCCLUSION_COLUMNS = ['id_csv', 'year', 'facts', 'label', 'language', 'origin_region',
-                     'origin_canton', 'legal_area', 'explainability_label', 'occluded_text']
+OCCLUSION_COLUMNS = ['id_csv', 'year', 'label', 'language', 'origin_region',
+                     'origin_canton', 'legal_area', 'explainability_label', 'occluded_text', 'facts']
 ORIGINAL_TEST_SET = pd.DataFrame
 
 from scrc.annotation.judgment_explainability.annotations.preprocessing_functions \
     import LANGUAGES, extract_dataset, get_tokens_dict, extract_values_from_column, get_span_df, group_columns, \
-    read_csv, write_JSONL
+    read_csv, write_JSONL, string_to_dict, get_white_space_dicts
 
 
 def process_dataset(datasets: dict, lang: str):
@@ -36,7 +36,10 @@ def process_dataset(datasets: dict, lang: str):
     annotations.index.name = f"annotations_{lang}"
     annotations_spans = extract_values_from_column(annotations, "spans", "tokens")
     annotations_tokens = extract_values_from_column(annotations, "tokens", "spans")
-    ws_df = string_to_dict(get_white_space_dicts(annotations), 'tokens_ws_dict')
+
+    ws_df = annotations.copy().explode("tokens").reset_index()
+    ws_df = string_to_dict(get_white_space_dicts(ws_df.join(ws_df["tokens"].apply(pd.Series).add_prefix("{}_".format("tokens"))), "id_scrc"), 'tokens_ws_dict')
+
 
     for label in LABELS:
         label_df, spans_list = get_span_df(annotations_spans, annotations_tokens, label, lang)
@@ -116,18 +119,7 @@ def get_separated_label_spans(span_list_dict: dict, lang: str) -> pd.DataFrame:
     return span_dict_df
 
 
-def string_to_dict(df: pd.DataFrame, col_name) -> pd.DataFrame:
-    """
-    Transforms column of string dictionary to column of dictionary.
-    Returns Dataframe.
-    """
-    dict_list = []
-    for token_dict in df[col_name].values:
-        if type(token_dict) == str:
-            token_dict = ast.literal_eval(token_dict)
-        dict_list.append(token_dict)
-    df[col_name] = dict_list
-    return df
+
 
 
 def join_span_columns(df: pd.DataFrame, lang) -> pd.DataFrame:
@@ -146,20 +138,6 @@ def join_span_columns(df: pd.DataFrame, lang) -> pd.DataFrame:
         df_separated = pd.concat([df_separated, df_list[i]])
 
     return df_separated.reset_index().drop(f'annotations_{lang}', axis=1)
-
-
-def get_white_space_dicts(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    @Todo
-    """
-    ws = df.explode("tokens").reset_index()
-    df_ws = ws["tokens"].apply(pd.Series).add_prefix("{}_".format("tokens"))
-    ws = ws.join(df_ws)
-    ws = get_tokens_dict(ws, 'tokens_id', 'tokens_ws', 'id_ws_dict')[['id_scrc', 'id_ws_dict']]
-    ws['tokens_ws_dict'] = ws.groupby(['id_scrc'])['id_ws_dict'].transform(
-        lambda x: "{{{}}}".format(','.join(x.astype(str)).replace("{", "").replace("}", "")))
-    return ws.drop('id_ws_dict', axis=1).drop_duplicates()
-
 
 def occlude_text(df: pd.DataFrame) -> pd.DataFrame:
     """
