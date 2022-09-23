@@ -235,7 +235,12 @@ class DatasetCreator(AbstractPreprocessor):
                     out_file.write(json.dumps(record) + '\n')
 
     def get_df(self, engine, feature_col):
-
+        """
+        get dataframe of all bger cases and add additional information as judgments, sections, filenumber, citations
+        :param engine:      engine used for db connection
+        :param feature_col: defines which sections should be included
+        :return:            dataframe with all data
+        """
         cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
         df = retrieve_from_cache_if_exists(cache_dir)
         if df.empty:
@@ -316,6 +321,12 @@ class DatasetCreator(AbstractPreprocessor):
         return df
 
     def clean_df(self, df, column):
+        """
+        remove not usable values from dataframe, add num_tokens for each feature_col
+        :param df:      dataframe containing all the data
+        :param column:  specifying column (=feature_col) which is cleaned
+        :return:        dataframe
+        """
         # replace empty and whitespace strings with nan so that they can be removed
         sections = df['sections']
 
@@ -349,15 +360,10 @@ class DatasetCreator(AbstractPreprocessor):
                     return section['num_tokens_spacy']
         df[f"{column}_num_tokens_spacy"] = sections.map(filter_column)
 
-        # TODO do this only if that's the case for all feature_cols!!
         if self.split_type == "date-stratified":
             df = df.dropna(subset=['year'])  # make sure that each entry has an associated year
         df.year = df.year.astype(int)  # convert from float to nicer int
 
-        # filter out entries where the feature_col (text/facts/considerations) is less than 100 characters
-        # because then it is most likely faulty
-        # TODO think about including this line
-        # df = df[df[column].str.len() > self.minFeatureColLength]
         return df
 
     def save_dataset(self, df: pd.DataFrame, labels: list, folder: Path,
@@ -421,7 +427,7 @@ class DatasetCreator(AbstractPreprocessor):
         """
         Saves the splits to the filesystem and generates reports
         :param splits:          the splits dictionary to be saved
-        :param labels:          the labels to be saved
+        :param labels:          list of labels to be saved
         :param folder:          where to save the splits
         :param save_reports:    whether to save reports
         :param save_csvs:       whether to save csv files
@@ -549,11 +555,11 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.plot_custom(df, split_folder, folder)
 
-
     @staticmethod
     def plot_barplot_attribute(df, split_folder, attribute, label=""):
         """
         Plots the distribution of the attribute of the decisions in the given dataframe
+        ATTENTION: make sure column values have correct type
         :param df:              the dataframe containing the legal areas
         :param split_folder:    where to save the plots and csv files
         :param attribute:       the attribute to barplot
@@ -655,8 +661,8 @@ class DatasetCreator(AbstractPreprocessor):
     def save_labels(labels, folder):
         """
         Saves the labels and the corresponding ids as a json file
-        :param labels:      the labels dict
-        :param folder:   where to save the labels
+        :param labels:      list of labels dict
+        :param folder:      where to save the labels
         :return:
         """
         assert len(labels) <= 2
@@ -672,7 +678,6 @@ class DatasetCreator(AbstractPreprocessor):
                 file_name = folder / "labels.json"
             with open(f"{file_name}", 'w', encoding='utf-8') as f:
                 json.dump(json_labels, f, ensure_ascii=False, indent=4)
-
 
     @staticmethod
     def split_date_stratified(df, split):
@@ -709,4 +714,7 @@ class DatasetCreator(AbstractPreprocessor):
 
     @abc.abstractmethod
     def plot_custom(self, df, split_folder, folder):
+        """
+        Implement custom plots for each dataset_creator in this method
+        """
         raise NotImplementedError("This method should be implemented in the subclass.")

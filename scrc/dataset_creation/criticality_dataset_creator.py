@@ -102,6 +102,11 @@ class CriticalityDatasetCreator(DatasetCreator):
         return df
 
     def extend_file_number_list(self, file_number_list):
+        """
+        extend a given list of bger_file_numbers with unknown syntax to a list which contains all possible syntax
+        :param file_number_list:    list of bger_file_numbers with unknown syntax
+        :return:                    list with all 3 syntaxes of each bger_file_number found in given list
+        """
         # this extension is needed because file_numbers have no common syntax.
         bge_list = []
         for i in file_number_list:
@@ -129,6 +134,7 @@ class CriticalityDatasetCreator(DatasetCreator):
 
         # citation criticality
         criticality_lists = self.get_citations_criticality_list(df, self.citation_amount)
+        # to debug use these given lists so citation_label_{i} is sometimes critical
         # clist = ['6B_1045/2018']
         # blist = ['8C_309/2009', '2A_88/2003']
         # alist = ['8C_309/2009', '2A_88/2003', '1C_396/2017', '5A_960/2019']
@@ -156,7 +162,7 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def filter_columns(self, df):
         """
-        Filters given dataframe, to get rid of not needed data
+        Filters cols of dataframe, to get rid of not needed columns
         :param df:      dataframe of all bger cases
         :return:        filtered dataframe
         """
@@ -175,7 +181,13 @@ class CriticalityDatasetCreator(DatasetCreator):
         return df
 
     def clean_criticality_df(self, df):
-        # clean df only after processing all citations (from all cases)
+        """
+        clean df (after labels are set) to get rid of odd values and define minimum length for feature_cols
+        ATTENTION: This should be done only after processing all citations. Because otherwise some citations in cases we
+        removed would not be considered.
+        :param df:  dataframe of all cases
+        :return:    cleaned dataframe
+        """
         # TODO create real court and chamber from float input
         df['origin_court'] = df.origin_court.astype(str)
         df['origin_chamber'] = df.origin_chamber.astype(str)
@@ -240,9 +252,9 @@ class CriticalityDatasetCreator(DatasetCreator):
     def get_citations_criticality_list(self, df, citations_amounts=[1]):
         """
         create a list of bger_references which were cited a specified amount
-        :param df:          dataframe of all bger cases
-        :citations_amounts  array which specifies amount of citations a case must have to be in the list
-        :return:            list of lists of bger_references
+        :param df:                dataframe of all bger cases
+        :param citations_amounts  array which specifies amount of citations a case must have to be in the list
+        :return:                  list of lists of bger_references
         """
         self.logger.info(f"Processing labeling of citation_criticality")
 
@@ -274,7 +286,7 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def process_citations(self, df):
         """
-        Count for bge amount of citations in other bger
+        Count for each bge amount of citations in bger
         :param df:      dataframe of all bger cases
         :return:        dataframe containing columns 'bger_reference', 'bge_file_number' and 'count'
         """
@@ -285,25 +297,30 @@ class CriticalityDatasetCreator(DatasetCreator):
         df = df.dropna(subset=['ruling_citation']).reset_index(drop=True)
         self.logger.info(f"There were {a - len(df.index)} cases where no bge citations were found")
         self.logger.info(f"Building the term-frequency matrix.")
-        df['counter'] = df['ruling_citation'].apply(lambda x: dict(Counter(x)))
 
-        # counts how often a ruling is cited
+        df['ruling_once_per_bger'] = df['ruling_citation'].apply(lambda x: set(x))
+
+        # count how often a ruling is cited
+        # there are two options:
+        # - count every citation in bger -> use 'ruling_citation'
+        # - count citations for one bge only once in bger -> use 'ruling_once_per_bge'
+
         # assert no entry with 0 exists
-        type_corpus_frequencies = dict(Counter(itertools.chain(*df['ruling_citation'].tolist())))
-        data = {
-            "bge_file_number": list(type_corpus_frequencies.keys()),
-            "counter": list(type_corpus_frequencies.values())
-        }
+        type_corpus_frequencies_all = dict(Counter(itertools.chain(*df['ruling_citation'].tolist())))
+        type_corpus_frequencies_once = dict(Counter(itertools.chain(*df['ruling_once_per_bger'].tolist())))
+        citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequencies_all).items()), columns=['bge_file_number', 'counter_all'])
+        # asserts there is an entry for each bger_file_number in tcf
+        citation_frequencies_df['counter_once'] = citation_frequencies_df['bge_file_number'].apply(
+            lambda x: type_corpus_frequencies_once[x])
 
-        citation_frequencies_df = pd.DataFrame.from_dict(data)
         self.logger.info(f"Citation Criticality: There were {len(citation_frequencies_df.index)} unique bge cited")
 
-        citation_count_df = self.references_df
-        # iterate over unique count values
-        a = citation_frequencies_df['counter'].unique()
+        citation_count_df = self.references_df.copy()
+        # iterate over unique values in column 'counter'
+        a = citation_frequencies_df['counter_all'].unique()
         for i in a:
             # set counter in citation_count_df where citation_frequencies_df has matching reference and count value
-            temp_freq_df = citation_frequencies_df[citation_frequencies_df['counter'] == i]
+            temp_freq_df = citation_frequencies_df[citation_frequencies_df['counter_all'] == i]
             temp_list = temp_freq_df['bge_file_number'].astype(str).tolist()
             file_number_match = citation_count_df.bge_file_number_short.astype(str).isin(temp_list)
             citation_count_df.loc[file_number_match, 'counter'] = int(i)
@@ -317,7 +334,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         """
         self.counter = self.counter + 1
         if int(self.counter) % 10000 == 0:
-            print("Processed another 10000")
+            print("Processed another 10'000")
         cits = []
         try:
             citations = ast.literal_eval(citations_as_string)  # parse dict string to dict again
@@ -370,14 +387,14 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def save_huggingface_dataset(self, splits, feature_col_folder):
         """
-        save data as huggingface dataset with columns: 'id', 'year': year, 'language',
-        region', 'canton', 'legal area', 'bge_label', 'considerations' and 'facts'
-        ATTENTION: only works for feature_cols = [considerations, facts]
+        save data as huggingface dataset with columns: 'id', 'year', 'language', region', 'canton', 'legal area',
+        'bge_label', 'citation_label', each feature_col
+        ATTENTION: only works for self.feature_cols with length 1 or 2
         :param splits:                  specifying splits of dataset
         :param feature_col_folder:      name of folder
         """
         huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
-        for split in ['train', 'val', 'test']:
+        for split in ['train', 'val', 'test', 'secret_test']:
             records = []
             df = splits[split]
             i = 0
@@ -416,11 +433,10 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def plot_custom(self, df, split_folder, folder):
         """
-        Saves statistics about the dataset in the form of csv tables and png graphs.
-        :param folder:  the base folder to save the report to
-        :param split_folder:   the name of the split
+        Saves statistics and reports about bge_label and citation_label. Specific for criticality_dataset_creator.
+        :param folder:          the base folder to save the report to
+        :param split_folder:    the name of the split
         :param df:              the df containing the dataset
-        :return:
         """
 
         barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
@@ -452,6 +468,12 @@ class CriticalityDatasetCreator(DatasetCreator):
             self.logger.info("There exists already reports for bge_references. To create new you have to delete old.")
 
     def report_citations_count(self, df, counts):
+        """
+        Saves reports about each citation_label class.
+        This needs to be done plot_custom because count to cover all found citations independent whether bge is in db or not.
+        :param df:      dataframe containing all the data
+        :param counts:   specifying which citation_label class to use
+        """
         # report distribution of citation, here because it's deleted from df later.
         folder: Path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
         split_folder = self.create_dir(folder, f'reports/citation_{counts}')
@@ -459,6 +481,11 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.plot_barplot_attribute(df, split_folder, 'year')
 
     def print_not_found_list(self, not_found_list, label):
+        """
+        Save list of all bger_references which were extracted but could not be found as bge in db
+        :param not_found_list:  list of references
+        :param label:           specifying for with label class the given list was created for
+        """
         file_path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols) / 'reports' / "not_found_references.txt"
         if not file_path.exists():
             path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
@@ -469,6 +496,10 @@ class CriticalityDatasetCreator(DatasetCreator):
                 f.write(f"{item}\n")
 
     def test_correctness_of_labeling(self, not_found_list):
+        """
+        in order to assure correctness, test which cases could not be found and why
+        :param not_found_list:      list of references were no bger case could be found for.
+        """
         self.logger.info(f"Not Found List: There are {len(not_found_list)} not found cases.")
         # get list where bge file number is multiple times in references df
         file_number_list = self.references_df.bge_file_number_long.tolist()

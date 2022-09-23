@@ -411,6 +411,10 @@ def get_region(canton):
         if np.isnan(canton):
             return None
         canton = Canton(canton)
+    if isinstance(canton, str):
+        for canton_enum in Canton:
+            if canton_enum.name == canton:
+                canton = canton_enum
     if canton is None:
         return None
     for region, cantons in regions.items():
