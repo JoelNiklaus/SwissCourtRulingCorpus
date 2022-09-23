@@ -263,7 +263,6 @@ class CriticalityDatasetCreator(DatasetCreator):
         # report number of citations
         folder: Path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
         split_folder = self.create_dir(folder, f'reports/citations_amount')
-        citations_df = citations_df.dropna(subset=['counter'])
         temp_df = citations_df.copy()
         temp_df.loc[:, 'counter'] = temp_df.counter.astype(str)
         self.plot_barplot_attribute(temp_df, split_folder, 'counter')
@@ -302,22 +301,24 @@ class CriticalityDatasetCreator(DatasetCreator):
 
         # count how often a ruling is cited
         # there are two options:
-        # - count every citation in bger -> use 'ruling_citation'
-        # - count citations for one bge only once in bger -> use 'ruling_once_per_bge'
-
+        # OPTION 1: count every citation in bger -> use 'ruling_citation'
         # assert no entry with 0 exists
         type_corpus_frequencies_all = dict(Counter(itertools.chain(*df['ruling_citation'].tolist())))
-        type_corpus_frequencies_once = dict(Counter(itertools.chain(*df['ruling_once_per_bger'].tolist())))
         citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequencies_all).items()), columns=['bge_file_number', 'counter_all'])
+
+        # OPTION 2: count citations for one bge only once in bger -> use 'ruling_once_per_bge'
+        # assert no entry with 0 exists
+        # type_corpus_frequencies_once = dict(Counter(itertools.chain(*df['ruling_once_per_bger'].tolist())))
         # asserts there is an entry for each bger_file_number in tcf
-        citation_frequencies_df['counter_once'] = citation_frequencies_df['bge_file_number'].apply(
-            lambda x: type_corpus_frequencies_once[x])
+        # citation_frequencies_df['counter_once'] = citation_frequencies_df['bge_file_number'].apply(
+            # lambda x: type_corpus_frequencies_once[x])
 
         self.logger.info(f"Citation Criticality: There were {len(citation_frequencies_df.index)} unique bge cited")
 
         citation_count_df = self.references_df.copy()
         # iterate over unique values in column 'counter'
         a = citation_frequencies_df['counter_all'].unique()
+        citation_count_df['counter'] = 0
         for i in a:
             # set counter in citation_count_df where citation_frequencies_df has matching reference and count value
             temp_freq_df = citation_frequencies_df[citation_frequencies_df['counter_all'] == i]
