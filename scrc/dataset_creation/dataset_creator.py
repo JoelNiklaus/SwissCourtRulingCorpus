@@ -274,7 +274,7 @@ class DatasetCreator(AbstractPreprocessor):
                 self.select(engine, table, lower_court_select_fields, where, None, self.get_chunksize()))
             decision_df['origin_date'] = lower_court_df['origin_date']
             decision_df['origin_court'] = lower_court_df['origin_court']
-            decision_df['origin_canton'] = lower_court_df['short_code']
+            decision_df['origin_canton'] = lower_court_df['origin_canton']
             decision_df['origin_chamber'] = lower_court_df['origin_chamber']
             decision_df['origin_file_number'] = lower_court_df['origin_file_number']
 
