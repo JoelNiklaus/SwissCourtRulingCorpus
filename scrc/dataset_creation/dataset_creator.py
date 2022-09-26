@@ -271,6 +271,7 @@ class DatasetCreator(AbstractPreprocessor):
             decision_df['pdf_url'] = file_df['pdf_url']
 
             print('Loading Lower Court')
+
             table = f"{join_tables_on_decision(['lower_court'])}"
             where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
             lower_court_select_fields = ("lower_court.date as origin_date,"
@@ -318,6 +319,7 @@ class DatasetCreator(AbstractPreprocessor):
         df['origin_region'] = df.origin_canton.apply(get_region)
 
         self.logger.info("Finished loading the data from the database")
+
         return df
 
     def clean_df(self, df, column):
@@ -374,7 +376,7 @@ class DatasetCreator(AbstractPreprocessor):
         :param df:          needs to contain the columns text and label
         :param labels:      list of all the labels
         :param folder:      where to save the files
-        :param split_type:  "date-stratified" or "random"
+        :param split_type:  "date-stratified", "random", or "all_train"
         :param split:       how to split the data into train, val and test set: needs to sum up to 1
         :param sub_datasets:whether or not to create the special sub dataset for testing of biases
         :param kaggle:      whether or not to create the special kaggle dataset
@@ -453,18 +455,26 @@ class DatasetCreator(AbstractPreprocessor):
                 df.to_csv(folder / f'{split}.csv', index_label='id', index=False)
 
     def create_splits(self, df, split, split_type, include_all=False):
-        # TODO add secret test for date_stratified
         self.logger.info("Splitting data into train, val and test set")
         if split_type == "random":
             train, val, test = self.split_random(df, split)
             secret_test = pd.DataFrame()
         elif split_type == "date-stratified":
             train, val, test, secret_test = self.split_date_stratified(df, split)
+        elif split_type == "all_train":
+            pass
         else:
             raise ValueError("Please supply a valid split_type")
         splits = {'train': train, 'val': val, 'test': test, 'secret_test': secret_test}
-        if include_all:
-            splits['all'] = pd.concat([train, val, test, secret_test])  # we need to update it since some entries have been removed
+        if split_type == "all_train":
+            splits = {'train': df}
+            if include_all:
+                splits['all'] = df
+        else:
+            splits = {'train': train, 'val': val, 'test': test}
+            if include_all:
+                # we need to update it since some entries have been removed
+                splits['all'] = pd.concat([train, val, test])
 
         return splits
 
@@ -561,7 +571,6 @@ class DatasetCreator(AbstractPreprocessor):
     def plot_barplot_attribute(df, split_folder, attribute, label=""):
         """
         Plots the distribution of the attribute of the decisions in the given dataframe
-        ATTENTION: make sure column values have correct type
         :param df:              the dataframe containing the legal areas
         :param split_folder:    where to save the plots and csv files
         :param attribute:       the attribute to barplot
@@ -653,26 +662,29 @@ class DatasetCreator(AbstractPreprocessor):
         plt.clf()
 
     @staticmethod
-    def save_labels(labels, folder):
+    def save_labels(self, labels, folder):
         """
         Saves the labels and the corresponding ids as a json file
         :param labels:      list of labels dict
         :param folder:      where to save the labels
         :return:
         """
-        assert len(labels) <= 2
-        i = 1
-        for entry in labels:
-            entry = list(entry)
-            labels_dict = dict(enumerate(entry))
-            json_labels = {"id2label": labels_dict, "label2id": {y: x for x, y in labels_dict.items()}}
-            if len(labels) != 1:
-                file_name = folder / f"labels_{i}.json"
-                i = i + 1
-            else:
-                file_name = folder / "labels.json"
-            with open(f"{file_name}", 'w', encoding='utf-8') as f:
-                json.dump(json_labels, f, ensure_ascii=False, indent=4)
+        if labels:  # labels can also be None (for PretrainingDatasetCreator), in which case we do nothing
+            assert len(labels) <= 2
+            i = 1
+            for entry in labels:
+                entry = list(entry)
+                labels_dict = dict(enumerate(entry))
+                json_labels = {"id2label": labels_dict, "label2id": {y: x for x, y in labels_dict.items()}}
+                if len(labels) != 1:
+                    file_name = folder / f"labels_{i}.json"
+                    i = i + 1
+                else:
+                    file_name = folder / "labels.json"
+                with open(f"{file_name}", 'w', encoding='utf-8') as f:
+                    json.dump(json_labels, f, ensure_ascii=False, indent=4)
+        else:
+            self.logger.info("No labels given.")
 
     @staticmethod
     def split_date_stratified(df, split):
