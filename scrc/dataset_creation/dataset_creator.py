@@ -351,14 +351,14 @@ class DatasetCreator(AbstractPreprocessor):
         :param df:          needs to contain the columns text and label
         :param labels:      all the labels
         :param folder:      where to save the files
-        :param split_type:  "date-stratified" or "random"
+        :param split_type:  "date-stratified", "random", or "all_train"
         :param split:       how to split the data into train, val and test set: needs to sum up to 1
         :param sub_datasets:whether or not to create the special sub dataset for testing of biases
         :param kaggle:      whether or not to create the special kaggle dataset
         :param save_reports:whether or not to compute and save reports
         :return:
         """
-        splits = self.create_splits(df, split, split_type, include_all=save_reports)
+        splits = self.create_splits(df, split_type, split, include_all=save_reports)
         self.save_labels(labels, folder / 'labels.json')
         self.save_splits(splits, labels, folder, save_reports=save_reports)
 
@@ -430,17 +430,25 @@ class DatasetCreator(AbstractPreprocessor):
                 self.logger.info("Saving csv file")
                 df.to_csv(folder / f'{split}.csv', index_label='id')
 
-    def create_splits(self, df, split, split_type, include_all=False):
+    def create_splits(self, df, split_type, split, include_all=False):
         self.logger.info("Splitting data into train, val and test set")
         if split_type == "random":
             train, val, test = self.split_random(df, split)
         elif split_type == "date-stratified":
             train, val, test = self.split_date_stratified(df, split)
+        elif split_type == "all_train":
+            pass
         else:
             raise ValueError("Please supply a valid split_type")
-        splits = {'train': train, 'val': val, 'test': test}
-        if include_all:
-            splits['all'] = pd.concat([train, val, test])  # we need to update it since some entries have been removed
+        if split_type == "all_train":
+            splits = {'train': df}
+            if include_all:
+                splits['all'] = df
+        else:
+            splits = {'train': train, 'val': val, 'test': test}
+            if include_all:
+                # we need to update it since some entries have been removed
+                splits['all'] = pd.concat([train, val, test])
 
         return splits
 
@@ -619,18 +627,20 @@ class DatasetCreator(AbstractPreprocessor):
         plot.savefig(split_folder / 'input_length_distribution-bivariate.png', bbox_inches="tight")
         plt.clf()
 
-    @staticmethod
-    def save_labels(labels, file_name):
+    def save_labels(self, labels, file_name):
         """
         Saves the labels and the corresponding ids as a json file
         :param labels:      the labels dict
         :param file_name:   where to save the labels
         :return:
         """
-        labels_dict = dict(enumerate(labels))
-        json_labels = {"id2label": labels_dict, "label2id": {y: x for x, y in labels_dict.items()}}
-        with open(file_name, 'w', encoding='utf-8') as f:
-            json.dump(json_labels, f, ensure_ascii=False, indent=4)
+        if labels:  # labels can also be None (for PretrainingDatasetCreator), in which case we do nothing
+            labels_dict = dict(enumerate(labels))
+            json_labels = {"id2label": labels_dict, "label2id": {y: x for x, y in labels_dict.items()}}
+            with open(file_name, 'w', encoding='utf-8') as f:
+                json.dump(json_labels, f, ensure_ascii=False, indent=4)
+        else:
+            self.logger.info("No labels given.")
 
     @staticmethod
     def split_date_stratified(df, split):
