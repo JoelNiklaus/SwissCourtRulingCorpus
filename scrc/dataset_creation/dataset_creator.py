@@ -471,7 +471,7 @@ class DatasetCreator(AbstractPreprocessor):
             if include_all:
                 splits['all'] = df
         else:
-            splits = {'train': train, 'val': val, 'test': test}
+            splits = {'train': train, 'val': val, 'test': test, 'secret_test': secret_test}
             if include_all:
                 # we need to update it since some entries have been removed
                 splits['all'] = pd.concat([train, val, test])
@@ -661,7 +661,6 @@ class DatasetCreator(AbstractPreprocessor):
         plot.savefig(split_folder / f'{feature_col}_input_length_distribution-bivariate.png', bbox_inches="tight")
         plt.clf()
 
-    @staticmethod
     def save_labels(self, labels, folder):
         """
         Saves the labels and the corresponding ids as a json file
