@@ -65,6 +65,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.references_df = self.extract_bge_references()
         self.citation_amount = [1000, 100, 10, 1]  # sorted, the highest number first!
         self.counter = 0
+        self.labels = ['bge_label', 'citation_label']
 
     def load_rulings(self):
         """
@@ -264,7 +265,6 @@ class CriticalityDatasetCreator(DatasetCreator):
         folder: Path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
         split_folder = self.create_dir(folder, f'reports/citations_amount')
         temp_df = citations_df.copy()
-        temp_df.loc[:, 'counter'] = temp_df.counter.astype(str)
         self.plot_barplot_attribute(temp_df, split_folder, 'counter')
 
         # apply for each row a function which returns True if citation amount is bigger than given number
@@ -303,25 +303,24 @@ class CriticalityDatasetCreator(DatasetCreator):
         # there are two options:
         # OPTION 1: count every citation in bger -> use 'ruling_citation'
         # assert no entry with 0 exists
-        type_corpus_frequencies_all = dict(Counter(itertools.chain(*df['ruling_citation'].tolist())))
-        citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequencies_all).items()), columns=['bge_file_number', 'counter_all'])
+        # type_corpus_frequencies_all = dict(Counter(itertools.chain(*df['ruling_citation'].tolist())))
+        # citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequencies_all).items()), columns=['bge_file_number', 'counter'])
 
         # OPTION 2: count citations for one bge only once in bger -> use 'ruling_once_per_bge'
         # assert no entry with 0 exists
-        # type_corpus_frequencies_once = dict(Counter(itertools.chain(*df['ruling_once_per_bger'].tolist())))
+        type_corpus_frequencies_once = dict(Counter(itertools.chain(*df['ruling_once_per_bger'].tolist())))
         # asserts there is an entry for each bger_file_number in tcf
-        # citation_frequencies_df['counter_once'] = citation_frequencies_df['bge_file_number'].apply(
-            # lambda x: type_corpus_frequencies_once[x])
+        citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequencies_once).items()), columns=['bge_file_number', 'counter'])
 
         self.logger.info(f"Citation Criticality: There were {len(citation_frequencies_df.index)} unique bge cited")
 
         citation_count_df = self.references_df.copy()
         # iterate over unique values in column 'counter'
-        a = citation_frequencies_df['counter_all'].unique()
+        a = citation_frequencies_df['counter'].unique()
         citation_count_df['counter'] = 0
         for i in a:
             # set counter in citation_count_df where citation_frequencies_df has matching reference and count value
-            temp_freq_df = citation_frequencies_df[citation_frequencies_df['counter_all'] == i]
+            temp_freq_df = citation_frequencies_df[citation_frequencies_df['counter'] == i]
             temp_list = temp_freq_df['bge_file_number'].astype(str).tolist()
             file_number_match = citation_count_df.bge_file_number_short.astype(str).isin(temp_list)
             citation_count_df.loc[file_number_match, 'counter'] = int(i)
@@ -386,52 +385,6 @@ class CriticalityDatasetCreator(DatasetCreator):
                 return RulingCitation(f"{year} {volume} {new_page_number}", 'de')
             return found_citation
 
-    def save_huggingface_dataset(self, splits, feature_col_folder):
-        """
-        save data as huggingface dataset with columns: 'id', 'year', 'language', region', 'canton', 'legal area',
-        'bge_label', 'citation_label', each feature_col
-        ATTENTION: only works for self.feature_cols with length 1 or 2
-        :param splits:                  specifying splits of dataset
-        :param feature_col_folder:      name of folder
-        """
-        huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
-        for split in ['train', 'val', 'test', 'secret_test']:
-            records = []
-            df = splits[split]
-            i = 0
-            # ATTENTION this works only for 1 or 2 entries in feature_col
-            if len(self.feature_cols) > 1:
-                i = 1
-            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'], df['citation_label'],
-                                 df['origin_canton'], df['bge_label'], df['lang'], df[self.feature_cols[0]],
-                                 df[self.feature_cols[i]])
-
-            for case_id, year, legal_area, region, citation_label, canton, bge_label, lang, a, b in tuple_iterator:
-                if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
-                    canton = 'n/a'
-                if not isinstance(region, str) and (region is None or math.isnan(region)):
-                    region = 'n/a'
-                if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
-                    legal_area = 'n/a'
-                record = {
-                    'id': case_id,
-                    'year': year,
-                    'language': lang,
-                    'region': region,
-                    'canton': canton,
-                    'legal area': legal_area,
-                    'bge_label': bge_label,
-                    'citation_label': citation_label,
-                }
-                record[self.feature_cols[0]] = a
-                if i == 1:
-                    record[self.feature_cols[1]] = b
-
-                records.append(record)
-            with open(f'{huggingface_dir}/{split}.jsonl', 'w') as out_file:
-                for record in records:
-                    out_file.write(json.dumps(record) + '\n')
-
     def plot_custom(self, df, split_folder, folder):
         """
         Saves statistics and reports about bge_label and citation_label. Specific for criticality_dataset_creator.
@@ -460,8 +413,6 @@ class CriticalityDatasetCreator(DatasetCreator):
         # report references_df distribution, needs to be done only after running reference-extractor.
         if not os.path.exists(folder / 'reports' / f'bge_references'):
             folder_tmp = self.create_dir(folder, f'reports/bge_references')
-            self.references_df['bge_chamber'] = self.references_df.bge_chamber.astype(str)
-            self.references_df['year'] = self.references_df.year.astype(str)
             barplot_attributes = ['bge_chamber', 'year']
             for attribute in barplot_attributes:
                 self.plot_barplot_attribute(self.references_df, folder_tmp, attribute)
@@ -478,7 +429,6 @@ class CriticalityDatasetCreator(DatasetCreator):
         # report distribution of citation, here because it's deleted from df later.
         folder: Path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
         split_folder = self.create_dir(folder, f'reports/citation_{counts}')
-        df['year'] = df.year.astype(str)
         self.plot_barplot_attribute(df, split_folder, 'year')
 
     def print_not_found_list(self, not_found_list, label):

@@ -25,6 +25,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.with_unification = False
         self.with_inadmissible = False
         self.make_single_label = True
+        self.labels = ['label']
 
     def get_dataset(self, feature_col, save_reports):
         df = self.get_df(self.get_engine(self.db_scrc), feature_col)

@@ -143,6 +143,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
         self.feature_cols = ["text"]  # to be overridden
+        self.labels = [] # to be overridden
 
     @abc.abstractmethod
     def get_dataset(self, feature_col, save_reports):
@@ -191,9 +192,8 @@ class DatasetCreator(AbstractPreprocessor):
 
     def save_huggingface_dataset(self, splits, feature_col_folder):
         """
-        save data as huggingface dataset with columns: 'id', 'year': year, 'language',
-        region', 'canton', 'legal area', 'bge_label', 'considerations' and 'facts'
-        ATTENTION: only works for feature_cols = [considerations, facts]
+        save data as huggingface dataset with columns: 'id', 'date', 'year', 'language', origin_court, origin_canton
+        origin_chamber, 'legal area', 'bge_label', citation_label, all feature cols
         :param splits:                  specifying splits of dataset
         :param feature_col_folder:      name of folder
         """
@@ -201,35 +201,35 @@ class DatasetCreator(AbstractPreprocessor):
         for split in ['train', 'val', 'test', 'secret_test']:
             records = []
             df = splits[split]
-            i = 0
-            # ATTENTION this works only for 1 or 2 entries in feature_col
-            if len(self.feature_cols) > 1:
-                i = 1
-            tuple_iterator = zip(df.index, df['year'], df['legal_area'], df['origin_region'],
-                                 df['origin_canton'], df['label'], df['lang'], df[self.feature_cols[0]],
-                                 df[self.feature_cols[i]])
 
-            for case_id, year, legal_area, region, canton, label, lang, a, b in tuple_iterator:
-                if not isinstance(canton, str) and (canton is None or math.isnan(canton)):
-                    canton = 'n/a'
-                if not isinstance(region, str) and (region is None or math.isnan(region)):
-                    region = 'n/a'
-                if not isinstance(legal_area, str) and (legal_area is None or math.isnan(legal_area)):
-                    legal_area = 'n/a'
+            for index, row in df.iterrows():
+                if not isinstance(row['origin_court'], str) and (row['origin_court'] is None or math.isnan(row['origin_court'])):
+                    row['origin_court'] = 'n/a'
+                if not isinstance(row['origin_canton'], str) and (row['origin_canton'] is None or math.isnan(row['origin_canton'])):
+                    row['origin_canton'] = 'n/a'
+                if not isinstance(row['origin_chamber'], str) and (row['origin_chamber'] is None or math.isnan(row['origin_chamber'])):
+                    row['origin_chamber'] = 'n/a'
+                if not isinstance(row['origin_region'], str) and (row['origin_region'] is None or math.isnan(row['origin_region'])):
+                    row['origin_region'] = 'n/a'
+                if not isinstance(row['legal_area'], str) and (row['legal_area'] is None or math.isnan(row['legal_area'])):
+                    row['legal_area'] = 'n/a'
                 record = {
-                    'id': case_id,
-                    'year': year,
-                    'language': lang,
-                    'region': region,
-                    'canton': canton,
-                    'legal area': legal_area,
-                    'label': label,
+                    'id': index,
+                    'year': row['year'],
+                    'language': row['lang'],
+                    'court': row['origin_court'],
+                    'canton': row['origin_canton'],
+                    'chamber': row['origin_chamber'],
+                    'region': row['origin_region'],
+                    'legal area': row['legal_area']
                 }
-                record[self.feature_cols[0]] = a
-                if i == 1:
-                    record[self.feature_cols[1]] = b
+                for feature_col in self.feature_cols:
+                    record[feature_col] = row[feature_col]
+                for label in self.labels:
+                    record[label] = row[label]
 
                 records.append(record)
+
             with open(f'{huggingface_dir}/{split}.jsonl', 'w') as out_file:
                 for record in records:
                     out_file.write(json.dumps(record) + '\n')
@@ -543,8 +543,10 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         split_folder = self.create_dir(folder, f'reports/{split}')
-
-        barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber']
+        # TODO check why the following line throws a warning:
+        #  https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+        # df.loc[:, 'year'] = df['year'].astype(str)
+        barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'year']
         for attribute in barplot_attributes:
             self.plot_barplot_attribute(df, split_folder, attribute)
 
@@ -570,24 +572,17 @@ class DatasetCreator(AbstractPreprocessor):
         total = len(df.index)
         # we deleted the ones where we did not find any attribute: also mention them in this table
         uncategorized = total - attribute_df[attribute].sum()
-        attribute_df.at['uncategorized', attribute] = uncategorized
-        attribute_df.at['all', attribute] = total
         attribute_df = attribute_df.reset_index(level=0)
         attribute_df = attribute_df.rename(columns={'index': attribute, attribute: 'number of decisions'})
         attribute_df['number of decisions'] = attribute_df['number of decisions'].astype(int)
-        attribute_df['percent'] = round(attribute_df['number of decisions'] / total, 4)
-
-        temp_df = attribute_df.iloc[-2:]
-        attribute_df = attribute_df.iloc[:-2]
-        if attribute == 'counter':
-            attribute_df[attribute] = attribute_df[attribute].astype(float)
         attribute_df.sort_values(by=[attribute], inplace=True)
-        attribute_df = pd.concat([attribute_df, temp_df], axis=0)
+        attribute_df.loc[len(attribute_df.index)] = ['uncategorized', uncategorized]
+        attribute_df.loc[len(attribute_df.index)] = ['all', total]
+        attribute_df['percent'] = round(attribute_df['number of decisions'] / total, 4)
 
         attribute_df.to_csv(split_folder / f'{attribute}_{label}_distribution.csv')
         # need to make sure to use right type
-        attribute_df[attribute] = attribute_df[attribute].astype(str)
-        attribute_df = attribute_df[~attribute_df[attribute].str.contains('all')]
+        attribute_df = attribute_df[~attribute_df[attribute].astype(str).str.contains('all')]
         fig = px.bar(attribute_df, x=attribute, y="number of decisions", title=f'{attribute}_{label}_distribution-histogram')
         fig.write_image(split_folder / f'{attribute}_{label}_distribution-histogram.png')
         plt.clf()
@@ -689,10 +684,10 @@ class DatasetCreator(AbstractPreprocessor):
         """
         # TODO revise this for datasets including cantonal data and include year 2021
 
-        train = df[df.year.isin(range(2000, 2016))]  # 16 Jahre
+        train = df[df.year.isin(range(2002, 2016))]  # 14 Jahre
         val = df[df.year.isin(range(2016, 2018))]  # 2 Jahre
-        test = df[df.year.isin(range(2018, 2021))]  # 3 Jahre
-        secret_test = df[df.year.isin(range(2021, 2023))]  # 2 Jahre
+        test = df[df.year.isin(range(2018, 2020))]  # 2 Jahre
+        secret_test = df[df.year.isin(range(2020, 2023))]  # 3 Jahre
 
         return train, val, test, secret_test
 
