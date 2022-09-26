@@ -10,6 +10,7 @@ from sqlalchemy.sql.schema import MetaData, Table
 from transformers.file_utils import add_code_sample_docstrings
 from scrc.enums.cantons import Canton
 from scrc.enums.chamber import Chamber
+import ast
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -34,15 +35,15 @@ def coverage_query(spider: str, section_type: int, language: int):
             f"AND language.language_id = '{language}' "
             f"AND section_text != '{{}}'"
             f"AND section_text != '' ")
-    
+
 def get_total_decisions(spider: str, language: int):
     return (f"SELECT count(*) FROM decision "
-        f"LEFT JOIN language ON decision.language_id = language.language_id "
-        f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
-        f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
-        f"WHERE spider.name = '{spider}' "
-        f"AND language.language_id = {language} ")
-    
+            f"LEFT JOIN language ON decision.language_id = language.language_id "
+            f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
+            f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
+            f"WHERE spider.name = '{spider}' "
+            f"AND language.language_id = {language} ")
+
 def get_judgment_query(spider):
     return (f"SELECT count(*) FROM section s "
             f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
@@ -58,25 +59,25 @@ def get_judgment_query(spider):
 
 def get_total_judgments(spider):
     return (f"SELECT count(*) FROM section s "
-        f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
-        f"LEFT JOIN judgment_map j "
-        f"ON j.decision_id = decision.decision_id "
-        f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
-        f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
-        f"WHERE spider.name = '{spider}' "
-        f"AND section_text != '{{}}' "
-        f"AND section_text != '' "
-        f"AND s.section_type_id = 5 ")
+            f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
+            f"LEFT JOIN judgment_map j "
+            f"ON j.decision_id = decision.decision_id "
+            f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
+            f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
+            f"WHERE spider.name = '{spider}' "
+            f"AND section_text != '{{}}' "
+            f"AND section_text != '' "
+            f"AND s.section_type_id = 5 ")
 
 
 def join_decision_on_parameter(decision_field: str, target_table_and_field: str) -> str:
-    """Join the decision table on the decision field and specified table and target string. 
+    """Join the decision table on the decision field and specified table and target string.
         ('file_id', 'file.file_id') returns 'LEFT JOIN decision on decision.file_id = file.file_id'
 
     Args:
         decision_field (str): the fieldname on the decision table. Most likely `decision_id` or `file_id`
         target_table_and_field (str): the target of the join in the form of `<TABLE>.<FIELD>`
- 
+
     Returns:
         str: The join string
     """
@@ -84,7 +85,7 @@ def join_decision_on_parameter(decision_field: str, target_table_and_field: str)
 
 
 def join_decision_and_language_on_parameter(decision_field, target_table_and_field) -> str:
-    """Join the decision table on the decision field and specified table and target string and then joins the language table. 
+    """Join the decision table on the decision field and specified table and target string and then joins the language table.
         ('file_id', 'file.file_id') returns 'LEFT JOIN decision on decision.file_id = file.file_id LEFT JOIN language ON language.language_id = decision.language_id'
 
     Args:
@@ -206,7 +207,8 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
 
     df = df.apply(add_ids_to_df_for_decision, 1)
 
-    df = df.replace({np.NaN: None}) # Convert pandas NaT values (Non-Type for Datetime) to None using np as np recognizes these types
+    df = df.replace(
+                        {np.NaN: None}) # Convert pandas NaT values (Non-Type for Datetime) to None using np as np recognizes these types
     df['date'] = df['date'].replace(r'^\s*$', None, regex=True)
     df['date'] = df['date'].astype('datetime64[ns]')
     save_to_db(
@@ -262,7 +264,7 @@ def join_tables_on_decision(tables: List[str]) -> str:
     if ('section' in tables or 'section_type' in tables):
         join_string += map_join('section_id', 'sections', 'section', fill={
             'table_name': 'section_type', 'field_name': 'name, section_text', 'join_field': 'section_type_id'})
-        
+
     if ('num_tokens' in tables):
         # Dont use num tokens and section or section_type as num_tokens includes both of them
         join_string += (" LEFT JOIN "
@@ -309,8 +311,8 @@ def join_tables_on_decision(tables: List[str]) -> str:
 
 
 def select_sections_with_decision_and_meta_data() -> Tuple[str, str]:
-    """ 
-        Edit this according to the example given below. 
+    """
+        Edit this according to the example given below.
         Easiest function to default join tables to a decision.
     """
     fields = ['d.*', 'extract(year from d.date) as year']
@@ -324,8 +326,8 @@ def select_sections_with_decision_and_meta_data() -> Tuple[str, str]:
         'lower_court.date as origin_date, lower_court.court_id as origin_court, lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, lower_court.file_number as origin_file_number')
 
     return (
-    join_tables_on_decision(['judgment', 'citation', 'file', 'section', 'lower_court']),
-    ', '.join(fields))
+        join_tables_on_decision(['judgment', 'citation', 'file', 'section', 'lower_court']),
+        ', '.join(fields))
 
 
 def select_fields_from_table(fields: List[str], table):
@@ -342,6 +344,7 @@ def where_decisionid_in_list(decision_ids):
 def convert_to_binary_judgments(df, with_partials=False, with_write_off=False, with_unification=False,
                                 with_inadmissible=False, make_single_label=True):
     def clean(judgments):
+        judgments = ast.literal_eval(judgments)
         judgment_texts = [item['text'] for item in judgments]
         out = set()
         for judgment in judgments:
