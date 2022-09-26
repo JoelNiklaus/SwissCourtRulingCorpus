@@ -30,6 +30,9 @@ class RulingCitation(Citation):
             raise ValueError(f"The Citation String ({citation_str}) could not be parsed successfully.")
 
     def __str__(self):
+        return f"{self.ruling_str} {self.year} {self.volume} {self.page_number}"
+
+    def cit_string(self):
         return f"{self.ruling_str}-{self.year}-{self.volume}-{self.page_number}"
 
     def __lt__(self, other):

@@ -368,7 +368,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         # handle citation always in German
         found_citation = RulingCitation(citation, 'de')
         if str(found_citation) in self.available_bges:
-            return found_citation
+            return found_citation.cit_string()
         else:
             # find closest bge with smaller page_number
             year = found_citation.year
@@ -382,8 +382,9 @@ class CriticalityDatasetCreator(DatasetCreator):
                         new_page_number = tmp.page_number
             # make sure new page number is not unrealistic far away.
             if page_number - new_page_number < 20:
-                return RulingCitation(f"{year} {volume} {new_page_number}", 'de')
-            return found_citation
+                result = RulingCitation(f"{year} {volume} {new_page_number}", 'de')
+                return result.cit_string()
+            return found_citation.cit_string()
 
     def plot_custom(self, df, split_folder, folder):
         """
