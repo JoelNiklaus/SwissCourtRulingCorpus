@@ -9,6 +9,9 @@ import seaborn as sns
 import plotly.express as px
 import matplotlib.pyplot as plt
 
+from scrc.enums.cantons import Canton
+from scrc.data_classes.ruling_citation import RulingCitation
+
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
@@ -139,11 +142,13 @@ class DatasetCreator(AbstractPreprocessor):
         self.minFeatureColLength = 100  # characters
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
+        self.counter = 0
 
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
         self.feature_cols = ["text"]  # to be overridden
         self.labels = [] # to be overridden
+        self.available_bges = [] # to be overridden
 
     @abc.abstractmethod
     def get_dataset(self, feature_col, save_reports):
@@ -154,6 +159,88 @@ class DatasetCreator(AbstractPreprocessor):
             return int(self.debug_chunksize)  # run on smaller dataset for testing
         else:
             return int(self.real_chunksize)
+
+    def load_rulings(self):
+        """
+        Load all bge cases and store in available_bges
+        """
+        where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGE')}"
+        table_string = 'decision d LEFT JOIN file_number ON file_number.decision_id = d.decision_id'
+        decision_df = next(
+            self.select(self.get_engine(self.db_scrc), table_string, 'd.*, file_number.text',
+                        where_string,
+                        chunksize=self.get_chunksize()))
+        self.logger.info(f"BGE: There are {len(decision_df.index)} in db (also old or not referenced included).")
+        return set(decision_df.text.tolist())
+
+    def get_citation(self, citations_as_string, type):
+        """
+        extract for each bger all ruling citations
+        :param citations_as_string:         citations how they were found in text of bger
+        :param cit_type:
+        :return:                            dataframe with additional column 'ruling_citation'
+        """
+        self.counter = self.counter + 1
+        if int(self.counter) % 10000 == 0:
+            print("Processed another 10'000 citations")
+        cits = []
+        try:
+            citations = ast.literal_eval(citations_as_string)  # parse dict string to dict again
+            for citation in citations:
+                try:
+                    cit = citation['text']
+                    citation_type = citation['name']
+                    cit = ' '.join(cit.split())  # remove multiple whitespaces inside
+                    if citation_type == "ruling" and type == 'ruling':
+                        cited_file = self.get_file_number(cit)
+                        cits.append(cited_file)
+                    elif citation_type == "law" and type == 'law':
+                        tmp = self.get_law_citation(cit)
+                        if tmp is not None:
+                            cits.append(tmp)
+                    else:
+                        raise ValueError("type of citation must be 'rulings' or 'law")
+                except ValueError as ve:
+                    self.logger.info(f"Citation has invalid syntax: {citation}")
+                    continue
+        except ValueError as ve:
+            self.logger.info(f"Citations could not be extracted to dict: {citations_as_string}")
+        if cits:  # only return something if we actually have citations
+            return cits
+
+    def get_file_number(self, citation):
+        """
+        find for each citation string the matching citation from the start of bge (first page)
+        :param citation:         citation as string as found in text
+        :return:                 RulingCitation always in German
+        """
+        # TODO scrape for all bge file number
+        # handle citation always in German
+        found_citation = RulingCitation(citation, 'de')
+        if str(found_citation) in self.available_bges:
+            return found_citation.cit_string()
+        else:
+            # find closest bge with smaller page_number
+            year = found_citation.year
+            volume = found_citation.volume
+            page_number = found_citation.page_number
+            new_page_number = -1
+            for match in self.available_bges:
+                if f"BGE {year} {volume}" in match:
+                    tmp = RulingCitation(match, 'de')
+                    if new_page_number < tmp.page_number <= page_number:
+                        new_page_number = tmp.page_number
+            # make sure new page number is not unrealistic far away.
+            if page_number - new_page_number < 20:
+                result = RulingCitation(f"{year} {volume} {new_page_number}", 'de')
+                return result.cit_string()
+            return found_citation.cit_string()
+
+    def get_law_citation(self, citations_text):
+        """
+        handle single law citation
+        """
+        raise NotImplementedError("This method should be implemented in the subclass.")
 
     def create_dataset(self, sub_datasets=False, kaggle=False, huggingface=False, save_reports=False):
         """
@@ -243,32 +330,34 @@ class DatasetCreator(AbstractPreprocessor):
         """
         cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
         df = retrieve_from_cache_if_exists(cache_dir)
+        # TODO check the difference of return cache or directly from db. Problem when directly from db, some
+        #  columns cannot be read properly. When executing code a second time and data comes from cache no problems.
         if df.empty:
             self.logger.info("Retrieving the data from the database")
 
             where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
             table_string = 'decision d LEFT JOIN language ON language.language_id = d.language_id'
-            decision_df = next(
+            df = next(
                 self.select(engine, table_string, 'd.*, extract(year from d.date) as year, language.iso_code as lang',
                             where_string,
                             chunksize=self.get_chunksize()))
-            decision_ids = ["'" + str(x) + "'" for x in decision_df['decision_id'].tolist()]
+            decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
 
             print('Loading Judgments')
             table = f"{join_tables_on_decision(['judgment'])}"
             where = f"judgment_map.decision_id IN ({','.join(decision_ids)})"
             judgments_df = next(self.select(engine, table, "judgments", where, None, self.get_chunksize()))
-            decision_df['judgments'] = judgments_df['judgments']
+            df['judgments'] = judgments_df['judgments'].astype(str)
 
             print('Loading File')
             table = f"{join_tables_on_decision(['file'])}"
-            file_ids = ["'" + str(x) + "'" for x in decision_df['file_id'].tolist()]
+            file_ids = ["'" + str(x) + "'" for x in df['file_id'].tolist()]
             where = f"file.file_id IN ({','.join(file_ids)})"
             file_df = next(self.select(engine, table, 'file.file_name, file.html_url, file.pdf_url', where, None,
                                        self.get_chunksize()))
-            decision_df['file_name'] = file_df['file_name']
-            decision_df['html_url'] = file_df['html_url']
-            decision_df['pdf_url'] = file_df['pdf_url']
+            df['file_name'] = file_df['file_name']
+            df['html_url'] = file_df['html_url']
+            df['pdf_url'] = file_df['pdf_url']
 
             print('Loading Lower Court')
 
@@ -281,23 +370,23 @@ class DatasetCreator(AbstractPreprocessor):
                                          "lower_court.file_number as origin_file_number")
             lower_court_df = next(
                 self.select(engine, table, lower_court_select_fields, where, None, self.get_chunksize()))
-            decision_df['origin_date'] = lower_court_df['origin_date']
-            decision_df['origin_court'] = lower_court_df['origin_court']
-            decision_df['origin_canton'] = lower_court_df['origin_canton']
-            decision_df['origin_chamber'] = lower_court_df['origin_chamber']
-            decision_df['origin_file_number'] = lower_court_df['origin_file_number']
+            df['origin_date'] = lower_court_df['origin_date']
+            df['origin_court'] = lower_court_df['origin_court']
+            df['origin_canton'] = lower_court_df['origin_canton']
+            df['origin_chamber'] = lower_court_df['origin_chamber']
+            df['origin_file_number'] = lower_court_df['origin_file_number']
 
             print('Loading Citation')
             table = f"{join_tables_on_decision(['citation'])}"
             where = f"citation.decision_id IN ({','.join(decision_ids)})"
             citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()))
-            decision_df['citations'] = citations_df['citations']
+            df['citations'] = citations_df['citations'].astype(str)
 
             print('Loading Section')
             table = f"{join_tables_on_decision(['num_tokens'])}"
             where = f"section.decision_id IN ({','.join(decision_ids)})"
             section_df = next(self.select(engine, table, "sections", where, None, self.get_chunksize()))
-            decision_df['sections'] = section_df['sections']
+            df['sections'] = section_df['sections']
 
             print('Loading File Number')
             table = f"{join_tables_on_decision(['file_number'])}"
@@ -309,14 +398,49 @@ class DatasetCreator(AbstractPreprocessor):
                 file_number = file_number.replace(" ", "_")
                 file_number = file_number.replace(".", "_")
                 return file_number
-            decision_df['file_number'] = file_number_df['file_numbers'].map(get_one_file_number)
+            df['file_number'] = file_number_df['file_numbers'].map(get_one_file_number)
 
-            save_df_to_cache(decision_df, cache_dir)
-            df = decision_df
+            save_df_to_cache(df, cache_dir)
+
         for feature_col in list(feature_col)[0].split('-'):
             df = self.clean_df(df, feature_col)
         df['legal_area'] = df.chamber_id.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
+
+        court_df = next(
+            self.select(self.get_engine(self.db_scrc), 'court'))
+        court_dict = {}
+        for index, row in court_df.iterrows():
+            court_dict[int(row['court_id'])] = str(row['court_string'])
+
+        chamber_df = next(
+            self.select(self.get_engine(self.db_scrc), 'chamber'))
+        chamber_dict = {}
+        for index, row in chamber_df.iterrows():
+            chamber_dict[int(row['chamber_id'])] = str(row['chamber_string'])
+
+        def get_canton_value(x):
+            if not math.isnan(float(x)):
+                canton = Canton(int(x))
+                return canton.name
+            else:
+                return np.nan
+
+        def get_court_value(x):
+            if not math.isnan(float(x)):
+                return court_dict[int(x)]
+            else:
+                return np.nan
+
+        def get_chamber_value(x):
+            if not math.isnan(float(x)):
+                return chamber_dict[int(x)]
+            else:
+                return np.nan
+
+        df.origin_canton = df.origin_canton.apply(get_canton_value)
+        df.origin_court = df.origin_court.apply(get_court_value)
+        df.origin_chamber = df.origin_chamber.apply(get_chamber_value)
 
         self.logger.info("Finished loading the data from the database")
 
@@ -457,7 +581,7 @@ class DatasetCreator(AbstractPreprocessor):
     def create_splits(self, df, split, split_type, include_all=False):
         self.logger.info("Splitting data into train, val and test set")
         if split_type == "random":
-            train, val, test = self.split_random(df, split)
+            train, val, test, secret_test = self.split_random(df, split)
             secret_test = pd.DataFrame()
         elif split_type == "date-stratified":
             train, val, test, secret_test = self.split_date_stratified(df, split)
@@ -465,7 +589,6 @@ class DatasetCreator(AbstractPreprocessor):
             pass
         else:
             raise ValueError("Please supply a valid split_type")
-        splits = {'train': train, 'val': val, 'test': test, 'secret_test': secret_test}
         if split_type == "all_train":
             splits = {'train': df}
             if include_all:
@@ -553,9 +676,6 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         split_folder = self.create_dir(folder, f'reports/{split}')
-        # TODO check why the following line throws a warning:
-        #  https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
-        # df.loc[:, 'year'] = df['year'].astype(str)
         barplot_attributes = ['legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'year']
         for attribute in barplot_attributes:
             self.plot_barplot_attribute(df, split_folder, attribute)
@@ -594,7 +714,7 @@ class DatasetCreator(AbstractPreprocessor):
         attribute_df = attribute_df[~attribute_df[attribute].astype(str).str.contains('all')]
         fig = px.bar(attribute_df, x=attribute, y="number of decisions", title=f'{attribute}_{label}_distribution-histogram')
         fig.write_image(split_folder / f'{attribute}_{label}_distribution-histogram.png')
-        plt.clf()
+        plt.close()
 
     @staticmethod
     def plot_labels(df, split_folder, label_name='label'):
@@ -630,12 +750,12 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         # compute median input length
-        input_length_distribution = df[['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
+        input_length_distribution = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
         input_length_distribution.to_csv(split_folder / f'{feature_col}_input_length_distribution.csv', index_label='measure')
 
         # bin outliers together at the cutoff point
         cutoff = 4000
-        cut_df = df[['num_tokens_spacy', 'num_tokens_bert']]
+        cut_df = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']]
         cut_df.num_tokens_spacy = cut_df.num_tokens_spacy.clip(upper=cutoff)
         cut_df.num_tokens_bert = cut_df.num_tokens_bert.clip(upper=cutoff)
 
@@ -709,6 +829,7 @@ class DatasetCreator(AbstractPreprocessor):
         :param split:   the exact split (how much of the data goes into train, val and test respectively)
         :return:
         """
+        # TODO add secret_test
         train, val, test = dd.from_pandas(df, npartitions=1).random_split(list(split), random_state=self.seed)
 
         # get pandas dfs again
@@ -716,7 +837,7 @@ class DatasetCreator(AbstractPreprocessor):
         val = val.compute(scheduler='processes')
         test = test.compute(scheduler='processes')
 
-        return train, val, test
+        return train, val, test, []
 
     @abc.abstractmethod
     def plot_custom(self, df, split_folder, folder):

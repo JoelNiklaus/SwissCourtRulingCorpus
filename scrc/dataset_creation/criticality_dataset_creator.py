@@ -9,11 +9,9 @@ import json
 
 
 from scrc.dataset_creation.dataset_creator import DatasetCreator
-from scrc.data_classes.ruling_citation import RulingCitation
 from root import ROOT_DIR
 from pathlib import Path
 
-from scrc.enums.cantons import Canton
 from scrc.utils.main_utils import get_config
 from scrc.utils.log_utils import get_logger
 from collections import Counter
@@ -63,22 +61,8 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.feature_cols = ['facts']
         self.available_bges = self.load_rulings()
         self.references_df = self.extract_bge_references()
-        self.citation_amount = [1000, 100, 10, 1]  # sorted, the highest number first!
-        self.counter = 0
+        self.citation_amount = [100, 10, 1, 0]  # sorted, the highest number first!
         self.labels = ['bge_label', 'citation_label']
-
-    def load_rulings(self):
-        """
-        Load all bge cases and store in available_bges
-        """
-        where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGE')}"
-        table_string = 'decision d LEFT JOIN file_number ON file_number.decision_id = d.decision_id'
-        decision_df = next(
-            self.select(self.get_engine(self.db_scrc), table_string, 'd.*, file_number.text',
-                        where_string,
-                        chunksize=self.get_chunksize()))
-        self.logger.info(f"BGE: There are {len(decision_df.index)} in db (also old or not referenced included).")
-        return set(decision_df.text.tolist())
 
     def extract_bge_references(self):
         """
@@ -168,8 +152,6 @@ class CriticalityDatasetCreator(DatasetCreator):
         :return:        filtered dataframe
         """
         columns = list(df.columns)
-        # huggingface: year, legal-area, origin-region, origin-canton, bge-label, citation-label, lang, cons, facts
-        # plots: legal_area, origin_region, origin_canton, origin_court, origin_chamber
         needed_cols = ['year', 'legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'lang',
                        'bge_label', 'citation_label']
         for feature_col in self.feature_cols:
@@ -189,19 +171,8 @@ class CriticalityDatasetCreator(DatasetCreator):
         :param df:  dataframe of all cases
         :return:    cleaned dataframe
         """
-        # TODO create real court and chamber from float input
-        df['origin_court'] = df.origin_court.astype(str)
-        df['origin_chamber'] = df.origin_chamber.astype(str)
-
-        def get_canton_value(x):
-            if not math.isnan(float(x)):
-                canton = Canton(int(x))
-                return canton.name
-            else:
-                return np.nan
-
-        df.origin_canton = df.origin_canton.apply(get_canton_value)
-
+        # Get rid of cases which can't be used for training because all feature cols are too short
+        # Those cases are needed to create labels, that's why we cannot delete them earlier
         for feature_col in self.feature_cols:
             df[f'{feature_col}_length'] = df[feature_col].astype(str).apply(len)
             match = df[f'{feature_col}_length'] > self.minFeatureColLength
@@ -264,8 +235,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         # report number of citations
         folder: Path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
         split_folder = self.create_dir(folder, f'reports/citations_amount')
-        temp_df = citations_df.copy()
-        self.plot_barplot_attribute(temp_df, split_folder, 'counter')
+        self.plot_barplot_attribute(citations_df, split_folder, 'counter')
 
         # apply for each row a function which returns True if citation amount is bigger than given number
         critical_lists = []
@@ -290,101 +260,56 @@ class CriticalityDatasetCreator(DatasetCreator):
         :return:        dataframe containing columns 'bger_reference', 'bge_file_number' and 'count'
         """
         a = len(df.index)
-        df = df.dropna(subset=['citations'])
-        df.loc[:, 'ruling_citation'] = df.citations.apply(self.get_citations)
-        # get rid of reset the index so that we don't get out of bounds errors
-        df = df.dropna(subset=['ruling_citation']).reset_index(drop=True)
+        df.dropna(subset=['citations'], inplace=True)
         self.logger.info(f"There were {a - len(df.index)} cases where no bge citations were found")
-        self.logger.info(f"Building the term-frequency matrix.")
 
+        df['ruling_citation'] = df.citations.apply(self.get_citation, type='ruling')
+        df.dropna(subset=['ruling_citation'], inplace=True)
         df['ruling_once_per_bger'] = df['ruling_citation'].apply(lambda x: set(x))
 
-        # count how often a ruling is cited
-        # there are two options:
-        # OPTION 1: count every citation in bger -> use 'ruling_citation'
-        # assert no entry with 0 exists
-        # type_corpus_frequencies_all = dict(Counter(itertools.chain(*df['ruling_citation'].tolist())))
-        # citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequencies_all).items()), columns=['bge_file_number', 'counter'])
-
-        # OPTION 2: count citations for one bge only once in bger -> use 'ruling_once_per_bge'
-        # assert no entry with 0 exists
-        type_corpus_frequencies_once = dict(Counter(itertools.chain(*df['ruling_once_per_bger'].tolist())))
-        # asserts there is an entry for each bger_file_number in tcf
-        citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequencies_once).items()), columns=['bge_file_number', 'counter'])
-
-        self.logger.info(f"Citation Criticality: There were {len(citation_frequencies_df.index)} unique bge cited")
+        citation_frequencies_df = self.build_tf_matrix(df)
 
         citation_count_df = self.references_df.copy()
         # iterate over unique values in column 'counter'
         a = citation_frequencies_df['counter'].unique()
         citation_count_df['counter'] = 0
+
+        def weight_citations(x):
+            weight = (x - 2001) / 21
+            if weight < 0:
+                weight = 0
+            return weight
+        citation_count_df['weight'] = citation_count_df['year'].apply(weight_citations)
+
         for i in a:
             # set counter in citation_count_df where citation_frequencies_df has matching reference and count value
             temp_freq_df = citation_frequencies_df[citation_frequencies_df['counter'] == i]
             temp_list = temp_freq_df['bge_file_number'].astype(str).tolist()
-            file_number_match = citation_count_df.bge_file_number_short.astype(str).isin(temp_list)
-            citation_count_df.loc[file_number_match, 'counter'] = int(i)
+            match = citation_count_df.bge_file_number_short.astype(str).isin(temp_list)
+            citation_count_df.loc[match, 'counter'] = int(i)*citation_count_df.loc[match, 'weight']
         return citation_count_df
 
-    def get_citations(self, citations_as_string):
-        """
-        extract for each bger all ruling citations
-        :param citations_as_string:         citations how they were found in text of bger
-        :return:                            dataframe with additional column 'ruling_citation'
-        """
-        self.counter = self.counter + 1
-        if int(self.counter) % 10000 == 0:
-            print("Processed another 10'000")
-        cits = []
-        try:
-            citations = ast.literal_eval(citations_as_string)  # parse dict string to dict again
-            for citation in citations:
-                try:
-                    cit = citation['text']
-                    citation_type = citation['name']
-                    cit = ' '.join(cit.split())  # remove multiple whitespaces inside
-                    if citation_type == "ruling":
-                        cited_file = self.get_file_number(cit)
-                        cits.append(cited_file)
-                    elif citation_type == "law":
-                        pass
-                    else:
-                        raise ValueError("type of citation must be 'rulings' or 'law")
-                except ValueError as ve:
-                    self.logger.info(f"Citation has invalid syntax: {citation}")
-                    continue
-        except ValueError as ve:
-            self.logger.info(f"Citations could not be extracted to dict: {citations_as_string}")
-        if cits:  # only return something if we actually have citations
-            return cits
-
-    def get_file_number(self, citation):
-        """
-        find for each citation string the matching citation from the start of bge (first page)
-        :param citation:         citation as string as found in text
-        :return:                 RulingCitation always in German
-        """
-        # TODO scrape for all bge file number
-        # handle citation always in German
-        found_citation = RulingCitation(citation, 'de')
-        if str(found_citation) in self.available_bges:
-            return found_citation.cit_string()
+    def build_tf_matrix(self, df):
+        self.logger.info(f"Building the term-frequency matrix.")
+        if self.count_all_cits:
+            # OPTION 1: count every citation in bger -> use 'ruling_citation'
+            type_corpus_frequencies_all = dict(Counter(itertools.chain(*df['ruling_citation'].tolist())))
+            citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequencies_all).items()),
+                                                                columns=['bge_file_number', 'counter'])
         else:
-            # find closest bge with smaller page_number
-            year = found_citation.year
-            volume = found_citation.volume
-            page_number = found_citation.page_number
-            new_page_number = -1
-            for match in self.available_bges:
-                if f"BGE {year} {volume}" in match:
-                    tmp = RulingCitation(match, 'de')
-                    if new_page_number < tmp.page_number <= page_number:
-                        new_page_number = tmp.page_number
-            # make sure new page number is not unrealistic far away.
-            if page_number - new_page_number < 20:
-                result = RulingCitation(f"{year} {volume} {new_page_number}", 'de')
-                return result.cit_string()
-            return found_citation.cit_string()
+            # OPTION 2: count citations for one bge only once in bger -> use 'ruling_once_per_bge'
+            type_corpus_frequencies_once = dict(Counter(itertools.chain(*df['ruling_once_per_bger'].tolist())))
+            citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequencies_once).items()),
+                                                                columns=['bge_file_number', 'counter'])
+
+        self.logger.info(f"Citation Criticality: There were {len(citation_frequencies_df.index)} unique bge cited")
+        return citation_frequencies_df
+
+    def get_law_citation(self, citations_text):
+        """
+        We don't need law citations in criticality dataset creator
+        """
+        pass
 
     def plot_custom(self, df, split_folder, folder):
         """
