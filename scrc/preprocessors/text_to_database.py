@@ -27,6 +27,8 @@ from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, save_from_text_to_database, \
     where_string_spider
+    
+MIN_TEXT_LENGTH = 1000
 
 # TODO if we need to extract data from html with difficult structure such as tables consider using: https://pypi.org/project/inscriptis/
 
@@ -89,7 +91,7 @@ class TextToDatabase(AbstractPreprocessor):
         return all_processed_files
     
     def filter_by_text_length(self, spider_dict_list: dict):
-        filtered = [x for x in spider_dict_list if (len(x['pdf_raw']) > 1000 or len(x['html_raw']) > 1000)]
+        filtered = [x for x in spider_dict_list if (len(x['pdf_raw']) > MIN_TEXT_LENGTH or len(x['html_raw']) > MIN_TEXT_LENGTH)]
         return filtered
                 
 
@@ -97,8 +99,8 @@ class TextToDatabase(AbstractPreprocessor):
         """ Builds a dataset for a spider """
         spider_dir = self.spiders_dir / spider
         self.logger.info(f"Building spider dataset for {spider}")
-        # spider_dict_list = self.filter_by_text_length(self.build_spider_dict_list(spider_dir, spider))
-        spider_dict_list = self.build_spider_dict_list(spider_dir, spider)
+        spider_dict_list = self.filter_by_text_length(self.build_spider_dict_list(spider_dir, spider))
+        # spider_dict_list = self.build_spider_dict_list(spider_dir, spider)
 
         self.logger.info("Building pandas DataFrame from list of dicts")
         df = pd.DataFrame(spider_dict_list)

@@ -1,5 +1,4 @@
 from __future__ import annotations
-import configparser
 import datetime
 import os
 from pathlib import Path
@@ -10,6 +9,7 @@ from sqlalchemy.engine.base import Engine
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.schema import MetaData, Table
 from scrc.enums.judgment import Judgment
+from scrc.enums.section import Section
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
@@ -47,11 +47,12 @@ class JudgmentExtractor(AbstractExtractor):
         return f"spider='{spider}' AND rulings IS NOT NULL AND rulings <> ''"
     
     def get_coverage(self, spider: str):
+        ruling_id = Section.RULINGS.value
         with self.get_engine(self.db_scrc).connect() as conn:
-            total_judgments = conn.execute(get_total_judgments(spider)).fetchone()
-            coverage_result = conn.execute(get_judgment_query(spider)).fetchone()
+            total_judgments = conn.execute(get_total_judgments(spider, ruling_id)).fetchone()
+            coverage_result = conn.execute(get_judgment_query(spider, ruling_id)).fetchone()
             coverage =  round(coverage_result[0] / total_judgments[0]  * 100, 2)
-            self.logger.info(f'{spider}: Found judgment outcome for {coverage}% of the rulings')
+            self.logger.info(f"{spider}: Found judgment outcome for {coverage}% of the rulings")
 
 
 
@@ -62,10 +63,11 @@ class JudgmentExtractor(AbstractExtractor):
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
+        ruling_id = Section.RULINGS.value
         return self.select(engine,
                            f"section {join_decision_and_language_on_parameter('decision_id', 'section.decision_id')} {join_file_on_decision()}",
                            f"section.decision_id, section_text, '{spider}' as spider, iso_code as language, html_url",
-                           where=f"section.section_type_id = 6 AND section.decision_id IN {where_string_spider('decision_id', spider)} {only_given_decision_ids_string}",
+                           where=f"section.section_type_id = {ruling_id} AND section.decision_id IN {where_string_spider('decision_id', spider)} {only_given_decision_ids_string}",
                            chunksize=self.chunksize)
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):

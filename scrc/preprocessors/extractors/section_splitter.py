@@ -92,7 +92,7 @@ class SectionSplitter(AbstractExtractor):
                 return series[section]
             return '\n'.join(series[section])
 
-        for section in Section.without_topic():
+        for section in Section:
             df[section.name] = df['sections'].apply(lambda row: get_section_from_df(row, section))
             df[section.name+'_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[section.name], batch_size=100)]
             df[section.name+'_bert'] = [len(input_id) for input_id in bert_tokenizer(df[section.name].tolist()).input_ids]   

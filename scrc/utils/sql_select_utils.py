@@ -10,6 +10,7 @@ from sqlalchemy.sql.schema import MetaData, Table
 from transformers.file_utils import add_code_sample_docstrings
 from scrc.enums.cantons import Canton
 from scrc.enums.chamber import Chamber
+from scrc.enums.section import Section
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -43,7 +44,7 @@ def get_total_decisions(spider: str, language: int):
         f"WHERE spider.name = '{spider}' "
         f"AND language.language_id = {language} ")
     
-def get_judgment_query(spider):
+def get_judgment_query(spider, ruling_id):
     return (f"SELECT count(*) FROM section s "
             f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
             f"LEFT JOIN judgment_map j "
@@ -53,10 +54,10 @@ def get_judgment_query(spider):
             f"WHERE spider.name = '{spider}' "
             f"AND section_text != '{{}}' "
             f"AND section_text != '' "
-            f"AND s.section_type_id = 5 "
+            f"AND s.section_type_id = {ruling_id} "
             f"AND j.judgment_id IS NOT NULL")
 
-def get_total_judgments(spider):
+def get_total_judgments(spider, ruling_id):
     return (f"SELECT count(*) FROM section s "
         f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
         f"LEFT JOIN judgment_map j "
@@ -66,7 +67,7 @@ def get_total_judgments(spider):
         f"WHERE spider.name = '{spider}' "
         f"AND section_text != '{{}}' "
         f"AND section_text != '' "
-        f"AND s.section_type_id = 5 ")
+        f"AND s.section_type_id = {ruling_id} ")
 
 
 def join_decision_on_parameter(decision_field: str, target_table_and_field: str) -> str:
