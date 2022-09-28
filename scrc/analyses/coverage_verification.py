@@ -45,7 +45,10 @@ class CoverageVerification(AbstractPreprocessor):
             for spider in spider_list:
                 for x in range(0, 20):
                     self.get_random_decision(conn, document, spider, 0)
-                document.save(self.get_path(spider))     
+                document.save(self.get_path(spider))
+                self.logger.info(self.logger_info['finish_spider'] + ' ' + spider)
+                self.mark_as_processed(self.processed_file_path, spider)
+            self.logger.info(self.logger_info['finished'])
 
             
     def get_random_decision(self, conn: Connection, document, spider, try_count):
