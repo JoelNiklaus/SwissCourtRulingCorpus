@@ -25,6 +25,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.with_unification = False
         self.with_inadmissible = False
         self.make_single_label = True
+        self.labels = ['label']
 
     def get_dataset(self, feature_col, save_reports):
         df = self.get_df(self.get_engine(self.db_scrc), feature_col)
@@ -41,11 +42,13 @@ class JudgmentDatasetCreator(DatasetCreator):
 
         df = df.rename(columns={"judgments": "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
-        return df, labels
+        return df, [labels]
 
+    def plot_custom(self, df, split_folder, folder):
+        self.plot_labels(df, split_folder, label_name='label')
 
 if __name__ == '__main__':
     config = get_config()
 
     judgment_dataset_creator = JudgmentDatasetCreator(config)
-    judgment_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)
+    judgment_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=True)
