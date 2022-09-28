@@ -1165,7 +1165,6 @@ def associate_sections(paragraphs: List[str], section_markers, namespace: dict,
     :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
     """
     paragraphs_by_section = {section: [] for section in sections}
-    # sections = determine_sections(section_markers, sections)
     for paragraph in paragraphs:
         # update the current section if a marker of a different section matched
         current_section = update_section(
