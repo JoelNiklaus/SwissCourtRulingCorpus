@@ -160,6 +160,26 @@ def ZH_Baurekurs(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     
     return judgments
 
+def BS_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
+    """
+    Extract judgment outcomes from the rulings
+    :param rulings:     the string containing the rulings
+    :param namespace:   the namespace containing some metadata of the court decision
+    :return:            the list of judgments
+    """
+
+    if namespace['language'] not in all_judgment_markers:
+        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
+        raise ValueError(message)
+
+    # make sure we don't have any nasty unicode problems
+    rulings = clean_text(rulings)
+
+    judgments = unnumbered_rulings(rulings, namespace)
+
+    judgments = verify_judgments(judgments, rulings, namespace)
+    
+    return judgments
 def LU_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     """
     Extract judgment outcomes from the rulings

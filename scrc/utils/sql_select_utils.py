@@ -38,13 +38,13 @@ def coverage_query(spider: str, section_type: int, language: int):
 
 def get_total_decisions(spider: str, language: int):
     return (f"SELECT count(*) FROM decision "
-            f"LEFT JOIN language ON decision.language_id = language.language_id "
-            f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
-            f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
-            f"WHERE spider.name = '{spider}' "
-            f"AND language.language_id = {language} ")
-
-def get_judgment_query(spider):
+        f"LEFT JOIN language ON decision.language_id = language.language_id "
+        f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
+        f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
+        f"WHERE spider.name = '{spider}' "
+        f"AND language.language_id = {language} ")
+    
+def get_judgment_query(spider, ruling_id):
     return (f"SELECT count(*) FROM section s "
             f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
             f"LEFT JOIN judgment_map j "
@@ -54,20 +54,20 @@ def get_judgment_query(spider):
             f"WHERE spider.name = '{spider}' "
             f"AND section_text != '{{}}' "
             f"AND section_text != '' "
-            f"AND s.section_type_id = 5 "
+            f"AND s.section_type_id = {ruling_id} "
             f"AND j.judgment_id IS NOT NULL")
 
-def get_total_judgments(spider):
+def get_total_judgments(spider, ruling_id):
     return (f"SELECT count(*) FROM section s "
-            f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
-            f"LEFT JOIN judgment_map j "
-            f"ON j.decision_id = decision.decision_id "
-            f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
-            f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
-            f"WHERE spider.name = '{spider}' "
-            f"AND section_text != '{{}}' "
-            f"AND section_text != '' "
-            f"AND s.section_type_id = 5 ")
+        f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
+        f"LEFT JOIN judgment_map j "
+        f"ON j.decision_id = decision.decision_id "
+        f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
+        f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
+        f"WHERE spider.name = '{spider}' "
+        f"AND section_text != '{{}}' "
+        f"AND section_text != '' "
+        f"AND s.section_type_id = {ruling_id} ")
 
 
 def join_decision_on_parameter(decision_field: str, target_table_and_field: str) -> str:

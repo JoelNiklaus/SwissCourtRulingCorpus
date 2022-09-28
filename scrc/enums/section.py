@@ -11,6 +11,5 @@ class Section(Enum):
     FOOTER = 7
 
 
-    @classmethod
-    def without_facts(cls):
-        return cls.HEADER, cls.HEADER,cls.CONSIDERATIONS, cls.RULINGS, cls.FOOTER
+
+    
