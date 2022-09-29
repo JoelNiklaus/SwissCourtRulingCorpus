@@ -58,12 +58,13 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
-        self.feature_cols = ['facts', 'considerations']
+        self.feature_cols = ['facts']
         self.available_bges = self.load_rulings()
         self.references_df = self.extract_bge_references()
         self.citation_amount = [100, 10, 1, 0]  # sorted, the highest number first!
         self.labels = ['bge_label', 'citation_label']
         self.count_all_cits = False
+        self.first_year = 2001
 
     def extract_bge_references(self):
         """
@@ -290,9 +291,10 @@ class CriticalityDatasetCreator(DatasetCreator):
         # create counter out of list
         df['ruling_citation'] = df['ruling_citation'].apply(lambda x: Counter(x))
 
+        newest_year = df['year'].max()
         # multiply weight to value in counter
         def weight_citations(row):
-            weight = (row['year'] - 2001)
+            weight = (row['year'] - self.first_year)
             if weight < 0:
                 weight = 0
             weighted_counts = row['ruling_citation']
@@ -307,7 +309,7 @@ class CriticalityDatasetCreator(DatasetCreator):
             type_corpus_frequency.update(row['ruling_citation'])
         # do this after using Counter() because division will not give int type
         for k in type_corpus_frequency.keys():
-            type_corpus_frequency[k] = type_corpus_frequency[k]/21
+            type_corpus_frequency[k] = type_corpus_frequency[k]/ (newest_year-self.first_year)
 
         citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequency).items()),
                                                             columns=['bge_file_number', 'counter'])
