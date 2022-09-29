@@ -39,7 +39,6 @@ class PatternExtractor(AbstractExtractor):
         super().__init__(config, function_name="pattern_extracting_functions", col_name='')
         self.logger = get_logger(__name__)
         self.columns = ['keyword', 'totalcount', 'example']
-        self.test = Language.DE
         self.df = pd.DataFrame(columns=self.columns)
         self.language = {}
         self.currentLanguage = ''
