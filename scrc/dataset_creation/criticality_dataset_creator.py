@@ -58,11 +58,12 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
-        self.feature_cols = ['facts']
+        self.feature_cols = ['facts', 'considerations']
         self.available_bges = self.load_rulings()
         self.references_df = self.extract_bge_references()
         self.citation_amount = [100, 10, 1, 0]  # sorted, the highest number first!
         self.labels = ['bge_label', 'citation_label']
+        self.count_all_cits = False
 
     def extract_bge_references(self):
         """
@@ -265,7 +266,6 @@ class CriticalityDatasetCreator(DatasetCreator):
 
         df['ruling_citation'] = df.citations.apply(self.get_citation, type='ruling')
         df.dropna(subset=['ruling_citation'], inplace=True)
-        df['ruling_once_per_bger'] = df['ruling_citation'].apply(lambda x: set(x))
 
         citation_frequencies_df = self.build_tf_matrix(df)
 
@@ -274,33 +274,43 @@ class CriticalityDatasetCreator(DatasetCreator):
         a = citation_frequencies_df['counter'].unique()
         citation_count_df['counter'] = 0
 
-        def weight_citations(x):
-            weight = (x - 2001) / 21
-            if weight < 0:
-                weight = 0
-            return weight
-        citation_count_df['weight'] = citation_count_df['year'].apply(weight_citations)
-
         for i in a:
             # set counter in citation_count_df where citation_frequencies_df has matching reference and count value
             temp_freq_df = citation_frequencies_df[citation_frequencies_df['counter'] == i]
             temp_list = temp_freq_df['bge_file_number'].astype(str).tolist()
             match = citation_count_df.bge_file_number_short.astype(str).isin(temp_list)
-            citation_count_df.loc[match, 'counter'] = int(i)*citation_count_df.loc[match, 'weight']
+            citation_count_df.loc[match, 'counter'] = i
         return citation_count_df
 
     def build_tf_matrix(self, df):
-        self.logger.info(f"Building the term-frequency matrix.")
-        if self.count_all_cits:
-            # OPTION 1: count every citation in bger -> use 'ruling_citation'
-            type_corpus_frequencies_all = dict(Counter(itertools.chain(*df['ruling_citation'].tolist())))
-            citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequencies_all).items()),
-                                                                columns=['bge_file_number', 'counter'])
-        else:
-            # OPTION 2: count citations for one bge only once in bger -> use 'ruling_once_per_bge'
-            type_corpus_frequencies_once = dict(Counter(itertools.chain(*df['ruling_once_per_bger'].tolist())))
-            citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequencies_once).items()),
-                                                                columns=['bge_file_number', 'counter'])
+        if not self.count_all_cits:
+            # count citations for one bge only once in bger
+            df['ruling_citation'] = df['ruling_citation'].apply(lambda x: set(x))
+
+        # create counter out of list
+        df['ruling_citation'] = df['ruling_citation'].apply(lambda x: Counter(x))
+
+        # multiply weight to value in counter
+        def weight_citations(row):
+            weight = (row['year'] - 2001)
+            if weight < 0:
+                weight = 0
+            weighted_counts = row['ruling_citation']
+            for k in weighted_counts.keys():
+                weighted_counts[k] = weighted_counts[k] * int(weight)
+            return weighted_counts
+
+        df['ruling_citation'] = df.apply(weight_citations, axis=1)
+        # create one counter for all citations
+        type_corpus_frequency = Counter()
+        for index, row in df.iterrows():
+            type_corpus_frequency.update(row['ruling_citation'])
+        # do this after using Counter() because division will not give int type
+        for k in type_corpus_frequency.keys():
+            type_corpus_frequency[k] = type_corpus_frequency[k]/21
+
+        citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequency).items()),
+                                                            columns=['bge_file_number', 'counter'])
 
         self.logger.info(f"Citation Criticality: There were {len(citation_frequencies_df.index)} unique bge cited")
         return citation_frequencies_df

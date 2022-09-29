@@ -198,8 +198,6 @@ class DatasetCreator(AbstractPreprocessor):
                         tmp = self.get_law_citation(cit)
                         if tmp is not None:
                             cits.append(tmp)
-                    else:
-                        raise ValueError("type of citation must be 'rulings' or 'law")
                 except ValueError as ve:
                     self.logger.info(f"Citation has invalid syntax: {citation}")
                     continue
