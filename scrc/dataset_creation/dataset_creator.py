@@ -400,47 +400,39 @@ class DatasetCreator(AbstractPreprocessor):
 
             save_df_to_cache(df, cache_dir)
 
-        for feature_col in list(feature_col)[0].split('-'):
+        df = self.get_string_representation(df)
+        self.logger.info("Finished loading the data from the database")
+
+        return df
+
+    def get_string_representation(self, df):
+        for feature_col in self.feature_cols:
             df = self.clean_df(df, feature_col)
         df['legal_area'] = df.chamber_id.apply(get_legal_area)
         df['origin_region'] = df.origin_canton.apply(get_region)
 
-        court_df = next(
-            self.select(self.get_engine(self.db_scrc), 'court'))
-        court_dict = {}
-        for index, row in court_df.iterrows():
-            court_dict[int(row['court_id'])] = str(row['court_string'])
+        def build_info_df(table_name, col_name):
+            info_df = next(
+                self.select(self.get_engine(self.db_scrc), table_name)
+            )
+            info_dict = {}
+            for index, row in info_df.iterrows():
+                info_dict[int(row[f'{table_name}_id'])] = str(row[col_name])
+            return info_dict
 
-        chamber_df = next(
-            self.select(self.get_engine(self.db_scrc), 'chamber'))
-        chamber_dict = {}
-        for index, row in chamber_df.iterrows():
-            chamber_dict[int(row['chamber_id'])] = str(row['chamber_string'])
+        court_dict = build_info_df('court', 'court_string')
+        chamber_dict = build_info_df('chamber', 'chamber_string')
+        canton_dict = build_info_df('canton', 'short_code')
 
-        def get_canton_value(x):
+        def get_string_value(x, info_dict):
             if not math.isnan(float(x)):
-                canton = Canton(int(x))
-                return canton.name
+                return info_dict[int(x)]
             else:
                 return np.nan
 
-        def get_court_value(x):
-            if not math.isnan(float(x)):
-                return court_dict[int(x)]
-            else:
-                return np.nan
-
-        def get_chamber_value(x):
-            if not math.isnan(float(x)):
-                return chamber_dict[int(x)]
-            else:
-                return np.nan
-
-        df.origin_canton = df.origin_canton.apply(get_canton_value)
-        df.origin_court = df.origin_court.apply(get_court_value)
-        df.origin_chamber = df.origin_chamber.apply(get_chamber_value)
-
-        self.logger.info("Finished loading the data from the database")
+        df.origin_canton = df.origin_canton.apply(get_string_value, args=[canton_dict])
+        df.origin_court = df.origin_court.apply(get_string_value, args=[court_dict])
+        df.origin_chamber = df.origin_chamber.apply(get_string_value, args=[chamber_dict])
 
         return df
 
@@ -579,7 +571,7 @@ class DatasetCreator(AbstractPreprocessor):
     def create_splits(self, df, split, split_type, include_all=False):
         self.logger.info("Splitting data into train, val and test set")
         if split_type == "random":
-            train, val, test, secret_test = self.split_random(df, split)
+            train, val, test = self.split_random(df, split)
             secret_test = pd.DataFrame()
         elif split_type == "date-stratified":
             train, val, test, secret_test = self.split_date_stratified(df, split)
@@ -835,7 +827,7 @@ class DatasetCreator(AbstractPreprocessor):
         val = val.compute(scheduler='processes')
         test = test.compute(scheduler='processes')
 
-        return train, val, test, []
+        return train, val, test
 
     @abc.abstractmethod
     def plot_custom(self, df, split_folder, folder):
