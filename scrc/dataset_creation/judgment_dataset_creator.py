@@ -1,4 +1,5 @@
 from scrc.dataset_creation.dataset_creator import DatasetCreator
+from scrc.enums.section import Section
 from scrc.utils.log_utils import get_logger
 import numpy as np
 
@@ -18,7 +19,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
-        self.feature_cols = ['facts', 'considerations']
+        self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
 
         self.with_partials = False
         self.with_write_off = False
@@ -27,13 +28,8 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.make_single_label = True
         self.labels = ['label']
 
-    def get_dataset(self, feature_col, save_reports):
-        df = self.get_df(self.get_engine(self.db_scrc), feature_col)
-
-        # Delete cases with "Nach Einsicht" from the dataset because they are mostly inadmissible or otherwise dismissal
-        # => too easily learnable for the model (because of spurious correlation)
-        if self.with_inadmissible:
-            df = df[~df[feature_col].str.startswith('Nach Einsicht')]
+    def prepare_dataset(self, save_reports):
+        df = self.get_df(self.get_engine(self.db_scrc))
 
         df = df.dropna(subset=['judgments'])
         df = convert_to_binary_judgments(df, self.with_partials, self.with_write_off, self.with_unification,

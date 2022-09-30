@@ -1,6 +1,7 @@
 import abc
 import copy
 import math
+import os
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -148,14 +149,15 @@ class DatasetCreator(AbstractPreprocessor):
         self.current_year = date.today().year
 
         self.debug = True  # to be overridden
+        self.overwrite_cache = True  # to be overridden
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
-        self.feature_cols = ["full_text"]  # to be overridden
+        self.feature_cols = [Section.FULL_TEXT]  # to be overridden
         self.labels = []  # to be overridden
         self.available_bges = []  # to be overridden
 
     @abc.abstractmethod
-    def get_dataset(self, feature_col, save_reports):
+    def prepare_dataset(self, save_reports):
         pass
 
     def get_chunksize(self):
@@ -244,6 +246,12 @@ class DatasetCreator(AbstractPreprocessor):
         """
         raise NotImplementedError("This method should be implemented in the subclass.")
 
+    def get_dataset_folder(self):
+        if self.debug:
+            # make sure that we don't overwrite progress in the real directory
+            return self.create_dir(self.tmp_subdir, self.dataset_name)
+        return self.create_dir(self.datasets_subdir, self.dataset_name)
+
     def create_dataset(self, sub_datasets=False, kaggle=False, huggingface=False, save_reports=False):
         """
         Retrieves the respective function named by the dataset and executes it to get the df for that dataset.
@@ -251,106 +259,64 @@ class DatasetCreator(AbstractPreprocessor):
         """
         self.logger.info(f"Creating {self.dataset_name} dataset")
 
-        dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
+        # TODO in the future: maybe save text as list of paragraphs
+        # TODO make sure that the same data is saved to kaggle, csv and huggingface format!
 
-        processed_file_path = self.progress_dir / f"dataset_{self.dataset_name}_created.txt"
-        datasets, message = self.compute_remaining_parts(processed_file_path, ["-".join(self.feature_cols)])
-        self.logger.info(message)
-
-        # Check these todos on the judgment_dataset_creator
-        # TODO not one dataset per feature col, but put all feature cols always as lists of paragraphs (facts, considerations, etc.) into the same dataset
-        # TODO put all languages into the same dataset
-        # TODO check if all columns are fetched correctly (num_tokens_bert, etc.)
-
-        if datasets:
-            feature_cols = datasets
-            feature_col_folder = self.create_dir(dataset_folder, "-".join(feature_cols))
-
-            df, labels = self.get_dataset(feature_cols, save_reports)
-            df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset to make sampling easier
-            splits = self.save_dataset(df, labels, feature_col_folder, self.split_type,
-                                       sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
-
-            if huggingface:
-                self.logger.info("Generating huggingface dataset")
-                self.save_huggingface_dataset(splits, feature_col_folder)
-
-            self.mark_as_processed(processed_file_path, feature_cols)
-        else:
-            self.logger.info("All parts have been computed already.")
+        df, labels = self.prepare_dataset(save_reports)
+        df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset to make sampling easier
+        self.save_dataset(df, labels, self.get_dataset_folder(), self.split_type,
+                          sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
 
     def save_huggingface_dataset(self, splits, feature_col_folder):
         """
-        save data as huggingface dataset with columns: 'id', 'date', 'year', 'language', origin_court, origin_canton
-        origin_chamber, 'legal area', 'bge_label', citation_label, all feature cols
+        save data as huggingface dataset with columns:
+        'id', 'date', 'year', 'language',
+        'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'legal_area',
+        'bge_label', 'citation_label', all feature cols
         :param splits:                  specifying splits of dataset
         :param feature_col_folder:      name of folder
         """
         huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
+        self.logger.info(f"Generating huggingface dataset at {huggingface_dir}")
+
         for split, df in splits.items():
-            records = []
+            cols_to_include = ['decision_id', 'year', 'language', 'legal_area',
+                               'chamber', 'court', 'canton', 'region',
+                               'origin_chamber', 'origin_court', 'origin_canton', 'origin_region',
+                               ] + self.labels + self.get_feature_col_names()
+            df = df[cols_to_include]
+            hf_file = f'{huggingface_dir}/{split}.jsonl'
 
-            for index, row in df.iterrows():
-                if not isinstance(row['origin_court'], str) and (
-                        row['origin_court'] is None or math.isnan(row['origin_court'])):
-                    row['origin_court'] = 'n/a'
-                if not isinstance(row['origin_canton'], str) and (
-                        row['origin_canton'] is None or math.isnan(row['origin_canton'])):
-                    row['origin_canton'] = 'n/a'
-                if not isinstance(row['origin_chamber'], str) and (
-                        row['origin_chamber'] is None or math.isnan(row['origin_chamber'])):
-                    row['origin_chamber'] = 'n/a'
-                if not isinstance(row['origin_region'], str) and (
-                        row['origin_region'] is None or math.isnan(row['origin_region'])):
-                    row['origin_region'] = 'n/a'
-                if not isinstance(row['legal_area'], str) and (
-                        row['legal_area'] is None or math.isnan(row['legal_area'])):
-                    row['legal_area'] = 'n/a'
-                record = {
-                    'id': index,
-                    'year': row['year'],
-                    'language': row['lang'],
-                    'court': row['origin_court'],
-                    'canton': row['origin_canton'],
-                    'chamber': row['origin_chamber'],
-                    'region': row['origin_region'],
-                    'legal area': row['legal_area']
-                }
-                for feature_col in self.feature_cols:
-                    record[feature_col] = row[feature_col]
-                for label in self.labels:
-                    record[label] = row[label]
+            self.logger.info(f"Saving {split} dataset at {hf_file}")
+            df.to_json(hf_file, orient='records', lines=True, force_ascii=False)
 
-                records.append(record)
+            self.logger.info(f"Compressing {split} dataset at {hf_file}")
+            os.system(f'xz -zkf -T0 {hf_file}')  # -TO to use multithreading
 
-            with open(f'{huggingface_dir}/{split}.jsonl', 'w') as out_file:
-                for record in records:
-                    out_file.write(json.dumps(record) + '\n')
-
-    def get_df(self, engine, feature_col, court_string="CH_BGer", overwrite_cache=False):
+    def get_df(self, engine, court_string="CH_BGer", use_cache=True, overwrite_cache=False):
         """
-        get dataframe of all bger cases and add additional information as judgments, sections, filenumber, citations
+        get dataframe of all cases and add additional information such as judgments, sections, file_number, citations
         :param engine:          engine used for db connection
-        :param feature_col:     defines which sections should be included
         :param court_string:    defines which court to load data from
         :param overwrite_cache: whether to load the data from the cache if it exists or whether to load it anew from the db
         :return:                dataframe with all data
         """
-        # TODO make sure only feature_col sections are loaded
-
-        cache_file = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
-        # if cached just load it from there
-        if not overwrite_cache:
-            df = retrieve_from_cache_if_exists(cache_file)
-            if not df.empty:
-                return df
+        if use_cache:
+            cache_file = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.parquet.gzip'
+            # if cached just load it from there
+            if not overwrite_cache:
+                df = retrieve_from_cache_if_exists(cache_file)
+                if not df.empty:
+                    return df
 
         # otherwise query it from the database
-        # TODO check the difference of return cache or directly from db. Problem when directly from db, some
-        #  columns cannot be read properly. When executing code a second time and data comes from cache no problems.
-        self.logger.info("Retrieving the data from the database")
+        self.logger.info(f"Retrieving the data from the database for court {court_string}")
 
         df = self.load_decision(court_string, engine)
+        if df.empty:
+            return df # return right away so we don't run into errors
+
+        df.rename(columns={'lang': 'language'}, inplace=True)
         decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
 
         df = self.load_judgment(decision_ids, df, engine)
@@ -359,18 +325,19 @@ class DatasetCreator(AbstractPreprocessor):
         df = self.load_citation(decision_ids, df, engine)
         df = self.load_section(decision_ids, df, engine)
         df = self.load_file_number(decision_ids, df, engine)
-        df = self.get_string_representation(df)
+        df = self.get_string_representation(df, court_string)
 
         self.logger.info("Finished loading the data from the database")
-        save_df_to_cache(df, cache_file)
+        if use_cache:
+            save_df_to_cache(df, cache_file)
         return df
 
     def load_decision(self, court_string, engine):
         self.logger.info("Loading Decision")
-        table_string = 'decision d LEFT JOIN language ON language.language_id = d.language_id'
-        columns_string = 'd.*, extract(year from d.date) as year, language.iso_code as lang'
-        where_string = f"d.decision_id IN {where_string_court('decision_id', court_string)}"
-        return next(self.select(engine, table_string, columns_string, where_string, chunksize=self.get_chunksize()))
+        table = 'decision d LEFT JOIN language ON language.language_id = d.language_id'
+        columns = 'd.*, extract(year from d.date) as year, language.iso_code as lang'
+        where = f"d.decision_id IN {where_string_court('decision_id', court_string)}"
+        return next(self.select(engine, table, columns, where, chunksize=self.get_chunksize()))
 
     def load_file_number(self, decision_ids, df, engine):
         self.logger.info('Loading File Number')
@@ -389,12 +356,16 @@ class DatasetCreator(AbstractPreprocessor):
         return df
 
     def load_section(self, decision_ids, df, engine):
+        # TODO this could probably be sped up if we just load the sections we need
         self.logger.info('Loading Section')
         table = f"{join_tables_on_decision(['num_tokens'])}"
         where = f"section.decision_id IN ({','.join(decision_ids)})"
         section_df = next(self.select(engine, table, "sections", where, None, self.get_chunksize()))
         df['sections'] = section_df['sections']
         return df
+
+    def get_feature_col_names(self):
+        return [feature_col.name.lower() for feature_col in self.feature_cols]
 
     def load_citation(self, decision_ids, df, engine):
         self.logger.info('Loading Citation')
@@ -441,11 +412,9 @@ class DatasetCreator(AbstractPreprocessor):
         df['origin_file_number'] = lower_court_df['origin_file_number']
         return df
 
-    def get_string_representation(self, df):
-        for feature_col in self.feature_cols:
-            df = self.clean_df(df, feature_col)
-        df['legal_area'] = df.chamber_id.apply(get_legal_area)
-        df['origin_region'] = df.origin_canton.apply(get_region)
+    def get_string_representation(self, df, court_string):
+        for feature_col in self.get_feature_col_names():
+            df = self.expand_df(df, feature_col)
 
         def build_info_df(table_name, col_name):
             info_df = next(self.select(self.get_engine(self.db_scrc), table_name))
@@ -454,8 +423,8 @@ class DatasetCreator(AbstractPreprocessor):
                 info_dict[int(row[f'{table_name}_id'])] = str(row[col_name])
             return info_dict
 
-        court_dict = build_info_df('court', 'court_string')
         chamber_dict = build_info_df('chamber', 'chamber_string')
+        court_dict = build_info_df('court', 'court_string')
         canton_dict = build_info_df('canton', 'short_code')
 
         def get_string_value(x, info_dict):
@@ -464,58 +433,57 @@ class DatasetCreator(AbstractPreprocessor):
             else:
                 return np.nan
 
-        df.origin_canton = df.origin_canton.apply(get_string_value, args=[canton_dict])
-        df.origin_court = df.origin_court.apply(get_string_value, args=[court_dict])
-        df.origin_chamber = df.origin_chamber.apply(get_string_value, args=[chamber_dict])
+        df['chamber'] = df.chamber_id.apply(get_string_value, args=[chamber_dict])  # chamber
+        df['court'] = df.chamber.apply(lambda x: "_".join(x.split("_")[:2]))  # court: first two parts of chamber_string
+        df['canton'] = df.chamber.apply(lambda x: x.split("_")[0])  # canton: first part of chamber_string
+        df['region'] = df.canton.apply(get_region)
+
+        if court_string == 'CH_BGer':
+            df['legal_area'] = df.chamber_id.apply(get_legal_area)
+            df['origin_region'] = df.origin_canton.apply(get_region)
+            df.origin_canton = df.origin_canton.apply(get_string_value, args=[canton_dict])
+            df.origin_court = df.origin_court.apply(get_string_value, args=[court_dict])
+            df.origin_chamber = df.origin_chamber.apply(get_string_value, args=[chamber_dict])
+        else:
+            df['legal_area'] = np.nan
+            df['origin_region'] = np.nan
+            df['origin_canton'] = np.nan
+            df['origin_court'] = np.nan
+            df['origin_chamber'] = np.nan
 
         return df
 
-    def clean_df(self, df, column):
+    def expand_df(self, df, feature_col):
         """
         remove not usable values from dataframe, add num_tokens for each feature_col
         :param df:      dataframe containing all the data
-        :param column:  specifying column (=feature_col) which is cleaned
+        :param feature_col:  specifying column (=feature_col) which is cleaned
         :return:        dataframe
         """
-        # TODO refactor this! combine filter_column functions into one
         # replace empty and whitespace strings with nan so that they can be removed
         sections = df['sections']
 
-        def filter_column(column_data):
-            if not isinstance(column_data, str) and not isinstance(column_data, list): return np.nan
-            if isinstance(column_data, str):
-                column_data = ast.literal_eval(column_data)
-            for section in column_data:
-                if section['name'] == column:
-                    return section['section_text']
+        def filter_column(row, section_attribute):
+            if not isinstance(row, str) and not isinstance(row, list): return np.nan
+            if isinstance(row, str):
+                row = ast.literal_eval(row)  # convert string to list of dicts
+            for section in row:
+                if section['name'] == feature_col:
+                    return section[section_attribute]
 
-        df[column] = sections.map(filter_column)
-        df[column] = df[column].replace(r'^\s+$', np.nan, regex=True)
-        df[column] = df[column].replace('', np.nan)
+        df[feature_col] = sections.apply(filter_column, section_attribute='section_text')
 
-        def filter_column(column_data):
-            if not isinstance(column_data, str) and not isinstance(column_data, list): return np.nan
-            if isinstance(column_data, str):
-                column_data = ast.literal_eval(column_data)
-            for section in column_data:
-                if section['name'] == column:
-                    return section['num_tokens_bert']
+        # replace empty strings with nan so that they can be removed
+        df[feature_col] = df[feature_col].replace(r'^\s+$', np.nan, regex=True)
+        df[feature_col] = df[feature_col].replace('', np.nan)
 
-        df[f"{column}_num_tokens_bert"] = sections.map(filter_column)
-
-        def filter_column(column_data):
-            if not isinstance(column_data, str) and not isinstance(column_data, list): return np.nan
-            if isinstance(column_data, str):
-                column_data = ast.literal_eval(column_data)
-            for section in column_data:
-                if section['name'] == column:
-                    return section['num_tokens_spacy']
-
-        df[f"{column}_num_tokens_spacy"] = sections.map(filter_column)
+        df[f"{feature_col}_num_tokens_bert"] = sections.apply(filter_column, section_attribute='num_tokens_bert')
+        df[f"{feature_col}_num_tokens_spacy"] = sections.apply(filter_column, section_attribute='num_tokens_spacy')
 
         if self.split_type == "date-stratified":
             df = df.dropna(subset=['year'])  # make sure that each entry has an associated year
-        df.year = df.year.astype(int)  # convert from float to nicer int
+            df.year = df.year.astype(int)  # convert from float to nicer int
+        df.decision_id = df.decision_id.astype(str)  # convert from uuid to str so it can be saved
 
         return df
 
@@ -536,6 +504,7 @@ class DatasetCreator(AbstractPreprocessor):
         """
         splits = self.create_splits(df, split, split_type, include_all=save_reports)
         self.save_splits(splits, labels, folder, save_reports=save_reports)
+        self.save_huggingface_dataset(splits, self.get_dataset_folder())
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
@@ -701,7 +670,7 @@ class DatasetCreator(AbstractPreprocessor):
         for attribute in barplot_attributes:
             self.plot_barplot_attribute(df, split_folder, attribute)
 
-        for feature_col in self.feature_cols:
+        for feature_col in self.get_feature_col_names():
             dict = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',
                     f'{feature_col}_num_tokens_spacy': 'num_tokens_spacy'}
             self.plot_input_length(df.rename(columns=dict), split_folder, feature_col=feature_col)
@@ -851,7 +820,6 @@ class DatasetCreator(AbstractPreprocessor):
         :param split:   the exact split (how much of the data goes into train, val and test respectively)
         :return:
         """
-        # TODO add secret_test
         train, val, test = dd.from_pandas(df, npartitions=1).random_split(list(split), random_state=self.seed)
 
         # get pandas dfs again

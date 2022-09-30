@@ -266,8 +266,7 @@ class AbstractPreprocessor:
         :param logger:      custom logger for info output
         :return:
         """
-        dfs = self.select(engine, table, columns='id, text',
-                          where=where)  # stream dfs from the db
+        dfs = self.select(engine, table, columns='id, text', where=where)  # stream dfs from the db
         for df in dfs:
             # reorder the df so that we get the text first and the id after
             df = df[['text', 'id']]

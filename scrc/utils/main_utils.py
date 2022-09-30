@@ -204,16 +204,15 @@ def get_config() -> configparser.ConfigParser:
     return config
 
 
-def save_df_to_cache(df: pd.DataFrame, path: Path, chunksize=1000):
+def save_df_to_cache(df: pd.DataFrame, path: Path):
     logger.info(f"Writing data to cache at {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(path, index=False, chunksize=chunksize)
+    df.to_parquet(path, index=False, compression="gzip")
 
 
 def retrieve_from_cache_if_exists(path: Path):
     if path.exists():
         logger.info(f"Loading data from cache at {path}")
-        return pd.read_csv(path, index_col=False)
-    # TODO maybe it is clearer if we just return False here?
+        return pd.read_parquet(path, index_col=False)
     else:
         return pd.DataFrame([])

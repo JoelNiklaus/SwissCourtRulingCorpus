@@ -284,10 +284,10 @@ def join_tables_on_decision(tables: List[str]) -> str:
             'table_name': 'section_type', 'field_name': 'name, section_text', 'join_field': 'section_type_id'})
 
     if ('num_tokens' in tables):
-        # Dont use num tokens and section or section_type as num_tokens includes both of them
+        # Don't use num tokens and section or section_type as num_tokens includes both of them
         join_string += (" LEFT JOIN "
                         "(SELECT section_mapped.decision_id, json_strip_nulls(json_agg(json_build_object"
-                        "('name', name,'section_text', section_text, 'num_tokens_bert', num_tokens_bert, 'num_tokens_spacy', num_tokens_spacy))) sections "
+                        "('name', name, 'section_text', section_text, 'num_tokens_bert', num_tokens_bert, 'num_tokens_spacy', num_tokens_spacy))) sections "
                         "FROM (SELECT name, section_text, section.decision_id, num_tokens_bert, num_tokens_spacy FROM section "
                         "LEFT JOIN section_type  ON section_type.section_type_id = section.section_type_id "
                         "LEFT JOIN num_tokens ON num_tokens.section_id = section.section_id) as section_mapped "
@@ -301,7 +301,8 @@ def join_tables_on_decision(tables: List[str]) -> str:
 
     if ('chamber' in tables or 'court' in tables or 'spider' in tables):
         join_string += join('chamber', 'chamber_id') + \
-                       ' LEFT JOIN court ON court.court_id = chamber.court_id LEFT JOIN spider ON chamber.spider_id = spider.spider_id'
+                       ' LEFT JOIN court ON court.court_id = chamber.court_id' \
+                       ' LEFT JOIN spider ON chamber.spider_id = spider.spider_id'
 
     if ('citation' in tables or 'citation_type' in tables):
         join_string += map_join('citation_id', 'citations', 'citation', fill={
@@ -340,7 +341,12 @@ def select_sections_with_decision_and_meta_data() -> Tuple[str, str]:
     fields.append('sections')
     fields.append('file_numbers')
     fields.append(
-        'lower_court.date as origin_date, lower_court.court_id as origin_court, lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, lower_court.file_number as origin_file_number')
+        'lower_court.date as origin_date, '
+        'lower_court.court_id as origin_court, '
+        'lower_court.canton_id as origin_canton, '
+        'lower_court.chamber_id as origin_chamber, '
+        'lower_court.file_number as origin_file_number'
+    )
 
     return (
         join_tables_on_decision(['judgment', 'citation', 'file', 'section', 'lower_court']),
@@ -437,8 +443,7 @@ def get_region(canton):
     for region, cantons in regions.items():
         if canton in cantons:
             return region
-    raise ValueError(
-        f"Please provide a valid canton name. Could not find {canton} in {regions}")
+    raise ValueError(f"Please provide a valid canton name. Could not find {canton} in {regions}")
 
 
 legal_areas = {

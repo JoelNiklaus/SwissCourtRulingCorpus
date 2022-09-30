@@ -4,14 +4,11 @@ import os.path
 import pandas as pd
 import itertools
 import numpy as np
-import math
-import json
-
 
 from scrc.dataset_creation.dataset_creator import DatasetCreator
-from root import ROOT_DIR
 from pathlib import Path
 
+from scrc.enums.section import Section
 from scrc.utils.main_utils import get_config
 from scrc.utils.log_utils import get_logger
 from collections import Counter
@@ -58,7 +55,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
-        self.feature_cols = ['facts']
+        self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
         self.available_bges = self.load_rulings()
         self.references_df = self.extract_bge_references()
         self.citation_amount = [100, 10, 1, 0]  # sorted, the highest number first!
@@ -72,17 +69,19 @@ class CriticalityDatasetCreator(DatasetCreator):
         :return:        dataframe containing bger_references and bge_file_numbers
         """
         # get dict of bge references with corresponding bge file name
-        bge_references_file_path: Path = ROOT_DIR / 'data' / 'datasets' / "bge_references_found.txt"
+        bge_references_file_path: Path = self.get_dataset_folder() / "bge_references_found.txt"
         if not bge_references_file_path.exists():
             raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
-        df = pd.DataFrame({'bge_file_number_long': [], 'bge_file_number_short': [], 'bger_reference': [], 'year': [], 'bge_chamber': []})
+        df = pd.DataFrame({'bge_file_number_long': [], 'bge_file_number_short': [], 'bger_reference': [], 'year': [],
+                           'bge_chamber': []})
         with bge_references_file_path.open("r") as f:
             for line in f:
                 (bge_file_number_long, bger_reference) = line.split()
                 year = int(bge_file_number_long.split('-', 5)[1]) + 1874
                 bge_chamber = bge_file_number_long.split('_', 5)[2]
                 bge_file_number_short = bge_file_number_long.split('_')[3]
-                s_row = pd.Series([bge_file_number_long, bge_file_number_short, bger_reference, year, bge_chamber], index=df.columns)
+                s_row = pd.Series([bge_file_number_long, bge_file_number_short, bger_reference, year, bge_chamber],
+                                  index=df.columns)
                 df = df.append(s_row, ignore_index=True)
         self.logger.info(
             f"References_df: There are {len(df.index)} entries with {len(df.bge_file_number_long.unique())} unique bge_filenumbers and {len(df.bger_reference.unique())} unique bger_references.")
@@ -104,14 +103,13 @@ class CriticalityDatasetCreator(DatasetCreator):
             bge_list.extend(all)
         return bge_list
 
-    def get_dataset(self, feature_col, save_reports):
+    def prepare_dataset(self, save_reports):
         """
         get of all bger cases and set bge_label and citation_label
-        :param feature_col:     specify sections to add as column
         :param save_reports:    whether or not to compute and save reports
         :return:                dataframe and list of labels
         """
-        df = self.get_df(self.get_engine(self.db_scrc), feature_col)
+        df = self.get_df(self.get_engine(self.db_scrc))
         a = len(df['file_number'].unique())
         self.logger.info(f"BGer: There are {len(df.index)} bger cases with {a} unique file numbers.")
 
@@ -133,7 +131,8 @@ class CriticalityDatasetCreator(DatasetCreator):
                 df = self.set_criticality_label(df, critical_list, 'citation_label')
                 critical_df = df[df['citation_label'] == 'critical']
                 df = df[df['citation_label'] != 'critical']
-                critical_df['citation_label'] = critical_df['citation_label'].map({'critical': f"critical-{self.citation_amount[i]}"}, na_action=None)
+                critical_df['citation_label'] = critical_df['citation_label'].map(
+                    {'critical': f"critical-{self.citation_amount[i]}"}, na_action=None)
                 if not critical_df.empty:
                     df_list.append(critical_df)
             i = i + 1
@@ -156,7 +155,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         columns = list(df.columns)
         needed_cols = ['year', 'legal_area', 'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'lang',
                        'bge_label', 'citation_label']
-        for feature_col in self.feature_cols:
+        for feature_col in self.get_feature_col_names():
             needed_cols.append(f"{feature_col}")
             needed_cols.append(f"{feature_col}_num_tokens_spacy")
             needed_cols.append(f"{feature_col}_num_tokens_bert")
@@ -175,14 +174,14 @@ class CriticalityDatasetCreator(DatasetCreator):
         """
         # Get rid of cases which can't be used for training because all feature cols are too short
         # Those cases are needed to create labels, that's why we cannot delete them earlier
-        for feature_col in self.feature_cols:
+        for feature_col in self.get_feature_col_names():
             df[f'{feature_col}_length'] = df[feature_col].astype(str).apply(len)
             match = df[f'{feature_col}_length'] > self.minFeatureColLength
             df.loc[~match, feature_col] = np.nan
 
         a = len(df.index)
         df = df.dropna(subset=self.feature_cols, how='all')
-        self.logger.info(f"There were {a-len(df.index)} cases dropped because all feature cols were too short.")
+        self.logger.info(f"There were {a - len(df.index)} cases dropped because all feature cols were too short.")
         df = df.reset_index(drop=True)  # reindex to get nice indices
         df = self.filter_columns(df)
         return df
@@ -235,8 +234,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         citations_df = self.process_citations(df)
 
         # report number of citations
-        folder: Path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
-        split_folder = self.create_dir(folder, f'reports/citations_amount')
+        split_folder = self.create_dir(self.get_dataset_folder(), f'reports/citations_amount')
         self.plot_barplot_attribute(citations_df, split_folder, 'counter')
 
         # apply for each row a function which returns True if citation amount is bigger than given number
@@ -292,6 +290,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         df['ruling_citation'] = df['ruling_citation'].apply(lambda x: Counter(x))
 
         newest_year = df['year'].max()
+
         # multiply weight to value in counter
         def weight_citations(row):
             weight = (row['year'] - self.first_year)
@@ -309,7 +308,7 @@ class CriticalityDatasetCreator(DatasetCreator):
             type_corpus_frequency.update(row['ruling_citation'])
         # do this after using Counter() because division will not give int type
         for k in type_corpus_frequency.keys():
-            type_corpus_frequency[k] = type_corpus_frequency[k]/ (newest_year-self.first_year)
+            type_corpus_frequency[k] = type_corpus_frequency[k] / (newest_year - self.first_year)
 
         citation_frequencies_df = pd.DataFrame.from_records(list(dict(type_corpus_frequency).items()),
                                                             columns=['bge_file_number', 'counter'])
@@ -339,14 +338,15 @@ class CriticalityDatasetCreator(DatasetCreator):
                 self.plot_barplot_attribute(df[df['citation_label'] == f"critical-{i}"], split_folder, attribute,
                                             f"citation_{i}")
 
-        for feature_col in self.feature_cols:
+        for feature_col in self.get_feature_col_names():
             dict = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',
                     f'{feature_col}_num_tokens_spacy': 'num_tokens_spacy'}
             self.plot_input_length(df.rename(columns=dict), split_folder, feature_col=feature_col)
 
         # plot labels, need to rename column to use function
         self.plot_labels(df.rename(columns={'bge_label': 'label'}, inplace=False), split_folder, label_name='bge_label')
-        self.plot_labels(df.rename(columns={'citation_label': 'label'}, inplace=False), split_folder, label_name='citation_label')
+        self.plot_labels(df.rename(columns={'citation_label': 'label'}, inplace=False), split_folder,
+                         label_name='citation_label')
 
         # report references_df distribution, needs to be done only after running reference-extractor.
         if not os.path.exists(folder / 'reports' / f'bge_references'):
@@ -365,8 +365,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         :param counts:   specifying which citation_label class to use
         """
         # report distribution of citation, here because it's deleted from df later.
-        folder: Path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
-        split_folder = self.create_dir(folder, f'reports/citation_{counts}')
+        split_folder = self.create_dir(self.get_dataset_folder(), f'reports/citation_{counts}')
         self.plot_barplot_attribute(df, split_folder, 'year')
 
     def print_not_found_list(self, not_found_list, label):
@@ -375,10 +374,9 @@ class CriticalityDatasetCreator(DatasetCreator):
         :param not_found_list:  list of references
         :param label:           specifying for with label class the given list was created for
         """
-        file_path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols) / 'reports' / "not_found_references.txt"
+        file_path = self.get_dataset_folder() / 'reports' / "not_found_references.txt"
         if not file_path.exists():
-            path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "-".join(self.feature_cols)
-            self.create_dir(path, 'reports')
+            self.create_dir(self.get_dataset_folder(), 'reports')
         with open(file_path, 'a') as f:
             f.write(f"List of not found references for {label}:\n")
             for item in not_found_list:
