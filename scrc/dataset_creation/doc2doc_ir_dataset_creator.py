@@ -105,6 +105,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         self.split_type = "date-stratified"
         self.dataset_name = "doc2doc_ir"
         self.feature_cols = ['facts', 'considerations']
+        self.labels = []
 
         self.dataset_folder = self.create_dir(self.datasets_subdir, self.dataset_name)
         if self.debug:
@@ -113,30 +114,17 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
 
         self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
 
-        self.load_rulings()
+        self.available_bges = self.load_rulings()
+        self.save_rulings()
         self.load_law_articles()
 
         pandarallel.initialize(progress_bar=True)
         tqdm.pandas()
 
-    def load_rulings(self):
-        self.logger.info(f"Loading reference rulings")
-        self.available_bges = set()  # use set instead of list for faster lookup
-        rulings = pd.DataFrame()
-        for lang in self.languages:
-            # also for debugging we want the full list
-            cols = "language, canton, date, file_number, html_url, text"
-            df = next(self.select(self.get_engine(self.db_scrc), lang,
-                                  columns=cols, where="spider = 'CH_BGE'", chunksize=self.real_chunksize))
-            df.date = pd.to_datetime(df.date)
-            assert len(df.index) == len(df.file_number.unique())  # there should not be any duplicates
-            self.available_bges.update(df.file_number.tolist())
-            rulings = pd.concat([rulings, df], ignore_index=True)  # one rulings df for all languages
-
-        self.logger.info(f"Found {len(self.available_bges)} rulings")
+    def save_rulings(self):
         rulings_path = self.dataset_folder / "rulings.jsonl"
         if not rulings_path.exists():
-            rulings.to_json(rulings_path, orient="records", lines=True, date_format="iso")
+            self.available_bges.to_json(rulings_path, orient="records", lines=True, date_format="iso")
 
     def load_law_articles(self):
         # get Art. from lexfind.jsonl
@@ -197,6 +185,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         # df = df[df.types.map(len) >= 1]  # we only want the decisions which actually cite something
         # df = df.query('"bge" in types')  # ensure that we only have BGE citations
 
+        df.dropna(subset=['citations'], inplace=True)
         df = self.process_citation_type("rulings", df)
         df = self.process_citation_type("laws", df)
 
@@ -234,9 +223,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
 
     def process_citation_type(self, cit_type, df):
         self.logger.info(f"Processing the {cit_type} citations.")
-        df.loc[df['lang'] == 'de', 'ruling_citation'] = df.citations.apply(self.get_citations, type=cit_type, lang='de')
-        df.loc[df['lang'] == 'fr', 'ruling_citation'] = df.citations.apply(self.get_citations, type=cit_type, lang='fr')
-        df.loc[df['lang'] == 'it', 'ruling_citation'] = df.citations.apply(self.get_citations, type=cit_type, lang='it')
+        df.loc[:, 'ruling_citation'] = df.citations.apply(self.get_citation, type=cit_type)
         # we cannot use the ones which have no citations
         # because we drop everything we lose some data, but it is easier, because we know that all the entries have both laws citations and rulings citations
         # reset the index so that we don't get out of bounds errors
@@ -292,35 +279,9 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         ax = citations[:top_n].plot.bar(use_index=True, y='frequency', rot=90)
         ax.get_figure().savefig(figure_path, bbox_inches="tight")
 
-    def get_citations(self, citations_as_string, type, lang):
-        # TODO this code will not work as intended:
-        #  - iteration over all citation types, additional check neccessarry.
-        #  - all file_numbers in available_bges start with BGE never ATF or DTF
-        #  - conseder using one method get_citations for criticality and doc2doc
-        cits = []
-        try:
-            citations = ast.literal_eval(citations_as_string)  # parse dict string to dict again
-            for citation in citations:
-                cit = citation['text']
-                cit = ' '.join(cit.split())  # remove multiple whitespaces inside
-                try:
-                    if type == "rulings":
-                        type_cit = RulingCitation(cit, lang)
-                    elif type == "laws":
-                        type_cit = LawCitation(cit, lang, self.law_abbrs)
-                    else:
-                        raise ValueError("type must be either 'rulings' or 'laws'")
-                except ValueError as ve:
-                    self.logger.debug(ve)
-                    continue
-        except ValueError as ve:
-            self.logger.debug(ve)
-        # only actually include ruling citations that we can find in our corpus
-        if type == "laws" or (type == "rulings" and str(type_cit) in self.available_bges):
-            cits.append(type_cit)
-
-        if cits:  # only return something if we actually have citations
-            return cits
+    def get_law_citation(self, citations_text):
+        # TODO handle language in LawCitation differently
+        return LawCitation(citations_text, 'de', self.law_abbrs)
 
     @staticmethod
     def compute_relevance_score(cit, tf_idf_score):
