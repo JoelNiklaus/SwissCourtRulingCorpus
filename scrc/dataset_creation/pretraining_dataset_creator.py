@@ -21,8 +21,6 @@ class PretrainingDatasetCreator(DatasetCreator):
     def get_dataset(self, feature_col, save_reports):
         df = self.get_df(self.get_engine(self.db_scrc), feature_col)
 
-        print(df)
-
         return df, None
 
 

@@ -24,6 +24,7 @@ def join_decision_on_language() -> str:
     """
     return ' LEFT JOIN language ON language.language_id = decision.language_id '
 
+
 def coverage_query(spider: str, section_type: int, language: int):
     return (f"SELECT count(*) FROM section "
             f"LEFT JOIN decision ON decision.decision_id = section.decision_id "
@@ -36,14 +37,16 @@ def coverage_query(spider: str, section_type: int, language: int):
             f"AND section_text != '{{}}'"
             f"AND section_text != '' ")
 
+
 def get_total_decisions(spider: str, language: int):
     return (f"SELECT count(*) FROM decision "
-        f"LEFT JOIN language ON decision.language_id = language.language_id "
-        f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
-        f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
-        f"WHERE spider.name = '{spider}' "
-        f"AND language.language_id = {language} ")
-    
+            f"LEFT JOIN language ON decision.language_id = language.language_id "
+            f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
+            f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
+            f"WHERE spider.name = '{spider}' "
+            f"AND language.language_id = {language} ")
+
+
 def get_judgment_query(spider, ruling_id):
     return (f"SELECT count(*) FROM section s "
             f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
@@ -57,17 +60,18 @@ def get_judgment_query(spider, ruling_id):
             f"AND s.section_type_id = {ruling_id} "
             f"AND j.judgment_id IS NOT NULL")
 
+
 def get_total_judgments(spider, ruling_id):
     return (f"SELECT count(*) FROM section s "
-        f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
-        f"LEFT JOIN judgment_map j "
-        f"ON j.decision_id = decision.decision_id "
-        f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
-        f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
-        f"WHERE spider.name = '{spider}' "
-        f"AND section_text != '{{}}' "
-        f"AND section_text != '' "
-        f"AND s.section_type_id = {ruling_id} ")
+            f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
+            f"LEFT JOIN judgment_map j "
+            f"ON j.decision_id = decision.decision_id "
+            f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
+            f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
+            f"WHERE spider.name = '{spider}' "
+            f"AND section_text != '{{}}' "
+            f"AND section_text != '' "
+            f"AND s.section_type_id = {ruling_id} ")
 
 
 def join_decision_on_parameter(decision_field: str, target_table_and_field: str) -> str:
@@ -107,8 +111,6 @@ def join_file_on_decision() -> str:
     return ' LEFT JOIN file ON file.file_id = decision.file_id '
 
 
-
-
 def where_string_spider(decision_field: str, spider: str) -> str:
     """Returns the string for the where clause in the sql selection such that only the decisions of certain spider are selected.
         Use by <TABLE>.<FIELDNAME> IN where_string_spider(<FIELDNAME>, <SPIDER>)
@@ -120,6 +122,19 @@ def where_string_spider(decision_field: str, spider: str) -> str:
         str: The where clause
     """
     return f" (SELECT {decision_field} from decision WHERE chamber_id IN (SELECT chamber_id FROM chamber WHERE spider_id IN (SELECT spider_id FROM spider WHERE spider.name = '{spider}'))) "
+
+
+def where_string_court(decision_field: str, court: str) -> str:
+    """Returns the string for the where clause in the sql selection such that only the decisions of certain court are selected.
+        Use by <TABLE>.<FIELDNAME> IN where_string_court(<FIELDNAME>, <COURT>)
+    Args:
+        decision_field (str): The field name to be searched in the decision table
+        court (str): The court name
+
+    Returns:
+        str: The where clause
+    """
+    return f" (SELECT {decision_field} from decision WHERE chamber_id IN (SELECT chamber_id FROM chamber WHERE court_id IN (SELECT court_id FROM court WHERE court.court_string = '{court}'))) "
 
 
 def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
@@ -207,12 +222,11 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
 
     df = df.apply(add_ids_to_df_for_decision, 1)
 
-    df = df.replace(
-                        {np.NaN: None}) # Convert pandas NaT values (Non-Type for Datetime) to None using np as np recognizes these types
+    # Convert pandas NaT values (Non-Type for Datetime) to None using np as np recognizes these types
+    df = df.replace({np.NaN: None})
     df['date'] = df['date'].replace(r'^\s*$', None, regex=True)
     df['date'] = df['date'].astype('datetime64[ns]')
-    save_to_db(
-        df[['language_id', 'chamber_id', 'file_id', 'date', 'topic']], 'decision')
+    save_to_db(df[['language_id', 'chamber_id', 'file_id', 'date', 'topic']], 'decision')
     df.apply(save_the_file_numbers, 1)
 
 
@@ -220,8 +234,7 @@ def delete_stmt_decisions_with_df(df: pd.DataFrame) -> TextClause:
     if df.ndim == 1:
         decision_id_list = f"'{df['decision_id']}'"
     else:
-        decision_id_list = ','.join(
-            ["'" + str(item) + "'" for item in df['decision_id'].values.tolist()])
+        decision_id_list = ','.join(["'" + str(item) + "'" for item in df['decision_id'].values.tolist()])
     return text(f"decision_id in ({decision_id_list})")
 
 
@@ -230,8 +243,13 @@ def join(table_name: str, join_field: str = 'decision_id', join_table: str = 'd'
     return f" LEFT JOIN {table_name} ON {table_name}.{join_field} = {join_table}.{join_field} "
 
 
-def map_join(map_field: str, new_map_field_name: str, table: str, fill: Optional[Dict[str, str]] = None,
-             group: str = 'decision_id', join_table: str = 'd', additional_fields: str = '') -> str:
+def map_join(map_field: str,
+             new_map_field_name: str,
+             table: str,
+             fill: Optional[Dict[str, str]] = None,
+             group: str = 'decision_id',
+             join_table: str = 'd',
+             additional_fields: str = '') -> str:
     """ Joins a table and concatenates multiple value onto one line """
     if fill:
         json_object_build_string = ','.join(
@@ -318,8 +336,7 @@ def select_sections_with_decision_and_meta_data() -> Tuple[str, str]:
     fields = ['d.*', 'extract(year from d.date) as year']
     fields.append('judgments')
     fields.append('citations')
-    fields.append(
-        'file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw')
+    fields.append('file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw')
     fields.append('sections')
     fields.append('file_numbers')
     fields.append(
@@ -430,7 +447,8 @@ legal_areas = {
     "penal_law": [Chamber.CH_BGer_006, Chamber.CH_BGer_013],
     "social_law": [Chamber.CH_BGer_008, Chamber.CH_BGer_009],
     "insurance_law": [Chamber.CH_BGer_016],
-    "other": [Chamber.CH_BGer_010, Chamber.CH_BGer_012, Chamber.CH_BGer_014, Chamber.CH_BGer_015, Chamber.CH_BGer_999, Chamber.CH_BGer_011],
+    "other": [Chamber.CH_BGer_010, Chamber.CH_BGer_011, Chamber.CH_BGer_012, Chamber.CH_BGer_014, Chamber.CH_BGer_015,
+              Chamber.CH_BGer_999],
 }
 
 

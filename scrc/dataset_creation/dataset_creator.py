@@ -2,6 +2,7 @@ import abc
 import copy
 import math
 from collections import Counter
+from datetime import date
 from pathlib import Path
 from typing import Union
 import ast
@@ -23,7 +24,7 @@ import json
 from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache
 
 from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision, legal_areas, get_region, \
-    select_sections_with_decision_and_meta_data, where_string_spider
+    select_sections_with_decision_and_meta_data, where_string_spider, where_string_court
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -143,12 +144,15 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
+        self.start_years = {"train": 2002, "validation": 2016, "test": 2018, "secret_test": 2020}
+        self.current_year = date.today().year
 
+        self.debug = True  # to be overridden
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
-        self.feature_cols = ["text"]  # to be overridden
+        self.feature_cols = ["full_text"]  # to be overridden
         self.labels = []  # to be overridden
-        self.available_bges = [] # to be overridden
+        self.available_bges = []  # to be overridden
 
     @abc.abstractmethod
     def get_dataset(self, feature_col, save_reports):
@@ -182,7 +186,7 @@ class DatasetCreator(AbstractPreprocessor):
         """
         self.counter = self.counter + 1
         if int(self.counter) % 10000 == 0:
-            print("Processed another 10'000 citations")
+            self.logger.info("Processed another 10'000 citations")
         cits = []
         try:
             citations = ast.literal_eval(citations_as_string)  # parse dict string to dict again
@@ -287,15 +291,20 @@ class DatasetCreator(AbstractPreprocessor):
             records = []
 
             for index, row in df.iterrows():
-                if not isinstance(row['origin_court'], str) and (row['origin_court'] is None or math.isnan(row['origin_court'])):
+                if not isinstance(row['origin_court'], str) and (
+                        row['origin_court'] is None or math.isnan(row['origin_court'])):
                     row['origin_court'] = 'n/a'
-                if not isinstance(row['origin_canton'], str) and (row['origin_canton'] is None or math.isnan(row['origin_canton'])):
+                if not isinstance(row['origin_canton'], str) and (
+                        row['origin_canton'] is None or math.isnan(row['origin_canton'])):
                     row['origin_canton'] = 'n/a'
-                if not isinstance(row['origin_chamber'], str) and (row['origin_chamber'] is None or math.isnan(row['origin_chamber'])):
+                if not isinstance(row['origin_chamber'], str) and (
+                        row['origin_chamber'] is None or math.isnan(row['origin_chamber'])):
                     row['origin_chamber'] = 'n/a'
-                if not isinstance(row['origin_region'], str) and (row['origin_region'] is None or math.isnan(row['origin_region'])):
+                if not isinstance(row['origin_region'], str) and (
+                        row['origin_region'] is None or math.isnan(row['origin_region'])):
                     row['origin_region'] = 'n/a'
-                if not isinstance(row['legal_area'], str) and (row['legal_area'] is None or math.isnan(row['legal_area'])):
+                if not isinstance(row['legal_area'], str) and (
+                        row['legal_area'] is None or math.isnan(row['legal_area'])):
                     row['legal_area'] = 'n/a'
                 record = {
                     'id': index,
@@ -318,91 +327,118 @@ class DatasetCreator(AbstractPreprocessor):
                 for record in records:
                     out_file.write(json.dumps(record) + '\n')
 
-    def get_df(self, engine, feature_col):
+    def get_df(self, engine, feature_col, court_string="CH_BGer", overwrite_cache=False):
         """
         get dataframe of all bger cases and add additional information as judgments, sections, filenumber, citations
-        :param engine:      engine used for db connection
-        :param feature_col: defines which sections should be included
-        :return:            dataframe with all data
+        :param engine:          engine used for db connection
+        :param feature_col:     defines which sections should be included
+        :param court_string:    defines which court to load data from
+        :param overwrite_cache: whether to load the data from the cache if it exists or whether to load it anew from the db
+        :return:                dataframe with all data
         """
-        cache_dir = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
-        df = retrieve_from_cache_if_exists(cache_dir)
+        # TODO make sure only feature_col sections are loaded
+
+        cache_file = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.csv'
+        # if cached just load it from there
+        if not overwrite_cache:
+            df = retrieve_from_cache_if_exists(cache_file)
+            if not df.empty:
+                return df
+
+        # otherwise query it from the database
         # TODO check the difference of return cache or directly from db. Problem when directly from db, some
         #  columns cannot be read properly. When executing code a second time and data comes from cache no problems.
-        if df.empty:
-            self.logger.info("Retrieving the data from the database")
+        self.logger.info("Retrieving the data from the database")
 
-            where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGer')}"
-            table_string = 'decision d LEFT JOIN language ON language.language_id = d.language_id'
-            df = next(
-                self.select(engine, table_string, 'd.*, extract(year from d.date) as year, language.iso_code as lang',
-                            where_string,
-                            chunksize=self.get_chunksize()))
-            decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
+        df = self.load_decision(court_string, engine)
+        decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
 
-            print('Loading Judgments')
-            table = f"{join_tables_on_decision(['judgment'])}"
-            where = f"judgment_map.decision_id IN ({','.join(decision_ids)})"
-            judgments_df = next(self.select(engine, table, "judgments", where, None, self.get_chunksize()))
-            df['judgments'] = judgments_df['judgments'].astype(str)
-
-            print('Loading File')
-            table = f"{join_tables_on_decision(['file'])}"
-            file_ids = ["'" + str(x) + "'" for x in df['file_id'].tolist()]
-            where = f"file.file_id IN ({','.join(file_ids)})"
-            file_df = next(self.select(engine, table, 'file.file_name, file.html_url, file.pdf_url', where, None,
-                                       self.get_chunksize()))
-            df['file_name'] = file_df['file_name']
-            df['html_url'] = file_df['html_url']
-            df['pdf_url'] = file_df['pdf_url']
-
-            print('Loading Lower Court')
-
-            table = f"{join_tables_on_decision(['lower_court'])}"
-            where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
-            lower_court_select_fields = ("lower_court.date as origin_date,"
-                                         "lower_court.court_id as origin_court, "
-                                         "lower_court.canton_id as origin_canton, "
-                                         "lower_court.chamber_id as origin_chamber, "
-                                         "lower_court.file_number as origin_file_number")
-            lower_court_df = next(
-                self.select(engine, table, lower_court_select_fields, where, None, self.get_chunksize()))
-            df['origin_date'] = lower_court_df['origin_date']
-            df['origin_court'] = lower_court_df['origin_court']
-            df['origin_canton'] = lower_court_df['origin_canton']
-            df['origin_chamber'] = lower_court_df['origin_chamber']
-            df['origin_file_number'] = lower_court_df['origin_file_number']
-
-            print('Loading Citation')
-            table = f"{join_tables_on_decision(['citation'])}"
-            where = f"citation.decision_id IN ({','.join(decision_ids)})"
-            citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()))
-            df['citations'] = citations_df['citations'].astype(str)
-
-            print('Loading Section')
-            table = f"{join_tables_on_decision(['num_tokens'])}"
-            where = f"section.decision_id IN ({','.join(decision_ids)})"
-            section_df = next(self.select(engine, table, "sections", where, None, self.get_chunksize()))
-            df['sections'] = section_df['sections']
-
-            print('Loading File Number')
-            table = f"{join_tables_on_decision(['file_number'])}"
-            where = f"file_number.decision_id IN ({','.join(decision_ids)})"
-            file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
-
-            # we get a list of file_numbers but only want one, all entries are the same but different syntax
-            def get_one_file_number(column_data):
-                file_number = str(next(iter(column_data or []), None))
-                file_number = file_number.replace(" ", "_")
-                file_number = file_number.replace(".", "_")
-                return file_number
-            df['file_number'] = file_number_df['file_numbers'].map(get_one_file_number)
-
-            save_df_to_cache(df, cache_dir)
-
+        df = self.load_judgment(decision_ids, df, engine)
+        df = self.load_file(df, engine)
+        df = self.load_lower_court(decision_ids, df, engine)
+        df = self.load_citation(decision_ids, df, engine)
+        df = self.load_section(decision_ids, df, engine)
+        df = self.load_file_number(decision_ids, df, engine)
         df = self.get_string_representation(df)
-        self.logger.info("Finished loading the data from the database")
 
+        self.logger.info("Finished loading the data from the database")
+        save_df_to_cache(df, cache_file)
+        return df
+
+    def load_decision(self, court_string, engine):
+        self.logger.info("Loading Decision")
+        table_string = 'decision d LEFT JOIN language ON language.language_id = d.language_id'
+        columns_string = 'd.*, extract(year from d.date) as year, language.iso_code as lang'
+        where_string = f"d.decision_id IN {where_string_court('decision_id', court_string)}"
+        return next(self.select(engine, table_string, columns_string, where_string, chunksize=self.get_chunksize()))
+
+    def load_file_number(self, decision_ids, df, engine):
+        self.logger.info('Loading File Number')
+        table = f"{join_tables_on_decision(['file_number'])}"
+        where = f"file_number.decision_id IN ({','.join(decision_ids)})"
+        file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
+
+        # we get a list of file_numbers but only want one, all entries are the same but different syntax
+        def get_one_file_number(column_data):
+            file_number = str(next(iter(column_data or []), None))
+            file_number = file_number.replace(" ", "_")
+            file_number = file_number.replace(".", "_")
+            return file_number
+
+        df['file_number'] = file_number_df['file_numbers'].map(get_one_file_number)
+        return df
+
+    def load_section(self, decision_ids, df, engine):
+        self.logger.info('Loading Section')
+        table = f"{join_tables_on_decision(['num_tokens'])}"
+        where = f"section.decision_id IN ({','.join(decision_ids)})"
+        section_df = next(self.select(engine, table, "sections", where, None, self.get_chunksize()))
+        df['sections'] = section_df['sections']
+        return df
+
+    def load_citation(self, decision_ids, df, engine):
+        self.logger.info('Loading Citation')
+        table = f"{join_tables_on_decision(['citation'])}"
+        where = f"citation.decision_id IN ({','.join(decision_ids)})"
+        citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()))
+        df['citations'] = citations_df['citations'].astype(str)
+        return df
+
+    def load_file(self, df, engine):
+        self.logger.info('Loading File')
+        table = f"{join_tables_on_decision(['file'])}"
+        columns = 'file.file_name, file.html_url, file.pdf_url'
+        file_ids = ["'" + str(x) + "'" for x in df['file_id'].tolist()]
+        where = f"file.file_id IN ({','.join(file_ids)})"
+        file_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
+        df['file_name'] = file_df['file_name']
+        df['html_url'] = file_df['html_url']
+        df['pdf_url'] = file_df['pdf_url']
+        return df
+
+    def load_judgment(self, decision_ids, df, engine):
+        self.logger.info('Loading Judgments')
+        table = f"{join_tables_on_decision(['judgment'])}"
+        where = f"judgment_map.decision_id IN ({','.join(decision_ids)})"
+        judgments_df = next(self.select(engine, table, "judgments", where, None, self.get_chunksize()))
+        df['judgments'] = judgments_df['judgments'].astype(str)
+        return df
+
+    def load_lower_court(self, decision_ids, df, engine):
+        self.logger.info('Loading Lower Court')
+        table = f"{join_tables_on_decision(['lower_court'])}"
+        columns = ("lower_court.date as origin_date,"
+                   "lower_court.court_id as origin_court, "
+                   "lower_court.canton_id as origin_canton, "
+                   "lower_court.chamber_id as origin_chamber, "
+                   "lower_court.file_number as origin_file_number")
+        where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
+        lower_court_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
+        df['origin_date'] = lower_court_df['origin_date']
+        df['origin_court'] = lower_court_df['origin_court']
+        df['origin_canton'] = lower_court_df['origin_canton']
+        df['origin_chamber'] = lower_court_df['origin_chamber']
+        df['origin_file_number'] = lower_court_df['origin_file_number']
         return df
 
     def get_string_representation(self, df):
@@ -412,9 +448,7 @@ class DatasetCreator(AbstractPreprocessor):
         df['origin_region'] = df.origin_canton.apply(get_region)
 
         def build_info_df(table_name, col_name):
-            info_df = next(
-                self.select(self.get_engine(self.db_scrc), table_name)
-            )
+            info_df = next(self.select(self.get_engine(self.db_scrc), table_name))
             info_dict = {}
             for index, row in info_df.iterrows():
                 info_dict[int(row[f'{table_name}_id'])] = str(row[col_name])
@@ -443,6 +477,7 @@ class DatasetCreator(AbstractPreprocessor):
         :param column:  specifying column (=feature_col) which is cleaned
         :return:        dataframe
         """
+        # TODO refactor this! combine filter_column functions into one
         # replace empty and whitespace strings with nan so that they can be removed
         sections = df['sections']
 
@@ -576,7 +611,7 @@ class DatasetCreator(AbstractPreprocessor):
             train, val, test = self.split_random(df, split)
             splits = {'train': train, 'val': val, 'test': test}
         elif split_type == "date-stratified":
-            train, val, test, secret_test = self.split_date_stratified(df, split)
+            train, val, test, secret_test = self.split_date_stratified(df, self.start_years)
             splits = {'train': train, 'val': val, 'test': test, 'secret_test': secret_test}
         elif split_type == "all_train":
             splits = {'train': df}  # no split at all
@@ -612,7 +647,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.logger.info(f"Processing sub dataset year")
         if split_type == "date-stratified":
-            for year in range(2017, 2020 + 1):
+            for year in range(self.start_years["test"], self.current_year):
                 sub_dataset = sub_datasets_dict['year'][str(year)] = dict()
                 for split_name, split_df in splits.items():
                     sub_dataset[split_name] = split_df[split_df.year == year]
@@ -738,7 +773,8 @@ class DatasetCreator(AbstractPreprocessor):
         """
         # compute median input length
         input_length_distribution = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
-        input_length_distribution.to_csv(split_folder / f'{feature_col}_input_length_distribution.csv', index_label='measure')
+        input_length_distribution.to_csv(split_folder / f'{feature_col}_input_length_distribution.csv',
+                                         index_label='measure')
 
         # bin outliers together at the cutoff point
         cutoff = 4000
@@ -792,20 +828,19 @@ class DatasetCreator(AbstractPreprocessor):
         else:
             self.logger.info("No labels given.")
 
-    @staticmethod
-    def split_date_stratified(df, split):
+    def split_date_stratified(self, df, start_years: dict):
         """
         Splits the df into train, val and test based on the date
-        :param df:      the df to be split
-        :param split:   the exact split (how much of the data goes into train, val and test respectively)
+        :param df:            the df to be split
+        :param start_years:   the years when to start each split
         :return:
         """
         # TODO revise this for datasets including cantonal data and include year 2021
 
-        train = df[df.year.isin(range(2002, 2016))]  # 14 Jahre
-        val = df[df.year.isin(range(2016, 2018))]  # 2 Jahre
-        test = df[df.year.isin(range(2018, 2020))]  # 2 Jahre
-        secret_test = df[df.year.isin(range(2020, 2023))]  # 3 Jahre
+        train = df[df.year.isin(range(start_years["train"], start_years["validation"]))]
+        val = df[df.year.isin(range(start_years["validation"], start_years["test"]))]
+        test = df[df.year.isin(range(start_years["test"], start_years["secret_test"]))]
+        secret_test = df[df.year.isin(range(start_years["secret_test"], self.current_year + 1))]
 
         return train, val, test, secret_test
 
