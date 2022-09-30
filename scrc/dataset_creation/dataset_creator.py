@@ -143,7 +143,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
         self.feature_cols = ["text"]  # to be overridden
-        self.labels = [] # to be overridden
+        self.labels = []  # to be overridden
 
     @abc.abstractmethod
     def get_dataset(self, feature_col, save_reports):
@@ -198,9 +198,8 @@ class DatasetCreator(AbstractPreprocessor):
         :param feature_col_folder:      name of folder
         """
         huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
-        for split in ['train', 'val', 'test', 'secret_test']:
+        for split, df in splits.items():
             records = []
-            df = splits[split]
 
             for index, row in df.iterrows():
                 if not isinstance(row['origin_court'], str) and (row['origin_court'] is None or math.isnan(row['origin_court'])):
@@ -303,12 +302,14 @@ class DatasetCreator(AbstractPreprocessor):
             table = f"{join_tables_on_decision(['file_number'])}"
             where = f"file_number.decision_id IN ({','.join(decision_ids)})"
             file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
+
             # we get a list of file_numbers but only want one, all entries are the same but different syntax
             def get_one_file_number(column_data):
                 file_number = str(next(iter(column_data or []), None))
                 file_number = file_number.replace(" ", "_")
                 file_number = file_number.replace(".", "_")
                 return file_number
+
             decision_df['file_number'] = file_number_df['file_numbers'].map(get_one_file_number)
 
             save_df_to_cache(decision_df, cache_dir)
@@ -351,6 +352,7 @@ class DatasetCreator(AbstractPreprocessor):
             for section in column_data:
                 if section['name'] == column:
                     return section['num_tokens_bert']
+
         df[f"{column}_num_tokens_bert"] = sections.map(filter_column)
 
         def filter_column(column_data):
@@ -360,6 +362,7 @@ class DatasetCreator(AbstractPreprocessor):
             for section in column_data:
                 if section['name'] == column:
                     return section['num_tokens_spacy']
+
         df[f"{column}_num_tokens_spacy"] = sections.map(filter_column)
 
         if self.split_type == "date-stratified":
@@ -455,26 +458,20 @@ class DatasetCreator(AbstractPreprocessor):
                 df.to_csv(folder / f'{split}.csv', index_label='id', index=False)
 
     def create_splits(self, df, split, split_type, include_all=False):
-        self.logger.info("Splitting data into train, val and test set")
+        self.logger.info(f"Dividing data into splits based on split_type: {split_type}")
         if split_type == "random":
             train, val, test = self.split_random(df, split)
-            secret_test = pd.DataFrame()
+            splits = {'train': train, 'val': val, 'test': test}
         elif split_type == "date-stratified":
             train, val, test, secret_test = self.split_date_stratified(df, split)
+            splits = {'train': train, 'val': val, 'test': test, 'secret_test': secret_test}
         elif split_type == "all_train":
-            pass
+            splits = {'train': df}  # no split at all
         else:
             raise ValueError("Please supply a valid split_type")
-        splits = {'train': train, 'val': val, 'test': test, 'secret_test': secret_test}
-        if split_type == "all_train":
-            splits = {'train': df}
-            if include_all:
-                splits['all'] = df
-        else:
-            splits = {'train': train, 'val': val, 'test': test, 'secret_test': secret_test}
-            if include_all:
-                # we need to update it since some entries have been removed
-                splits['all'] = pd.concat([train, val, test])
+
+        if include_all:
+            splits['all'] = pd.concat(splits.values())  # we need to update it since some entries have been removed
 
         return splits
 
@@ -592,7 +589,8 @@ class DatasetCreator(AbstractPreprocessor):
         attribute_df.to_csv(split_folder / f'{attribute}_{label}_distribution.csv')
         # need to make sure to use right type
         attribute_df = attribute_df[~attribute_df[attribute].astype(str).str.contains('all')]
-        fig = px.bar(attribute_df, x=attribute, y="number of decisions", title=f'{attribute}_{label}_distribution-histogram')
+        fig = px.bar(attribute_df, x=attribute, y="number of decisions",
+                     title=f'{attribute}_{label}_distribution-histogram')
         fig.write_image(split_folder / f'{attribute}_{label}_distribution-histogram.png')
         plt.clf()
 
@@ -631,7 +629,8 @@ class DatasetCreator(AbstractPreprocessor):
         """
         # compute median input length
         input_length_distribution = df[['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
-        input_length_distribution.to_csv(split_folder / f'{feature_col}_input_length_distribution.csv', index_label='measure')
+        input_length_distribution.to_csv(split_folder / f'{feature_col}_input_length_distribution.csv',
+                                         index_label='measure')
 
         # bin outliers together at the cutoff point
         cutoff = 4000
