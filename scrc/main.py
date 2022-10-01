@@ -1,3 +1,4 @@
+from scrc.dataset_creation.pretraining_dataset_creator import PretrainingDatasetCreator
 from scrc.preprocessors.create_court_and_chamber_tables import CreateCourtAndChamberTables
 from scrc.preprocessors.language_identifier import LanguageIdentifier
 from scrc.preprocessors.name_to_gender import NameToGender
@@ -67,6 +68,9 @@ def create_specialized_datasets(config):
     judgment_dataset_creator = JudgmentDatasetCreator(config)
     judgment_dataset_creator.create_dataset()
 
+    pretraining_dataset_creator = PretrainingDatasetCreator(config)
+    pretraining_dataset_creator.create_dataset()
+
     citation_dataset_creator = Doc2DocIRDatasetCreator(config)
     citation_dataset_creator.create_dataset()
 
@@ -79,6 +83,9 @@ def construct_base_dataset(config):
     If you want to test a single spider all the way through,
     delete the spider folder inside the directory data/spiders
     """
+    # TODO clean up the whole thing and remove unused things
+
+    # TODO install cronjob that runs this every day
 
     scraper = Scraper(config)
     scraper.download_subfolders(base_url + "docs/")
@@ -132,6 +139,7 @@ def process_external_corpora(config):
     :param config:
     :return:
     """
+    # TODO this should be adapted or can even be removed
     wikipedia_processor = WikipediaProcessor(config)
     wikipedia_processor.process()
 

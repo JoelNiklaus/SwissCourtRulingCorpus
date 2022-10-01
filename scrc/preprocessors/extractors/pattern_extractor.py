@@ -39,7 +39,6 @@ class PatternExtractor(AbstractExtractor):
         super().__init__(config, function_name="pattern_extracting_functions", col_name='')
         self.logger = get_logger(__name__)
         self.columns = ['keyword', 'totalcount', 'example']
-        self.test = Language.DE
         self.df = pd.DataFrame(columns=self.columns)
         self.language = {}
         self.currentLanguage = ''
@@ -285,7 +284,7 @@ class PatternExtractor(AbstractExtractor):
         if lang != Language.EN:
             with pd.ExcelWriter(self.get_path(self.spider, lang)) as writer:
                 for key in dfs:
-                    if key != Section.FULLTEXT:
+                    if key != Section.FULL_TEXT:
                         if 'totalcount' in dfs[key].columns:
                             dfs[key].sort_values(
                                 by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key),

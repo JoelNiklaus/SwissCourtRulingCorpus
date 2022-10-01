@@ -85,7 +85,7 @@ class SectionSplitter(AbstractExtractor):
 
             if len(row['sections']) > 0:
                 # The fulltext equals all other sections combined
-                row['sections'][Section.FULLTEXT] = ['\n'.join(row['sections'][section]) for section in row['sections']]
+                row['sections'][Section.FULL_TEXT] = ['\n'.join(row['sections'][section]) for section in row['sections']]
 
         def get_section_from_df(series, section: Section):
             if isinstance(series[section], str):
@@ -93,8 +93,6 @@ class SectionSplitter(AbstractExtractor):
             return '\n'.join(series[section])
 
         for section in Section:
-            if section == Section.FACTS:
-                print('')
             df[section.name] = df['sections'].apply(lambda row: get_section_from_df(row, section))
             df[section.name+'_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[section.name], batch_size=100)]
             df[section.name+'_bert'] = [len(input_id) for input_id in bert_tokenizer(df[section.name].tolist()).input_ids]   

@@ -123,7 +123,7 @@ class AbstractPreprocessor:
     @staticmethod
     def mark_as_processed(processed_file_path: Path, part: str) -> None:
         with processed_file_path.open("a") as f:
-            f.write(f"{part} + \n")
+            f.write(f"{part}\n")
 
     def compute_remaining_spiders(self, processed_file_path: Path):
         """This can be used to save progress in between runs in case something fails"""
@@ -266,8 +266,7 @@ class AbstractPreprocessor:
         :param logger:      custom logger for info output
         :return:
         """
-        dfs = self.select(engine, table, columns='id, text',
-                          where=where)  # stream dfs from the db
+        dfs = self.select(engine, table, columns='id, text', where=where)  # stream dfs from the db
         for df in dfs:
             # reorder the df so that we get the text first and the id after
             df = df[['text', 'id']]
