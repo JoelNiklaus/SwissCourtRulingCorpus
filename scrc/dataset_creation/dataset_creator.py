@@ -16,7 +16,6 @@ from datasets import DatasetDict, concatenate_datasets
 from scrc.enums.cantons import Canton
 from scrc.data_classes.ruling_citation import RulingCitation
 
-import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 from scrc.enums.section import Section
@@ -385,6 +384,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         for feature_col in self.get_feature_col_names():
             df = self.expand_df(df, feature_col)
+        df.drop(columns=['sections'], inplace=True)
 
         df['chamber'] = df.chamber_id.apply(self.get_string_value, args=[self.chamber_dict])  # chamber
         df['court'] = df.chamber.apply(get_court_from_chamber)  # court: first two parts of chamber_string
@@ -394,7 +394,10 @@ class DatasetCreator(AbstractPreprocessor):
         if court_string == "CH_BGer":
             df['legal_area'] = df.chamber_id.apply(get_legal_area)
         else:
-            df['legal_area'] = np.nan
+            df['legal_area'] = "n/a"
+
+        # drop rows where all the feature cols are nan
+        df.dropna(subset=self.get_feature_col_names(), how='all', inplace=True)
         return df
 
     def get_feature_col_names(self):
@@ -413,6 +416,7 @@ class DatasetCreator(AbstractPreprocessor):
         table = f"{join_tables_on_decision(['file'])}"
         columns = 'file.file_name, file.html_url, file.pdf_url'
         file_ids = ["'" + str(x) + "'" for x in df['file_id'].tolist()]
+
         where = f"file.file_id IN ({','.join(file_ids)})"
         file_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
         df['file_name'] = file_df['file_name']
@@ -575,7 +579,7 @@ class DatasetCreator(AbstractPreprocessor):
             if save_reports or save_csvs:
                 # without the feature_cols, the dataset should fit into RAM
                 # Additionally, we don't want to save the long text columns to the csv files because it becomes unreadable
-                self.logger.info(f"Exporting metadata columns of dataset to pandas dataframe for eaiser plotting")
+                self.logger.info(f"Exporting metadata columns of dataset to pandas dataframe for easier plotting")
                 df = dataset.remove_columns(self.get_feature_col_names()).to_pandas()
             if save_reports:
                 self.logger.info(f"Computing metadata reports")

@@ -30,9 +30,10 @@ class PretrainingDatasetCreator(DatasetCreator):
         hf_dataset = datasets.Dataset.from_pandas(pd.DataFrame())  # init empty dataset
 
         data_to_load = {
-            "section": True, "file": True, "file_number": False,
+            "section": True, "file": False, "file_number": False,
             "judgment": False, "citation": False, "lower_court": False
         }
+        # TODO debug CH_VB
 
         # df = self.get_df(engine, data_to_load, court_string="CH_BGer", overwrite_cache=self.overwrite_cache)
         # hf_dataset = concatenate_datasets([hf_dataset, datasets.Dataset.from_pandas(df)])

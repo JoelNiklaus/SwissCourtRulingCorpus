@@ -289,7 +289,7 @@ def join_tables_on_decision(tables: List[str]) -> str:
                         "(SELECT section_mapped.decision_id, json_strip_nulls(json_agg(json_build_object"
                         "('name', name, 'section_text', section_text, 'num_tokens_bert', num_tokens_bert, 'num_tokens_spacy', num_tokens_spacy))) sections "
                         "FROM (SELECT name, section_text, section.decision_id, num_tokens_bert, num_tokens_spacy FROM section "
-                        "LEFT JOIN section_type  ON section_type.section_type_id = section.section_type_id "
+                        "LEFT JOIN section_type ON section_type.section_type_id = section.section_type_id "
                         "LEFT JOIN num_tokens ON num_tokens.section_id = section.section_id) as section_mapped "
                         "GROUP BY decision_id) as section ON section.decision_id = d.decision_id")
 
