@@ -4,6 +4,9 @@ import re
 import unicodedata
 import configparser
 from os.path import exists
+
+import numpy as np
+
 from root import ROOT_DIR
 import pandas as pd
 
@@ -41,26 +44,28 @@ def save_to_path(content, path, overwrite=False):
     elif isinstance(content, str):
         path.write_text(content)
     elif isinstance(content, dict):
-        path.write_text(json.dumps(content, indent = 4))
+        path.write_text(json.dumps(content, indent=4))
     else:
         raise ValueError(f"Invalid data type {type(content)} supplied.")
 
-    
+
 def get_paragraphs_unified(decision):
     if isinstance(decision, str):
         return get_pdf_paragraphs(decision)
-    elif decision:  
+    elif decision:
         paragraphs = []
         for string in decision.strings:
-            paragraphs.append(string) 
+            paragraphs.append(string)
         paragraphs = list(filter(None, map(clean_text, paragraphs)))
         return paragraphs
-    
+
+
 def clean_whitespace(str):
     str = str.strip()
     if str:
         return True
     return False
+
 
 def get_pdf_paragraphs(soup: str) -> list:
     """
@@ -82,13 +87,24 @@ def get_pdf_paragraphs(soup: str) -> list:
     return paragraphs
 
 
+def get_court_from_chamber(chamber: str) -> str:
+    if chamber in [None, np.nan]:
+        return np.nan
+    return "_".join(chamber.split("_")[:2])
+
+
+def get_canton_from_chamber(chamber: str) -> str:
+    if chamber in [None, np.nan]:
+        return np.nan
+    return chamber.split("_")[0]
+
+
 def get_raw_text(html) -> str:
     """
     Add the entire text: harder for doing sentence splitting later because of header and footer
     :param html:
     :return:
     """
-
     raw_text = html.get_text()
     return raw_text
 
@@ -213,6 +229,6 @@ def save_df_to_cache(df: pd.DataFrame, path: Path):
 def retrieve_from_cache_if_exists(path: Path):
     if path.exists():
         logger.info(f"Loading data from cache at {path}")
-        return pd.read_parquet(path, index_col=False)
+        return pd.read_parquet(path)
     else:
         return pd.DataFrame([])
