@@ -2,6 +2,7 @@ from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.enums.section import Section
 from scrc.utils.log_utils import get_logger
 import numpy as np
+import datasets
 
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import convert_to_binary_judgments
@@ -21,7 +22,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-        self.debug = False
+        self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
@@ -34,10 +35,14 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.labels = ['label']
 
     def prepare_dataset(self, save_reports, court_string):
-        df = self.get_df(self.get_engine(self.db_scrc), court_string, use_cache=False)
+        data_to_load = {
+            "section": True, "file": True, "file_number": True,
+            "judgment": True, "citation": False, "lower_court": True
+        }
+        df = self.get_df(self.get_engine(self.db_scrc), court_string=court_string, data_to_load, use_cache=False)
         if df.empty:
             self.logger.warning("No data found")
-            return df, []
+            return datasets.Dataset.from_pandas(df), []
 
         df = df.dropna(subset=['judgments'])
         df = convert_to_binary_judgments(df, self.with_partials, self.with_write_off, self.with_unification,
@@ -46,7 +51,7 @@ class JudgmentDatasetCreator(DatasetCreator):
 
         df = df.rename(columns={"judgments": "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
-        return df, [labels]
+        return datasets.Dataset.from_pandas(df), [labels]
 
     def plot_custom(self, df, split_folder, folder):
         self.plot_labels(df, split_folder, label_name='label')
@@ -59,7 +64,7 @@ def create_multiple_datasets(court_names, exclude_courts):
         if court_string not in exclude_courts:
             print(f"Creating dataset for {court_string}")
             got_created = judgment_dataset_creator.create_dataset(court_string, sub_datasets=False, kaggle=False,
-                                                              huggingface=True, save_reports=True)
+                                                            save_reports=True)
             if got_created:
                 # rename judgment_prediction folder to {court_string}
                 source = str(ROOT_DIR) + '/data/datasets/judgment_prediction'

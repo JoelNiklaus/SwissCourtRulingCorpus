@@ -1,10 +1,15 @@
+import gc
+
 import pandas as pd
+import datasets
+from datasets import concatenate_datasets
 
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.enums.section import Section
 from scrc.utils.log_utils import get_logger
 
-from scrc.utils.main_utils import get_config
+from scrc.utils.main_utils import get_config, print_memory_usage
+import scrc.utils.monkey_patch  # prevent memory leak with pandas
 
 
 class PretrainingDatasetCreator(DatasetCreator):
@@ -22,27 +27,33 @@ class PretrainingDatasetCreator(DatasetCreator):
         self.dataset_name = "swiss_caselaw"
         self.feature_cols = [Section.FULL_TEXT]
 
-    def prepare_dataset(self, save_reports, court_string):
+    def prepare_dataset(self, save_reports, court_string) -> datasets.Dataset:
         engine = self.get_engine(self.db_scrc)
-
         court_strings = next(self.select(engine, "court", "court_string", None))["court_string"].tolist()
+        hf_dataset = datasets.Dataset.from_pandas(pd.DataFrame())  # init empty dataset
 
-        # df = self.get_df(engine, court_string="BL_EG", overwrite_cache=self.overwrite_cache)
+        data_to_load = {
+            "section": True, "file": False, "file_number": False,
+            "judgment": False, "citation": False, "lower_court": False
+        }
 
-        dfs = []
-        for court_string in court_strings:
+        for string in court_strings:
             # we don't use the cache since it is overwritten after each court
-            df = self.get_df(engine, court_string=court_string, use_cache=False)
-            if not df.empty:
-                dfs.append(df)
+            df = self.get_df(engine, data_to_load, court_string=string, use_cache=False)
 
-        df = pd.concat(dfs)
+            print_memory_usage([df, hf_dataset])
 
-        return df, None
+            self.logger.info("Concatenating datasets")
+            hf_dataset = concatenate_datasets([hf_dataset, datasets.Dataset.from_pandas(df)])
+
+            del df
+            gc.collect()
+
+        return hf_dataset, None
 
 
 if __name__ == '__main__':
     config = get_config()
 
     pretraining_dataset_creator = PretrainingDatasetCreator(config)
-    pretraining_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)
+    pretraining_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=False)

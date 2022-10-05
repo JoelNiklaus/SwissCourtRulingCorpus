@@ -1,9 +1,8 @@
-import ast
 import os.path
 
 import pandas as pd
-import itertools
 import numpy as np
+import datasets
 
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from pathlib import Path
@@ -12,8 +11,6 @@ from scrc.enums.section import Section
 from scrc.utils.main_utils import get_config
 from scrc.utils.log_utils import get_logger
 from collections import Counter
-
-from scrc.utils.sql_select_utils import where_string_spider
 
 """
 Dataset to be created:
@@ -109,7 +106,11 @@ class CriticalityDatasetCreator(DatasetCreator):
         :param save_reports:    whether or not to compute and save reports
         :return:                dataframe and list of labels
         """
-        df = self.get_df(self.get_engine(self.db_scrc))
+        data_to_load = {
+            "section": True, "file": True, "file_number": True,
+            "judgment": False, "citation": True, "lower_court": True
+        }
+        df = self.get_df(self.get_engine(self.db_scrc), data_to_load)
         a = len(df['file_number'].unique())
         self.logger.info(f"BGer: There are {len(df.index)} bger cases with {a} unique file numbers.")
 
@@ -144,7 +145,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         bge_labels, _ = list(np.unique(np.hstack(df.bge_label), return_index=True))
         citation_labels, _ = list(np.unique(np.hstack(df.citation_label), return_index=True))
         label_list = [bge_labels, citation_labels]
-        return df, label_list
+        return datasets.Dataset.from_pandas(df), label_list
 
     def filter_columns(self, df):
         """
@@ -415,5 +416,5 @@ class CriticalityDatasetCreator(DatasetCreator):
 if __name__ == '__main__':
     config = get_config()
     criticality_dataset_creator = CriticalityDatasetCreator(config)
-    criticality_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=True)
+    criticality_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=True)
     # criticality_dataset_creator.create_debug_dataset()

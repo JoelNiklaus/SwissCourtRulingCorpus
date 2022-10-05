@@ -1,6 +1,6 @@
 import itertools
 from collections import Counter
-import ast
+import datasets
 
 from bs4 import BeautifulSoup
 
@@ -175,7 +175,11 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         return pd.DataFrame(arts)
 
     def prepare_dataset(self, save_reports, court_string):
-        df = self.get_df(self.get_engine(self.db_scrc))
+        data_to_load = {
+            "section": True, "file": True, "file_number": True,
+            "judgment": False, "citation": True, "lower_court": True
+        }
+        df = self.get_df(self.get_engine(self.db_scrc), data_to_load)
 
         # df['types'] = df.citations.apply(lambda x: np.unique([cit['type'] for cit in x['rulings']]))
         # df = df[df.types.map(len) >= 1]  # we only want the decisions which actually cite something
@@ -202,7 +206,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
 
         df['label'] = df.rulings  # the label is just the rulings for now
-        return df, self.available_bges
+        return datasets.Dataset.from_pandas(df), self.available_bges
 
     def mask_citations(self, series, law_mask_token="<ref-law>", ruling_mask_token="<ref-ruling>"):
         """
@@ -302,4 +306,4 @@ if __name__ == '__main__':
     config = get_config()
 
     citation_dataset_creator = Doc2DocIRDatasetCreator(config)
-    citation_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=False)
+    citation_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=False)
