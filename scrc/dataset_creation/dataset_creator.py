@@ -266,7 +266,7 @@ class DatasetCreator(AbstractPreprocessor):
             return self.create_dir(self.tmp_subdir, self.dataset_name)
         return self.create_dir(self.datasets_subdir, self.dataset_name)
 
-    def create_dataset(self, court_string="BGer", sub_datasets=False, kaggle=False, save_reports=False):
+    def create_dataset(self, court_string="CH_BGer", sub_datasets=False, kaggle=False, save_reports=False):
         """
         Retrieves the respective function named by the dataset and executes it to get the df for that dataset.
         :return:
