@@ -232,3 +232,17 @@ def retrieve_from_cache_if_exists(path: Path):
         return pd.read_parquet(path)
     else:
         return pd.DataFrame([])
+
+
+def print_memory_usage(self, objects):
+    import gc
+    import sys
+    print("Number of tracked objects", len(gc.get_objects()))
+    for index, object in enumerate(objects):
+        print(f"Memory size of object {index}: {round(sys.getsizeof(object) / (1024 * 1024), 2)} MB")
+
+    import psutil
+    print(f"Memory size of the process: {round(psutil.Process().memory_info().rss / (1024 * 1024), 2)} MB")
+
+    from resource import getrusage, RUSAGE_SELF
+    print(f"Peak memory usage: {round(getrusage(RUSAGE_SELF).ru_maxrss / 1024, 2)} MB")

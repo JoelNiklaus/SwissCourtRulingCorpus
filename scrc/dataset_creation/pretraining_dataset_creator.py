@@ -1,3 +1,5 @@
+import gc
+
 import pandas as pd
 import datasets
 from datasets import concatenate_datasets
@@ -6,7 +8,8 @@ from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.enums.section import Section
 from scrc.utils.log_utils import get_logger
 
-from scrc.utils.main_utils import get_config
+from scrc.utils.main_utils import get_config, print_memory_usage
+import scrc.utils.monkey_patch  # prevent memory leak with pandas
 
 
 class PretrainingDatasetCreator(DatasetCreator):
@@ -33,19 +36,18 @@ class PretrainingDatasetCreator(DatasetCreator):
             "section": True, "file": False, "file_number": False,
             "judgment": False, "citation": False, "lower_court": False
         }
-        # TODO debug CH_VB
-
-        # df = self.get_df(engine, data_to_load, court_string="CH_BGer", overwrite_cache=self.overwrite_cache)
-        # hf_dataset = concatenate_datasets([hf_dataset, datasets.Dataset.from_pandas(df)])
-        # return hf_dataset, None
-
-        # df = self.get_df(engine, data_to_load, court_string="AI_KG", overwrite_cache=self.overwrite_cache)
-        # hf_dataset = concatenate_datasets([hf_dataset, datasets.Dataset.from_pandas(df)])
 
         for court_string in court_strings:
             # we don't use the cache since it is overwritten after each court
             df = self.get_df(engine, data_to_load, court_string=court_string, use_cache=False)
+
+            print_memory_usage([df, hf_dataset])
+
+            self.logger.info("Concatenating datasets")
             hf_dataset = concatenate_datasets([hf_dataset, datasets.Dataset.from_pandas(df)])
+
+            del df
+            gc.collect()
 
         return hf_dataset, None
 
