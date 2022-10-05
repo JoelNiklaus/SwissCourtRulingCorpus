@@ -1,11 +1,11 @@
 """
-- ROUGE-L, ROUGE-1, ROUGE-2 (Lin, 2004) https://pypi.org/project/rouge-score/
-- BLEU (Papineni et al., 2001) (unigram and bigram averaging) https://www.journaldev.com/46659/bleu-score-in-python
-- METEOR (Lavie and Agarwal, 2007) https://stackoverflow.com/questions/63778133/how-can-i-implement-meteor-score-when-evaluating-a-model-when-using-the-meteor-s
+- [x] ROUGE-L, ROUGE-1, ROUGE-2 (Lin, 2004) https://pypi.org/project/rouge-score/
+- [x] BLEU (Papineni et al., 2001) (unigram and bigram averaging) https://www.journaldev.com/46659/bleu-score-in-python
+- [x] METEOR (Lavie and Agarwal, 2007) https://stackoverflow.com/questions/63778133/how-can-i-implement-meteor-score-when-evaluating-a-model-when-using-the-meteor-s
 - [x] Jaccard Similarity, Jaccard distance https://pyshark.com/jaccard-similarity-and-jaccard-distance-in-python/
 - [x] Overlap Maximum and Overlap Minimum https://www.geeksforgeeks.org/maximum-number-of-overlapping-intervals/
 - BARTScore (Yuan et al., 2021) https://github.com/neulab/BARTScore
-- BERTScore Zhang et al. (2020) https://pypi.org/project/bert-score/
+- [x] BERTScore Zhang et al. (2020) https://pypi.org/project/bert-score/
 - By looking at the annotated sentences themselves and at the reasoning in the free-text annotation for some of the more complex cases4 a qualitative analysis of
 the annotation is also possible.
 """
@@ -27,7 +27,7 @@ from bert_score import score, plot_example
 
 from scrc.annotation.judgment_explainability.annotations.preprocessing_functions import LANGUAGES, \
     PERSONS, \
-    LABELS, AGGREGATIONS, extract_dataset, to_csv, get_tokens_dict, extract_values_from_column, get_span_df, \
+    LABELS, AGGREGATIONS, extract_dataset, write_csv, get_tokens_dict, extract_values_from_column, get_span_df, \
     group_columns, get_white_space_dicts, string_to_dict
 
 NAN_KEY = 10000
@@ -63,13 +63,9 @@ def process_dataset(datasets: dict, lang: str):
                 label_df = string_to_dict(label_df, f'tokens_dict_{pers}')
 
 
-            o = calculate_overlap_min_max(label_df.copy(), lang)
-            j = calculate_jaccard_similarity_distance(label_df.copy(), lang)
-            r = calculate_rouge_score(label_df, lang)
-            #b = calculate_bert_score(label_df, lang)
-
-            calculate_text_scores(label_df, lang)
-
+            o = calculate_overlap_min_max(label_df, lang)
+            j = calculate_jaccard_similarity_distance(label_df, lang)
+            r, be, m, b = calculate_text_scores(label_df, lang)
 
             label_df = label_df.merge(o, on='annotations_{}'.format("de"),
                                       how='outer')
@@ -78,18 +74,16 @@ def process_dataset(datasets: dict, lang: str):
 
             label_df = label_df.merge(r, on='annotations_{}'.format("de"),
                                       how='outer')
-            """
 
+            label_df = label_df.merge(be, on='annotations_{}'.format("de"),
+                                      how='outer')
+            label_df = label_df.merge(m, on='annotations_{}'.format("de"),
+                                      how='outer')
             label_df = label_df.merge(b, on='annotations_{}'.format("de"),
                                       how='outer')
-                                      
-            s"""
 
             globals()[f"{label.lower().replace(' ', '_')}_{lang}"] = label_df
 
-            # calculate_bleu_score()
-            # calculate_meteor_score()
-            # calculate_bert_score()
 
             for agg in AGGREGATIONS:
                 apply_aggregation(globals()[f"{label.lower().replace(' ', '_')}_{lang}"], "overlap_maximum",
@@ -101,9 +95,20 @@ def process_dataset(datasets: dict, lang: str):
                 apply_aggregation(globals()[f"{label.lower().replace(' ', '_')}_{lang}"], "jaccard_distance",
                                   agg)
 
-            to_csv(Path("{}/{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}")),
-                   globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
-            print("Saved {}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}"))
+                apply_aggregation(globals()[f"{label.lower().replace(' ', '_')}_{lang}"],"meteor_score",
+                                  agg)
+                apply_aggregation(globals()[f"{label.lower().replace(' ', '_')}_{lang}"],"bleu_score",
+                                  agg)
+
+        else:
+            globals()[f"{label.lower().replace(' ', '_')}_{lang}"] = label_df
+
+
+
+
+        write_csv(Path("{}/{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}")),
+                      globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
+        print("Saved {}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}"))
 
 
 def get_annotator_df(annotator_name: str, tokens: pd.DataFrame, lang: str) -> pd.DataFrame:
@@ -272,66 +277,7 @@ def calculate_jaccard_similarity_distance(df: pd.DataFrame, lang) -> pd.DataFram
         jaccard_list.append(jaccard)
     return pd.DataFrame.from_records(jaccard_list)
 
-def calculate_rouge_score(df: pd.DataFrame, lang:str) -> pd.DataFrame:
-    rouge_list = []
-    rouge_scores = ['rouge1','rouge2','rougeL']
-    scorer = rs.RougeScorer(rouge_scores, use_stemmer=True)
-    for value_list in df[
-        ['annotations_{}'.format(lang), f"tokens_id_{PERSONS[0]}", f"tokens_id_{PERSONS[1]}", f"tokens_id_{PERSONS[2]}",
-         f'tokens_dict_{PERSONS[0]}', f'tokens_ws_dict_{PERSONS[0]}',
-         f'tokens_dict_{PERSONS[1]}', f'tokens_ws_dict_{PERSONS[1]}',
-         f'tokens_dict_{PERSONS[2]}', f'tokens_ws_dict_{PERSONS[2]}']].values:
-        text_combinations = get_text_combinations(copy.deepcopy(value_list[1:4]), copy.deepcopy(value_list))
-        rouge = {'annotations_{}'.format(lang): value_list[0], rouge_scores[0]: [], rouge_scores[1]: [], rouge_scores[2]: []}
-        for comb in text_combinations:
-            scores = scorer.score(comb[0],comb[1])
-            for i in range(len(rouge_scores)):
-                rouge[rouge_scores[i]].append(scores[rouge_scores[i]])
-        if len(text_combinations) != 0:
-            rouge_list.append(rouge)
-    return pd.DataFrame.from_records(rouge_list)
-
-def calculate_bleu_score():
-    reference = [
-        'this is a dog'.split(),
-        'it is dog'.split(),
-        'dog it is'.split(),
-        'a dog, it is'.split()
-    ]
-    candidate = 'it is dog'.split()
-    print('BLEU score -> {}'.format(sentence_bleu(reference, candidate)))
-
-
-def calculate_meteor_score():
-    meteor_list =[]
-
-    print(nltk.translate.meteor_score.meteor_score(
-        ["this is an apple", "that is an apple"], "an apple on this tree"))
-    print(nltk.translate.meteor_score.meteor_score(
-        ["this is an apple", "that is an apple"], "a red color fruit"))
-
-
-def calculate_bert_score(df: pd.DataFrame, lang:str)->pd.DataFrame:
-    bert_list = []
-    for value_list in df[
-        ['annotations_{}'.format(lang), f"tokens_id_{PERSONS[0]}", f"tokens_id_{PERSONS[1]}", f"tokens_id_{PERSONS[2]}",
-         f'tokens_dict_{PERSONS[0]}', f'tokens_ws_dict_{PERSONS[0]}',
-         f'tokens_dict_{PERSONS[1]}', f'tokens_ws_dict_{PERSONS[1]}',
-         f'tokens_dict_{PERSONS[2]}', f'tokens_ws_dict_{PERSONS[2]}']].values:
-        text_combinations = get_text_combinations(copy.deepcopy(value_list[1:4]), copy.deepcopy(value_list))
-        bert = {'annotations_{}'.format(lang): value_list[0], "P": [], "R":[], "F1": [] }
-        for comb in text_combinations:
-            P, R, F1 = score([comb[0]], [comb[1]], lang="other", verbose=True)
-            bert["P"].append(P)
-            bert["R"].append(R)
-            bert["F1"].append(F1)
-            print(f"System level F1 score: {F1.mean():.3f}")
-        plot_example(text_combinations[0][0],text_combinations[0][1], lang="other")
-        bert_list.append(bert)
-    return pd.DataFrame.from_records(bert_list)
-
-
-def cal_rouge_score(i: int,text_combinations: list, rouge_list:list, lang: str):
+def calculate_rouge_score(i: int,text_combinations: list, rouge_list:list, lang: str) -> list:
     rouge_scores = ['rouge1', 'rouge2', 'rougeL']
     scorer = rs.RougeScorer(rouge_scores, use_stemmer=True)
     rouge = {'annotations_{}'.format(lang): i, rouge_scores[0]: [], rouge_scores[1]: [],
@@ -344,37 +290,51 @@ def cal_rouge_score(i: int,text_combinations: list, rouge_list:list, lang: str):
         rouge_list.append(rouge)
     return rouge_list
 
-def cal_bert(i: int,text_combinations:list, bert_list:list, lang: str):
+def calculate_bleu_score(i: int,text_combinations:list, bleu_list:list, lang: str):
+    bleu = {'annotations_{}'.format(lang): i, "bleu_score": []}
+    for comb in text_combinations:
+        b_s = sentence_bleu([comb[0]], comb[1])
+        bleu["bleu_score"].append(b_s)
+    bleu_list.append(bleu)
+    return bleu_list
+
+
+def calculate_meteor_score(i: int,text_combinations:list, meteor_list:list, lang: str):
+    meteor = {'annotations_{}'.format(lang): i, "meteor_score":[] }
+    for comb in text_combinations:
+        m_s = nltk.translate.meteor_score.meteor_score([comb[0]], comb[1])
+        meteor["meteor_score"].append(m_s)
+    meteor_list.append(meteor)
+    return meteor_list
+
+
+def calculate_bert_score(i: int,text_combinations:list, bert_list:list, lang: str) -> list:
     bert = {'annotations_{}'.format(lang): i, "P": [], "R": [], "F1": []}
     for comb in text_combinations:
         P, R, F1 = score([comb[0]], [comb[1]], lang="other", verbose=True)
         bert["P"].append(P)
         bert["R"].append(R)
         bert["F1"].append(F1)
-        print(f"System level F1 score: {F1.mean():.3f}")
     #plot_example(text_combinations[0][0], text_combinations[0][1], lang="other")
     bert_list.append(bert)
     return bert_list
 
-
-def calculate_text_scores(df: pd.DataFrame, lang:str)->pd.DataFrame:
+def calculate_text_scores(df: pd.DataFrame, lang:str)-> (pd.DataFrame,pd.DataFrame):
     bert_list = []
     meteor_list =[]
     rouge_list = []
+    bleu_list = []
     for value_list in df[
         ['annotations_{}'.format(lang), f"tokens_id_{PERSONS[0]}", f"tokens_id_{PERSONS[1]}", f"tokens_id_{PERSONS[2]}",
          f'tokens_dict_{PERSONS[0]}', f'tokens_ws_dict_{PERSONS[0]}',
          f'tokens_dict_{PERSONS[1]}', f'tokens_ws_dict_{PERSONS[1]}',
          f'tokens_dict_{PERSONS[2]}', f'tokens_ws_dict_{PERSONS[2]}']].values:
         text_combinations = get_text_combinations(copy.deepcopy(value_list[1:4]), copy.deepcopy(value_list))
-        rouge_list = cal_rouge_score(value_list[0],text_combinations, rouge_list, lang)
-        print(pd.DataFrame.from_records(rouge_list))
-        #bert_list = cal_bert(value_list[0], text_combinations, bert_list, lang)
-        #print(pd.DataFrame.from_records(bert_list))
-    return pd.DataFrame.from_records(bert_list)
-
-
-
+        rouge_list = calculate_rouge_score(value_list[0],text_combinations, rouge_list, lang)
+        bert_list = calculate_bert_score(value_list[0], text_combinations, bert_list, lang)
+        meteor_list = calculate_meteor_score(value_list[0],text_combinations,meteor_list, lang)
+        bleu_list = calculate_bleu_score(value_list[0],text_combinations,bleu_list, lang)
+    return pd.DataFrame.from_records(rouge_list),pd.DataFrame.from_records(bert_list), pd.DataFrame.from_records(meteor_list), pd.DataFrame.from_records(bleu_list)
 
 def calculate_cohen_kappa(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     """

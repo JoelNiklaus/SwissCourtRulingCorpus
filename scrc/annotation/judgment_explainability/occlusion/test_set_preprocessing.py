@@ -16,7 +16,7 @@ Json structure
 
 
 import pandas as pd
-
+from pathlib import Path
 # Constant variable definitions
 GOLD_SESSIONS = {"de": "gold_final", "fr": "gold_nina", "it": "gold_nina"}
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment", "Neutral"]
@@ -27,7 +27,7 @@ ORIGINAL_TEST_SET = pd.DataFrame
 
 from scrc.annotation.judgment_explainability.annotations.preprocessing_functions \
     import LANGUAGES, extract_dataset, get_tokens_dict, extract_values_from_column, get_span_df, group_columns, \
-    read_csv, write_JSONL, string_to_dict, get_white_space_dicts
+    read_csv, write_JSONL, string_to_dict, get_white_space_dicts,write_csv
 
 
 def process_dataset(datasets: dict, lang: str):
@@ -158,8 +158,8 @@ def occlude_text(df: pd.DataFrame) -> pd.DataFrame:
                     occlusion_string = occlusion_string + token + " "
                 else:
                     occlusion_string = occlusion_string + token
-            row["text"] = row["text"].replace(occlusion_string, "[tokens removed] ")
-            assert row["text"].find("[tokens removed]") != -1
+            row["text"] = row["text"].replace(occlusion_string, " ")
+            assert row["text"].find(occlusion_string) == -1
         occlusion_list.append(occlusion_string)
         text_list.append(row["text"])
     df[["facts"]] = text_list
@@ -180,26 +180,46 @@ def get_facts(df: pd.DataFrame, lang) -> pd.DataFrame:
     return facts_df
 
 
-def appends_df(filename: str):
+def appends_df(filename: str, lang: str):
     """
     Appends Dataframes for each label to a Dataframe.
     Resets the index, converts to dictionary and writes JSONL using write_JSONL().
     """
     df = pd.DataFrame()
-    for label in LABELS:
-        df = df.append(globals()[f"{label.lower().replace(' ', '_')}_{l}"])
-    write_JSONL(filename, df.reset_index().drop("index", axis=1).reset_index().to_dict("records"))
+    for label in LABELS[1:]:
+        df = df.append(globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
+    write_csv(Path(filename), df.reset_index().drop("index", axis=1))
+
+def insert_lower_courts(lang: str):
+    df = pd.DataFrame.from_records(globals()[f"{LABELS[0].lower().replace(' ', '_')}_{lang}"])
+    lower_court_list = list(df["occluded_text"].unique())
+    unique_list = []
+    for lower_court in lower_court_list:
+        if lower_court != 'None':
+            if lower_court[-1] == ' ':
+                if lower_court[-2] == ' ':
+                    unique_list.append(lower_court[:-2])
+                else:
+                    unique_list.append(lower_court[:-1])
+            if lower_court[-1] != ' ':
+                unique_list.append(lower_court)
+    lower_court_list = list(set(unique_list))
+
+
+
 
 
 if __name__ == '__main__':
     extracted_datasets = extract_dataset("../annotations/{}/gold/gold_annotations_{}.jsonl",
                                          "../annotations/{}/gold/gold_annotations_{}-{}.jsonl")
     for l in LANGUAGES:
-        ORIGINAL_TEST_SET = read_csv(CSV_PATH.format(l))[['text', 'label', 'origin_canton', 'origin_region']]
+        ORIGINAL_TEST_SET = read_csv(CSV_PATH.format(l), "id")[['text', 'label', 'origin_canton', 'origin_region']]
         ORIGINAL_TEST_SET.index.name = "id_csv"
         try:
             process_dataset(extracted_datasets, l)
-            appends_df(f"occlusion_test_set_{l}.jsonl")
+            appends_df(f"occlusion_test_set_{l}_exp_1.csv", l)
+            insert_lower_courts(l)
+
         except KeyError as err:
             print(err)
             pass

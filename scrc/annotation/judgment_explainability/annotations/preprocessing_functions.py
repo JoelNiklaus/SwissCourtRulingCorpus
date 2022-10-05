@@ -70,13 +70,13 @@ def write_JSONL(filename: str, data: list):
     print("Successfully saved file " + filename)
 
 
-def read_csv(filepath: str) -> pd.DataFrame:
+def read_csv(filepath: str, index: str) -> pd.DataFrame:
     """
     Reads CSV file sets index to "id" and returns a DataFrame.
     """
     df = pd.read_csv(filepath)
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-    df = df.set_index("id")
+    df = df.set_index(index)
     return df
 
 
@@ -89,8 +89,8 @@ def dump_user_input(dataset_dict: dict):
         try:
             lang = re.search("de|fr|it", str(data)).group(0)
             user_input = dataset_dict[data][dataset_dict[data]["user_input"] != ""]
-            to_csv(Path("{}/{}_user_input.csv".format(lang, dataset_dict[data].index.name)),
-                   user_input[['id_scrc', '_annotator_id', "user_input"]])
+            write_csv(Path("{}/{}_user_input.csv".format(lang, dataset_dict[data].index.name)),
+                      user_input[['id_scrc', '_annotator_id', "user_input"]])
             print("Saved {}.csv successfully!".format(dataset_dict[data].index.name + "_user_input"))
         except KeyError:
             pass
@@ -105,19 +105,19 @@ def dump_case_not_accepted(dataset_dict: dict):
         try:
             lang = re.search("de|fr|it", str(data)).group(0)
             case_not_accepted = dataset_dict[data][dataset_dict[data]["answer"] != "accept"]
-            to_csv(Path("{}/{}_ig_re.csv".format(lang, dataset_dict[data].index.name)),
-                   case_not_accepted[['id_scrc', '_annotator_id', "user_input"]])
+            write_csv(Path("{}/{}_ig_re.csv".format(lang, dataset_dict[data].index.name)),
+                      case_not_accepted[['id_scrc', '_annotator_id', "user_input"]])
             print("Saved {}.csv successfully!".format(dataset_dict[data].index.name + "_ig_re"))
         except KeyError:
             pass
 
 
-def to_csv(filepath: Path, df: pd.DataFrame):
+def write_csv(filepath: Path, df: pd.DataFrame):
     """
     Creates a csv from Dataframe and saves it.
     """
     filepath.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(filepath)
+    df.to_csv(filepath, index=True,index_label="index")
 
 
 def get_tokens_dict(df: pandas.DataFrame, col_1: str, col_2: str, new_col: str) -> pandas.DataFrame:
