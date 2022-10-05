@@ -18,11 +18,11 @@ class JudgmentDatasetCreator(DatasetCreator):
     Creates a dataset with the facts or considerations as input and the judgments as labels
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, debug: bool = True):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-        self.debug = True
+        self.debug = debug
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
@@ -39,7 +39,7 @@ class JudgmentDatasetCreator(DatasetCreator):
             "section": True, "file": True, "file_number": True,
             "judgment": True, "citation": False, "lower_court": True
         }
-        df = self.get_df(self.get_engine(self.db_scrc), court_string=court_string, data_to_load, use_cache=False)
+        df = self.get_df(self.get_engine(self.db_scrc), data_to_load, court_string=court_string, use_cache=False)
         if df.empty:
             self.logger.warning("No data found")
             return datasets.Dataset.from_pandas(df), []
@@ -63,7 +63,7 @@ def create_multiple_datasets(court_names, exclude_courts):
     for court_string in tqdm(court_names):
         if court_string not in exclude_courts:
             print(f"Creating dataset for {court_string}")
-            got_created = judgment_dataset_creator.create_dataset(court_string, sub_datasets=False, kaggle=False,
+            got_created = judgment_dataset_creator.create_dataset(court_string=court_string, sub_datasets=False, kaggle=False,
                                                             save_reports=True)
             if got_created:
                 # rename judgment_prediction folder to {court_string}
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     # all courts that can be generated but with some issues
     courts_issues = get_issue_courts()
 
-    judgment_dataset_creator = JudgmentDatasetCreator(config)
+    judgment_dataset_creator = JudgmentDatasetCreator(config, debug=False)
 
     create_multiple_datasets(court_strings, exclude_courts=courts_done + courts_error + courts_issues)
     # 76/183 not created

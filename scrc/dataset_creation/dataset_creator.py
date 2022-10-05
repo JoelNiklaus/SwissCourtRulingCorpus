@@ -276,8 +276,8 @@ class DatasetCreator(AbstractPreprocessor):
         # TODO in the future: maybe save text as list of paragraphs
         # TODO make sure that the same data is saved to kaggle, csv and huggingface format!
 
-        dataset, labels = self.prepare_dataset(save_reports)
-        if dataset.empty:
+        dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
+        if len(dataset) == 0:
             return False
         dataset = dataset.shuffle(seed=42)
         self.save_dataset(dataset, labels, self.get_dataset_folder(), self.split_type,
@@ -455,7 +455,7 @@ class DatasetCreator(AbstractPreprocessor):
                    "lower_court.chamber_id as origin_chamber, "
                    "lower_court.file_number as origin_file_number")
         where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
-        lower_court_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
+        lower_court_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()), pd.DataFrame())
         if not lower_court_df.empty:
             df['origin_file_number'] = lower_court_df['origin_file_number']
             df['origin_date'] = lower_court_df['origin_date']
