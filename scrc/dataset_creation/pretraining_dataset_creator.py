@@ -22,7 +22,7 @@ class PretrainingDatasetCreator(DatasetCreator):
         self.dataset_name = "swiss_caselaw"
         self.feature_cols = [Section.FULL_TEXT]
 
-    def prepare_dataset(self, save_reports):
+    def prepare_dataset(self, save_reports, court_string):
         engine = self.get_engine(self.db_scrc)
 
         court_strings = next(self.select(engine, "court", "court_string", None))["court_string"].tolist()

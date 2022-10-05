@@ -103,7 +103,7 @@ class CriticalityDatasetCreator(DatasetCreator):
             bge_list.extend(all)
         return bge_list
 
-    def prepare_dataset(self, save_reports):
+    def prepare_dataset(self, save_reports, court_string):
         """
         get of all bger cases and set bge_label and citation_label
         :param save_reports:    whether or not to compute and save reports

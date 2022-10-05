@@ -6,6 +6,11 @@ import numpy as np
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import convert_to_binary_judgments
 
+import os
+from tqdm import tqdm
+from root import ROOT_DIR
+from scrc.utils.court_names import get_all_courts, get_issue_courts, get_error_courts
+
 
 class JudgmentDatasetCreator(DatasetCreator):
     """
@@ -16,7 +21,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         super().__init__(config)
         self.logger = get_logger(__name__)
 
-        self.debug = True
+        self.debug = False
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
@@ -28,8 +33,11 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.make_single_label = True
         self.labels = ['label']
 
-    def prepare_dataset(self, save_reports):
-        df = self.get_df(self.get_engine(self.db_scrc))
+    def prepare_dataset(self, save_reports, court_string):
+        df = self.get_df(self.get_engine(self.db_scrc), court_string, use_cache=False)
+        if df.empty:
+            self.logger.warning("No data found")
+            return df, []
 
         df = df.dropna(subset=['judgments'])
         df = convert_to_binary_judgments(df, self.with_partials, self.with_write_off, self.with_unification,
@@ -43,8 +51,49 @@ class JudgmentDatasetCreator(DatasetCreator):
     def plot_custom(self, df, split_folder, folder):
         self.plot_labels(df, split_folder, label_name='label')
 
+
+def create_multiple_datasets(court_names, exclude_courts):
+    not_created = []
+    created = []
+    for court_string in tqdm(court_names):
+        if court_string not in exclude_courts:
+            print(f"Creating dataset for {court_string}")
+            got_created = judgment_dataset_creator.create_dataset(court_string, sub_datasets=False, kaggle=False,
+                                                              huggingface=True, save_reports=True)
+            if got_created:
+                # rename judgment_prediction folder to {court_string}
+                source = str(ROOT_DIR) + '/data/datasets/judgment_prediction'
+                destination = str(ROOT_DIR) + '/data/datasets/' + court_string
+                os.rename(source, destination)
+                created.append(court_string)
+            else:
+                print(f"Dataset for {court_string} could not be created")
+                not_created.append(court_string)
+            print("Empty courts: ", not_created)
+    print(f"{len(not_created)} courts not created: ", not_created)
+    print(f"{len(created)} courts created: ", created)
+
+
 if __name__ == '__main__':
     config = get_config()
 
+    # get names of all courts
+    court_strings = get_all_courts()
+
+    # taking all folder names from /data/datasets as a list to know which courts are already generated
+    courts_done = os.listdir(os.path.join(ROOT_DIR, "data", "datasets"))
+
+    # all courts that couldn't be created
+    courts_error = get_error_courts()
+
+    # all courts that can be generated but with some issues
+    courts_issues = get_issue_courts()
+
     judgment_dataset_creator = JudgmentDatasetCreator(config)
-    judgment_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, huggingface=True, save_reports=True)
+
+    create_multiple_datasets(court_strings, exclude_courts=courts_done + courts_error + courts_issues)
+    # 76/183 not created
+    # 107/183 created - 2 without reports, 6 without file_numbers
+
+
+

@@ -213,6 +213,7 @@ def save_df_to_cache(df: pd.DataFrame, path: Path):
 def retrieve_from_cache_if_exists(path: Path):
     if path.exists():
         logger.info(f"Loading data from cache at {path}")
-        return pd.read_parquet(path, index_col=False)
+        return pd.read_parquet(path)   # index_col=False gives error
+
     else:
         return pd.DataFrame([])

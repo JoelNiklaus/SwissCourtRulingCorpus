@@ -157,7 +157,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.available_bges = []  # to be overridden
 
     @abc.abstractmethod
-    def prepare_dataset(self, save_reports):
+    def prepare_dataset(self, save_reports, court_string):
         pass
 
     def get_chunksize(self):
@@ -252,7 +252,7 @@ class DatasetCreator(AbstractPreprocessor):
             return self.create_dir(self.tmp_subdir, self.dataset_name)
         return self.create_dir(self.datasets_subdir, self.dataset_name)
 
-    def create_dataset(self, sub_datasets=False, kaggle=False, huggingface=False, save_reports=False):
+    def create_dataset(self, court_string="BGer", sub_datasets=False, kaggle=False, huggingface=False, save_reports=False):
         """
         Retrieves the respective function named by the dataset and executes it to get the df for that dataset.
         :return:
@@ -262,10 +262,13 @@ class DatasetCreator(AbstractPreprocessor):
         # TODO in the future: maybe save text as list of paragraphs
         # TODO make sure that the same data is saved to kaggle, csv and huggingface format!
 
-        df, labels = self.prepare_dataset(save_reports)
+        df, labels = self.prepare_dataset(save_reports, court_string)
+        if df.empty:
+            return False
         df = df.sample(frac=1).reset_index(drop=True)  # shuffle dataset to make sampling easier
         self.save_dataset(df, labels, self.get_dataset_folder(), self.split_type,
                           sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+        return True
 
     def save_huggingface_dataset(self, splits, feature_col_folder):
         """
@@ -311,7 +314,6 @@ class DatasetCreator(AbstractPreprocessor):
 
         # otherwise query it from the database
         self.logger.info(f"Retrieving the data from the database for court {court_string}")
-
         df = self.load_decision(court_string, engine)
         if df.empty:
             return df # return right away so we don't run into errors
@@ -337,13 +339,17 @@ class DatasetCreator(AbstractPreprocessor):
         table = 'decision d LEFT JOIN language ON language.language_id = d.language_id'
         columns = 'd.*, extract(year from d.date) as year, language.iso_code as lang'
         where = f"d.decision_id IN {where_string_court('decision_id', court_string)}"
-        return next(self.select(engine, table, columns, where, chunksize=self.get_chunksize()))
+        return next(self.select(engine, table, columns, where, chunksize=self.get_chunksize()), pd.DataFrame())
 
     def load_file_number(self, decision_ids, df, engine):
         self.logger.info('Loading File Number')
         table = f"{join_tables_on_decision(['file_number'])}"
         where = f"file_number.decision_id IN ({','.join(decision_ids)})"
-        file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
+        try:
+            file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
+        except StopIteration:
+            self.logger.info("Exception caught in line 352: load_file_number")
+            return df
 
         # we get a list of file_numbers but only want one, all entries are the same but different syntax
         def get_one_file_number(column_data):
@@ -371,8 +377,11 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info('Loading Citation')
         table = f"{join_tables_on_decision(['citation'])}"
         where = f"citation.decision_id IN ({','.join(decision_ids)})"
-        citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()))
-        df['citations'] = citations_df['citations'].astype(str)
+        citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()), pd.DataFrame())
+        if not citations_df.empty:
+            df['citations'] = citations_df['citations'].astype(str)
+        else:
+            df['citations'] = ""
         return df
 
     def load_file(self, df, engine):
@@ -391,8 +400,12 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info('Loading Judgments')
         table = f"{join_tables_on_decision(['judgment'])}"
         where = f"judgment_map.decision_id IN ({','.join(decision_ids)})"
-        judgments_df = next(self.select(engine, table, "judgments", where, None, self.get_chunksize()))
-        df['judgments'] = judgments_df['judgments'].astype(str)
+        judgments_df = next(self.select(engine, table, "judgments", where, None, self.get_chunksize()), pd.DataFrame())
+        if not judgments_df.empty:
+            df['judgments'] = judgments_df['judgments'].astype(str)
+        else:
+            df['judgments'] = ""
+            self.logger.info("judgments_df is empty")
         return df
 
     def load_lower_court(self, decision_ids, df, engine):
@@ -404,12 +417,13 @@ class DatasetCreator(AbstractPreprocessor):
                    "lower_court.chamber_id as origin_chamber, "
                    "lower_court.file_number as origin_file_number")
         where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
-        lower_court_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
-        df['origin_date'] = lower_court_df['origin_date']
-        df['origin_court'] = lower_court_df['origin_court']
-        df['origin_canton'] = lower_court_df['origin_canton']
-        df['origin_chamber'] = lower_court_df['origin_chamber']
-        df['origin_file_number'] = lower_court_df['origin_file_number']
+        lower_court_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()), pd.DataFrame())
+        if not lower_court_df.empty:
+            df['origin_date'] = lower_court_df['origin_date']
+            df['origin_court'] = lower_court_df['origin_court']
+            df['origin_canton'] = lower_court_df['origin_canton']
+            df['origin_chamber'] = lower_court_df['origin_chamber']
+            df['origin_file_number'] = lower_court_df['origin_file_number']
         return df
 
     def get_string_representation(self, df, court_string):
@@ -612,7 +626,7 @@ class DatasetCreator(AbstractPreprocessor):
             lower, higher = boundaries[i] + 1, boundaries[i + 1]
             sub_dataset = sub_datasets_dict['input_length'][f'between({lower:04d},{higher:04d})'] = dict()
             for split_name, split_df in splits.items():
-                sub_dataset[split_name] = split_df[split_df.num_tokens_bert.between(lower, higher)]
+                sub_dataset[split_name] = split_df[split_df.facts_num_tokens_bert.between(lower, higher)]
 
         self.logger.info(f"Processing sub dataset year")
         if split_type == "date-stratified":
@@ -625,35 +639,35 @@ class DatasetCreator(AbstractPreprocessor):
         for legal_area in legal_areas.keys():
             sub_dataset = sub_datasets_dict['legal_area'][legal_area] = dict()
             for split_name, split_df in splits.items():
-                sub_dataset[split_name] = split_df[split_df.legal_area.str.contains(legal_area)]
+                sub_dataset[split_name] = split_df[split_df.legal_area.astype('str').str.contains(legal_area)]
 
         self.logger.info(f"Processing sub dataset origin_region")
         for region in splits['all'].origin_region.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_region'][region] = dict()
             for split_name, split_df in splits.items():
                 region_df = split_df.dropna(subset=['origin_region'])
-                sub_dataset[split_name] = region_df[region_df.origin_region.str.contains(region)]
+                sub_dataset[split_name] = region_df[region_df.origin_region.astype('str').str.contains(region)]
 
         self.logger.info(f"Processing sub dataset origin_canton")
         for canton in splits['all'].origin_canton.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_canton'][canton] = dict()
             for split_name, split_df in splits.items():
                 canton_df = split_df.dropna(subset=['origin_canton'])
-                sub_dataset[split_name] = canton_df[canton_df.origin_canton.str.contains(canton)]
+                sub_dataset[split_name] = canton_df[canton_df.origin_canton.astype('str').str.contains(canton)]
 
         self.logger.info(f"Processing sub dataset origin_court")
         for court in splits['all'].origin_court.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_court'][court] = dict()
             for split_name, split_df in splits.items():
                 court_df = split_df.dropna(subset=['origin_court'])
-                sub_dataset[split_name] = court_df[court_df.origin_court.str.contains(court)]
+                sub_dataset[split_name] = court_df[court_df.origin_court.astype('str').str.contains(court)]
 
         self.logger.info(f"Processing sub dataset origin_chamber")
         for chamber in splits['all'].origin_chamber.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_chamber'][chamber] = dict()
             for split_name, split_df in splits.items():
                 chamber_df = split_df.dropna(subset=['origin_chamber'])
-                sub_dataset[split_name] = chamber_df[chamber_df.origin_chamber.str.contains(chamber)]
+                sub_dataset[split_name] = chamber_df[chamber_df.origin_chamber.astype('str').str.contains(chamber)]
 
         return sub_datasets_dict
 
@@ -729,7 +743,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
         ax.get_figure().savefig(split_folder / f"{label_name}_distribution.png", bbox_inches="tight")
-        plt.clf()
+        plt.close()
 
     @staticmethod
     def plot_input_length(df, split_folder, feature_col='text'):
@@ -761,17 +775,17 @@ class DatasetCreator(AbstractPreprocessor):
         plt.ylabel('Number of court cases')
         plt.legend(["BERT", "SpaCy"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
         plot.savefig(split_folder / f'{feature_col}_input_length_distribution-histogram.png', bbox_inches="tight")
-        plt.clf()
+        plt.close()
 
         plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer", kind="ecdf", legend=False)
         plt.ylabel('Number of court cases')
         plt.legend(["BERT", "SPaCy"], loc='lower right', title='Tokenizer')
         plot.savefig(split_folder / f'{feature_col}_input_length_distribution-cumulative.png', bbox_inches="tight")
-        plt.clf()
+        plt.close()
 
         plot = sns.displot(cut_df, x="num_tokens_spacy", y="num_tokens_bert")
         plot.savefig(split_folder / f'{feature_col}_input_length_distribution-bivariate.png', bbox_inches="tight")
-        plt.clf()
+        plt.close()
 
     def save_labels(self, labels, folder):
         """

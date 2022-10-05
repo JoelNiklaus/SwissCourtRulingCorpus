@@ -174,7 +174,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
                 arts["text"].append(None)
         return pd.DataFrame(arts)
 
-    def prepare_dataset(self, save_reports):
+    def prepare_dataset(self, save_reports, court_string):
         df = self.get_df(self.get_engine(self.db_scrc))
 
         # df['types'] = df.citations.apply(lambda x: np.unique([cit['type'] for cit in x['rulings']]))
