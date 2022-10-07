@@ -13,6 +13,7 @@ from sqlalchemy.engine.base import Engine
 from scrc.enums.judgment import Judgment
 from scrc.enums.language import Language
 from nltk import ngrams
+from scrc.enums.section import Section
 
 
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
 
 class JudgmentExtractor(AbstractExtractor):
     """
-    Extracts the judgments from the rulings section. This represents the judgment extraction task.
+    Extracts the pattern of ruling section indicators for a given court. Only outputs the coverage if a command line argument it given.
     """
 
     def __init__(self, config: dict):
@@ -53,11 +54,12 @@ class JudgmentExtractor(AbstractExtractor):
         return f"spider='{spider}' AND rulings IS NOT NULL AND rulings <> ''"
     
     def get_coverage(self, spider: str):
-            with self.get_engine(self.db_scrc).connect() as conn:
-                total_judgments = conn.execute(get_total_judgments(spider)).fetchone()
-                coverage_result = conn.execute(get_judgment_query(spider)).fetchone()
-                coverage =  round(coverage_result[0] / total_judgments[0]  * 100, 2)
-                self.logger.info(f'{spider}: Found judgment outcome for {coverage}% of the rulings')
+        ruling_id = Section.RULINGS.value
+        with self.get_engine(self.db_scrc).connect() as conn:
+            total_judgments = conn.execute(get_total_judgments(spider, ruling_id)).fetchone()
+            coverage_result = conn.execute(get_judgment_query(spider, ruling_id)).fetchone()
+            coverage =  round(coverage_result[0] / total_judgments[0]  * 100, 2)
+            self.logger.info(f'{spider}: Found judgment outcome for {coverage}% of the rulings')
     
 
         

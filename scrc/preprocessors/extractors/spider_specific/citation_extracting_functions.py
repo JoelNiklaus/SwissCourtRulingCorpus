@@ -7,6 +7,7 @@ from scrc.enums.citation_type import CitationType
 
 # Make sure to install the citation_instraction package: cd citation_extraction/ && pip install -e .
 from citation_extraction import extract_citations
+#from citation_extraction.citation_extraction import extract_citations
 
 from root import ROOT_DIR
 from scrc.enums.language import Language

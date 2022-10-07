@@ -77,7 +77,7 @@ class FundamentalImportanceAnalysis(AbstractPreprocessor):
         }
 
     def retrieve_data(self, type, overwrite_cache):
-        cache_file = self.analysis_dir / 'fundamental_importance.csv'
+        cache_file = self.analysis_dir / 'fundamental_importance.parquet.gzip'
 
         engine = self.get_engine(self.db_scrc)
         # if cached just load it from there
