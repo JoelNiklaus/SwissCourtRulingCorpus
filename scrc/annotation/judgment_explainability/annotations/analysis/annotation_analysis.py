@@ -26,11 +26,11 @@ import rouge_score.rouge_scorer as rs
 from bert_score import score, plot_example
 
 from scrc.annotation.judgment_explainability.annotations.preprocessing_functions import LANGUAGES, \
-    PERSONS, \
+    PERSONS, NAN_KEY,\
     LABELS, AGGREGATIONS, extract_dataset, write_csv, get_tokens_dict, extract_values_from_column, get_span_df, \
-    group_columns, get_white_space_dicts, string_to_dict
+    group_columns, get_white_space_dicts, string_to_dict,get_combinations
 
-NAN_KEY = 10000
+
 
 def process_dataset(datasets: dict, lang: str):
     """
@@ -229,7 +229,7 @@ def calculate_overlap_min_max(df: pd.DataFrame, lang: str) -> pd.DataFrame:
                           f"normalized_tokens_{PERSONS[2]}", 'normalized_tokens_dict']].values:
         overlap_min_max = {'annotations_{}'.format(lang): value_list[0], "overlap_maximum": [],
                            "overlap_minimum": []}
-        combinations = get_combinations(value_list[1:-1])
+        combinations = get_combinations(value_list[1:-1],2)
         for comb in combinations:
             overlap_list = []
             comb = sorted(comb, key=len)
@@ -262,7 +262,7 @@ def calculate_jaccard_similarity_distance(df: pd.DataFrame, lang) -> pd.DataFram
                           f"normalized_tokens_{PERSONS[2]}", 'normalized_tokens_dict']].values:
         jaccard = {'annotations_{}'.format(lang): value_list[0], "jaccard_similarity": [], "jaccard_distance": []}
         value_list[1:-1] = normalize_list_length(value_list[1:-1], value_list[-1])
-        combinations = get_combinations(value_list[1:-1])
+        combinations = get_combinations(value_list[1:-1],2)
         for comb in combinations:
             set_1, set_2 = set(list(comb[0])), set(list(comb[1]))
             # Find intersection of two sets
@@ -351,7 +351,7 @@ def calculate_cohen_kappa(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     for value_list in df[['fannotations_{}'.format(lang), f"normalized_tokens_{PERSONS[0]}", f"normalized_tokens_{PERSONS[1]}",
                                 f"normalized_tokens_{PERSONS[2]}", 'normalized_tokens_dict']].values:
         cohen_kappa_scores = {'annotations_{}'.format(lang): value_list[0], "cohen_kappa_scores": []}
-        combinations = get_combinations(value_list[1:-1])
+        combinations = get_combinations(value_list[1:-1],2)
         for comb in combinations:
             if len(comb[0]) != 1 and len(comb[1]) != 1:
                 list_a, list_b = normalize_list_length(combinations, value_list[-1])
@@ -378,26 +378,13 @@ def get_text_combinations(token_list: list, token_dict_list: list)-> list:
             token_list[i] = [token_list[i]]
         else:
             token_list[i].append(PERSONS[i])
-    combinations = get_combinations(token_list)
+    combinations = get_combinations(token_list, 2)
     for comb in combinations:
         token_ws_dict_1, token_ws_dict_2 = dict_indexes[comb[0][-1]], dict_indexes[comb[1][-1]]
         txt_1 = get_text(comb[0][:-1], token_dict_list[token_ws_dict_1[0]], token_dict_list[token_ws_dict_1[1]])
         txt_2 = get_text(comb[1][:-1], token_dict_list[token_ws_dict_2[0]], token_dict_list[token_ws_dict_2[1]])
         text_list.append((txt_1, txt_2))
     return text_list
-
-def get_combinations(val_list: list) -> list:
-    """
-    Gets combinations of a list of values and returns them.
-    """
-    combinations = []
-    for L in range(0, len(val_list) + 1):
-        for subset in itertools.combinations(val_list, L):
-            if len(subset) == 2 and [NAN_KEY] not in subset and ["Nan"] not in subset:
-                combinations.append(subset)
-
-    return combinations
-
 
 def normalize_list_length(list_of_list: list, token_dict: dict) -> (list, list):
     """

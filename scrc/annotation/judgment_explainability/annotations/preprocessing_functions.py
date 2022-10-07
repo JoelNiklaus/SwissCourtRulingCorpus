@@ -1,3 +1,4 @@
+import itertools
 import json
 import re
 from pathlib import Path
@@ -12,6 +13,7 @@ PERSONS = ["angela", "lynn", "thomas"]
 SESSIONS = ["angela", "lynn", "thomas", "gold_final", "gold_nina"]
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
 AGGREGATIONS = ["mean", "max", "min"]
+NAN_KEY = 10000
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -213,3 +215,15 @@ def get_white_space_dicts(ws: pd.DataFrame, index: str) -> pd.DataFrame:
     ws = get_tokens_dict(ws, 'tokens_id', 'tokens_ws', 'id_ws_dict')[[index, 'id_ws_dict']]
     ws['tokens_ws_dict'] = ws.groupby([index])['id_ws_dict'].transform(lambda x: "{{{}}}".format(','.join(x.astype(str)).replace("{", "").replace("}", "")))
     return ws.drop('id_ws_dict', axis=1).drop_duplicates()
+
+def get_combinations(val_list: list, length_subset: int) -> list:
+    """
+    Gets combinations of a list of values and returns them.
+    """
+    combinations = []
+    for L in range(0, len(val_list) + 1):
+        for subset in itertools.combinations(val_list, L):
+            if len(subset) == length_subset and [NAN_KEY] not in subset and ["Nan"] not in subset:
+                combinations.append(subset)
+
+    return combinations
