@@ -4,12 +4,15 @@ import sys
 import csv
 from tqdm import tqdm
 from scrc.utils.court_names import get_all_courts
+from scrc.enums.split import Split
+
 
 csv.field_size_limit(sys.maxsize)
 
+## TODO: move to dataset creation
 
 #   creates an overview of the size of the generated datasets and exports them in a csv file
-def create_overview(include_all=True, path="data/datasets", export_path="data", export_name="overview.csv"):
+def create_overview(include_all=True, path=str(self.datasets_subdir), export_path=str(self.data_dir), export_name="overview.csv"):
     courts_av = os.listdir(os.path.join(ROOT_DIR, path))
 
     #   stores the overview in a list of dicts
@@ -18,7 +21,7 @@ def create_overview(include_all=True, path="data/datasets", export_path="data", 
     #   store the number of rows of each file in a dict for each court
     for court in tqdm(courts_av):
         court_data = {"name": court}
-        for key in ["all", "val", "test", "train", "secret_test"]:
+        for key in [split.value for split in Split]:    # ["all", "val", "test", "train", "secret_test"]
             try:
                 with open(os.path.join(ROOT_DIR, path, court, f"{key}.csv"), "r") as f:
                     reader = csv.reader(f)

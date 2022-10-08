@@ -2,6 +2,7 @@ import abc
 import copy
 import math
 import os
+import time
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -12,6 +13,7 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 import datasets
 from datasets import DatasetDict, concatenate_datasets
+from root import ROOT_DIR
 
 from scrc.enums.cantons import Canton
 from scrc.data_classes.ruling_citation import RulingCitation
@@ -28,6 +30,8 @@ from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cach
 
 from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision, legal_areas, get_region, \
     where_string_spider, where_string_court
+
+from scrc.utils.court_names import get_all_courts, get_issue_courts, get_error_courts
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -137,11 +141,12 @@ class DatasetCreator(AbstractPreprocessor):
     Also creates the necessary files for a kaggle dataset and a huggingface dataset.
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, debug: bool = True):
         __metaclass__ = abc.ABCMeta
         super().__init__(config)
         self.logger = get_logger(__name__)
 
+        self.debug = debug
         self.seed = 42
         self.minFeatureColLength = 100  # characters
         self.debug_chunksize = 100
@@ -266,23 +271,83 @@ class DatasetCreator(AbstractPreprocessor):
             return self.create_dir(self.tmp_subdir, self.dataset_name)
         return self.create_dir(self.datasets_subdir, self.dataset_name)
 
-    def create_dataset(self, court_string="CH_BGer", sub_datasets=False, kaggle=False, save_reports=False):
+    def create_dataset(self, court_list=None, concatenate=False, sub_datasets=False, kaggle=False, save_reports=False):
         """
         Retrieves the respective function named by the dataset and executes it to get the df for that dataset.
         :return:
         """
+        if court_list is None:
+            court_list = ["CH_BGer"]  # default to BGer
+
         self.logger.info(f"Creating {self.dataset_name} dataset")
 
         # TODO in the future: maybe save text as list of paragraphs
         # TODO make sure that the same data is saved to kaggle, csv and huggingface format!
 
-        dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
-        if len(dataset) == 0:
-            return False
-        dataset = dataset.shuffle(seed=42)
-        self.save_dataset(dataset, labels, self.get_dataset_folder(), self.split_type,
-                          sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
-        return True
+        not_created = []
+        created = []
+
+        datasets_list = []
+        labels_list = []
+
+        for court_string in court_list:
+            self.logger.info(f"Creating dataset for {court_string}")
+            dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
+
+            if len(dataset) == 0:
+                self.logger.info(f"Dataset for {court_string} could not be created")
+                not_created.append(court_string)
+            else:
+                dataset = dataset.shuffle(seed=42)
+                if concatenate:
+                    datasets_list.append(dataset)
+                    labels_list.append(labels)
+                else:   # save each dataset separately
+                    self.save_dataset(dataset, labels, self.get_dataset_folder(), self.split_type,
+                                      sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+                    # rename judgment_prediction folder to {court_string}
+                    source = f"{self.datasets_subdir}/{self.dataset_name}"
+                    destination = f"{self.datasets_subdir}/{court_string}"
+                    os.rename(source, destination)
+                created.append(court_string)
+            self.logger.info(f"Empty courts: {not_created}")
+            self.logger.info(f"Created courts: {created}")
+
+        if concatenate:
+            dataset = concatenate_datasets(datasets_list)
+            labels = labels_list[0]
+            self.save_dataset(dataset, labels, self.get_dataset_folder(), "all_train", kaggle=kaggle,
+                              save_reports=save_reports)
+
+        self.logger.info(f"{len(not_created)} courts not created (since it was empty): {not_created}")
+        self.logger.info(f"{len(created)} courts created: {created}")
+
+    def get_court_list(self):
+        # get names of all courts
+        court_list_tmp = get_all_courts()
+        # taking all folder names from /data/datasets as a list to know which courts are already generated
+        courts_done = os.listdir(os.path.join(ROOT_DIR, str(self.datasets_subdir)))
+
+        # all courts that couldn't be created
+        courts_error = get_error_courts()
+
+        # all courts that can be generated but with some issues
+        courts_issues = get_issue_courts()
+
+        # court_string = court_string - (courts_done + courts_error + courts_issues)
+        court_list = []
+        for i in court_list_tmp:
+            if i not in (courts_done + courts_error + courts_issues):
+                court_list.append(i)
+
+        # 76/183 not created
+        # 107/183 created - 2 without reports, 6 without file_numbers
+        return court_list
+
+    def create_multiple_datasets(self, court_list=None, concatenate=False, save_reports=True):
+        if court_list is None:
+            court_list = self.get_court_list()
+        self.create_dataset(court_list, concatenate=concatenate, sub_datasets=False, save_reports=save_reports)
 
     def save_huggingface_dataset(self, splits, feature_col_folder):
         """
@@ -368,7 +433,7 @@ class DatasetCreator(AbstractPreprocessor):
         try:
             file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
         except StopIteration:
-            self.logger.info("Exception caught in line 352: load_file_number")
+            self.logger.info("StopIteration Exception caught: load_file_number")
             return df
 
         # we get a list of file_numbers but only want one, all entries are the same but different syntax
@@ -388,6 +453,7 @@ class DatasetCreator(AbstractPreprocessor):
         where = f"section.decision_id IN ({','.join(decision_ids)})"
         section_df = next(self.select(engine, table, "sections", where, None, self.get_chunksize()))
         df['sections'] = section_df['sections']
+        print("df['sections']", df['sections'])
 
         for feature_col in self.get_feature_col_names():
             df = self.expand_df(df, feature_col)
