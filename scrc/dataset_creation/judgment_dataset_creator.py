@@ -19,10 +19,9 @@ class JudgmentDatasetCreator(DatasetCreator):
     """
 
     def __init__(self, config: dict, debug: bool = True):
-        super().__init__(config)
+        super().__init__(config, debug)
         self.logger = get_logger(__name__)
 
-        self.debug = debug
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
@@ -43,12 +42,10 @@ class JudgmentDatasetCreator(DatasetCreator):
         if df.empty:
             self.logger.warning("No data found")
             return datasets.Dataset.from_pandas(df), []
-
         df = df.dropna(subset=['judgments'])
         df = convert_to_binary_judgments(df, self.with_partials, self.with_write_off, self.with_unification,
                                          self.with_inadmissible, self.make_single_label)
         df = df.dropna(subset=['judgments'])  # drop empty labels introduced by cleaning before
-
         df = df.rename(columns={"judgments": "label"})  # normalize column names
         labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         return datasets.Dataset.from_pandas(df), [labels]
@@ -60,11 +57,5 @@ class JudgmentDatasetCreator(DatasetCreator):
 if __name__ == '__main__':
     config = get_config()
 
-    judgment_dataset_creator = JudgmentDatasetCreator(config, debug=False)
-    judgment_dataset_creator.create_multiple_datasets(court_list=["TI_TE"])
-
-
-
-
-
-
+    judgment_dataset_creator = JudgmentDatasetCreator(config, debug=True)
+    judgment_dataset_creator.create_multiple_datasets(concatenate=True, overview=True)

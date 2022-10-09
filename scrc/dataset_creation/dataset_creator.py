@@ -2,7 +2,6 @@ import abc
 import copy
 import math
 import os
-import time
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -32,6 +31,7 @@ from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision,
     where_string_spider, where_string_court
 
 from scrc.utils.court_names import get_all_courts, get_issue_courts, get_error_courts
+from scrc.dataset_creation.overview_creator import create_overview
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -168,7 +168,6 @@ class DatasetCreator(AbstractPreprocessor):
         # self.court_dict = build_info_df('court', 'court_string')
         # self.canton_dict = build_info_df('canton', 'short_code')
 
-        self.debug = True  # to be overridden
         self.overwrite_cache = True  # to be overridden
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
@@ -302,13 +301,11 @@ class DatasetCreator(AbstractPreprocessor):
                 if concatenate:
                     datasets_list.append(dataset)
                     labels_list.append(labels)
-                else:   # save each dataset separately
-                    self.save_dataset(dataset, labels, self.get_dataset_folder(), self.split_type,
+                else:  # save each dataset separately
+                    save_path = Path(os.path.join(self.get_dataset_folder(), court_string))
+                    self.save_dataset(dataset, labels, save_path, self.split_type,
                                       sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
-                    # rename judgment_prediction folder to {court_string}
-                    source = f"{self.datasets_subdir}/{self.dataset_name}"
-                    destination = f"{self.datasets_subdir}/{court_string}"
-                    os.rename(source, destination)
+
                 created.append(court_string)
             self.logger.info(f"Empty courts: {not_created}")
             self.logger.info(f"Created courts: {created}")
@@ -316,15 +313,27 @@ class DatasetCreator(AbstractPreprocessor):
         if concatenate:
             dataset = concatenate_datasets(datasets_list)
             labels = labels_list[0]
-            self.save_dataset(dataset, labels, self.get_dataset_folder(), "all_train", kaggle=kaggle,
+
+            # check if export folder already exists and increment the name index if it does
+            counter = 1
+            while os.path.exists(f"{self.get_dataset_folder()}/concat_{counter}"):
+                counter += 1
+            export_path = Path(f"{self.get_dataset_folder()}/concat_{counter}")
+
+            self.save_dataset(dataset, labels, export_path, "all_train", kaggle=kaggle,
                               save_reports=save_reports)
 
         self.logger.info(f"{len(not_created)} courts not created (since it was empty): {not_created}")
         self.logger.info(f"{len(created)} courts created: {created}")
 
+    # returns all courts that can be generated without any problems based on the latest state of knowledge
     def get_court_list(self):
+        """
+        :return: list
+        """
         # get names of all courts
         court_list_tmp = get_all_courts()
+
         # taking all folder names from /data/datasets as a list to know which courts are already generated
         courts_done = os.listdir(os.path.join(ROOT_DIR, str(self.datasets_subdir)))
 
@@ -344,10 +353,17 @@ class DatasetCreator(AbstractPreprocessor):
         # 107/183 created - 2 without reports, 6 without file_numbers
         return court_list
 
-    def create_multiple_datasets(self, court_list=None, concatenate=False, save_reports=True):
+    def create_multiple_datasets(self, court_list=None, concatenate=False, overview=True, save_reports=True, sub_datasets=False):
+        """
+        :param court_list:    default: every court without any problems, or to specify court_strings in a list e.g. ["TI_TE", "LU_JSD"]
+        :param concatenate:   if True, all courts datasets are concatenated into one file
+        :param overview:      if True, creates overview of all generated datasets and exports them in a csv file
+        """
         if court_list is None:
             court_list = self.get_court_list()
-        self.create_dataset(court_list, concatenate=concatenate, sub_datasets=False, save_reports=save_reports)
+        self.create_dataset(court_list, concatenate=concatenate, sub_datasets=sub_datasets, save_reports=save_reports)
+        if overview:
+            create_overview(path=self.get_dataset_folder(), export_path=self.get_dataset_folder())
 
     def save_huggingface_dataset(self, splits, feature_col_folder):
         """
@@ -430,10 +446,8 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info('Loading File Number')
         table = f"{join_tables_on_decision(['file_number'])}"
         where = f"file_number.decision_id IN ({','.join(decision_ids)})"
-        try:
-            file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
-        except StopIteration:
-            self.logger.info("StopIteration Exception caught: load_file_number")
+        file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()), pd.DataFrame())
+        if file_number_df.empty:
             return df
 
         # we get a list of file_numbers but only want one, all entries are the same but different syntax
@@ -453,7 +467,6 @@ class DatasetCreator(AbstractPreprocessor):
         where = f"section.decision_id IN ({','.join(decision_ids)})"
         section_df = next(self.select(engine, table, "sections", where, None, self.get_chunksize()))
         df['sections'] = section_df['sections']
-        print("df['sections']", df['sections'])
 
         for feature_col in self.get_feature_col_names():
             df = self.expand_df(df, feature_col)
@@ -598,7 +611,7 @@ class DatasetCreator(AbstractPreprocessor):
         """
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
         self.save_splits(splits, labels, folder, save_reports=save_reports)
-        self.save_huggingface_dataset(splits, self.get_dataset_folder())
+        self.save_huggingface_dataset(splits, folder)
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
@@ -711,7 +724,7 @@ class DatasetCreator(AbstractPreprocessor):
             lower, higher = boundaries[i] + 1, boundaries[i + 1]
             sub_dataset = sub_datasets_dict['input_length'][f'between({lower:04d},{higher:04d})'] = dict()
             for split_name, split_df in splits.items():
-                sub_dataset[split_name] = split_df[split_df.facts_num_tokens_bert.between(lower, higher)]
+                sub_dataset[split_name] = split_df[split_df.num_tokens_bert.between(lower, higher)]
 
         self.logger.info(f"Processing sub dataset year")
         if split_type == "date-stratified":
@@ -891,6 +904,8 @@ class DatasetCreator(AbstractPreprocessor):
                     i = i + 1
                 else:
                     file_name = folder / "labels.json"
+                if not os.path.isdir(folder):
+                    os.mkdir(folder)
                 with open(f"{file_name}", 'w', encoding='utf-8') as f:
                     json.dump(json_labels, f, ensure_ascii=False, indent=4)
         else:
