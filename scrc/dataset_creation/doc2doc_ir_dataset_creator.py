@@ -98,11 +98,10 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
     # - from facts of a case get other cases
     # - from law article get cases that cite this article ==> starting with newest case (lawyer can follow back)
 
-    def __init__(self, config: dict):
-        super().__init__(config)
+    def __init__(self, config: dict, debug: bool = True):
+        super().__init__(config, debug)
         self.logger = get_logger(__name__)
 
-        self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "doc2doc_ir"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]

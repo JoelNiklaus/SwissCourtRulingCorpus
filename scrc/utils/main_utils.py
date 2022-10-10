@@ -234,7 +234,7 @@ def retrieve_from_cache_if_exists(path: Path):
         return pd.DataFrame([])
 
 
-def print_memory_usage(self, objects):
+def print_memory_usage(objects):
     import gc
     import sys
     print("Number of tracked objects", len(gc.get_objects()))

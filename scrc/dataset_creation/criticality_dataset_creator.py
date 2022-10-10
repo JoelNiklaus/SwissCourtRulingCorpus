@@ -46,10 +46,9 @@ class CriticalityDatasetCreator(DatasetCreator):
     as bge or not.
     """
 
-    def __init__(self, config: dict):
-        super().__init__(config)
+    def __init__(self, config: dict, debug: bool = True):
+        super().__init__(config, debug)
         self.logger = get_logger(__name__)
-        self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]

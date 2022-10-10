@@ -2,17 +2,20 @@ import abc
 import copy
 import math
 import os
+import sys
+import gc
 from collections import Counter
 from datetime import date
 from pathlib import Path
 from typing import Union
 import ast
+from tqdm import tqdm
+import csv
 import seaborn as sns
 import plotly.express as px
 import matplotlib.pyplot as plt
 import datasets
 from datasets import DatasetDict, concatenate_datasets
-from root import ROOT_DIR
 
 from scrc.enums.cantons import Canton
 from scrc.data_classes.ruling_citation import RulingCitation
@@ -25,13 +28,15 @@ from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
 from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache, get_canton_from_chamber, \
-    get_court_from_chamber
+    get_court_from_chamber, print_memory_usage
 
 from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision, legal_areas, get_region, \
     where_string_spider, where_string_court
 
-from scrc.utils.court_names import get_all_courts, get_issue_courts, get_error_courts
-from scrc.dataset_creation.overview_creator import create_overview
+from scrc.utils.court_names import court_names_bu, get_issue_courts, get_error_courts
+from scrc.enums.split import Split
+
+csv.field_size_limit(sys.maxsize)
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -152,7 +157,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
-        self.start_years = {"train": 2002, "validation": 2016, "test": 2018, "secret_test": 2020}
+        self.start_years = {Split.TRAIN.value: 2002, "validation": 2016, Split.TEST.value: 2018, Split.SECRET_TEST.value: 2020}
         self.current_year = date.today().year
         self.metadata = ['year', 'legal_area', 'chamber', 'court', 'canton', 'region',
                          'origin_chamber', 'origin_court', 'origin_canton', 'origin_region']
@@ -287,7 +292,7 @@ class DatasetCreator(AbstractPreprocessor):
         created = []
 
         datasets_list = []
-        labels_list = []
+        label_concat = None
 
         for court_string in court_list:
             self.logger.info(f"Creating dataset for {court_string}")
@@ -296,23 +301,28 @@ class DatasetCreator(AbstractPreprocessor):
             if len(dataset) == 0:
                 self.logger.info(f"Dataset for {court_string} could not be created")
                 not_created.append(court_string)
-            else:
-                dataset = dataset.shuffle(seed=42)
-                if concatenate:
-                    datasets_list.append(dataset)
-                    labels_list.append(labels)
-                else:  # save each dataset separately
-                    save_path = Path(os.path.join(self.get_dataset_folder(), court_string))
-                    self.save_dataset(dataset, labels, save_path, self.split_type,
-                                      sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+            elif concatenate:
+                datasets_list.append(dataset)
+                label_concat = labels if label_concat is None else label_concat # takes the first label
+            else:  # save each dataset separately
+                save_path = Path(os.path.join(self.get_dataset_folder(), court_string))
+                self.save_dataset(dataset, labels, save_path, self.split_type,
+                                  sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
 
                 created.append(court_string)
             self.logger.info(f"Empty courts: {not_created}")
             self.logger.info(f"Created courts: {created}")
 
         if concatenate:
+            self.logger.info("Concatenating datasets")
             dataset = concatenate_datasets(datasets_list)
-            labels = labels_list[0]
+
+            # TODO: investigate if this is really necessary
+            print_memory_usage([dataset, datasets_list])
+            del datasets_list
+            gc.collect()
+
+            labels = label_concat
 
             # check if export folder already exists and increment the name index if it does
             counter = 1
@@ -326,22 +336,28 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"{len(not_created)} courts not created (since it was empty): {not_created}")
         self.logger.info(f"{len(created)} courts created: {created}")
 
-    # returns all courts that can be generated without any problems based on the latest state of knowledge
+    def get_all_courts(self):
+        try:
+            court_names = next(self.select(self.get_engine(self.db_scrc), "court", "court_string", None))["court_string"].tolist()
+        except StopIteration:
+            self.logger.info("No court names found; using default list.")
+            court_names = court_names_bu
+        return court_names
+
     def get_court_list(self):
         """
-        :return: list
+        get_court_list returns all courts that can be generated without any problems based on the current state of knowledge
+        :return: list of str objects of court names. e.g. ["CH_BGer", "BL_OG"]
         """
-        # get names of all courts
-        court_list_tmp = get_all_courts()
+
+        court_list_tmp = self.get_all_courts()  # get names of all courts
 
         # taking all folder names from /data/datasets as a list to know which courts are already generated
-        courts_done = os.listdir(os.path.join(ROOT_DIR, str(self.datasets_subdir)))
+        courts_done = os.listdir(str(self.datasets_subdir))
 
-        # all courts that couldn't be created
-        courts_error = get_error_courts()
+        courts_error = get_error_courts()   # all courts that couldn't be created
 
-        # all courts that can be generated but with some issues
-        courts_issues = get_issue_courts()
+        courts_issues = get_issue_courts()  # all courts that can be generated but with some issues
 
         # court_string = court_string - (courts_done + courts_error + courts_issues)
         court_list = []
@@ -363,7 +379,7 @@ class DatasetCreator(AbstractPreprocessor):
             court_list = self.get_court_list()
         self.create_dataset(court_list, concatenate=concatenate, sub_datasets=sub_datasets, save_reports=save_reports)
         if overview:
-            create_overview(path=self.get_dataset_folder(), export_path=self.get_dataset_folder())
+            self.create_overview()
 
     def save_huggingface_dataset(self, splits, feature_col_folder):
         """
@@ -728,7 +744,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.logger.info(f"Processing sub dataset year")
         if split_type == "date-stratified":
-            for year in range(self.start_years["test"], self.current_year):
+            for year in range(self.start_years[Split.TEST.value], self.current_year):
                 sub_dataset = sub_datasets_dict['year'][str(year)] = dict()
                 for split_name, split_df in splits.items():
                     sub_dataset[split_name] = split_df[split_df.year == year]
@@ -789,6 +805,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.plot_custom(df, split_folder, folder)
 
+    # TODO: moving plotting functions to a separate file to reduce the size of this file
     @staticmethod
     def plot_barplot_attribute(df, split_folder, attribute, label=""):
         """
@@ -919,10 +936,10 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         # TODO revise this for datasets including cantonal data and include year 2021
-        train = dataset.filter(lambda x: x["year"] in range(start_years["train"], start_years["validation"]))
-        val = dataset.filter(lambda x: x["year"] in range(start_years["validation"], start_years["test"]))
-        test = dataset.filter(lambda x: x["year"] in range(start_years["test"], start_years["secret_test"]))
-        secret_test = dataset.filter(lambda x: x["year"] in range(start_years["secret_test"], self.current_year + 1))
+        train = dataset.filter(lambda x: x["year"] in range(start_years[Split.TRAIN.value], start_years["validation"]))
+        val = dataset.filter(lambda x: x["year"] in range(start_years["validation"], start_years[Split.TEST.value]))
+        test = dataset.filter(lambda x: x["year"] in range(start_years[Split.TEST.value], start_years[Split.SECRET_TEST.value]))
+        secret_test = dataset.filter(lambda x: x["year"] in range(start_years[Split.SECRET_TEST.value], self.current_year + 1))
 
         return train, val, test, secret_test
 
@@ -945,3 +962,59 @@ class DatasetCreator(AbstractPreprocessor):
         Implement custom plots for each dataset_creator in this method
         """
         raise NotImplementedError("This method should be implemented in the subclass.")
+
+    def create_overview(self, path=None, export_path=None, export_name="overview", include_all=False):
+        """
+        :function:              creates an overview of the dataset
+        :param path:            path to the court dataset folders
+        :param export_name:     name of the exported file without extension
+        :param export_path:     path to the folder where the file should be exported
+        :param include_all:     if True, all courts are included in the overview otherwise only the created courts
+        """
+        if path is None:
+            path = self.get_dataset_folder()
+        if export_path is None:
+            export_path = self.get_dataset_folder()
+
+        courts_av_tmp = os.listdir(path)
+        courts_av = []
+        # filtering to only have dir's
+        for s in courts_av_tmp:
+            if not os.path.isfile(f"{path}/{s}"):
+                courts_av.append(s)
+
+        #   stores the overview in a list of dicts
+        courts_data = []
+
+        # store the number of rows of each file in a dict for each court
+        for court in tqdm(courts_av):
+            court_data = {"name": court}
+            for key in [split.value for split in Split]:  # ["all", "val", "test", "train", "secret_test"]
+                try:
+                    with open(os.path.join(path, court, f"{key}.csv"), "r") as f:
+                        reader = csv.reader(f)
+                        court_data[key] = len(list(reader)) - 1  # -1 because of header
+                except FileNotFoundError:
+                    court_data[key] = -2
+            court_data['created'] = True
+            courts_data.append(court_data)
+
+        # add courts that are not in the folder
+        if include_all:
+            for court in self.get_all_courts():
+                if court not in courts_av:
+                    court_data = {"name": court, 'created': False}
+                    courts_data.append(court_data)
+
+        # check if export file already exists and increment the name index if it does
+        counter = 1
+        while os.path.exists(f"{export_path}/{export_name}_{counter}.csv"):
+            counter += 1
+        export_name = f"{export_name}_{counter}.csv"
+
+        # export to csv
+        with open(os.path.join(export_path, export_name), "w") as f:
+            writer = csv.DictWriter(f, fieldnames=["name", "all", Split.VAL.value, Split.TEST.value, Split.TRAIN.value, Split.SECRET_TEST.value, "created"])
+            writer.writeheader()
+            writer.writerows(courts_data)
+        self.logger.info("Overview created and exported to ", os.path.join(export_path, export_name))

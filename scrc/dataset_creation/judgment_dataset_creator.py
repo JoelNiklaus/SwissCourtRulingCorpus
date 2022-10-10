@@ -7,11 +7,6 @@ import datasets
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import convert_to_binary_judgments
 
-import os
-from tqdm import tqdm
-from root import ROOT_DIR
-from scrc.utils.court_names import get_all_courts, get_issue_courts, get_error_courts
-
 
 class JudgmentDatasetCreator(DatasetCreator):
     """

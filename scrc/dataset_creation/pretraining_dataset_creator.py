@@ -17,8 +17,8 @@ class PretrainingDatasetCreator(DatasetCreator):
     Creates a dataset with all the full_text
     """
 
-    def __init__(self, config: dict):
-        super().__init__(config)
+    def __init__(self, config: dict, debug: bool = True):
+        super().__init__(config, debug)
         self.logger = get_logger(__name__)
 
         self.debug = True
@@ -29,25 +29,13 @@ class PretrainingDatasetCreator(DatasetCreator):
 
     def prepare_dataset(self, save_reports, court_string) -> datasets.Dataset:
         engine = self.get_engine(self.db_scrc)
-        court_strings = next(self.select(engine, "court", "court_string", None))["court_string"].tolist()
-        hf_dataset = datasets.Dataset.from_pandas(pd.DataFrame())  # init empty dataset
-
         data_to_load = {
             "section": True, "file": False, "file_number": False,
             "judgment": False, "citation": False, "lower_court": False
         }
-
-        for string in court_strings:
-            # we don't use the cache since it is overwritten after each court
-            df = self.get_df(engine, data_to_load, court_string=string, use_cache=False)
-
-            print_memory_usage([df, hf_dataset])
-
-            self.logger.info("Concatenating datasets")
-            hf_dataset = concatenate_datasets([hf_dataset, datasets.Dataset.from_pandas(df)])
-
-            del df
-            gc.collect()
+        # we don't use the cache since it is overwritten after each court
+        df = self.get_df(engine, data_to_load, court_string=court_string, use_cache=False)
+        hf_dataset = datasets.Dataset.from_pandas(df)
 
         return hf_dataset, None
 
@@ -56,4 +44,4 @@ if __name__ == '__main__':
     config = get_config()
 
     pretraining_dataset_creator = PretrainingDatasetCreator(config)
-    pretraining_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=False)
+    pretraining_dataset_creator.create_multiple_datasets()(concatenate=True, overview=False, sub_datasets=False, save_reports=False)
