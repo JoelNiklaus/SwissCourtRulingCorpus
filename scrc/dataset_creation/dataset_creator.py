@@ -157,7 +157,8 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
-        self.start_years = {Split.TRAIN.value: 2002, Split.VAL.value: 2016, Split.TEST.value: 2018, Split.SECRET_TEST.value: 2020}
+        self.start_years = {Split.TRAIN.value: 2002, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
+                            Split.SECRET_TEST.value: 2020}
         self.current_year = date.today().year
         self.metadata = ['year', 'legal_area', 'chamber', 'court', 'canton', 'region',
                          'origin_chamber', 'origin_court', 'origin_canton', 'origin_region']
@@ -303,7 +304,7 @@ class DatasetCreator(AbstractPreprocessor):
                 not_created.append(court_string)
             elif concatenate:
                 datasets_list.append(dataset)
-                label_concat = labels if label_concat is None else label_concat # takes the first label
+                label_concat = labels if label_concat is None else label_concat  # takes the first label
             else:  # save each dataset separately
                 save_path = Path(os.path.join(self.get_dataset_folder(), court_string))
                 self.save_dataset(dataset, labels, save_path, self.split_type,
@@ -338,7 +339,8 @@ class DatasetCreator(AbstractPreprocessor):
 
     def get_all_courts(self):
         try:
-            court_names = next(self.select(self.get_engine(self.db_scrc), "court", "court_string", None))["court_string"].tolist()
+            engine = self.get_engine(self.db_scrc)
+            court_names = next(self.select(engine, "court", "court_string", None))["court_string"].tolist()
         except StopIteration:
             self.logger.info("No court names found; using default list.")
             court_names = court_names_bu
@@ -355,7 +357,7 @@ class DatasetCreator(AbstractPreprocessor):
         # taking all folder names from /data/datasets as a list to know which courts are already generated
         courts_done = os.listdir(str(self.datasets_subdir))
 
-        courts_error = get_error_courts()   # all courts that couldn't be created
+        courts_error = get_error_courts()  # all courts that couldn't be created
 
         courts_issues = get_issue_courts()  # all courts that can be generated but with some issues
 
@@ -369,7 +371,8 @@ class DatasetCreator(AbstractPreprocessor):
         # 107/183 created - 2 without reports, 6 without file_numbers
         return court_list
 
-    def create_multiple_datasets(self, court_list=None, concatenate=False, overview=True, save_reports=True, sub_datasets=False):
+    def create_multiple_datasets(self, court_list=None, concatenate=False, overview=True, save_reports=True,
+                                 sub_datasets=False):
         """
         :param court_list:    default: every court without any problems, or to specify court_strings in a list e.g. ["TI_TE", "LU_JSD"]
         :param concatenate:   if True, all courts datasets are concatenated into one file
@@ -415,7 +418,7 @@ class DatasetCreator(AbstractPreprocessor):
         :return:                dataframe with all data
         """
         if use_cache:
-            cache_file = self.data_dir / '.cache' / self.dataset_name /f'{court_string}_{self.get_chunksize()}.parquet.gzip'
+            cache_file = self.data_dir / '.cache' / self.dataset_name / f'{court_string}_{self.get_chunksize()}.parquet.gzip'
             # if cached just load it from there
             if not overwrite_cache:
                 df = retrieve_from_cache_if_exists(cache_file)
@@ -462,7 +465,8 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info('Loading File Number')
         table = f"{join_tables_on_decision(['file_number'])}"
         where = f"file_number.decision_id IN ({','.join(decision_ids)})"
-        file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()), pd.DataFrame())
+        file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()),
+                              pd.DataFrame())
         if file_number_df.empty:
             return df
 
@@ -936,10 +940,14 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         # TODO revise this for datasets including cantonal data and include year 2021
-        train = dataset.filter(lambda x: x["year"] in range(start_years[Split.TRAIN.value], start_years[Split.VAL.value]))
-        val = dataset.filter(lambda x: x["year"] in range(start_years[Split.VAL.value], start_years[Split.TEST.value]))
-        test = dataset.filter(lambda x: x["year"] in range(start_years[Split.TEST.value], start_years[Split.SECRET_TEST.value]))
-        secret_test = dataset.filter(lambda x: x["year"] in range(start_years[Split.SECRET_TEST.value], self.current_year + 1))
+        train = dataset.filter(
+            lambda x: x["year"] in range(start_years[Split.TRAIN.value], start_years[Split.VALIDATION.value]))
+        val = dataset.filter(
+            lambda x: x["year"] in range(start_years[Split.VALIDATION.value], start_years[Split.TEST.value]))
+        test = dataset.filter(
+            lambda x: x["year"] in range(start_years[Split.TEST.value], start_years[Split.SECRET_TEST.value]))
+        secret_test = dataset.filter(
+            lambda x: x["year"] in range(start_years[Split.SECRET_TEST.value], self.current_year + 1))
 
         return train, val, test, secret_test
 
@@ -1014,7 +1022,8 @@ class DatasetCreator(AbstractPreprocessor):
 
         # export to csv
         with open(os.path.join(export_path, export_name), "w") as f:
-            writer = csv.DictWriter(f, fieldnames=["name", "all", Split.VAL.value, Split.TEST.value, Split.TRAIN.value, Split.SECRET_TEST.value, "created"])
+            writer = csv.DictWriter(f, fieldnames=["name", "all", Split.VALIDATION.value, Split.TEST.value,
+                                                   Split.TRAIN.value, Split.SECRET_TEST.value, "created"])
             writer.writeheader()
             writer.writerows(courts_data)
         self.logger.info("Overview created and exported to ", os.path.join(export_path, export_name))
