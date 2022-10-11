@@ -157,7 +157,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
-        self.start_years = {Split.TRAIN.value: 2002, "validation": 2016, Split.TEST.value: 2018, Split.SECRET_TEST.value: 2020}
+        self.start_years = {Split.TRAIN.value: 2002, Split.VAL.value: 2016, Split.TEST.value: 2018, Split.SECRET_TEST.value: 2020}
         self.current_year = date.today().year
         self.metadata = ['year', 'legal_area', 'chamber', 'court', 'canton', 'region',
                          'origin_chamber', 'origin_court', 'origin_canton', 'origin_region']
@@ -415,7 +415,7 @@ class DatasetCreator(AbstractPreprocessor):
         :return:                dataframe with all data
         """
         if use_cache:
-            cache_file = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.parquet.gzip'
+            cache_file = self.data_dir / '.cache' / self.dataset_name /f'{court_string}_{self.get_chunksize()}.parquet.gzip'
             # if cached just load it from there
             if not overwrite_cache:
                 df = retrieve_from_cache_if_exists(cache_file)
@@ -936,8 +936,8 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         # TODO revise this for datasets including cantonal data and include year 2021
-        train = dataset.filter(lambda x: x["year"] in range(start_years[Split.TRAIN.value], start_years["validation"]))
-        val = dataset.filter(lambda x: x["year"] in range(start_years["validation"], start_years[Split.TEST.value]))
+        train = dataset.filter(lambda x: x["year"] in range(start_years[Split.TRAIN.value], start_years[Split.VAL.value]))
+        val = dataset.filter(lambda x: x["year"] in range(start_years[Split.VAL.value], start_years[Split.TEST.value]))
         test = dataset.filter(lambda x: x["year"] in range(start_years[Split.TEST.value], start_years[Split.SECRET_TEST.value]))
         secret_test = dataset.filter(lambda x: x["year"] in range(start_years[Split.SECRET_TEST.value], self.current_year + 1))
 

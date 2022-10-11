@@ -53,4 +53,4 @@ if __name__ == '__main__':
     config = get_config()
 
     judgment_dataset_creator = JudgmentDatasetCreator(config, debug=True)
-    judgment_dataset_creator.create_multiple_datasets(concatenate=True, overview=True)
+    judgment_dataset_creator.create_multiple_datasets(concatenate=False, overview=True)
