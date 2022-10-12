@@ -641,7 +641,7 @@ class DatasetCreator(AbstractPreprocessor):
                 category_dir = self.create_dir(sub_datasets_dir, category)
                 for sub_dataset, sub_dataset_splits in sub_dataset_category.items():
                     sub_dataset_dir = self.create_dir(category_dir, sub_dataset)
-                    self.save_splits(sub_dataset_splits, labels, sub_dataset_dir, save_csvs=['test'])
+                    self.save_splits(sub_dataset_splits, labels, sub_dataset_dir, save_csvs=[Split.TEST.value])
 
         if kaggle:
             # save special kaggle files
@@ -657,11 +657,11 @@ class DatasetCreator(AbstractPreprocessor):
         # deepcopy splits, so we don't mess with the original dict
         kaggle_splits = copy.deepcopy(splits)
         # create solution file
-        kaggle_splits['solution'] = kaggle_splits['test'].drop('text', axis='columns')  # drop text
+        kaggle_splits['solution'] = kaggle_splits[Split.TEST.value].drop('text', axis='columns')  # drop text
         # rename according to kaggle conventions
         kaggle_splits['solution'] = kaggle_splits['solution'].rename(columns={"label": "Expected"})
         # create test file
-        kaggle_splits['test'] = kaggle_splits['test'].drop('label', axis='columns')  # drop label
+        kaggle_splits[Split.TEST.value] = kaggle_splits[Split.TEST.value].drop('label', axis='columns')  # drop label
         # create sampleSubmission file
         # rename according to kaggle conventions
         sample_submission = kaggle_splits['solution'].rename(columns={"Expected": "Predicted"})
@@ -710,12 +710,12 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"Dividing data into splits based on split_type: {split_type}")
         if split_type == "random":
             train, val, test = self.split_random(dataset)
-            splits = {'train': train, 'val': val, 'test': test}
+            splits = {Split.TRAIN.value: train, Split.VALIDATION.value: val, Split.TEST.value: test}
         elif split_type == "date-stratified":
             train, val, test, secret_test = self.split_date_stratified(dataset, self.start_years)
-            splits = {'train': train, 'val': val, 'test': test, 'secret_test': secret_test}
+            splits = {Split.TRAIN.value: train, Split.VALIDATION.value: val, Split.TEST.value: test, Split.SECRET_TEST.value: secret_test}
         elif split_type == "all_train":
-            splits = {'train': dataset}  # no split at all
+            splits = {Split.TRAIN.value: dataset}  # no split at all
         else:
             raise ValueError("Please supply a valid split_type")
         if include_all:
@@ -960,9 +960,9 @@ class DatasetCreator(AbstractPreprocessor):
         # 80% train, 20% test + validation
         train_testvalid = dataset.train_test_split(test=0.2)
         # Split the 20% test + valid in half test, half valid
-        test_valid = train_testvalid['test'].train_test_split(test=0.5)
+        test_valid = train_testvalid[Split.TEST.value].train_test_split(test=0.5)
         # gather everything into a single DatasetDict
-        return train_testvalid['train'], test_valid['train'], test_valid['test']
+        return train_testvalid[Split.TRAIN.value], test_valid[Split.TRAIN.value], test_valid[Split.TEST.value]
 
     @abc.abstractmethod
     def plot_custom(self, df, split_folder, folder):
