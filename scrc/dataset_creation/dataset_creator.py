@@ -1026,4 +1026,4 @@ class DatasetCreator(AbstractPreprocessor):
                                                    Split.TRAIN.value, Split.SECRET_TEST.value, "created"])
             writer.writeheader()
             writer.writerows(courts_data)
-        self.logger.info("Overview created and exported to ", os.path.join(export_path, export_name))
+        self.logger.info(f"Overview created and exported to: {os.path.join(export_path, export_name)}")
