@@ -20,7 +20,7 @@ RUN python -m spacy download it_core_news_sm
 
 # Copy relevant files and directories
 COPY prodigy.json .
-COPY prodigy_results_1.9.22.db .
+COPY prodigy_results_1.db .
 
 # Credentials from .env file
 ENV PRODIGY_HOME /app

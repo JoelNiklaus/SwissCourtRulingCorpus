@@ -210,7 +210,7 @@ def appends_df(filename: str, lang: str):
     df = pd.DataFrame()
     for label in LABELS[1:]:
         df = df.append(globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
-    write_csv(Path(filename), df.reset_index().drop("index", axis=1))
+    write_csv(Path(filename), df.reset_index().drop("index", axis=1).rename(columns={"facts": "text",  "id_csv": "id"}))
 
 
 def permutation(filename: str,lang: str, permutations_number: int):
@@ -223,7 +223,7 @@ def permutation(filename: str,lang: str, permutations_number: int):
         df_exp = df_baseline.merge(df_exp, on="id_csv", how="inner")
         df_exp = df_exp.explode("combinations")
         df = df.append(occlude_text_n(df_exp, label))
-    write_csv(Path(filename), df.reset_index().drop("index", axis=1))
+    write_csv(Path(filename), df.reset_index().drop("index", axis=1).rename(columns={"facts": "text","id_csv": "id"}))
 
 
 def get_occlusion_string_dict(value_pairs: list, permutations_number: int) -> pd.DataFrame:
@@ -271,7 +271,7 @@ def insert_lower_courts(filename: str, lang: str):
     lower_court_df["occluded_text"] = lower_court_df["lower_court"]
     lower_court_df = lower_court_df[lower_court_df["explainability_label"] == LABELS[0]]
     lower_court_df = lower_court_df[lower_court_df["lower_court"] != "original court"].drop("occluded_text", axis=1)
-    write_csv(Path(filename), lower_court_df.append(baseline_df).drop_duplicates().reset_index().drop("index", axis=1))
+    write_csv(Path(filename), lower_court_df.append(baseline_df).drop_duplicates().reset_index().drop("index", axis=1).rename(columns={"facts": "text","id_csv": "id"}))
 
 
 def normalize_white_spaces(string_list: list) -> list:
@@ -302,10 +302,10 @@ if __name__ == '__main__':
         ORIGINAL_TEST_SET.index.name = "id_csv"
         try:
             process_dataset(extracted_datasets, l)
-            appends_df(f"occlusion_test_sets/occlusion_test_set_{l}_exp_1.csv", l)
+            appends_df(f"occlusion_test_sets/{l}/occlusion_test_set_{l}_exp_1.csv", l)
             for nr in NUMBER_OF_EXP:
-                permutation(f"occlusion_test_sets/occlusion_test_set_{l}_exp_{nr}.csv",l, nr)
-            insert_lower_courts(f"lower_court_test_sets/lower_court_test_set_{l}.csv", l)
+                permutation(f"occlusion_test_sets/{l}/occlusion_test_set_{l}_exp_{nr}.csv",l, nr)
+            insert_lower_courts(f"lower_court_test_sets/{l}/lower_court_test_set_{l}.csv", l)
         except KeyError as err:
             print(err)
             pass

@@ -74,7 +74,7 @@ def write_JSONL(filename: str, data: list):
 
 def read_csv(filepath: str, index: str) -> pd.DataFrame:
     """
-    Reads CSV file sets index to "id" and returns a DataFrame.
+    Reads CSV file sets index and returns a DataFrame.
     """
     df = pd.read_csv(filepath)
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]

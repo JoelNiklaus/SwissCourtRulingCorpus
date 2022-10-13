@@ -23,19 +23,20 @@ Currently, the setup the db is the following:
   }
 }
 ```
-3. Create the input datasets using the dataset_creation script at ```./prodigy_dataset_creation/dataset_creation.py```. 
+3. Create the input datasets using the dataset_creation script at ```./prodigy_dataset_creation/prodigy_dataset_creator.py```.
+Note that you need to request the sjp datasets from @JoelNiklaus (see `prodigy_dataset_creator.py` for exact files).
 4. If you are not in the docker group, request access from a maintainer to be able to run docker commands.
 5. Run `bash setup.sh`. This builds the docker image, starts the container and prepares
 everything.
-6. To run the task, use `run.sh` and chose a task. Pass it the desired parameters explained atop the file. It starts
+6. To run the task, use `run.sh` with your chosen task and the desired parameters. It starts
 your task as a webserver. Login with the credentials specified in the ``.env`` file.
 
 ## Tasks
 The judgment explainability and the prediction task need their own dataset which can be produced using the scripts in ```prodigy_dataset_creation/```
-For more information on how to run the task please consult the documentation in ``run.sh``
+For more information on how to run the task please consult the documentation in ``run.sh``.
 ### Judgment explainability
 
-Contains the `facts_annotation recipe`, which allows to annotate the facts of a ruling using a span_manual task.
+Contains the `facts_annotation recipe` and `inspect-facts_annotation recipe`, which allows to annotate the facts of a ruling using a span_manual task.
 
 ### Judgment prediction
 
