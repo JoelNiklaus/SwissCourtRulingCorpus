@@ -1,3 +1,4 @@
+
 import os
 import re
 import sys
@@ -13,12 +14,7 @@ load_dotenv()
 from psycopg2 import sql
 
 from scrc.annotation.judgment_explainability.analysis.preprocessing_functions import read_csv, read_JSONL, write_JSONL
-"""
-Doc
-Creates the datasets for the annotation with prodigy.
-To run use python prodigy_dataset_creator.py language mode (see usage below for more information)
-Note that the produced datasets can change from run  to run due to changes in the database.
-"""
+
 
 FILEPATH_ANNOTATION = "../judgment_explainability/legal_expert_annotations/{}/annotations_{}.jsonl"
 FILEPATH_DATASET_JE = "../judgment_explainability/annotation_datasets/annotation_input_set_{}.jsonl"

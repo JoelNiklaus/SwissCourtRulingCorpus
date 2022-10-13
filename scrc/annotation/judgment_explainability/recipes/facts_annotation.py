@@ -1,10 +1,12 @@
 import spacy
 import prodigy
+import os
+import ast
 from prodigy.components.loaders import JSONL
 from prodigy.components.preprocess import add_tokens
 
 PORTS ={"de":11000, "fr": 12000, "it": 13000}
-LABELS = ["Supports judgment", "Opposes judgment", "Lower court"]
+LABELS =ast.literal_eval(os.getenv("LABELS"))
 
 """
 Docs

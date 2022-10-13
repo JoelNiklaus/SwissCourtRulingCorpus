@@ -1,8 +1,9 @@
 import prodigy
 from prodigy.components.loaders import JSONL
-
+import os
+import ast
 PORTS ={"angela_de":11001, "lynn_de":11002, "thomas_de":11003, "lynn_fr": 12001, "lynn_it": 13001}
-LABELS = ["Supports judgment", "Opposes judgment", "Lower court"]
+LABELS =ast.literal_eval(os.getenv("LABELS"))
 
 """
 Docs

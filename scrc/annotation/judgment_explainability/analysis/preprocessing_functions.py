@@ -4,14 +4,15 @@ import re
 from pathlib import Path
 from random import randint
 import ast
+import os
 import pandas
 import pandas as pd
 
 # Constant variable definitions
-LANGUAGES = ["de", "fr", "it"]
-PERSONS = ["angela", "lynn", "thomas"]
-SESSIONS = ["angela", "lynn", "thomas", "gold_final", "gold_nina"]
-LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
+LANGUAGES = ast.literal_eval(os.getenv("LANGUAGES"))
+PERSONS = ast.literal_eval(os.getenv("PERSONS"))
+SESSIONS = ast.literal_eval(os.getenv("SESSIONS"))
+LABELS = ast.literal_eval(os.getenv("LABELS"))
 AGGREGATIONS = ["mean", "max", "min"]
 NAN_KEY = 10000
 

@@ -9,10 +9,7 @@
 - By looking at the annotated sentences themselves and at the reasoning in the free-text annotation for some of the more complex cases4 a qualitative analysis of
 the annotation is also possible.
 """
-
-import itertools
 from pathlib import Path
-import numpy as np
 import pandas as pd
 import copy
 from sklearn.metrics import cohen_kappa_score
@@ -23,13 +20,12 @@ nltk.download('punkt')
 nltk.download('wordnet')
 
 import rouge_score.rouge_scorer as rs
-from bert_score import score, plot_example
+from bert_score import score
 
-from scrc.annotation.judgment_explainability.annotations.preprocessing_functions import LANGUAGES, \
+from scrc.annotation.judgment_explainability.analysis.preprocessing_functions import LANGUAGES, \
     PERSONS, NAN_KEY,\
     LABELS, AGGREGATIONS, extract_dataset, write_csv, get_tokens_dict, extract_values_from_column, get_span_df, \
     group_columns, get_white_space_dicts, string_to_dict,get_combinations
-
 
 
 def process_dataset(datasets: dict, lang: str):
@@ -63,24 +59,13 @@ def process_dataset(datasets: dict, lang: str):
                 label_df = string_to_dict(label_df, f'tokens_dict_{pers}')
 
 
-            o = calculate_overlap_min_max(label_df, lang)
-            j = calculate_jaccard_similarity_distance(label_df, lang)
             r, be, m, b = calculate_text_scores(label_df, lang)
-
-            label_df = label_df.merge(o, on='annotations_{}'.format("de"),
-                                      how='outer')
-            label_df = label_df.merge(j, on='annotations_{}'.format("de"),
-                                      how='outer')
-
-            label_df = label_df.merge(r, on='annotations_{}'.format("de"),
+            score_df_list =[calculate_overlap_min_max(label_df, lang),
+                            calculate_jaccard_similarity_distance(label_df, lang), r, be, m, b]
+            for score_df in score_df_list:
+                label_df = label_df.merge(score_df, on='annotations_{}'.format("de"),
                                       how='outer')
 
-            label_df = label_df.merge(be, on='annotations_{}'.format("de"),
-                                      how='outer')
-            label_df = label_df.merge(m, on='annotations_{}'.format("de"),
-                                      how='outer')
-            label_df = label_df.merge(b, on='annotations_{}'.format("de"),
-                                      how='outer')
 
             globals()[f"{label.lower().replace(' ', '_')}_{lang}"] = label_df
 
