@@ -15,9 +15,8 @@ import seaborn as sns
 import plotly.express as px
 import matplotlib.pyplot as plt
 import datasets
-from datasets import DatasetDict, concatenate_datasets
+from datasets import concatenate_datasets
 
-from scrc.enums.cantons import Canton
 from scrc.data_classes.ruling_citation import RulingCitation
 
 import numpy as np
@@ -289,9 +288,7 @@ class DatasetCreator(AbstractPreprocessor):
         # TODO in the future: maybe save text as list of paragraphs
         # TODO make sure that the same data is saved to kaggle, csv and huggingface format!
 
-        not_created = []
-        created = []
-
+        not_created, created = [], []
         datasets_list = []
         label_concat = None
 
@@ -302,14 +299,15 @@ class DatasetCreator(AbstractPreprocessor):
             if len(dataset) == 0:
                 self.logger.info(f"Dataset for {court_string} could not be created")
                 not_created.append(court_string)
-            elif concatenate:
-                datasets_list.append(dataset)
-                label_concat = labels if label_concat is None else label_concat  # takes the first label
-            else:  # save each dataset separately
-                save_path = Path(os.path.join(self.get_dataset_folder(), court_string))
-                self.save_dataset(dataset, labels, save_path, self.split_type,
-                                  sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
-
+            else:
+                if concatenate:  # save all of them together in the end
+                    datasets_list.append(dataset)
+                    # TODO maybe it would make more sense to take the union of all the labels
+                    label_concat = labels if label_concat is None else label_concat  # takes the first label
+                else:  # save each dataset separately
+                    save_path = self.create_dir(self.get_dataset_folder(), court_string)
+                    self.save_dataset(dataset, labels, save_path, self.split_type,
+                                      sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
                 created.append(court_string)
             self.logger.info(f"Empty courts: {not_created}")
             self.logger.info(f"Created courts: {created}")
@@ -331,8 +329,7 @@ class DatasetCreator(AbstractPreprocessor):
                 counter += 1
             export_path = Path(f"{self.get_dataset_folder()}/concat_{counter}")
 
-            self.save_dataset(dataset, labels, export_path, "all_train", kaggle=kaggle,
-                              save_reports=save_reports)
+            self.save_dataset(dataset, labels, export_path, "all_train", kaggle=kaggle, save_reports=save_reports)
 
         self.logger.info(f"{len(not_created)} courts not created (since it was empty): {not_created}")
         self.logger.info(f"{len(created)} courts created: {created}")
@@ -418,6 +415,7 @@ class DatasetCreator(AbstractPreprocessor):
         :return:                dataframe with all data
         """
         if use_cache:
+            # The chunksize is part of the path to distinguish between debug and full datasets
             cache_file = self.data_dir / '.cache' / self.dataset_name / f'{court_string}_{self.get_chunksize()}.parquet.gzip'
             # if cached just load it from there
             if not overwrite_cache:
@@ -632,8 +630,8 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
-        self.save_splits(splits, labels, folder, save_reports=save_reports)
         self.save_huggingface_dataset(splits, folder)
+        self.save_splits(splits, labels, folder, save_reports=save_reports)
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
@@ -709,20 +707,22 @@ class DatasetCreator(AbstractPreprocessor):
                 df.to_csv(folder / f"{split}.csv", index_label='id', index=False)
 
     def create_splits(self, dataset, split_type, include_all=False):
+        # TODO is the .value of the Split enum really necessary? It probably also works without
         self.logger.info(f"Dividing data into splits based on split_type: {split_type}")
         if split_type == "random":
             train, val, test = self.split_random(dataset)
             splits = {Split.TRAIN.value: train, Split.VALIDATION.value: val, Split.TEST.value: test}
         elif split_type == "date-stratified":
             train, val, test, secret_test = self.split_date_stratified(dataset, self.start_years)
-            splits = {Split.TRAIN.value: train, Split.VALIDATION.value: val, Split.TEST.value: test, Split.SECRET_TEST.value: secret_test}
+            splits = {Split.TRAIN.value: train, Split.VALIDATION.value: val, Split.TEST.value: test,
+                      Split.SECRET_TEST.value: secret_test}
         elif split_type == "all_train":
             splits = {Split.TRAIN.value: dataset}  # no split at all
         else:
             raise ValueError("Please supply a valid split_type")
         if include_all:
             # we need to update it since some entries have been removed
-            splits['all'] = concatenate_datasets(list(splits.values()))
+            splits[Split.ALL.value] = concatenate_datasets(list(splits.values()))
 
         return splits
 
@@ -762,28 +762,28 @@ class DatasetCreator(AbstractPreprocessor):
                 sub_dataset[split_name] = split_df[split_df.legal_area.astype('str').str.contains(legal_area)]
 
         self.logger.info(f"Processing sub dataset origin_region")
-        for region in splits['all'].origin_region.dropna().unique().tolist():
+        for region in splits[Split.ALL.value].origin_region.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_region'][region] = dict()
             for split_name, split_df in splits.items():
                 region_df = split_df.dropna(subset=['origin_region'])
                 sub_dataset[split_name] = region_df[region_df.origin_region.astype('str').str.contains(region)]
 
         self.logger.info(f"Processing sub dataset origin_canton")
-        for canton in splits['all'].origin_canton.dropna().unique().tolist():
+        for canton in splits[Split.ALL.value].origin_canton.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_canton'][canton] = dict()
             for split_name, split_df in splits.items():
                 canton_df = split_df.dropna(subset=['origin_canton'])
                 sub_dataset[split_name] = canton_df[canton_df.origin_canton.astype('str').str.contains(canton)]
 
         self.logger.info(f"Processing sub dataset origin_court")
-        for court in splits['all'].origin_court.dropna().unique().tolist():
+        for court in splits[Split.ALL.value].origin_court.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_court'][court] = dict()
             for split_name, split_df in splits.items():
                 court_df = split_df.dropna(subset=['origin_court'])
                 sub_dataset[split_name] = court_df[court_df.origin_court.astype('str').str.contains(court)]
 
         self.logger.info(f"Processing sub dataset origin_chamber")
-        for chamber in splits['all'].origin_chamber.dropna().unique().tolist():
+        for chamber in splits[Split.ALL.value].origin_chamber.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_chamber'][chamber] = dict()
             for split_name, split_df in splits.items():
                 chamber_df = split_df.dropna(subset=['origin_chamber'])

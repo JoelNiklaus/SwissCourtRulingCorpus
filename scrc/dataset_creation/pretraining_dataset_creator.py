@@ -1,16 +1,11 @@
-import gc
-from typing import Tuple
-
-import pandas as pd
 import datasets
-from datasets import concatenate_datasets, Dataset
 
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.enums.section import Section
 from scrc.utils.log_utils import get_logger
 
-from scrc.utils.main_utils import get_config, print_memory_usage
-import scrc.utils.monkey_patch  # prevent memory leak with pandas
+from scrc.utils.main_utils import get_config
+import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
 
 
 class PretrainingDatasetCreator(DatasetCreator):
@@ -34,7 +29,7 @@ class PretrainingDatasetCreator(DatasetCreator):
             "judgment": False, "citation": False, "lower_court": False
         }
         # we don't use the cache since it is overwritten after each court
-        df = self.get_df(engine, data_to_load, court_string=court_string, use_cache=False)
+        df = self.get_df(engine, data_to_load, court_string=court_string)
         hf_dataset = datasets.Dataset.from_pandas(df)
 
         return hf_dataset, None
