@@ -44,5 +44,6 @@ if __name__ == '__main__':
     config = get_config()
 
     pretraining_dataset_creator = PretrainingDatasetCreator(config, debug=False)
-    pretraining_dataset_creator.create_multiple_datasets(concatenate=True, overview=False, sub_datasets=False,
-                                                           save_reports=False)
+    court_list = pretraining_dataset_creator.get_all_courts()
+    pretraining_dataset_creator.create_multiple_datasets(court_list=court_list, concatenate=True, overview=True,
+                                                         sub_datasets=False, save_reports=False)

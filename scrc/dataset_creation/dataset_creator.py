@@ -33,7 +33,7 @@ from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cach
 from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision, legal_areas, get_region, \
     where_string_spider, where_string_court
 
-from scrc.utils.court_names import court_names_bu, get_issue_courts, get_error_courts
+from scrc.utils.court_names import court_names_backup, get_issue_courts, get_error_courts
 from scrc.enums.split import Split
 
 csv.field_size_limit(sys.maxsize)
@@ -343,7 +343,7 @@ class DatasetCreator(AbstractPreprocessor):
             court_names = next(self.select(engine, "court", "court_string", None))["court_string"].tolist()
         except StopIteration:
             self.logger.info("No court names found; using default list.")
-            court_names = court_names_bu
+            court_names = court_names_backup
         return court_names
 
     def get_court_list(self):
@@ -363,9 +363,9 @@ class DatasetCreator(AbstractPreprocessor):
 
         # court_string = court_string - (courts_done + courts_error + courts_issues)
         court_list = []
-        for i in court_list_tmp:
-            if i not in (courts_done + courts_error + courts_issues):
-                court_list.append(i)
+        for court in court_list_tmp:
+            if court not in (courts_done + courts_error + courts_issues):
+                court_list.append(court)
 
         # 76/183 not created
         # 107/183 created - 2 without reports, 6 without file_numbers
@@ -448,6 +448,8 @@ class DatasetCreator(AbstractPreprocessor):
             df = self.load_citation(decision_ids, df, engine)
         if data_to_load['lower_court']:
             df = self.load_lower_court(decision_ids, df, engine, court_string)
+
+        df.drop_duplicates(subset=self.get_feature_col_names(), inplace=True)
 
         self.logger.info("Finished loading the data from the database")
         if use_cache:
