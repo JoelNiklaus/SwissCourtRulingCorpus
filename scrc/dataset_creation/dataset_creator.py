@@ -324,10 +324,10 @@ class DatasetCreator(AbstractPreprocessor):
             labels = label_concat
 
             # check if export folder already exists and increment the name index if it does
-            counter = 1
-            while os.path.exists(f"{self.get_dataset_folder()}/concat_{counter}"):
-                counter += 1
-            export_path = Path(f"{self.get_dataset_folder()}/concat_{counter}")
+            version = 1
+            while os.path.exists(f"{self.get_dataset_folder()}/v{version}"):
+                version += 1
+            export_path = Path(f"{self.get_dataset_folder()}/v{version}")
 
             self.save_dataset(dataset, labels, export_path, "all_train", kaggle=kaggle, save_reports=save_reports)
 
@@ -381,16 +381,16 @@ class DatasetCreator(AbstractPreprocessor):
         if overview:
             self.create_overview()
 
-    def save_huggingface_dataset(self, splits, feature_col_folder):
+    def save_huggingface_dataset(self, splits, folder):
         """
         save data as huggingface dataset with columns:
         'id', 'date', 'year', 'language',
         'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'legal_area',
         'bge_label', 'citation_label', all feature cols
-        :param splits:                  specifying splits of dataset
-        :param feature_col_folder:      name of folder
+        :param splits:      specifying splits of dataset
+        :param folder:      name of folder
         """
-        huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
+        huggingface_dir = self.create_dir(folder, 'huggingface')
         self.logger.info(f"Generating huggingface dataset at {huggingface_dir}")
 
         for split, dataset in splits.items():
@@ -1017,10 +1017,10 @@ class DatasetCreator(AbstractPreprocessor):
                     courts_data.append(court_data)
 
         # check if export file already exists and increment the name index if it does
-        counter = 1
-        while os.path.exists(f"{export_path}/{export_name}_{counter}.csv"):
-            counter += 1
-        export_name = f"{export_name}_{counter}.csv"
+        version = 1
+        while os.path.exists(f"{export_path}/{export_name}_v{version}.csv"):
+            version += 1
+        export_name = f"{export_name}_v{version}.csv"
 
         # export to csv
         with open(os.path.join(export_path, export_name), "w") as f:
