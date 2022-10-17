@@ -154,7 +154,8 @@ class CriticalityDatasetCreator(DatasetCreator):
         citation_labels, _ = list(np.unique(np.hstack(df.citation_label), return_index=True))
         label_list = [bge_labels, citation_labels]
         self.logger.info("finished criticality")
-        return datasets.Dataset.from_pandas(df), label_list
+        dataset = datasets.Dataset.from_pandas(df)
+        return dataset, label_list
 
     def set_criticality_label(self, df, criticality_list, label):
         """
@@ -224,7 +225,6 @@ class CriticalityDatasetCreator(DatasetCreator):
         # get rid of entries where counter is 0
         df = df[df['counter'] > 0]
         stats = df['counter'].describe()
-        print(stats)
         cits = [stats['75%'], stats['50%'], stats['25%'], 0]
         return cits
 

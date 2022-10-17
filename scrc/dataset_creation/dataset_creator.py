@@ -616,7 +616,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         return df
 
-    def save_dataset(self, dataset, labels: list, folder: Path,
+    def save_dataset(self, dataset: datasets.Dataset, labels: list, folder: Path,
                      split_type="date-stratified", sub_datasets=False, kaggle=False, save_reports=False):
         """
         creates all the files necessary for a kaggle dataset from a given df
@@ -633,8 +633,8 @@ class DatasetCreator(AbstractPreprocessor):
         dataset = self.clean_dataset(dataset)
         self.logger.info("start creating splits")
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
-        self.save_splits(splits, labels, folder, save_reports=save_reports)
         self.save_huggingface_dataset(splits, folder)
+        self.save_splits(splits, labels, folder, save_reports=save_reports)
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
