@@ -204,13 +204,18 @@ class ReportCreator:
 
         self.plot_attribute(df, 'year', name=str(name))
         self.plot_attribute(df, 'bge_chamber', name=str(name))
+        self.plot_attribute(df, 'bger_chamber', name=str(name))
 
         if name == 'all':
             self.report_citations_details(df)
 
     def report_citations_details(self, df):
+        df.to_csv(self.folder / f'citation_distribution.csv')
+
         self.plot_two_attributes(df, 'year', 'counter', 'all')
         self.bin_plot_attribute(df, 'counter', 'bge_chamber', 0, 300, 10)
+        self.bin_plot_attribute(df, 'counter', 'bger_chamber', 0, 300, 10)
+        self.bin_plot_attribute(df, 'counter', 'legal_area', 0, 300, 10)
 
         my_dictionary_1 = dict.fromkeys(list(range(0, 301, 10)))
         my_dictionary_2 = dict.fromkeys(list(range(0, 51, 1)))
@@ -241,10 +246,11 @@ class ReportCreator:
         if not os.path.exists(self.folder / 'bge_references'):
             pass
         else:
-            plot_attributes = ['bge_chamber', 'year']
+            plot_attributes = ['bge_chamber', 'legal_area', 'bger_chamber', 'year']
             for attribute in plot_attributes:
                 self.plot_attribute(df, attribute, name='references')
             self.plot_attribute_color(df, 'year', 'bge_chamber', 'references')
+            self.plot_attribute_color(df, 'year', 'legal_area', 'references')
 
     def report_references_not_found(self, not_found_list, label):
         """

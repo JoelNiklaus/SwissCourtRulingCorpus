@@ -57,8 +57,8 @@ class BgeReferenceExtractor(AbstractExtractor):
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
         """Instead of saving data into database, references get written into a text file"""
         self.logger.info("save data in progress")
-        processed_file_path = ROOT_DIR / 'data' / 'datasets' / "bge_references_found.txt"
-        not_processed_file_path = ROOT_DIR / 'data' / 'datasets' / "bge_not_extracted.txt"
+        processed_file_path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "bge_references_found.txt"
+        not_processed_file_path = ROOT_DIR / 'data' / 'datasets' / 'criticality_prediction' / "bge_not_extracted.txt"
         for _, row in df.iterrows():
             # only add new content to textfile not overwriting
             if 'bge_reference' in row and row['bge_reference'] != 'no reference found':

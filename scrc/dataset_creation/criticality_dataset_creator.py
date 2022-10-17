@@ -16,6 +16,8 @@ from scrc.enums.section import Section
 from scrc.utils.main_utils import get_config
 from scrc.utils.log_utils import get_logger
 from collections import Counter
+import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
+
 
 """
 Dataset to be created:
@@ -74,22 +76,36 @@ class CriticalityDatasetCreator(DatasetCreator):
         if not bge_references_file_path.exists():
             raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
         df = pd.DataFrame({'bge_file_number_long': [], 'bge_file_number_short': [], 'bger_reference': [], 'year': [],
-                           'bge_chamber': []})
+                           'bge_chamber': [], 'bger_chamber': [], 'legal_area': []})
         with bge_references_file_path.open("r") as f:
             for line in f:
                 (bge_file_number_long, bger_reference) = line.split()
+                bger_chamber = bger_reference.split('_', 2)[0]
+                legal_area = self.get_legal_area_bger(bger_chamber)
                 year = int(bge_file_number_long.split('-', 5)[1]) + 1874
                 bge_chamber = bge_file_number_long.split('_', 5)[2]
                 bge_file_number_short = bge_file_number_long.split('_')[3]
-                s_row = pd.Series([bge_file_number_long, bge_file_number_short, bger_reference, year, bge_chamber],
+                s_row = pd.Series([bge_file_number_long, bge_file_number_short, bger_reference, year, bge_chamber, bger_chamber, legal_area],
                                   index=df.columns)
                 df = df.append(s_row, ignore_index=True)
         self.logger.info(
             f"References_df: There are {len(df.index)} entries with {len(df.bge_file_number_long.unique())} unique bge_filenumbers and {len(df.bger_reference.unique())} unique bger_references.")
         folder = self.create_dir(self.get_dataset_folder(), f'reports/references')
         report_creator = ReportCreator(folder, self.debug)
-        report_creator.report_citations_count(df, 'references')
+        report_creator.report_references(df)
         return df
+
+    def get_legal_area_bger(self, chamber_number):
+        switch = {
+            1: 'public_law',
+            2: 'public_law',
+            4: 'civil_law',
+            5: 'civil_law',
+            6: 'penal_law',
+            8: 'social_law',
+            9: 'social_law'
+        }
+        return switch.get(chamber_number, "other")
 
     def prepare_dataset(self, save_reports, court_string):
         """
@@ -111,8 +127,8 @@ class CriticalityDatasetCreator(DatasetCreator):
         df = self.set_criticality_label(df, bge_list, 'bge_label')
 
         # citation criticality
-        criticality_lists = self.get_citations_criticality_list(df, self.citation_amount)
-        # to debug use these given lists so citation_label_{i} is sometimes critical
+        criticality_lists = self.get_citations_criticality_list(df)
+        # to debug use these given lists so citation_label has each label at least once
         # clist = ['6B_1045/2018']
         # blist = ['8C_309/2009', '2A_88/2003']
         # alist = ['8C_309/2009', '2A_88/2003', '1C_396/2017', '5A_960/2019']
@@ -124,8 +140,9 @@ class CriticalityDatasetCreator(DatasetCreator):
                 df = self.set_criticality_label(df, critical_list, 'citation_label')
                 critical_df = df[df['citation_label'] == 'critical']
                 df = df[df['citation_label'] != 'critical']
+                # critical-0 = most important
                 critical_df['citation_label'] = critical_df['citation_label'].map(
-                    {'critical': f"critical-{self.citation_amount[i]}"}, na_action=None)
+                    {'critical': f"critical-{i + 1}"}, na_action=None)
                 if not critical_df.empty:
                     df_list.append(critical_df)
             i = i + 1
@@ -137,7 +154,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         citation_labels, _ = list(np.unique(np.hstack(df.citation_label), return_index=True))
         label_list = [bge_labels, citation_labels]
         self.logger.info("finished criticality")
-        return df, label_list
+        return datasets.Dataset.from_pandas(df), label_list
 
     def set_criticality_label(self, df, criticality_list, label):
         """
@@ -174,36 +191,42 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.logger.info(f"There are {len(bge_ref_list)} references in the bge_criticality_list.")
         return bge_ref_list
 
-    def get_citations_criticality_list(self, df, citations_amounts=[1]):
+    def get_citations_criticality_list(self, df):
         """
         create a list of bger_references which were cited a specified amount
         :param df:                dataframe of all bger cases
-        :param citations_amounts  array which specifies amount of citations a case must have to be in the list
         :return:                  list of lists of bger_references
         """
         self.logger.info(f"Processing labeling of citation_criticality")
-
         citations_df = self.process_citations(df)
 
         # report number of citations
         folder = self.create_dir(self.get_dataset_folder(), f'reports/citations')
         report_creator = ReportCreator(folder, self.debug)
         report_creator.report_citations_count(citations_df, 'all')
-
+        citations_amounts = self.calculate_quarter(citations_df)
         # apply for each row a function which returns True if citation amount is bigger than given number
         critical_lists = []
-        for number in citations_amounts:
-            critical_df = citations_df[citations_df['counter'] >= number]
+        for i in range(len(citations_amounts)):
+            critical_df = citations_df[citations_df['counter'] >= citations_amounts[i]]
             self.logger.info(
-                f"There were {len(critical_df.index)} cases found in extracted bger references which were cited at least {number} times.")
+                f"There were {len(critical_df.index)} cases found in extracted bger references which were cited at least {citations_amounts[i]} times.")
             # create list of bge file numbers is unique due to counter
             bge_list = critical_df.loc[:, 'bger_reference'].tolist()
             # make sure list only contains file number once
             bge_list = list(set(bge_list))
             self.logger.info(f"There are {len(bge_list)} references in the bge_criticality_list.")
             critical_lists.append(bge_list)
-            report_creator.report_citations_count(citations_df, str(number))
+            report_creator.report_citations_count(citations_df, str(i))
         return critical_lists
+
+    def calculate_quarter(self, df):
+        # get rid of entries where counter is 0
+        df = df[df['counter'] > 0]
+        stats = df['counter'].describe()
+        print(stats)
+        cits = [stats['75%'], stats['50%'], stats['25%'], 0]
+        return cits
 
     def process_citations(self, df):
         """
@@ -262,6 +285,7 @@ class CriticalityDatasetCreator(DatasetCreator):
             for k in weighted_counts.keys():
                 weighted_counts[k] = weighted_counts[k] * int(weight)
             return weighted_counts
+        # TODO think about icluding this line
         # df['ruling_citation'] = df.apply(weight_citations, axis=1)
 
         # create one counter for all citations

@@ -37,6 +37,8 @@ from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision,
 from scrc.utils.court_names import court_names_backup, get_issue_courts, get_error_courts
 from scrc.enums.split import Split
 
+import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
+
 csv.field_size_limit(sys.maxsize)
 
 # pd.options.mode.chained_assignment = None  # default='warn'
@@ -614,7 +616,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         return df
 
-    def save_dataset(self, df, labels: list, folder: Path,
+    def save_dataset(self, dataset, labels: list, folder: Path,
                      split_type="date-stratified", sub_datasets=False, kaggle=False, save_reports=False):
         """
         creates all the files necessary for a kaggle dataset from a given df
@@ -628,12 +630,11 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         # clean df before saving it
-        df = self.clean_dataset(df)
-        dataset = datasets.Dataset.from_pandas(df)
+        dataset = self.clean_dataset(dataset)
         self.logger.info("start creating splits")
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
-        self.save_huggingface_dataset(splits, folder)
         self.save_splits(splits, labels, folder, save_reports=save_reports)
+        self.save_huggingface_dataset(splits, folder)
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
@@ -654,38 +655,29 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"Saved dataset files to {folder}")
         return splits
 
-    def clean_dataset(self, df):
+    def clean_dataset(self, dataset):
         # replace empty strings with nan so that they can be removed
-        """
         self.logger.info(f"start cleaning")
         empty_rows = []
         def get_empty_rows(row):
-            text = str(row[feature_col])
-            if len(text) <= self.minFeatureColLength:
+            if row["num_tokens"] <= self.minFeatureColLength:
                 empty_rows.append(row['__index_level_0__'])
 
         for feature_col in self.get_feature_col_names():
+            dataset = dataset.rename_column(f"{feature_col}_num_tokens_bert", "num_tokens")
             dataset.map(get_empty_rows)
+            dataset = dataset.rename_column("num_tokens", f"{feature_col}_num_tokens_bert")
+
         duplicates = [number for number in empty_rows if empty_rows.count(number) == len(self.get_feature_col_names())]
         non_empty_rows = [i for i in range(len(dataset)) if i not in duplicates]
         dataset = dataset.select(non_empty_rows)
 
-        # if data_to_load['file']:
-        dataset = dataset.remove_columns(['html_url', 'pdf_url'])
+        if 'html_url' in dataset.features.keys():
+            dataset = dataset.remove_columns(['html_url'])
+        if 'pdf_url' in dataset.features.keys():
+            dataset = dataset.remove_columns(['pdf_url'])
         self.logger.info(f"finished cleaning")
         return dataset
-        """
-        for feature_col in self.get_feature_col_names():
-            df[f'{feature_col}_length'] = df[feature_col].astype(str).apply(len)
-            match = df[f'{feature_col}_length'] > self.minFeatureColLength
-            df.loc[~match, feature_col] = np.nan
-
-        a = len(df.index)
-        df = df.dropna(subset=self.feature_cols, how='all')
-        self.logger.info(f"There were {a - len(df.index)} cases dropped because all feature cols were too short.")
-        df = df.reset_index(drop=True)  # reindex to get nice indices
-        df = df.drop(['html_url', 'pdf_url'], axis=1, inplace=True)
-        return df
 
     def prepare_kaggle_splits(self, splits):
         self.logger.info("Saving the data in kaggle format")
