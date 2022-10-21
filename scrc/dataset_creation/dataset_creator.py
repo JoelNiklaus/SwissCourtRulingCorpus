@@ -2,18 +2,21 @@ import abc
 import copy
 import math
 import os
+import sys
+import gc
 from collections import Counter
 from datetime import date
 from pathlib import Path
 from typing import Union
 import ast
+from tqdm import tqdm
+import csv
 import seaborn as sns
 import plotly.express as px
 import matplotlib.pyplot as plt
 import datasets
-from datasets import DatasetDict, concatenate_datasets
+from datasets import concatenate_datasets
 
-from scrc.enums.cantons import Canton
 from scrc.data_classes.ruling_citation import RulingCitation
 
 import numpy as np
@@ -24,10 +27,15 @@ from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
 from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache, get_canton_from_chamber, \
-    get_court_from_chamber
+    get_court_from_chamber, print_memory_usage
 
 from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision, legal_areas, get_region, \
     where_string_spider, where_string_court
+
+from scrc.utils.court_names import court_names_backup, get_issue_courts, get_error_courts
+from scrc.enums.split import Split
+
+csv.field_size_limit(sys.maxsize)
 
 # pd.options.mode.chained_assignment = None  # default='warn'
 sns.set(rc={"figure.dpi": 300, 'savefig.dpi': 300})
@@ -137,17 +145,19 @@ class DatasetCreator(AbstractPreprocessor):
     Also creates the necessary files for a kaggle dataset and a huggingface dataset.
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, debug: bool = True):
         __metaclass__ = abc.ABCMeta
         super().__init__(config)
         self.logger = get_logger(__name__)
 
+        self.debug = debug
         self.seed = 42
         self.minFeatureColLength = 100  # characters
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
-        self.start_years = {"train": 2002, "validation": 2016, "test": 2018, "secret_test": 2020}
+        self.start_years = {Split.TRAIN.value: 2002, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
+                            Split.SECRET_TEST.value: 2020}
         self.current_year = date.today().year
         self.metadata = ['year', 'legal_area', 'chamber', 'court', 'canton', 'region',
                          'origin_chamber', 'origin_court', 'origin_canton', 'origin_region']
@@ -163,7 +173,6 @@ class DatasetCreator(AbstractPreprocessor):
         # self.court_dict = build_info_df('court', 'court_string')
         # self.canton_dict = build_info_df('canton', 'short_code')
 
-        self.debug = True  # to be overridden
         self.overwrite_cache = True  # to be overridden
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
@@ -172,7 +181,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.available_bges = []  # to be overridden
 
     @abc.abstractmethod
-    def prepare_dataset(self, save_reports):
+    def prepare_dataset(self, save_reports, court_string):
         pass
 
     def get_chunksize(self):
@@ -266,31 +275,122 @@ class DatasetCreator(AbstractPreprocessor):
             return self.create_dir(self.tmp_subdir, self.dataset_name)
         return self.create_dir(self.datasets_subdir, self.dataset_name)
 
-    def create_dataset(self, sub_datasets=False, kaggle=False, save_reports=False):
+    def create_dataset(self, court_list=None, concatenate=False, sub_datasets=False, kaggle=False, save_reports=False):
         """
         Retrieves the respective function named by the dataset and executes it to get the df for that dataset.
         :return:
         """
+        if court_list is None:
+            court_list = ["CH_BGer"]  # default to BGer
+
         self.logger.info(f"Creating {self.dataset_name} dataset")
 
         # TODO in the future: maybe save text as list of paragraphs
         # TODO make sure that the same data is saved to kaggle, csv and huggingface format!
 
-        dataset, labels = self.prepare_dataset(save_reports)
-        dataset = dataset.shuffle(seed=42)
-        self.save_dataset(dataset, labels, self.get_dataset_folder(), self.split_type,
-                          sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+        not_created, created = [], []
+        datasets_list = []
+        label_concat = None
 
-    def save_huggingface_dataset(self, splits, feature_col_folder):
+        for court_string in court_list:
+            self.logger.info(f"Creating dataset for {court_string}")
+            dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
+
+            if len(dataset) == 0:
+                self.logger.info(f"Dataset for {court_string} could not be created")
+                not_created.append(court_string)
+            else:
+                if concatenate:  # save all of them together in the end
+                    datasets_list.append(dataset)
+                    # TODO maybe it would make more sense to take the union of all the labels
+                    label_concat = labels if label_concat is None else label_concat  # takes the first label
+                else:  # save each dataset separately
+                    save_path = self.create_dir(self.get_dataset_folder(), court_string)
+                    self.save_dataset(dataset, labels, save_path, self.split_type,
+                                      sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+                created.append(court_string)
+            self.logger.info(f"Empty courts: {not_created}")
+            self.logger.info(f"Created courts: {created}")
+
+        if concatenate:
+            self.logger.info("Concatenating datasets")
+            dataset = concatenate_datasets(datasets_list)
+
+            # TODO: investigate if this is really necessary
+            print_memory_usage([dataset, datasets_list])
+            del datasets_list
+            gc.collect()
+
+            labels = label_concat
+
+            # check if export folder already exists and increment the name index if it does
+            version = 1
+            while os.path.exists(f"{self.get_dataset_folder()}/v{version}"):
+                version += 1
+            export_path = Path(f"{self.get_dataset_folder()}/v{version}")
+
+            self.save_dataset(dataset, labels, export_path, "all_train", kaggle=kaggle, save_reports=save_reports)
+
+        self.logger.info(f"{len(not_created)} courts not created (since it was empty): {not_created}")
+        self.logger.info(f"{len(created)} courts created: {created}")
+
+    def get_all_courts(self):
+        try:
+            engine = self.get_engine(self.db_scrc)
+            court_names = next(self.select(engine, "court", "court_string", None))["court_string"].tolist()
+        except StopIteration:
+            self.logger.info("No court names found; using default list.")
+            court_names = court_names_backup
+        return court_names
+
+    def get_court_list(self):
+        """
+        get_court_list returns all courts that can be generated without any problems based on the current state of knowledge
+        :return: list of str objects of court names. e.g. ["CH_BGer", "BL_OG"]
+        """
+
+        court_list_tmp = self.get_all_courts()  # get names of all courts
+
+        # taking all folder names from /data/datasets as a list to know which courts are already generated
+        courts_done = os.listdir(str(self.datasets_subdir))
+
+        courts_error = get_error_courts()  # all courts that couldn't be created
+
+        courts_issues = get_issue_courts()  # all courts that can be generated but with some issues
+
+        # court_string = court_string - (courts_done + courts_error + courts_issues)
+        court_list = []
+        for court in court_list_tmp:
+            if court not in (courts_done + courts_error + courts_issues):
+                court_list.append(court)
+
+        # 76/183 not created
+        # 107/183 created - 2 without reports, 6 without file_numbers
+        return court_list
+
+    def create_multiple_datasets(self, court_list=None, concatenate=False, overview=True, save_reports=True,
+                                 sub_datasets=False):
+        """
+        :param court_list:    default: every court without any problems, or to specify court_strings in a list e.g. ["TI_TE", "LU_JSD"]
+        :param concatenate:   if True, all courts datasets are concatenated into one file
+        :param overview:      if True, creates overview of all generated datasets and exports them in a csv file
+        """
+        if court_list is None:
+            court_list = self.get_court_list()
+        self.create_dataset(court_list, concatenate=concatenate, sub_datasets=sub_datasets, save_reports=save_reports)
+        if overview:
+            self.create_overview()
+
+    def save_huggingface_dataset(self, splits, folder):
         """
         save data as huggingface dataset with columns:
         'id', 'date', 'year', 'language',
         'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'legal_area',
         'bge_label', 'citation_label', all feature cols
-        :param splits:                  specifying splits of dataset
-        :param feature_col_folder:      name of folder
+        :param splits:      specifying splits of dataset
+        :param folder:      name of folder
         """
-        huggingface_dir = self.create_dir(feature_col_folder, 'huggingface')
+        huggingface_dir = self.create_dir(folder, 'huggingface')
         self.logger.info(f"Generating huggingface dataset at {huggingface_dir}")
 
         for split, dataset in splits.items():
@@ -315,7 +415,8 @@ class DatasetCreator(AbstractPreprocessor):
         :return:                dataframe with all data
         """
         if use_cache:
-            cache_file = self.data_dir / '.cache' / f'{self.dataset_name}_{self.get_chunksize()}.parquet.gzip'
+            # The chunksize is part of the path to distinguish between debug and full datasets
+            cache_file = self.data_dir / '.cache' / self.dataset_name / f'{court_string}_{self.get_chunksize()}.parquet.gzip'
             # if cached just load it from there
             if not overwrite_cache:
                 df = retrieve_from_cache_if_exists(cache_file)
@@ -346,6 +447,8 @@ class DatasetCreator(AbstractPreprocessor):
         if data_to_load['lower_court']:
             df = self.load_lower_court(decision_ids, df, engine, court_string)
 
+        df.drop_duplicates(subset=self.get_feature_col_names(), inplace=True)
+
         self.logger.info("Finished loading the data from the database")
         if use_cache:
             save_df_to_cache(df, cache_file)
@@ -356,13 +459,16 @@ class DatasetCreator(AbstractPreprocessor):
         table = 'decision d LEFT JOIN language ON language.language_id = d.language_id'
         columns = 'd.*, extract(year from d.date) as year, language.iso_code as lang'
         where = f"d.decision_id IN {where_string_court('decision_id', court_string)}"
-        return next(self.select(engine, table, columns, where, chunksize=self.get_chunksize()))
+        return next(self.select(engine, table, columns, where, chunksize=self.get_chunksize()), pd.DataFrame())
 
     def load_file_number(self, decision_ids, df, engine):
         self.logger.info('Loading File Number')
         table = f"{join_tables_on_decision(['file_number'])}"
         where = f"file_number.decision_id IN ({','.join(decision_ids)})"
-        file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()))
+        file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()),
+                              pd.DataFrame())
+        if file_number_df.empty:
+            return df
 
         # we get a list of file_numbers but only want one, all entries are the same but different syntax
         def get_one_file_number(column_data):
@@ -407,8 +513,11 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info('Loading Citation')
         table = f"{join_tables_on_decision(['citation'])}"
         where = f"citation.decision_id IN ({','.join(decision_ids)})"
-        citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()))
-        df['citations'] = citations_df['citations'].astype(str)
+        citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()), pd.DataFrame())
+        if not citations_df.empty:
+            df['citations'] = citations_df['citations'].astype(str)
+        else:
+            df['citations'] = ""
         return df
 
     def load_file(self, df, engine):
@@ -428,8 +537,12 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info('Loading Judgments')
         table = f"{join_tables_on_decision(['judgment'])}"
         where = f"judgment_map.decision_id IN ({','.join(decision_ids)})"
-        judgments_df = next(self.select(engine, table, "judgments", where, None, self.get_chunksize()))
-        df['judgments'] = judgments_df['judgments'].astype(str)
+        judgments_df = next(self.select(engine, table, "judgments", where, None, self.get_chunksize()), pd.DataFrame())
+        if not judgments_df.empty:
+            df['judgments'] = judgments_df['judgments'].astype(str)
+        else:
+            df['judgments'] = ""
+            self.logger.info("judgments_df is empty")
         return df
 
     def load_lower_court(self, decision_ids, df, engine, court_string):
@@ -441,12 +554,13 @@ class DatasetCreator(AbstractPreprocessor):
                    "lower_court.chamber_id as origin_chamber, "
                    "lower_court.file_number as origin_file_number")
         where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
-        lower_court_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
-        df['origin_file_number'] = lower_court_df['origin_file_number']
-        df['origin_date'] = lower_court_df['origin_date']
-        df['origin_chamber'] = lower_court_df['origin_chamber']
-        df['origin_court'] = lower_court_df['origin_court']
-        df['origin_canton'] = lower_court_df['origin_canton']
+        lower_court_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()), pd.DataFrame())
+        if not lower_court_df.empty:
+            df['origin_file_number'] = lower_court_df['origin_file_number']
+            df['origin_date'] = lower_court_df['origin_date']
+            df['origin_chamber'] = lower_court_df['origin_chamber']
+            df['origin_court'] = lower_court_df['origin_court']
+            df['origin_canton'] = lower_court_df['origin_canton']
 
         if court_string == 'CH_BGer':
             df['origin_chamber'] = df.origin_chamber.apply(self.get_string_value, args=[self.chamber_dict])
@@ -516,8 +630,8 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
+        self.save_huggingface_dataset(splits, folder)
         self.save_splits(splits, labels, folder, save_reports=save_reports)
-        self.save_huggingface_dataset(splits, self.get_dataset_folder())
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
@@ -527,7 +641,7 @@ class DatasetCreator(AbstractPreprocessor):
                 category_dir = self.create_dir(sub_datasets_dir, category)
                 for sub_dataset, sub_dataset_splits in sub_dataset_category.items():
                     sub_dataset_dir = self.create_dir(category_dir, sub_dataset)
-                    self.save_splits(sub_dataset_splits, labels, sub_dataset_dir, save_csvs=['test'])
+                    self.save_splits(sub_dataset_splits, labels, sub_dataset_dir, save_csvs=[Split.TEST.value])
 
         if kaggle:
             # save special kaggle files
@@ -543,11 +657,11 @@ class DatasetCreator(AbstractPreprocessor):
         # deepcopy splits, so we don't mess with the original dict
         kaggle_splits = copy.deepcopy(splits)
         # create solution file
-        kaggle_splits['solution'] = kaggle_splits['test'].drop('text', axis='columns')  # drop text
+        kaggle_splits['solution'] = kaggle_splits[Split.TEST.value].drop('text', axis='columns')  # drop text
         # rename according to kaggle conventions
         kaggle_splits['solution'] = kaggle_splits['solution'].rename(columns={"label": "Expected"})
         # create test file
-        kaggle_splits['test'] = kaggle_splits['test'].drop('label', axis='columns')  # drop label
+        kaggle_splits[Split.TEST.value] = kaggle_splits[Split.TEST.value].drop('label', axis='columns')  # drop label
         # create sampleSubmission file
         # rename according to kaggle conventions
         sample_submission = kaggle_splits['solution'].rename(columns={"Expected": "Predicted"})
@@ -593,20 +707,22 @@ class DatasetCreator(AbstractPreprocessor):
                 df.to_csv(folder / f"{split}.csv", index_label='id', index=False)
 
     def create_splits(self, dataset, split_type, include_all=False):
+        # TODO is the .value of the Split enum really necessary? It probably also works without
         self.logger.info(f"Dividing data into splits based on split_type: {split_type}")
         if split_type == "random":
             train, val, test = self.split_random(dataset)
-            splits = {'train': train, 'val': val, 'test': test}
+            splits = {Split.TRAIN.value: train, Split.VALIDATION.value: val, Split.TEST.value: test}
         elif split_type == "date-stratified":
             train, val, test, secret_test = self.split_date_stratified(dataset, self.start_years)
-            splits = {'train': train, 'val': val, 'test': test, 'secret_test': secret_test}
+            splits = {Split.TRAIN.value: train, Split.VALIDATION.value: val, Split.TEST.value: test,
+                      Split.SECRET_TEST.value: secret_test}
         elif split_type == "all_train":
-            splits = {'train': dataset}  # no split at all
+            splits = {Split.TRAIN.value: dataset}  # no split at all
         else:
             raise ValueError("Please supply a valid split_type")
         if include_all:
             # we need to update it since some entries have been removed
-            splits['all'] = concatenate_datasets(list(splits.values()))
+            splits[Split.ALL.value] = concatenate_datasets(list(splits.values()))
 
         return splits
 
@@ -634,7 +750,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.logger.info(f"Processing sub dataset year")
         if split_type == "date-stratified":
-            for year in range(self.start_years["test"], self.current_year):
+            for year in range(self.start_years[Split.TEST.value], self.current_year):
                 sub_dataset = sub_datasets_dict['year'][str(year)] = dict()
                 for split_name, split_df in splits.items():
                     sub_dataset[split_name] = split_df[split_df.year == year]
@@ -643,35 +759,35 @@ class DatasetCreator(AbstractPreprocessor):
         for legal_area in legal_areas.keys():
             sub_dataset = sub_datasets_dict['legal_area'][legal_area] = dict()
             for split_name, split_df in splits.items():
-                sub_dataset[split_name] = split_df[split_df.legal_area.str.contains(legal_area)]
+                sub_dataset[split_name] = split_df[split_df.legal_area.astype('str').str.contains(legal_area)]
 
         self.logger.info(f"Processing sub dataset origin_region")
-        for region in splits['all'].origin_region.dropna().unique().tolist():
+        for region in splits[Split.ALL.value].origin_region.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_region'][region] = dict()
             for split_name, split_df in splits.items():
                 region_df = split_df.dropna(subset=['origin_region'])
-                sub_dataset[split_name] = region_df[region_df.origin_region.str.contains(region)]
+                sub_dataset[split_name] = region_df[region_df.origin_region.astype('str').str.contains(region)]
 
         self.logger.info(f"Processing sub dataset origin_canton")
-        for canton in splits['all'].origin_canton.dropna().unique().tolist():
+        for canton in splits[Split.ALL.value].origin_canton.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_canton'][canton] = dict()
             for split_name, split_df in splits.items():
                 canton_df = split_df.dropna(subset=['origin_canton'])
-                sub_dataset[split_name] = canton_df[canton_df.origin_canton.str.contains(canton)]
+                sub_dataset[split_name] = canton_df[canton_df.origin_canton.astype('str').str.contains(canton)]
 
         self.logger.info(f"Processing sub dataset origin_court")
-        for court in splits['all'].origin_court.dropna().unique().tolist():
+        for court in splits[Split.ALL.value].origin_court.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_court'][court] = dict()
             for split_name, split_df in splits.items():
                 court_df = split_df.dropna(subset=['origin_court'])
-                sub_dataset[split_name] = court_df[court_df.origin_court.str.contains(court)]
+                sub_dataset[split_name] = court_df[court_df.origin_court.astype('str').str.contains(court)]
 
         self.logger.info(f"Processing sub dataset origin_chamber")
-        for chamber in splits['all'].origin_chamber.dropna().unique().tolist():
+        for chamber in splits[Split.ALL.value].origin_chamber.dropna().unique().tolist():
             sub_dataset = sub_datasets_dict['origin_chamber'][chamber] = dict()
             for split_name, split_df in splits.items():
                 chamber_df = split_df.dropna(subset=['origin_chamber'])
-                sub_dataset[split_name] = chamber_df[chamber_df.origin_chamber.str.contains(chamber)]
+                sub_dataset[split_name] = chamber_df[chamber_df.origin_chamber.astype('str').str.contains(chamber)]
 
         return sub_datasets_dict
 
@@ -695,6 +811,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.plot_custom(df, split_folder, folder)
 
+    # TODO: moving plotting functions to a separate file to reduce the size of this file
     @staticmethod
     def plot_barplot_attribute(df, split_folder, attribute, label=""):
         """
@@ -747,7 +864,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
         ax.get_figure().savefig(split_folder / f"{label_name}_distribution.png", bbox_inches="tight")
-        plt.clf()
+        plt.close()
 
     @staticmethod
     def plot_input_length(df, split_folder, feature_col='full_text'):
@@ -779,17 +896,17 @@ class DatasetCreator(AbstractPreprocessor):
         plt.ylabel('Number of court cases')
         plt.legend(["BERT", "SpaCy"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
         plot.savefig(split_folder / f'{feature_col}_input_length_distribution-histogram.png', bbox_inches="tight")
-        plt.clf()
+        plt.close()
 
         plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer", kind="ecdf", legend=False)
         plt.ylabel('Number of court cases')
         plt.legend(["BERT", "SPaCy"], loc='lower right', title='Tokenizer')
         plot.savefig(split_folder / f'{feature_col}_input_length_distribution-cumulative.png', bbox_inches="tight")
-        plt.clf()
+        plt.close()
 
         plot = sns.displot(cut_df, x="num_tokens_spacy", y="num_tokens_bert")
         plot.savefig(split_folder / f'{feature_col}_input_length_distribution-bivariate.png', bbox_inches="tight")
-        plt.clf()
+        plt.close()
 
     def save_labels(self, labels, folder):
         """
@@ -810,6 +927,8 @@ class DatasetCreator(AbstractPreprocessor):
                     i = i + 1
                 else:
                     file_name = folder / "labels.json"
+                if not os.path.isdir(folder):
+                    os.mkdir(folder)
                 with open(f"{file_name}", 'w', encoding='utf-8') as f:
                     json.dump(json_labels, f, ensure_ascii=False, indent=4)
         else:
@@ -823,10 +942,14 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         # TODO revise this for datasets including cantonal data and include year 2021
-        train = dataset.filter(lambda x: x["year"] in range(start_years["train"], start_years["validation"]))
-        val = dataset.filter(lambda x: x["year"] in range(start_years["validation"], start_years["test"]))
-        test = dataset.filter(lambda x: x["year"] in range(start_years["test"], start_years["secret_test"]))
-        secret_test = dataset.filter(lambda x: x["year"] in range(start_years["secret_test"], self.current_year + 1))
+        train = dataset.filter(
+            lambda x: x["year"] in range(start_years[Split.TRAIN.value], start_years[Split.VALIDATION.value]))
+        val = dataset.filter(
+            lambda x: x["year"] in range(start_years[Split.VALIDATION.value], start_years[Split.TEST.value]))
+        test = dataset.filter(
+            lambda x: x["year"] in range(start_years[Split.TEST.value], start_years[Split.SECRET_TEST.value]))
+        secret_test = dataset.filter(
+            lambda x: x["year"] in range(start_years[Split.SECRET_TEST.value], self.current_year + 1))
 
         return train, val, test, secret_test
 
@@ -839,9 +962,9 @@ class DatasetCreator(AbstractPreprocessor):
         # 80% train, 20% test + validation
         train_testvalid = dataset.train_test_split(test=0.2)
         # Split the 20% test + valid in half test, half valid
-        test_valid = train_testvalid['test'].train_test_split(test=0.5)
+        test_valid = train_testvalid[Split.TEST.value].train_test_split(test=0.5)
         # gather everything into a single DatasetDict
-        return train_testvalid['train'], test_valid['train'], test_valid['test']
+        return train_testvalid[Split.TRAIN.value], test_valid[Split.TRAIN.value], test_valid[Split.TEST.value]
 
     @abc.abstractmethod
     def plot_custom(self, df, split_folder, folder):
@@ -849,3 +972,60 @@ class DatasetCreator(AbstractPreprocessor):
         Implement custom plots for each dataset_creator in this method
         """
         raise NotImplementedError("This method should be implemented in the subclass.")
+
+    def create_overview(self, path=None, export_path=None, export_name="overview", include_all=False):
+        """
+        :function:              creates an overview of the dataset
+        :param path:            path to the court dataset folders
+        :param export_name:     name of the exported file without extension
+        :param export_path:     path to the folder where the file should be exported
+        :param include_all:     if True, all courts are included in the overview otherwise only the created courts
+        """
+        if path is None:
+            path = self.get_dataset_folder()
+        if export_path is None:
+            export_path = self.get_dataset_folder()
+
+        courts_av_tmp = os.listdir(path)
+        courts_av = []
+        # filtering to only have dir's
+        for s in courts_av_tmp:
+            if not os.path.isfile(f"{path}/{s}"):
+                courts_av.append(s)
+
+        #   stores the overview in a list of dicts
+        courts_data = []
+
+        # store the number of rows of each file in a dict for each court
+        for court in tqdm(courts_av):
+            court_data = {"name": court}
+            for key in [split.value for split in Split]:  # ["all", "val", "test", "train", "secret_test"]
+                try:
+                    with open(os.path.join(path, court, f"{key}.csv"), "r") as f:
+                        reader = csv.reader(f)
+                        court_data[key] = len(list(reader)) - 1  # -1 because of header
+                except FileNotFoundError:
+                    court_data[key] = -2
+            court_data['created'] = True
+            courts_data.append(court_data)
+
+        # add courts that are not in the folder
+        if include_all:
+            for court in self.get_all_courts():
+                if court not in courts_av:
+                    court_data = {"name": court, 'created': False}
+                    courts_data.append(court_data)
+
+        # check if export file already exists and increment the name index if it does
+        version = 1
+        while os.path.exists(f"{export_path}/{export_name}_v{version}.csv"):
+            version += 1
+        export_name = f"{export_name}_v{version}.csv"
+
+        # export to csv
+        with open(os.path.join(export_path, export_name), "w") as f:
+            writer = csv.DictWriter(f, fieldnames=["name", "all", Split.VALIDATION.value, Split.TEST.value,
+                                                   Split.TRAIN.value, Split.SECRET_TEST.value, "created"])
+            writer.writeheader()
+            writer.writerows(courts_data)
+        self.logger.info(f"Overview created and exported to: {os.path.join(export_path, export_name)}")

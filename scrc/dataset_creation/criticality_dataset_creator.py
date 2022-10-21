@@ -46,10 +46,9 @@ class CriticalityDatasetCreator(DatasetCreator):
     as bge or not.
     """
 
-    def __init__(self, config: dict):
-        super().__init__(config)
+    def __init__(self, config: dict, debug: bool = True):
+        super().__init__(config, debug)
         self.logger = get_logger(__name__)
-        self.debug = True
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
@@ -100,7 +99,7 @@ class CriticalityDatasetCreator(DatasetCreator):
             bge_list.extend(all)
         return bge_list
 
-    def prepare_dataset(self, save_reports):
+    def prepare_dataset(self, save_reports, court_string):
         """
         get of all bger cases and set bge_label and citation_label
         :param save_reports:    whether or not to compute and save reports
