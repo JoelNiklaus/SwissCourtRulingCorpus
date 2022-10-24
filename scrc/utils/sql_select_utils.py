@@ -471,7 +471,7 @@ def get_legal_area(chamber: int):
         f"Please provide a valid chamber name. Could not find {chamber} in {legal_areas}")
 
 
-def get_legal_area_bger(self, chamber_number):
+def get_legal_area_bger(chamber_number):
     switch = {
         1: 'public_law',
         2: 'public_law',

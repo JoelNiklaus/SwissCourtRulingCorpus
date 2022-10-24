@@ -62,7 +62,6 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
         self.available_bges = self.load_rulings()
         self.references_df = self.extract_bge_references()
-        self.citation_amount = [100, 10, 1, 0]  # sorted, the highest number first!
         self.labels = ['bge_label', 'citation_label']
         self.count_all_cits = False
         self.first_year = 2001
