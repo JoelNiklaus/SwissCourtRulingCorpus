@@ -16,6 +16,7 @@ from scrc.enums.section import Section
 from scrc.utils.main_utils import get_config
 from scrc.utils.log_utils import get_logger
 from collections import Counter
+from scrc.utils.sql_select_utils import get_legal_area_bger
 import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
 
 
@@ -81,7 +82,7 @@ class CriticalityDatasetCreator(DatasetCreator):
             for line in f:
                 (bge_file_number_long, bger_reference) = line.split()
                 bger_chamber = bger_reference.split('_', 2)[0]
-                legal_area = self.get_legal_area_bger(bger_chamber)
+                legal_area = get_legal_area_bger(bger_chamber)
                 year = int(bge_file_number_long.split('-', 5)[1]) + 1874
                 bge_chamber = bge_file_number_long.split('_', 5)[2]
                 bge_file_number_short = bge_file_number_long.split('_')[3]
@@ -94,18 +95,6 @@ class CriticalityDatasetCreator(DatasetCreator):
         report_creator = ReportCreator(folder, self.debug)
         report_creator.report_references(df)
         return df
-
-    def get_legal_area_bger(self, chamber_number):
-        switch = {
-            1: 'public_law',
-            2: 'public_law',
-            4: 'civil_law',
-            5: 'civil_law',
-            6: 'penal_law',
-            8: 'social_law',
-            9: 'social_law'
-        }
-        return switch.get(chamber_number, "other")
 
     def prepare_dataset(self, save_reports, court_string):
         """

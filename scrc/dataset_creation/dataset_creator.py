@@ -672,10 +672,6 @@ class DatasetCreator(AbstractPreprocessor):
         non_empty_rows = [i for i in range(len(dataset)) if i not in duplicates]
         dataset = dataset.select(non_empty_rows)
 
-        if 'html_url' in dataset.features.keys():
-            dataset = dataset.remove_columns(['html_url'])
-        if 'pdf_url' in dataset.features.keys():
-            dataset = dataset.remove_columns(['pdf_url'])
         self.logger.info(f"finished cleaning")
         return dataset
 
