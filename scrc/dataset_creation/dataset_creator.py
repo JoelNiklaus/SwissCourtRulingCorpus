@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 import datasets
 from datasets import concatenate_datasets
 
+from scrc.dataset_creation.report_creator import ReportCreator
+from scrc.enums.cantons import Canton
 from scrc.data_classes.ruling_citation import RulingCitation
 
 import numpy as np
@@ -34,6 +36,8 @@ from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision,
 
 from scrc.utils.court_names import court_names_backup, get_issue_courts, get_error_courts
 from scrc.enums.split import Split
+
+import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
 
 csv.field_size_limit(sys.maxsize)
 
@@ -600,10 +604,6 @@ class DatasetCreator(AbstractPreprocessor):
 
         df[feature_col] = df['sections'].apply(filter_column, section_attr='section_text')
 
-        # replace empty strings with nan so that they can be removed
-        df[feature_col] = df[feature_col].replace(r'^\s+$', np.nan, regex=True)
-        df[feature_col] = df[feature_col].replace('', np.nan)
-
         df[f"{feature_col}_num_tokens_bert"] = df['sections'].apply(filter_column, section_attr='num_tokens_bert')
         df[f"{feature_col}_num_tokens_spacy"] = df['sections'].apply(filter_column, section_attr='num_tokens_spacy')
         df[f"{feature_col}_num_tokens_bert"] = df[f"{feature_col}_num_tokens_bert"].fillna(value=0).astype(int)
@@ -629,6 +629,9 @@ class DatasetCreator(AbstractPreprocessor):
         :param save_reports:whether or not to compute and save reports
         :return:
         """
+        # clean df before saving it
+        dataset = self.clean_dataset(dataset)
+        self.logger.info("start creating splits")
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
         self.save_huggingface_dataset(splits, folder)
         self.save_splits(splits, labels, folder, save_reports=save_reports)
@@ -651,6 +654,26 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.logger.info(f"Saved dataset files to {folder}")
         return splits
+
+    def clean_dataset(self, dataset):
+        # replace empty strings with nan so that they can be removed
+        self.logger.info(f"start cleaning")
+        empty_rows = []
+        def get_empty_rows(row):
+            if row["num_tokens"] <= self.minFeatureColLength:
+                empty_rows.append(row['__index_level_0__'])
+
+        for feature_col in self.get_feature_col_names():
+            dataset = dataset.rename_column(f"{feature_col}_num_tokens_bert", "num_tokens")
+            dataset.map(get_empty_rows)
+            dataset = dataset.rename_column("num_tokens", f"{feature_col}_num_tokens_bert")
+
+        duplicates = [number for number in empty_rows if empty_rows.count(number) == len(self.get_feature_col_names())]
+        non_empty_rows = [i for i in range(len(dataset)) if i not in duplicates]
+        dataset = dataset.select(non_empty_rows)
+
+        self.logger.info(f"finished cleaning")
+        return dataset
 
     def prepare_kaggle_splits(self, splits):
         self.logger.info("Saving the data in kaggle format")
@@ -799,114 +822,19 @@ class DatasetCreator(AbstractPreprocessor):
         :param df:      the df containing the dataset
         :return:
         """
+
         self.logger.info(f"Saving report for split {split}")
         split_folder = self.create_dir(folder, f'reports/{split}')
-        for attribute in self.metadata:
-            self.plot_barplot_attribute(df, split_folder, attribute)
+        report_creator = ReportCreator(split_folder, self.debug)
+        report_creator.report_general(self.metadata, self.get_feature_col_names(), self.labels, df)
+        self.plot_custom(report_creator, df, split_folder)
 
-        for feature_col in self.get_feature_col_names():
-            dict = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',
-                    f'{feature_col}_num_tokens_spacy': 'num_tokens_spacy'}
-            self.plot_input_length(df.rename(columns=dict), split_folder, feature_col=feature_col)
-
-        self.plot_custom(df, split_folder, folder)
-
-    # TODO: moving plotting functions to a separate file to reduce the size of this file
-    @staticmethod
-    def plot_barplot_attribute(df, split_folder, attribute, label=""):
+    @abc.abstractmethod
+    def plot_custom(self, report_creator, df, folder):
         """
-        Plots the distribution of the attribute of the decisions in the given dataframe
-        :param df:              the dataframe containing the legal areas
-        :param split_folder:    where to save the plots and csv files
-        :param attribute:       the attribute to barplot
-        :param label:           defines if only critical data of a label is considered
-        :return:
+        Implement custom plots for each dataset_creator in this method
         """
-        attribute_df = df[attribute].value_counts().to_frame()
-        total = len(df.index)
-        # we deleted the ones where we did not find any attribute: also mention them in this table
-        uncategorized = total - attribute_df[attribute].sum()
-        attribute_df = attribute_df.reset_index(level=0)
-        attribute_df = attribute_df.rename(columns={'index': attribute, attribute: 'number of decisions'})
-        attribute_df['number of decisions'] = attribute_df['number of decisions'].astype(int)
-        attribute_df.sort_values(by=[attribute], inplace=True)
-        attribute_df.loc[len(attribute_df.index)] = ['uncategorized', uncategorized]
-        attribute_df.loc[len(attribute_df.index)] = ['all', total]
-        attribute_df['percent'] = round(attribute_df['number of decisions'] / total, 4)
-
-        attribute_df.to_csv(split_folder / f'{attribute}_{label}_distribution.csv')
-        # need to make sure to use right type
-        attribute_df = attribute_df[~attribute_df[attribute].astype(str).str.contains('all')]
-        fig = px.bar(attribute_df, x=attribute, y="number of decisions",
-                     title=f'{attribute}_{label}_distribution-histogram')
-        fig.write_image(split_folder / f'{attribute}_{label}_distribution-histogram.png')
-        plt.close()
-
-    @staticmethod
-    def plot_labels(df, split_folder, label_name='label'):
-        """
-        Plots the label distribution of the decisions in the given dataframe
-        :param df:              the dataframe containing the labels
-        :param split_folder:    where to save the plots and csv files
-        :param label_name:      name of the original label
-        :return:
-        """
-        # compute label imbalance
-        # ax = df.label.astype(str).hist()
-        # ax.tick_params(labelrotation=30)
-        # ax.get_figure().savefig(split_folder / 'multi_label_distribution.png', bbox_inches="tight")
-
-        counter_dict = dict(Counter(np.hstack(df.label)))
-        counter_dict['all'] = sum(counter_dict.values())
-        label_counts = pd.DataFrame.from_dict(counter_dict, orient='index', columns=['num_occurrences'])
-        label_counts.loc[:, 'percent'] = round(label_counts['num_occurrences'] / counter_dict['all'], 4)
-        label_counts.to_csv(split_folder / f"{label_name}_distribution.csv", index_label='label')
-
-        ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
-        ax.get_figure().savefig(split_folder / f"{label_name}_distribution.png", bbox_inches="tight")
-        plt.close()
-
-    @staticmethod
-    def plot_input_length(df, split_folder, feature_col='full_text'):
-        """
-        Plots the input length of the decisions in the given dataframe
-        :param df:              the dataframe containing the decision texts
-        :param split_folder:    where to save the plots and csv files
-        :param feature_col:     spezifies feature_col
-        :return:
-        """
-        # compute median input length
-        input_length_distribution = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
-        input_length_distribution.to_csv(split_folder / f'{feature_col}_input_length_distribution.csv',
-                                         index_label='measure')
-
-        # bin outliers together at the cutoff point
-        cutoff = 4000
-        cut_df = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']]
-        cut_df.num_tokens_spacy = cut_df.num_tokens_spacy.clip(upper=cutoff)
-        cut_df.num_tokens_bert = cut_df.num_tokens_bert.clip(upper=cutoff)
-
-        hist_df = pd.concat([cut_df.num_tokens_spacy, cut_df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
-        hist_df = hist_df.reset_index(level=0)
-        hist_df = hist_df.rename(columns={'level_0': 'tokenizer', 0: 'Number of tokens'})
-
-        plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer",
-                           bins=100, kde=True, fill=True, height=5, aspect=2.5, legend=False)
-        plot.set(xticks=list(range(0, 4500, 500)))
-        plt.ylabel('Number of court cases')
-        plt.legend(["BERT", "SpaCy"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
-        plot.savefig(split_folder / f'{feature_col}_input_length_distribution-histogram.png', bbox_inches="tight")
-        plt.close()
-
-        plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer", kind="ecdf", legend=False)
-        plt.ylabel('Number of court cases')
-        plt.legend(["BERT", "SPaCy"], loc='lower right', title='Tokenizer')
-        plot.savefig(split_folder / f'{feature_col}_input_length_distribution-cumulative.png', bbox_inches="tight")
-        plt.close()
-
-        plot = sns.displot(cut_df, x="num_tokens_spacy", y="num_tokens_bert")
-        plot.savefig(split_folder / f'{feature_col}_input_length_distribution-bivariate.png', bbox_inches="tight")
-        plt.close()
+        raise NotImplementedError("This method should be implemented in the subclass.")
 
     def save_labels(self, labels, folder):
         """
@@ -965,13 +893,6 @@ class DatasetCreator(AbstractPreprocessor):
         test_valid = train_testvalid[Split.TEST.value].train_test_split(test=0.5)
         # gather everything into a single DatasetDict
         return train_testvalid[Split.TRAIN.value], test_valid[Split.TRAIN.value], test_valid[Split.TEST.value]
-
-    @abc.abstractmethod
-    def plot_custom(self, df, split_folder, folder):
-        """
-        Implement custom plots for each dataset_creator in this method
-        """
-        raise NotImplementedError("This method should be implemented in the subclass.")
 
     def create_overview(self, path=None, export_path=None, export_name="overview", include_all=False):
         """

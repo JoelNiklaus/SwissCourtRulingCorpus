@@ -469,3 +469,16 @@ def get_legal_area(chamber: int):
             return legal_area
     raise ValueError(
         f"Please provide a valid chamber name. Could not find {chamber} in {legal_areas}")
+
+
+def get_legal_area_bger(chamber_number):
+    switch = {
+        1: 'public_law',
+        2: 'public_law',
+        4: 'civil_law',
+        5: 'civil_law',
+        6: 'penal_law',
+        8: 'social_law',
+        9: 'social_law'
+    }
+    return switch.get(chamber_number, "other")
