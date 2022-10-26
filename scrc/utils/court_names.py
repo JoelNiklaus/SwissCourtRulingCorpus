@@ -6,7 +6,7 @@ court_names_backup = ['AG_AK', 'AG_LWRK', 'AG_OG', 'AG_OGA', 'AG_OSB', 'AG_PRG',
 court_issue0 = ["TI_TE", "TI_TPC", "TI_TRAP", "TI_TRPI", "TI_CARP", "TI_CATI"]
 
 # CREATED: # numpy.linalg.LinAlgError: singular matrix (without report)
-court_issue1 = ["AI_XX", "NW_OG"]
+court_issue1 = ["AI_XX", "NW_OG", "CH_WBK", "GL_OG"]
 
 
 def get_issue_courts(index=-1):
@@ -27,7 +27,8 @@ court_error0 = ["CH_VB", "OW_OG", "OW_VG", "OW_VB", "TG_OG", "TI_CRP", "TI_GIAR"
 # NOT CREATED: unexpected EOF while parsing, judgments empty
 court_error1 = ["AG_OSB", "VD_SR"]
 
-# NOT CREATED: ValueError: need at least one array to concatenate, line 50: judgment_creator_dataset.py -> df.label is empty
+# NOT CREATED: ValueError: need at least one array to concatenate, line 50: judgment_creator_dataset.py -> df.label
+# is empty
 court_error2 = ["VS_AG", "ZH_SOBE"]
 
 # NOT CREATED: judgments_df is empty
@@ -38,6 +39,8 @@ court_error3 = ['AG_XX', 'AI_BZG', 'AR_RR', 'AR_SRK', 'AR_VB', 'AR_XX', 'BE_XX',
                 'GR_UPL', 'JU_UPL', 'NE_UPL', 'NW_UPL', 'OW_UPL', 'SG_UPL', 'SH_UPL', 'SO_UPL', 'SZ_UPL', 'TI_UPL',
                 'TG_UPL', 'UR_UPL', 'VS_UPL', 'UR_OG']
 
+court_empty = ['AG_AK', 'AG_LWRK', 'AG_PRG', 'AG_SKBG', 'AG_SRG', 'AI_KG', 'BE_AK', 'BE_OG', 'CH_EDÖB']
+
 
 def get_error_courts(index=-1):
     """
@@ -46,5 +49,5 @@ def get_error_courts(index=-1):
     """
     error_courts = [court_error0, court_error1, court_error2, court_error3]
     if index == -1:
-        return court_error0 + court_error1 + court_error2 + court_error3
+        return court_error0 + court_error1 + court_error2 + court_error3 + court_empty
     return error_courts[index]

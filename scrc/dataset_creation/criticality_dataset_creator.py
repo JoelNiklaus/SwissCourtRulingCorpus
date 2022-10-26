@@ -12,6 +12,8 @@ from scrc.utils.main_utils import get_config
 from scrc.utils.log_utils import get_logger
 from collections import Counter
 
+from scrc.enums.split import Split
+
 """
 Dataset to be created:
 - contains supreme court cases  
@@ -58,6 +60,8 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.labels = ['bge_label', 'citation_label']
         self.count_all_cits = False
         self.first_year = 2001
+        self.start_years = {Split.TRAIN.value: 2002, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
+                            Split.SECRET_TEST.value: 2020}
 
     def extract_bge_references(self):
         """

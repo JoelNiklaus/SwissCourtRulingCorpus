@@ -292,11 +292,11 @@ class DatasetCreator(AbstractPreprocessor):
         datasets_list = []
         label_concat = None
 
-        for court_string in court_list:
+        for court_string in tqdm(court_list):
             self.logger.info(f"Creating dataset for {court_string}")
             dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
 
-            if len(dataset) == 0:
+            if len(dataset) <= 1:
                 self.logger.info(f"Dataset for {court_string} could not be created")
                 not_created.append(court_string)
             else:
@@ -352,7 +352,8 @@ class DatasetCreator(AbstractPreprocessor):
         court_list_tmp = self.get_all_courts()  # get names of all courts
 
         # taking all folder names from /data/datasets as a list to know which courts are already generated
-        courts_done = os.listdir(str(self.datasets_subdir))
+        courts_done = os.listdir(str(self.datasets_subdir / self.dataset_name))
+        self.logger.info(f"Already generated courts: {courts_done}")
 
         courts_error = get_error_courts()  # all courts that couldn't be created
 
@@ -525,12 +526,14 @@ class DatasetCreator(AbstractPreprocessor):
         table = f"{join_tables_on_decision(['file'])}"
         columns = 'file.file_name, file.html_url, file.pdf_url'
         file_ids = ["'" + str(x) + "'" for x in df['file_id'].tolist()]
-
-        where = f"file.file_id IN ({','.join(file_ids)})"
-        file_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
-        df['file_name'] = file_df['file_name']
-        df['html_url'] = file_df['html_url']
-        df['pdf_url'] = file_df['pdf_url']
+        if len(file_ids) > 0:
+            where = f"file.file_id IN ({','.join(file_ids)})"
+            file_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
+            df['file_name'] = file_df['file_name']
+            df['html_url'] = file_df['html_url']
+            df['pdf_url'] = file_df['pdf_url']
+        else:
+            self.logger.info("file_ids empty")
         return df
 
     def load_judgment(self, decision_ids, df, engine):
@@ -614,6 +617,7 @@ class DatasetCreator(AbstractPreprocessor):
             df.year = df.year.astype(int)  # convert from float to nicer int
         df.decision_id = df.decision_id.astype(str)  # convert from uuid to str so it can be saved
 
+        df = df.loc[df['facts_num_tokens_bert'] > 10]  # remove entries with less than 10 tokens
         return df
 
     def save_dataset(self, dataset: datasets.Dataset, labels: list, folder: Path,
@@ -986,6 +990,7 @@ class DatasetCreator(AbstractPreprocessor):
         if export_path is None:
             export_path = self.get_dataset_folder()
 
+        self.logger.info("Creating overview of the datasets")
         courts_av_tmp = os.listdir(path)
         courts_av = []
         # filtering to only have dir's

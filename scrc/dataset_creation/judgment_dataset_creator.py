@@ -6,6 +6,7 @@ import datasets
 
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import convert_to_binary_judgments
+from scrc.enums.split import Split
 
 
 class JudgmentDatasetCreator(DatasetCreator):
@@ -27,6 +28,8 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.with_inadmissible = False
         self.make_single_label = True
         self.labels = ['label']
+        self.start_years = {Split.TRAIN.value: 1970, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
+                            Split.SECRET_TEST.value: 2020}
 
     def prepare_dataset(self, save_reports, court_string):
         data_to_load = {
@@ -42,7 +45,10 @@ class JudgmentDatasetCreator(DatasetCreator):
                                          self.with_inadmissible, self.make_single_label)
         df = df.dropna(subset=['judgments'])  # drop empty labels introduced by cleaning before
         df = df.rename(columns={"judgments": "label"})  # normalize column names
-        labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
+        try:
+            labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
+        except ValueError:
+            labels = []
         return datasets.Dataset.from_pandas(df), [labels]
 
     def plot_custom(self, df, split_folder, folder):
@@ -53,4 +59,4 @@ if __name__ == '__main__':
     config = get_config()
 
     judgment_dataset_creator = JudgmentDatasetCreator(config, debug=True)
-    judgment_dataset_creator.create_multiple_datasets(concatenate=False, overview=True)
+    judgment_dataset_creator.create_multiple_datasets(concatenate=False, overview=True, save_reports=True)
