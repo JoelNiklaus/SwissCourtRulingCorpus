@@ -4,6 +4,7 @@ from scrc.utils.log_utils import get_logger
 import numpy as np
 import datasets
 
+from scrc.dataset_creation.report_creator import ReportCreator
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import convert_to_binary_judgments
 from scrc.enums.split import Split
@@ -51,8 +52,8 @@ class JudgmentDatasetCreator(DatasetCreator):
             labels = []
         return datasets.Dataset.from_pandas(df), [labels]
 
-    def plot_custom(self, df, split_folder, folder):
-        self.plot_labels(df, split_folder, label_name='label')
+    def plot_custom(self, report_creator: ReportCreator, df, split_folder):
+        report_creator.plot_label_ordered(df, label_name='label')
 
 
 if __name__ == '__main__':

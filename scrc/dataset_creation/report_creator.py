@@ -184,7 +184,6 @@ class ReportCreator:
         """
 
         for attribute in metadata:
-            self.plot_attribute(df[df['bge_label'] == 'critical'], attribute, name='all')
             for label in labels:
                 match = df[label] == 'non-critical'
                 self.plot_attribute(df[~match], attribute, name=str(label))
