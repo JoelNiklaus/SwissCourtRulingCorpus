@@ -27,7 +27,7 @@ NUMBER_OF_EXP = [2,3,4]
 NAN_KEY = 10000
 ORIGINAL_TEST_SET = pd.DataFrame
 
-from scrc.annotation.judgment_explainability.annotations.preprocessing_functions \
+from scrc.annotation.judgment_explainability.analysis.preprocessing \
     import LANGUAGES, extract_dataset, get_tokens_dict, extract_values_from_column, get_span_df, group_columns, \
     read_csv, string_to_dict, get_white_space_dicts, write_csv, get_combinations
 
@@ -295,8 +295,8 @@ def get_original_court(lower_court, original_court):
 
 
 if __name__ == '__main__':
-    extracted_datasets = extract_dataset("../annotations/{}/gold/gold_annotations_{}.jsonl",
-                                         "../annotations/{}/gold/gold_annotations_{}-{}.jsonl")
+    extracted_datasets = extract_dataset("../legal_expert_annotations/{}/gold/gold_annotations_{}.jsonl",
+                                         "../legal_expert_annotations/{}/gold/gold_annotations_{}-{}.jsonl")
     for l in LANGUAGES:
         ORIGINAL_TEST_SET = read_csv(CSV_PATH.format(l), "id")[['text', 'label', 'origin_canton', 'origin_region']]
         ORIGINAL_TEST_SET.index.name = "id_csv"

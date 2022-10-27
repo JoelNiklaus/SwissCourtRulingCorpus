@@ -1,4 +1,3 @@
-
 import os
 import re
 import sys
@@ -13,17 +12,17 @@ from dotenv import load_dotenv
 load_dotenv()
 from psycopg2 import sql
 
-from scrc.annotation.judgment_explainability.analysis.preprocessing_functions import read_csv, read_JSONL, write_JSONL
+from scrc.annotation.judgment_explainability.analysis.preprocessing import read_csv, read_JSONL, write_JSONL
 
 
 FILEPATH_ANNOTATION = "../judgment_explainability/legal_expert_annotations/{}/annotations_{}.jsonl"
 FILEPATH_DATASET_JE = "../judgment_explainability/annotation_datasets/annotation_input_set_{}.jsonl"
 FILEPATH_DATASET_P = "../judgment_prediction/annotation_datasets/prediction_input_set_{}.jsonl"
 
-PATH_TO_PREDICTIONS = os.getenv("PATH_TO_PREDICTIONS")
-PATH_TO_DATASET_SCRC = os.getenv("PATH_TO_DATASET_SCRC")
-PREDICTIONS_TEST_PATHS = ast.literal_eval(os.getenv("PREDICTIONS_TEST_PATHS"))
-PREDICTION_EVAL = read_csv(PATH_TO_PREDICTIONS + "2/predictions_eval.csv", "id")
+PATH_PREDICTIONS = "sjp/finetune/xlm-roberta-base-hierarchical/de,fr,it,en/"
+PATH_DATASET_SCRC = "dataset_scrc/"
+PREDICTIONS_TEST_PATHS=["3/de/predictions_test.csv","3/fr/predictions_test.csv","3/it/predictions_test.csv"]
+PREDICTION_EVAL = read_csv(PATH_PREDICTIONS + "2/predictions_eval.csv", "id")
 
 # scrc database connection configuration string
 CONFIG = f'dbname=scrc user={os.getenv("DB_USER")} password={os.getenv("DB_PASSWORD")} host=localhost port=5432'
@@ -213,9 +212,9 @@ def get_test_val_set(lang: str, mode:str):
     Returns jpined test and validation set from csv.
     """
     return pd.concat(
-        [join_dataframes(read_csv(PATH_TO_PREDICTIONS + PREDICTIONS_TEST_PATHS[LANGUAGES.index(lang)], "id"),
-                         read_csv(PATH_TO_DATASET_SCRC + lang + "/test.csv", "id"), lang, mode),
-         join_dataframes(PREDICTION_EVAL, read_csv(PATH_TO_DATASET_SCRC + lang + "/val.csv", "id"), lang, mode)])
+        [join_dataframes(read_csv(PATH_PREDICTIONS + PREDICTIONS_TEST_PATHS[LANGUAGES.index(lang)], "id"),
+                         read_csv(PATH_DATASET_SCRC + lang + "/test.csv", "id"), lang, mode),
+         join_dataframes(PREDICTION_EVAL, read_csv(PATH_DATASET_SCRC + lang + "/val.csv", "id"), lang, mode)])
 
 
 def db_stream(lang: str, mode: str, ids_scrc) -> list:

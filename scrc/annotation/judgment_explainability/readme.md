@@ -34,8 +34,8 @@ directory referenced in gitignore.
 For this project, the prodigy tool is used to gather annotations and subsequently explanations from legal experts to create ground truths. 
 These ground truths could give insight into the inner workings of the model used for the prediction in the Swiss Court Ruling Corpus 
 presented by _Niklaus, Chalkidis, and Stürmer (2021)_.
-The facts are provided to prodigy by a JSONL file which can be created by running the [prodigy_dataset_creation](scrc/annotation/prodigy_dataset_creation/prodigy_dataset_creator.py).
-Note that the file produced by the ``prodigy_dataset_creator`` can change when running the script again (when the database changes).
+The facts are provided to prodigy by a JSONL file which can bex created by running the [prodigy_dataset_creation](scrc/annotation/prodigy_dataset_creation/prodigy_dataset_creator.py).
+Note that the input files produced by the ``prodigy_dataset_creator`` can change when running the script again (when the database changes).
 It is therefore advised to safe a copy of your files after you started the annotation, so that your input dataset remains the same.
 The annotated data is saved in the annotations.db.
 The `facts_annotation` recipe allows the annotation of the fact section of a court ruling. It uses prodigy's block 

@@ -1,8 +1,10 @@
 import itertools
 import json
-import re
 from pathlib import Path
 from random import randint
+# Load environment variable from .env
+from dotenv import load_dotenv
+load_dotenv()
 import ast
 import os
 import pandas
@@ -32,16 +34,16 @@ def extract_dataset(filepath_a, filepath_b) -> dict:
             # List of dict to dataframe
             dfItem = pd.DataFrame.from_records(json_list)
             dfItem = dfItem.set_index("id_scrc")
-            dfItem.index.name = "annotations_{}".format(language)
-            datasets["annotations_{}".format(language)] = dfItem
+            dfItem.index.name = f"annotations_{language}"
+            datasets[f"annotations_{language}"] = dfItem
         except FileNotFoundError:
             pass
         for session in SESSIONS:
             try:
                 json_list = read_JSONL(filepath_b.format(language, language, session))
                 dfItem = pd.DataFrame.from_records(json_list)
-                dfItem.index.name = "annotations_{}-{}".format(language, session)
-                datasets["annotations_{}-{}".format(language, session)] = dfItem
+                dfItem.index.name = f"annotations_{language}-{session}"
+                datasets[f"annotations_{language}-{session}"] = dfItem
             except FileNotFoundError:
                 pass
     return datasets
@@ -83,36 +85,6 @@ def read_csv(filepath: str, index: str) -> pd.DataFrame:
     return df
 
 
-def dump_user_input(dataset_dict: dict):
-    """
-    Dumps all the user inputs as csv.
-    Catches key errors.
-    """
-    for data in dataset_dict:
-        try:
-            lang = re.search("de|fr|it", str(data)).group(0)
-            user_input = dataset_dict[data][dataset_dict[data]["user_input"] != ""]
-            write_csv(Path("{}/{}_user_input.csv".format(lang, dataset_dict[data].index.name)),
-                      user_input[['id_scrc', '_annotator_id', "user_input"]])
-            print("Saved {}.csv successfully!".format(dataset_dict[data].index.name + "_user_input"))
-        except KeyError:
-            pass
-
-
-def dump_case_not_accepted(dataset_dict: dict):
-    """
-    Dumps all the all not accepted cases as csv.
-    Catches key errors.
-    """
-    for data in dataset_dict:
-        try:
-            lang = re.search("de|fr|it", str(data)).group(0)
-            case_not_accepted = dataset_dict[data][dataset_dict[data]["answer"] != "accept"]
-            write_csv(Path("{}/{}_ig_re.csv".format(lang, dataset_dict[data].index.name)),
-                      case_not_accepted[['id_scrc', '_annotator_id', "user_input"]])
-            print("Saved {}.csv successfully!".format(dataset_dict[data].index.name + "_ig_re"))
-        except KeyError:
-            pass
 
 
 def write_csv(filepath: Path, df: pd.DataFrame):
@@ -146,7 +118,7 @@ def extract_values_from_column(annotations: pandas.DataFrame, col_1: str, col_2:
     Joins full dataframe with new column and returns it.
     """
     annotations_col = annotations.explode(col_1).reset_index().drop([col_2], axis=1)
-    df_col = annotations_col[col_1].apply(pd.Series).add_prefix("{}_".format(col_1))
+    df_col = annotations_col[col_1].apply(pd.Series).add_prefix(f"{col_1}_")
     annotations_col = annotations_col.drop([col_1], axis=1)
     return annotations_col.join(df_col)
 
@@ -164,16 +136,16 @@ pandas.DataFrame, list):
     spans = annotations_spans[annotations_spans["spans_label"] == span]
     token_numbers = {}
     for mini_list in list(
-            spans[['annotations_{}'.format(lang), '_annotator_id', 'spans_token_start', 'spans_token_end']].values):
+            spans[[f'annotations_{lang}', '_annotator_id', 'spans_token_start', 'spans_token_end']].values):
         numbers = []
         # Range of numbers between spans_token_start spans_token_end
         for nr in list(range(int(mini_list[2]), int(mini_list[3]) + 1)):
             numbers.append(nr)
-        token_numbers["{}.{}.{}".format(mini_list[0], mini_list[1], randint(0, 100000))] = numbers
+        token_numbers[f"{mini_list[0]}.{mini_list[1]}.{randint(0, 100000)}"] = numbers
     spans_list = []
     for key in token_numbers:
         new_annotations_tokens = annotations_tokens[
-            annotations_tokens['annotations_{}'.format(lang)] == int(key.split(".")[0])].copy()
+            annotations_tokens[f'annotations_{lang}'] == int(key.split(".")[0])].copy()
         new_annotations_tokens = new_annotations_tokens[new_annotations_tokens["tokens_id"].isin(token_numbers[key])]
         new_annotations_tokens = new_annotations_tokens[new_annotations_tokens['_annotator_id'] == key.split(".")[1]]
         spans_list.append(new_annotations_tokens)
@@ -187,9 +159,9 @@ def group_columns(df: pandas.DataFrame, lang: str) -> pandas.DataFrame:
     Each column is joint differently (e.g. tokens_dict joint as string dictionary).
     Returns Dataframe.
     """
-    df['tokens_text'] = df.groupby(['annotations_{}'.format(lang)])['tokens_text'].transform(
+    df['tokens_text'] = df.groupby([f'annotations_{lang}'])['tokens_text'].transform(
         lambda x: ' '.join(x))
-    df['tokens_id'] = df.groupby(['annotations_{}'.format(lang)])['tokens_id'].transform(
+    df['tokens_id'] = df.groupby([f'annotations_{lang}'])['tokens_id'].transform(
         lambda x: ','.join(x.astype(str)))
     df['tokens_dict'] = df.groupby([f'annotations_{lang}'])['tokens_dict'].transform(
         lambda x: "{{{}}}".format(','.join(x.astype(str)).replace("{", "").replace("}", "")))

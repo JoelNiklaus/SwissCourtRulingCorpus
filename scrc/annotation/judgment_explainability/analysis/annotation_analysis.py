@@ -9,26 +9,36 @@
 - By looking at the annotated sentences themselves and at the reasoning in the free-text annotation for some of the more complex cases4 a qualitative analysis of
 the annotation is also possible.
 """
+import ast
+import os
+# Load environment variable from .env
+from dotenv import load_dotenv
+load_dotenv()
 from pathlib import Path
 import pandas as pd
 import copy
 from sklearn.metrics import cohen_kappa_score
 import nltk
 from nltk.translate.bleu_score import sentence_bleu
-
 nltk.download('punkt')
 nltk.download('wordnet')
+import quantitative_analysis
+import qualitative_analysis
+import preprocessing
+
 
 import rouge_score.rouge_scorer as rs
 from bert_score import score
 
-from scrc.annotation.judgment_explainability.analysis.preprocessing_functions import LANGUAGES, \
-    PERSONS, NAN_KEY,\
-    LABELS, AGGREGATIONS, extract_dataset, write_csv, get_tokens_dict, extract_values_from_column, get_span_df, \
-    group_columns, get_white_space_dicts, string_to_dict,get_combinations
 
 
-def process_dataset(datasets: dict, lang: str):
+
+LANGUAGES = ast.literal_eval(os.getenv("LANGUAGES"))
+PERSONS = ast.literal_eval(os.getenv("PERSONS"))
+LABELS = ast.literal_eval(os.getenv("LABELS"))
+NAN_KEY = preprocessing.NAN_KEY
+AGGREGATIONS = preprocessing.AGGREGATIONS
+def process_dataset(datasets: dict, lang: str, version: str):
     """
     Gets language spans and token Dataframes.
     @todo finish documentation
@@ -36,37 +46,34 @@ def process_dataset(datasets: dict, lang: str):
     """
     annotations = datasets["annotations_{}".format(lang)][
         datasets["annotations_{}".format(lang)]["answer"] == "accept"]
-    annotations_spans = extract_values_from_column(annotations, "spans", "tokens")
-    annotations_tokens = extract_values_from_column(annotations, "tokens", "spans")
+    annotations_spans = preprocessing.extract_values_from_column(annotations, "spans", "tokens")
+    annotations_tokens = preprocessing.extract_values_from_column(annotations, "tokens", "spans")
     for label in LABELS:
         label_list = []
-        label_df = get_span_df(annotations_spans, annotations_tokens, label, lang)[0]
-        ws_df = get_white_space_dicts(label_df, "annotations_{}".format(lang))
-        label_df = get_tokens_dict(label_df, "tokens_id", "tokens_text", "tokens_dict")
+        label_df = preprocessing.get_span_df(annotations_spans, annotations_tokens, label, lang)[0]
+        ws_df = preprocessing.get_white_space_dicts(label_df, "annotations_{}".format(lang))
+        label_df = preprocessing.get_tokens_dict(label_df, "tokens_id", "tokens_text", "tokens_dict")
         label_df = label_df.join(ws_df[[f"annotations_{lang}", 'tokens_ws_dict']].set_index(f"annotations_{lang}"),
                                  on="annotations_{}".format(lang))
         for pers in PERSONS:
-            label_pers_df = get_annotator_df(pers, label_df, lang)
+            label_pers_df = get_annotator_df(pers, label_df, lang, version)
             label_list.append(label_pers_df)
 
         label_df = merge_label_df(label_list, PERSONS, lang)
         label_df = get_normalize_tokens_dict(label_df)
-
         if lang == "de":
             for pers in PERSONS:
                 label_df = normalize_person_tokens(label_df, pers, lang)
-                label_df = string_to_dict(label_df,f'tokens_ws_dict_{pers}')
-                label_df = string_to_dict(label_df, f'tokens_dict_{pers}')
+                label_df = preprocessing.string_to_dict(label_df,f'tokens_ws_dict_{pers}')
+                label_df = preprocessing.string_to_dict(label_df, f'tokens_dict_{pers}')
 
-
+            print("Calculating scores...")
             r, be, m, b = calculate_text_scores(label_df, lang)
             score_df_list =[calculate_overlap_min_max(label_df, lang),
-                            calculate_jaccard_similarity_distance(label_df, lang), r, be, m, b]
+                            calculate_jaccard_similarity_distance(label_df, lang), r ,be, m, b]
             for score_df in score_df_list:
-                label_df = label_df.merge(score_df, on='annotations_{}'.format("de"),
+                label_df = label_df.merge(score_df, on=f'annotations_{"de"}',
                                       how='outer')
-
-
             globals()[f"{label.lower().replace(' ', '_')}_{lang}"] = label_df
 
 
@@ -91,12 +98,12 @@ def process_dataset(datasets: dict, lang: str):
 
 
 
-        write_csv(Path("{}/{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}")),
-                      globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
-        print("Saved {}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}"))
+        preprocessing.write_csv(Path("{}/{}_{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}", version)),
+                  globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
+        print("Saved {}_{}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}", version))
 
 
-def get_annotator_df(annotator_name: str, tokens: pd.DataFrame, lang: str) -> pd.DataFrame:
+def get_annotator_df(annotator_name: str, tokens: pd.DataFrame, lang: str, version: str) -> pd.DataFrame:
     """
     Copies entries from Dataframe from specific annotator.
     Groups tokens_text, tokens_id, tokens_dict from one case together.
@@ -105,10 +112,20 @@ def get_annotator_df(annotator_name: str, tokens: pd.DataFrame, lang: str) -> pd
     Transforms tokens_id string to list.
     Returns Dataframe
     """
-    annotator = tokens[
-        tokens['_annotator_id'] == "annotations_{}-{}".format(lang, annotator_name)].drop_duplicates().copy()
-    annotator = group_columns(annotator, lang)
-    annotator = annotator[['annotations_{}'.format(lang), 'tokens_text', 'tokens_id', 'tokens_dict', 'tokens_ws_dict']]
+    if version == "1":
+        annotator = tokens[
+        tokens['_annotator_id'] == f"annotations_{lang}-{annotator_name}"].drop_duplicates().copy()
+    if version == "2":
+        annotator = tokens[
+            tokens['_annotator_id'] == f"annotations_{lang}_inspect-{annotator_name}"].drop_duplicates().copy()
+    if version == "3":
+        annotator = tokens[
+            tokens['_annotator_id'] == f"annotations_{lang}_inspect-{annotator_name}"].drop_duplicates().copy()
+        annotator = annotator.append(tokens[
+        tokens['_annotator_id'] == f"annotations_{lang}-{annotator_name}"].drop_duplicates().copy())
+
+    annotator = preprocessing.group_columns(annotator, lang)
+    annotator = annotator[[f'annotations_{lang}', 'tokens_text', 'tokens_id', 'tokens_dict', 'tokens_ws_dict']]
     annotator = annotator.drop_duplicates()
     annotator["tokens_id"] = annotator["tokens_id"].astype(str).str.split(",")
     no_duplicates = []
@@ -135,16 +152,15 @@ def merge_label_df(df_list: list, person_suffixes: list, lang: str):
     Returns merged Dataframe.
     """
     i = 0
-    merged_df = pd.merge(df_list[i], df_list[i + 1], on="annotations_{}".format(lang),
-                         suffixes=('_{}'.format(person_suffixes[i]), '_{}'.format(person_suffixes[i + 1])),
+    merged_df = pd.merge(df_list[i], df_list[i + 1], on=f"annotations_{lang}",
+                         suffixes=(f'_{person_suffixes[i]}', f'_{person_suffixes[i+1]}'),
                          how="outer").fillna("Nan")
 
-    df = pd.merge(merged_df, df_list[i + 2], on="annotations_{}".format(lang), how="outer").fillna("Nan").rename(
-        columns={"tokens_text": "tokens_text_{}".format(person_suffixes[i + 2]),
-                 "tokens_id": "tokens_id_{}".format(person_suffixes[i + 2]),
-                 "tokens_dict": "tokens_dict_{}".format(person_suffixes[i + 2]),
+    return pd.merge(merged_df, df_list[i + 2], on=f"annotations_{lang}", how="outer").fillna("Nan").rename(
+        columns={"tokens_text": f"tokens_text_{person_suffixes[i + 2]}",
+                 "tokens_id": f"tokens_id_{person_suffixes[i + 2]}",
+                 "tokens_dict": f"tokens_dict_{person_suffixes[i + 2]}",
                  'tokens_ws_dict': f'tokens_ws_dict_{person_suffixes[i + 2]}'})
-    return df
 
 
 def get_normalize_tokens_dict(df: pd.DataFrame) -> pd.DataFrame:
@@ -180,19 +196,19 @@ def normalize_person_tokens(df: pd.DataFrame, pers: str, lang: str) -> pd.DataFr
     Drops duplicates and returns Dataframe.
     """
     normalized_tokens = []
-    for sentences in df[["annotations_{}".format(lang), "tokens_dict_{}".format(pers)]].values:
+    for sentences in df[[f"annotations_{lang}", f"tokens_dict_{pers}"]].values:
         normalized_tokens_row = []
         tokens = [sentences[1]]
         if sentences[1] != "Nan":
             tokens = eval(sentences[1]).values()
-        token_dict = df[df["annotations_{}".format(lang)] == sentences[0]]["normalized_tokens_dict"].values[0]
+        token_dict = df[df[f"annotations_{lang}"] == sentences[0]]["normalized_tokens_dict"].values[0]
         token_dict["Nan"] = NAN_KEY
         assert len(token_dict.values()) == len(set(token_dict.values()))
         for word in tokens:
             normalized_tokens_row.append(token_dict[word])
         normalized_tokens.append(normalized_tokens_row)
 
-    df["normalized_tokens_{}".format(pers)] = normalized_tokens
+    df[f"normalized_tokens_{pers}"] = normalized_tokens
     df = df.loc[df.astype(str).drop_duplicates().index]
     return df
 
@@ -210,24 +226,24 @@ def calculate_overlap_min_max(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     """
 
     overlap_min_max_list = []
-    for value_list in df.copy()[['annotations_{}'.format(lang), f"normalized_tokens_{PERSONS[0]}", f"normalized_tokens_{PERSONS[1]}",
+    for value_list in df.copy()[[f"annotations_{lang}", f"normalized_tokens_{PERSONS[0]}", f"normalized_tokens_{PERSONS[1]}",
                           f"normalized_tokens_{PERSONS[2]}", 'normalized_tokens_dict']].values:
-        overlap_min_max = {'annotations_{}'.format(lang): value_list[0], "overlap_maximum": [],
+        overlap_min_max = {f"annotations_{lang}": value_list[0], "overlap_maximum": [],
                            "overlap_minimum": []}
-        combinations = get_combinations(value_list[1:-1],2)
+        combinations = preprocessing.get_combinations(value_list[1:-1],2)
         for comb in combinations:
             overlap_list = []
             comb = sorted(comb, key=len)
             len_min_comb, len_max_comb = len(comb[0]), len(comb[1])
-            i = 1
-            while i <= len(comb[0]):
-                if ''.join(str(i) for i in comb[0][:i]) in ''.join(str(i) for i in comb[1]):
-                    i = i + 1
-                    overlap_list.append(comb[0][:i])
+            j = 1
+            while j <= len(comb[0]):
+                if ''.join(str(i) for i in comb[0][:j]) in ''.join(str(i) for i in comb[1]):
+                    j += 1
+                    overlap_list.append(comb[0][:j])
                 # Section is finished, slice list and check again
                 else:
-                    comb[0] = comb[0][i:]
-                    i = 1
+                    comb[0] = comb[0][j:]
+                    j = 1
             if len(overlap_list) == 0 or comb == [[NAN_KEY], [NAN_KEY]]:
                 overlap_min_max["overlap_maximum"] += [0]
                 overlap_min_max["overlap_minimum"] += [0]
@@ -243,11 +259,11 @@ def calculate_overlap_min_max(df: pd.DataFrame, lang: str) -> pd.DataFrame:
 
 def calculate_jaccard_similarity_distance(df: pd.DataFrame, lang) -> pd.DataFrame:
     jaccard_list = []
-    for value_list in df.copy()[['annotations_{}'.format(lang), f"normalized_tokens_{PERSONS[0]}", f"normalized_tokens_{PERSONS[1]}",
+    for value_list in df.copy()[[f'annotations_{lang}', f"normalized_tokens_{PERSONS[0]}", f"normalized_tokens_{PERSONS[1]}",
                           f"normalized_tokens_{PERSONS[2]}", 'normalized_tokens_dict']].values:
-        jaccard = {'annotations_{}'.format(lang): value_list[0], "jaccard_similarity": [], "jaccard_distance": []}
+        jaccard = {f'annotations_{lang}': value_list[0], "jaccard_similarity": [], "jaccard_distance": []}
         value_list[1:-1] = normalize_list_length(value_list[1:-1], value_list[-1])
-        combinations = get_combinations(value_list[1:-1],2)
+        combinations = preprocessing.get_combinations(value_list[1:-1],2)
         for comb in combinations:
             set_1, set_2 = set(list(comb[0])), set(list(comb[1]))
             # Find intersection of two sets
@@ -265,7 +281,7 @@ def calculate_jaccard_similarity_distance(df: pd.DataFrame, lang) -> pd.DataFram
 def calculate_rouge_score(i: int,text_combinations: list, rouge_list:list, lang: str) -> list:
     rouge_scores = ['rouge1', 'rouge2', 'rougeL']
     scorer = rs.RougeScorer(rouge_scores, use_stemmer=True)
-    rouge = {'annotations_{}'.format(lang): i, rouge_scores[0]: [], rouge_scores[1]: [],
+    rouge = {f'annotations_{lang}': i, rouge_scores[0]: [], rouge_scores[1]: [],
              rouge_scores[2]: []}
     for comb in text_combinations:
         scores = scorer.score(comb[0], comb[1])
@@ -276,7 +292,7 @@ def calculate_rouge_score(i: int,text_combinations: list, rouge_list:list, lang:
     return rouge_list
 
 def calculate_bleu_score(i: int,text_combinations:list, bleu_list:list, lang: str):
-    bleu = {'annotations_{}'.format(lang): i, "bleu_score": []}
+    bleu = {f'annotations_{lang}': i, "bleu_score": []}
     for comb in text_combinations:
         b_s = sentence_bleu([comb[0]], comb[1])
         bleu["bleu_score"].append(b_s)
@@ -285,7 +301,7 @@ def calculate_bleu_score(i: int,text_combinations:list, bleu_list:list, lang: st
 
 
 def calculate_meteor_score(i: int,text_combinations:list, meteor_list:list, lang: str):
-    meteor = {'annotations_{}'.format(lang): i, "meteor_score":[] }
+    meteor = {f'annotations_{lang}': i, "meteor_score":[] }
     for comb in text_combinations:
         m_s = nltk.translate.meteor_score.meteor_score([comb[0]], comb[1])
         meteor["meteor_score"].append(m_s)
@@ -294,7 +310,7 @@ def calculate_meteor_score(i: int,text_combinations:list, meteor_list:list, lang
 
 
 def calculate_bert_score(i: int,text_combinations:list, bert_list:list, lang: str) -> list:
-    bert = {'annotations_{}'.format(lang): i, "P": [], "R": [], "F1": []}
+    bert = {f'annotations_{lang}': i, "P": [], "R": [], "F1": []}
     for comb in text_combinations:
         P, R, F1 = score([comb[0]], [comb[1]], lang="other", verbose=True)
         bert["P"].append(P)
@@ -310,7 +326,7 @@ def calculate_text_scores(df: pd.DataFrame, lang:str)-> (pd.DataFrame,pd.DataFra
     rouge_list = []
     bleu_list = []
     for value_list in df[
-        ['annotations_{}'.format(lang), f"tokens_id_{PERSONS[0]}", f"tokens_id_{PERSONS[1]}", f"tokens_id_{PERSONS[2]}",
+        [f'annotations_{lang}', f"tokens_id_{PERSONS[0]}", f"tokens_id_{PERSONS[1]}", f"tokens_id_{PERSONS[2]}",
          f'tokens_dict_{PERSONS[0]}', f'tokens_ws_dict_{PERSONS[0]}',
          f'tokens_dict_{PERSONS[1]}', f'tokens_ws_dict_{PERSONS[1]}',
          f'tokens_dict_{PERSONS[2]}', f'tokens_ws_dict_{PERSONS[2]}']].values:
@@ -333,10 +349,10 @@ def calculate_cohen_kappa(df: pd.DataFrame, lang: str) -> pd.DataFrame:
 
     cohen_kappa_scores_list = []
     cohen_kappa_scores = {}
-    for value_list in df[['fannotations_{}'.format(lang), f"normalized_tokens_{PERSONS[0]}", f"normalized_tokens_{PERSONS[1]}",
+    for value_list in df[[f'annotations_{lang}', f"normalized_tokens_{PERSONS[0]}", f"normalized_tokens_{PERSONS[1]}",
                                 f"normalized_tokens_{PERSONS[2]}", 'normalized_tokens_dict']].values:
-        cohen_kappa_scores = {'annotations_{}'.format(lang): value_list[0], "cohen_kappa_scores": []}
-        combinations = get_combinations(value_list[1:-1],2)
+        cohen_kappa_scores = {f'annotations_{lang}': value_list[0], "cohen_kappa_scores": []}
+        combinations = preprocessing.get_combinations(value_list[1:-1],2)
         for comb in combinations:
             if len(comb[0]) != 1 and len(comb[1]) != 1:
                 list_a, list_b = normalize_list_length(combinations, value_list[-1])
@@ -363,7 +379,7 @@ def get_text_combinations(token_list: list, token_dict_list: list)-> list:
             token_list[i] = [token_list[i]]
         else:
             token_list[i].append(PERSONS[i])
-    combinations = get_combinations(token_list, 2)
+    combinations = preprocessing.get_combinations(token_list, 2)
     for comb in combinations:
         token_ws_dict_1, token_ws_dict_2 = dict_indexes[comb[0][-1]], dict_indexes[comb[1][-1]]
         txt_1 = get_text(comb[0][:-1], token_dict_list[token_ws_dict_1[0]], token_dict_list[token_ws_dict_1[1]])
@@ -409,12 +425,18 @@ def apply_aggregation(df: pd.DataFrame, column_name, aggregation: str):
 
 
 if __name__ == '__main__':
-    extracted_datasets = extract_dataset("../{}/annotations_{}.jsonl", "../{}/annotations_{}-{}.jsonl")
-    # dump_user_input(extracted_datasets)
-    # dump_case_not_accepted(extracted_datasets)
+    extracted_datasets_1 = preprocessing.extract_dataset("../legal_expert_annotations/{}/annotations_{}.jsonl", "../legal_expert_annotations/{}/annotations_{}-{}.jsonl")
+    extracted_datasets_2 = preprocessing.extract_dataset("../legal_expert_annotations/{}/annotations_{}_inspect.jsonl", "../legal_expert_annotations/{}/annotations_{}_inspect-{}.jsonl")
+    extracted_datasets_3 = preprocessing.extract_dataset("../legal_expert_annotations/{}/annotations_{}_merged.jsonl",
+                                                         "../legal_expert_annotations/{}/annotations_{}_merged-{}.jsonl")
+
     for l in LANGUAGES:
         try:
-            process_dataset(extracted_datasets, l)
+            for triple in [(extracted_datasets_1, l, "1"),(extracted_datasets_2, l,"2"),(extracted_datasets_3, l,"3")]:
+                 process_dataset(triple[0],triple[1],triple[2])
         except KeyError as err:
-            print(err)
-            pass
+             print(err)
+             pass
+
+    quantitative_analysis.analysis()
+    qualitative_analysis.analysis()
