@@ -8,22 +8,17 @@ import utils.quantitative_analysis as qt
 LANGUAGES = ["de", "fr", "it"]
 PERSONS = ["angela", "lynn", "thomas"]
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
-ANNOTATION_PATHS = [
-    ("../legal_expert_annotations/{}/annotations_{}.jsonl", "../legal_expert_annotations/{}/annotations_{}-{}.jsonl"),
-    ("../legal_expert_annotations/{}/annotations_{}_inspect.jsonl",
-     "../legal_expert_annotations/{}/annotations_{}_inspect-{}.jsonl"),
-    ("../legal_expert_annotations/{}/annotations_{}_merged.jsonl",
-     "../legal_expert_annotations/{}/annotations_{}_merged-{}.jsonl")]
+OCCLUSION_PATHS = {"test_sets": ("../occlusion/lower_court_test_sets/{}/lower_court_test_set_{}.csv",
+                                 "../occlusion/occlusion_test_sets/{}/occlusion_test_set_{}_exp_{}.csv"),
+                   "prediction": ("../occlusion/lower_court_predictions/{}/predictions_test.csv",
+                                  "../occlusion/occlusion_predictions/{}_{}/predictions_test.csv")}
+NUMBER_OF_EXP = [1, 2, 3, 4]
 
 
-def annotation_analysis(datasets: dict, lang: str, version: str):
+def occlusion_analysis(datasets: dict, lang: str, version: str):
     """
-    This workflow prepares the prodigy JSNOL for the application of the IAA metrics.
-    It combines the different annotation to one DataFrame per Label (label_df).
-    Normalizes token dictionaries.
-    Applies IAA_scores to German subset and writes them to csv.
-    Saves processed Italian and French dataset as csv.
-    Uses utils.preprocessing
+    Gets language spans and token Dataframes.
+    @todo finish documentation
 
     """
     annotations = datasets["annotations_{}".format(lang)][
@@ -33,7 +28,6 @@ def annotation_analysis(datasets: dict, lang: str, version: str):
     for label in LABELS:
         label_list = []
         label_df = preprocessing.get_span_df(annotations_spans, annotations_tokens, label, lang)
-        # Getting the necessary dictionaries
         ws_df = preprocessing.get_white_space_dicts(label_df, "annotations_{}".format(lang))
         label_df = preprocessing.get_tokens_dict(label_df, "tokens_id", "tokens_text", "tokens_dict")
         label_df = label_df.join(ws_df[[f"annotations_{lang}", 'tokens_ws_dict']].set_index(f"annotations_{lang}"),
@@ -42,7 +36,6 @@ def annotation_analysis(datasets: dict, lang: str, version: str):
             label_list.append(preprocessing.get_annotator_df(pers, label_df, lang, version))
 
         label_df = preprocessing.merge_triple(label_list, PERSONS, lang)
-        # Normalizes token dictionary
         label_df = preprocessing.get_normalize_tokens_dict(label_df)
         if lang == "de":
             IAA_scores.write_IAA_to_csv(label_df, lang, label, version)
@@ -50,14 +43,29 @@ def annotation_analysis(datasets: dict, lang: str, version: str):
             preprocessing.write_csv(
                 Path("../{}/{}_{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}", version)),
                 label_df)
-            print("Saved {}_{}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}", version))
+        print("Saved {}_{}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}", version))
 
 
+
+"""
+
+Zuerst explainability wert pro case ausrechnenen (Unterschied zu baseline).
+Min max und durchschnittlicher explainability wert
+
+Dann IAA zwischen gs daten set und sätzen. Gleiche schritte wie bei erstllung zuerst 1 satz zu 1 satz dann 2,3,4
+
+- Tokens in occluded text per exp. label and version 
+- Gold standard total tokens zählen
+
+"""
 if __name__ == '__main__':
-    for paths in ANNOTATION_PATHS:
-        extracted_datasets = preprocessing.extract_dataset(paths[0], paths[1])
-        for l in LANGUAGES:
-            for ver in ["1","2","3"]:
-                annotation_analysis(extracted_datasets, l, ver)
-    qt.annotation_analysis()
-    ql.analysis()
+    for l in LANGUAGES:
+        lower_court_test_set = preprocessing.read_csv(OCCLUSION_PATHS["test_sets"][0].format(l,l), "index")
+        lower_court_prediction = preprocessing.temp_scaling(
+            preprocessing.read_csv(OCCLUSION_PATHS["prediction"][0].format(l), "id"))
+        for nr in NUMBER_OF_EXP:
+            occlusion_test_set = preprocessing.read_csv(OCCLUSION_PATHS["test_sets"][1].format(l,l, nr), "index")
+            occlusion_prediction = preprocessing.temp_scaling(
+                preprocessing.read_csv(OCCLUSION_PATHS["prediction"][1].format(l, nr), "id"))
+
+            print(occlusion_test_set.columns)

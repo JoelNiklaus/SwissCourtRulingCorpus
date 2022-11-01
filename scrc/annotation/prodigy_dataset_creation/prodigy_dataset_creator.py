@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from psycopg2 import sql
 
-from scrc.annotation.judgment_explainability.analysis.preprocessing import read_csv, read_JSONL, write_JSONL
+import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 
 
 FILEPATH_ANNOTATION = "../judgment_explainability/legal_expert_annotations/{}/annotations_{}.jsonl"
@@ -22,7 +22,7 @@ FILEPATH_DATASET_P = "../judgment_prediction/annotation_datasets/prediction_inpu
 PATH_PREDICTIONS = "sjp/finetune/xlm-roberta-base-hierarchical/de,fr,it,en/"
 PATH_DATASET_SCRC = "dataset_scrc/"
 PREDICTIONS_TEST_PATHS=["3/de/predictions_test.csv","3/fr/predictions_test.csv","3/it/predictions_test.csv"]
-PREDICTION_EVAL = read_csv(PATH_PREDICTIONS + "2/predictions_eval.csv", "id")
+PREDICTION_EVAL = preprocessing.read_csv(PATH_PREDICTIONS + "2/predictions_eval.csv", "id")
 
 # scrc database connection configuration string
 CONFIG = f'dbname=scrc user={os.getenv("DB_USER")} password={os.getenv("DB_PASSWORD")} host=localhost port=5432'
@@ -212,9 +212,9 @@ def get_test_val_set(lang: str, mode:str):
     Returns jpined test and validation set from csv.
     """
     return pd.concat(
-        [join_dataframes(read_csv(PATH_PREDICTIONS + PREDICTIONS_TEST_PATHS[LANGUAGES.index(lang)], "id"),
-                         read_csv(PATH_DATASET_SCRC + lang + "/test.csv", "id"), lang, mode),
-         join_dataframes(PREDICTION_EVAL, read_csv(PATH_DATASET_SCRC + lang + "/val.csv", "id"), lang, mode)])
+        [join_dataframes(preprocessing.read_csv(PATH_PREDICTIONS + PREDICTIONS_TEST_PATHS[LANGUAGES.index(lang)], "id"),
+                         preprocessing.read_csv(PATH_DATASET_SCRC + lang + "/test.csv", "id"), lang, mode),
+         join_dataframes(PREDICTION_EVAL, preprocessing.read_csv(PATH_DATASET_SCRC + lang + "/val.csv", "id"), lang, mode)])
 
 
 def db_stream(lang: str, mode: str, ids_scrc) -> list:
@@ -293,28 +293,28 @@ if __name__ == '__main__':
             filepath_dataset = FILEPATH_DATASET_JE.format(language)
             if judgement_mode == "jp":
                 filepath_dataset = FILEPATH_DATASET_P.format(language)
-                IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(read_JSONL(FILEPATH_ANNOTATION)))
+                IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(preprocessing.read_JSONL(FILEPATH_ANNOTATION)))
             dataset = filter_dataset(db_stream(language, judgement_mode, IDS_SCRC), judgement_mode)
-            write_JSONL(filepath_dataset.format(language), dataset)
+            preprocessing.write_JSONL(filepath_dataset.format(language), dataset)
         else:
             for l in LANGUAGES:
                 filepath_dataset = FILEPATH_DATASET_JE.format(l)
                 FILEPATH_ANNOTATION = FILEPATH_ANNOTATION.format(l,l)
                 if judgement_mode == "jp":
-                    IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(read_JSONL(FILEPATH_ANNOTATION)))
+                    IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(preprocessing.read_JSONL(FILEPATH_ANNOTATION)))
                     filepath_dataset = FILEPATH_DATASET_P.format(l)
                 if language == "-all":
                     # judgement outcome needs new cases, IDS_SCRC is set to all cases in judgment explainability dataset
                     dataset = filter_dataset(db_stream(l, judgement_mode, IDS_SCRC), judgement_mode)
-                    write_JSONL(filepath_dataset.format(l), dataset)
+                    preprocessing.write_JSONL(filepath_dataset.format(l), dataset)
                 # for new cases IDS_SCRC is set to all the accepted cases ids in the dataset
                 if language == "-new":
-                    IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(read_JSONL(FILEPATH_ANNOTATION)))
+                    IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(preprocessing.read_JSONL(FILEPATH_ANNOTATION)))
                     dataset = db_stream(l, judgement_mode, IDS_SCRC)
-                    new_case_list = filter_new_cases(pd.DataFrame.from_records(read_JSONL(FILEPATH_ANNOTATION)),
+                    new_case_list = filter_new_cases(pd.DataFrame.from_records(preprocessing.read_JSONL(FILEPATH_ANNOTATION)),
                                                      dataset)
-                    write_JSONL(filepath_dataset.format(l),
-                                new_case_list + read_JSONL(FILEPATH_DATASET_JE.format(l)))
+                    preprocessing.write_JSONL(filepath_dataset.format(l),
+                                new_case_list + preprocessing.read_JSONL(FILEPATH_DATASET_JE.format(l)))
     except psycopg2.errors.UndefinedTable as err:
         print(f"Invalid language argument:\n {err}")
         print(usage)
