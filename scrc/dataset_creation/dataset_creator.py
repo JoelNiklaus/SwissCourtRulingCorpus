@@ -34,7 +34,7 @@ from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cach
 from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision, legal_areas, get_region, \
     where_string_spider, where_string_court
 
-from scrc.utils.court_names import court_names_backup, get_issue_courts, get_error_courts
+from scrc.utils.court_names import court_names_backup, get_error_courts, get_empty_courts
 from scrc.enums.split import Split
 
 import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
@@ -360,17 +360,16 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"Already generated courts: {courts_done}")
 
         courts_error = get_error_courts()  # all courts that couldn't be created
-
-        courts_issues = get_issue_courts()  # all courts that can be generated but with some issues
+        courts_empty = get_empty_courts()  # all courts that were empty
 
         # court_string = court_string - (courts_done + courts_error + courts_issues)
         court_list = []
         for court in court_list_tmp:
-            if court not in (courts_done + courts_error + courts_issues):
+            if court not in (courts_done + courts_error + courts_empty):
                 court_list.append(court)
 
-        # 76/183 not created
-        # 107/183 created - 2 without reports, 6 without file_numbers
+        # 114/183 not created
+        # 69/183 created
         return court_list
 
     def create_multiple_datasets(self, court_list=None, concatenate=False, overview=True, save_reports=True,
