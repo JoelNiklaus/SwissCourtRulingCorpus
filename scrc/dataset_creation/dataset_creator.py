@@ -156,7 +156,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.debug = debug
         self.seed = 42
-        self.minFeatureColLength = 100  # characters
+        self.minFeatureColLength = 10  # tokens
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
@@ -616,7 +616,6 @@ class DatasetCreator(AbstractPreprocessor):
             df.year = df.year.astype(int)  # convert from float to nicer int
         df.decision_id = df.decision_id.astype(str)  # convert from uuid to str so it can be saved
 
-        df = df.loc[df['facts_num_tokens_bert'] > 10]  # remove entries with less than 10 tokens
         return df
 
     def save_dataset(self, dataset: datasets.Dataset, labels: list, folder: Path,
@@ -632,8 +631,8 @@ class DatasetCreator(AbstractPreprocessor):
         :param save_reports:whether or not to compute and save reports
         :return:
         """
-        # clean df before saving it
-        dataset = self.clean_dataset(dataset)
+        # filter out examples with short feature cols dataset before saving it
+        dataset = dataset.filter(self.filter_by_length, fn_kwargs={"how": 'all'})
         self.logger.info("start creating splits")
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
         self.save_huggingface_dataset(splits, folder)
@@ -658,25 +657,22 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"Saved dataset files to {folder}")
         return splits
 
-    def clean_dataset(self, dataset):
-        # replace empty strings with nan so that they can be removed
-        self.logger.info(f"start cleaning")
-        empty_rows = []
-        def get_empty_rows(row):
-            if row["num_tokens"] <= self.minFeatureColLength:
-                empty_rows.append(row['__index_level_0__'])
-
+    def filter_by_length(self, example, how='any'):
+        """
+        Removes examples that are too short
+        :param example:    the example to check
+        :param how:         how to check for length. 'all' means that all feature cols must be long enough,
+         'any' means that at least one feature col must be long enough
+        :return:
+        """
+        keep_counter = 0
         for feature_col in self.get_feature_col_names():
-            dataset = dataset.rename_column(f"{feature_col}_num_tokens_bert", "num_tokens")
-            dataset.map(get_empty_rows)
-            dataset = dataset.rename_column("num_tokens", f"{feature_col}_num_tokens_bert")
-
-        duplicates = [number for number in empty_rows if empty_rows.count(number) == len(self.get_feature_col_names())]
-        non_empty_rows = [i for i in range(len(dataset)) if i not in duplicates]
-        dataset = dataset.select(non_empty_rows)
-
-        self.logger.info(f"finished cleaning")
-        return dataset
+            if example[f"{feature_col}_num_tokens_bert"] > self.minFeatureColLength:
+                keep_counter += 1
+        if how == 'all':
+            return keep_counter == len(self.get_feature_col_names())  # keep if all feature cols are long enough
+        elif how == 'any':
+            return keep_counter > 0  # keep if at least one feature col is long enough
 
     def prepare_kaggle_splits(self, splits):
         self.logger.info("Saving the data in kaggle format")
