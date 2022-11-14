@@ -12,7 +12,7 @@ from netcal.scaling import TemperatureScaling
 # Constant variable definitions
 LANGUAGES = ["de", "fr", "it"]
 PERSONS = ["angela", "lynn", "thomas"]
-SESSIONS = ["angela", "lynn", "thomas", "gold_final", "gold_nina"]
+SESSIONS = ["angela", "lynn", "thomas", "gold_nina"]
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
 AGGREGATIONS = ["mean", "max", "min"]
 NAN_KEY = 10000
@@ -30,7 +30,7 @@ def extract_dataset(filepath_a, filepath_b) -> dict:
     datasets = {}
     for language in LANGUAGES:
         try:
-            json_list = read_JSONL(filepath_a.format(language, language))
+            json_list = read_jsnol(filepath_a.format(language, language))
             # List of dict to dataframe
             dfItem = pd.DataFrame.from_records(json_list)
             dfItem = dfItem.set_index("id_scrc")
@@ -40,7 +40,7 @@ def extract_dataset(filepath_a, filepath_b) -> dict:
             pass
         for session in SESSIONS:
             try:
-                json_list = read_JSONL(filepath_b.format(language, language, session))
+                json_list = read_jsnol(filepath_b.format(language, language, session))
                 dfItem = pd.DataFrame.from_records(json_list)
                 dfItem.index.name = f"annotations_{language}-{session}"
                 datasets[f"annotations_{language}-{session}"] = dfItem
@@ -49,7 +49,7 @@ def extract_dataset(filepath_a, filepath_b) -> dict:
     return datasets
 
 
-def read_JSONL(filename: str) -> list:
+def read_jsnol(filename: str) -> list:
     """
     Reads JSONL file and returns a dataframe
     """
@@ -64,7 +64,7 @@ def read_JSONL(filename: str) -> list:
     return a_list
 
 
-def write_JSONL(filename: str, data: list):
+def write_jsonl(filename: str, data: list):
     """
     Writes a JSONL file from dictionary list.
     """
@@ -87,10 +87,19 @@ def read_csv(filepath: str, index: str) -> pd.DataFrame:
 
 def write_csv(filepath: Path, df: pd.DataFrame):
     """
-    Creates a csv from Dataframe and saves it.
+    Writes csv from Dataframe.
     """
     filepath.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(filepath, index=True, index_label="index")
+
+
+def write_json(filepath: Path, dictionary: dict):
+    """
+    Writes a json from dict.
+    """
+    json_object = json.dumps(dictionary, indent=4)
+    with open(filepath, "w") as outfile:
+        outfile.write(json_object)
 
 
 def get_tokens_dict(df: pandas.DataFrame, col_1: str, col_2: str, new_col: str) -> pandas.DataFrame:
@@ -147,7 +156,7 @@ def get_span_df(annotations_spans: pandas.DataFrame, annotations_tokens: pandas.
         new_annotations_tokens = new_annotations_tokens[new_annotations_tokens["tokens_id"].isin(token_numbers[key])]
         new_annotations_tokens = new_annotations_tokens[new_annotations_tokens['_annotator_id'] == key.split(".")[1]]
         spans_list.append(new_annotations_tokens)
-    return pd.concat(spans_list)
+    return pd.concat(spans_list), token_numbers
 
 
 def group_columns(df: pandas.DataFrame, lang: str) -> pandas.DataFrame:
@@ -205,7 +214,7 @@ def get_combinations(val_list: list, length_subset: int) -> list:
 def get_annotator_df(annotator_name: str, tokens: pd.DataFrame, lang: str, version: str) -> pd.DataFrame:
     """
     Copies entries from Dataframe from specific annotator.
-    Groups tokens_text, tokens_id, tokens_dict from one case together.
+    Groups tokens_text, tokens_id, tokens_dict from getone case together.
     Creates Dataframe containing ids, 'tokens_text','tokens_id', 'tokens_dict'.
     Drops duplicates
     Transforms tokens_id string to list.
@@ -335,7 +344,7 @@ def find_max_length(lst: list) -> (list, int):
     return max(x for x in lst), max(len(x) for x in lst)
 
 
-def temp_scaling(df: pd.DataFrame)-> pd.DataFrame:
+def temp_scaling(df: pd.DataFrame) -> pd.DataFrame:
     """
     Replaces the judgment labels with int 0,1.
     Creates two NumPy 1-D and 2-D arrays.
@@ -345,10 +354,11 @@ def temp_scaling(df: pd.DataFrame)-> pd.DataFrame:
     via https://github.com/EFS-OpenSource/calibration-framework#calibration-framework
     """
     df["prediction"] = np.where(df["prediction"] == "dismissal", 0, 1)
-    ground_truth = np.array(df["prediction"].values) # ground truth digits between 0-1 - shape: (n_samples,)
-    confidences = np.array(df[["prediction", "confidence"]].values) # confidence estimates between 0-1 - shape: (n_samples, n_classes)
+    ground_truth = np.array(df["prediction"].values)  # ground truth digits between 0-1 - shape: (n_samples,)
+    confidences = np.array(
+        df[["prediction", "confidence"]].values)  # confidence estimates between 0-1 - shape: (n_samples, n_classes)
 
     temperature = TemperatureScaling()
     temperature.fit(confidences, ground_truth)
-    calibrated = temperature.transform(confidences)
-    return pd.DataFrame(calibrated)
+    df["confidence_scaled"] = temperature.transform(confidences)
+    return df

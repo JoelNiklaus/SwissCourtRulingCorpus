@@ -2,14 +2,16 @@
 CSV_COLUMNS = ["index","id","year","label","language","region",
 "canton","legal area","explainability_label","occluded_text","text"]
 
-@Todo Clean this up and and add comments
+@Todo Clean this up and and add comments!!
+
+Note that in exp 2,3 and 4 fore each label there were all combinations of sentences removed
 """
 from pathlib import Path
 
 import pandas as pd
 
 # Constant variable definitions
-GOLD_SESSIONS = {"de": "gold_final", "fr": "gold_nina", "it": "gold_nina"}
+GOLD_SESSIONS = {"de": "gold_nina", "fr": "gold_nina", "it": "gold_nina"}
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment", "Neutral"]
 CSV_PATH = "../../prodigy_dataset_creation/dataset_scrc/{}/test.csv"
 OCCLUSION_COLUMNS = ['id_csv', 'year', 'label', 'language', 'origin_region',
@@ -41,7 +43,7 @@ def process_dataset(datasets: dict, lang: str):
         separated_spans_df = get_separated_label_spans(spans_list, lang)
         separated_spans_tokens_df = process_span_token_df(label_df, separated_spans_df, lang)
         label_df = label_df.drop(['tokens_text', 'tokens_start', 'tokens_end', 'tokens_dict', 'id_csv', 'text',
-                                  'tokens_dict'], axis=1).merge(separated_spans_tokens_df, on="id_scrc", how="inner")
+                                  ], axis=1).merge(separated_spans_tokens_df, on="id_scrc", how="inner")
         occluded_label_df = process_label_df(label_df, ws_df, label, lang)
         globals()[f"{label.lower().replace(' ', '_')}_{lang}"] = occluded_label_df.drop(["index"], axis=1).to_dict(
             "records")
@@ -148,9 +150,9 @@ def occlude_text_1(df: pd.DataFrame, label: str) -> pd.DataFrame:
             for span in row['spans']:
                 token = row['tokens_dict'][span]
                 if row['tokens_ws_dict'][span]:
-                    occlusion_string = occlusion_string + token + " "
+                    occlusion_string = str(occlusion_string + token + " ")
                 else:
-                    occlusion_string = occlusion_string + token
+                    occlusion_string = str(occlusion_string + token)
             if label == LABELS[0]:
                 row["text"] = row["text"].replace(occlusion_string, "[*]")
             else:
@@ -172,7 +174,7 @@ def occlude_text_n(df: pd.DataFrame, label: str) -> pd.DataFrame:
         occlusion_string = ""
         for number in row['combinations']:
             row["facts"] = row["facts"].replace(row["text_dict"][number], " ")
-            occlusion_string = occlusion_string + row["text_dict"][number] + " "
+            occlusion_string = str(occlusion_string + row["text_dict"][number] + " ")
             assert row["facts"].find(row["text_dict"][number]) == -1
         occlusion_list.append(occlusion_string)
         text_list.append(row["facts"])
@@ -202,12 +204,15 @@ def appends_df(filename: str, lang: str):
     df = pd.DataFrame()
     for label in LABELS[1:]:
         df = df.append(globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
-    preprocessing.write_csv(Path(filename), df.reset_index().drop("index", axis=1).rename(columns={"facts": "text",  "id_csv": "id"}))
+    preprocessing.write_csv(Path(filename), df.rename(columns={"facts": "text",  "id_csv": "id"}).drop_duplicates().reset_index().drop("index", axis=1))
 
 
 def permutation(filename: str,lang: str, permutations_number: int):
+    """
+
+    """
     df = pd.DataFrame()
-    for label in LABELS[1:-1]:
+    for label in LABELS[1:]:
         df_exp = pd.DataFrame.from_records(globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
         df_baseline = df_exp[df_exp["explainability_label"] == "Baseline"]
         df_exp = get_occlusion_string_dict(df_exp[df_exp["explainability_label"] == label][['id_csv', 'occluded_text']].values, permutations_number)

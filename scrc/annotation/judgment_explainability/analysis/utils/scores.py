@@ -1,4 +1,5 @@
 """
+Sources for the implementations
 - [x] ROUGE-L, ROUGE-1, ROUGE-2 (Lin, 2004) https://pypi.org/project/rouge-score/
 - [x] BLEU (Papineni et al., 2001) (unigram and bigram averaging) https://www.journaldev.com/46659/bleu-score-in-python
 - [x] METEOR (Lavie and Agarwal, 2007) https://stackoverflow.com/questions/63778133/how-can-i-implement-meteor-score-when-evaluating-a-model-when-using-the-meteor-s
@@ -11,8 +12,11 @@ the annotation is also possible.
 """
 
 import copy
+import math
 from pathlib import Path
+
 import nltk
+import numpy as np
 import pandas as pd
 from nltk.translate.bleu_score import sentence_bleu
 
@@ -21,6 +25,7 @@ nltk.download('wordnet')
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 import rouge_score.rouge_scorer as rs
 from bert_score import score as bert_score
+from nltk.tokenize import word_tokenize
 
 LANGUAGES = ["de", "fr", "it"]
 PERSONS = ["angela", "lynn", "thomas"]
@@ -28,6 +33,109 @@ LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
 SCORES = ["overlap_maximum", "overlap_minimum", "jaccard_similarity", "jaccard_distance", "meteor_score", "bleu_score"]
 NAN_KEY = preprocessing.NAN_KEY
 AGGREGATIONS = preprocessing.AGGREGATIONS
+
+
+def write_IAA_to_csv(df: pd.DataFrame, lang: str, label: str, version: str):
+    """
+    Calculate IAA_scores of preprocessed DataFrame.
+    Writes DataFrame to csv
+    @ Todo implement occlusion
+    """
+    df = calculate_IAA_annotations(df, lang)
+    preprocessing.write_csv(Path("{}/{}_{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}", version)), df)
+    print("Saved {}_{}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}", version))
+
+
+def calculate_IAA_annotations(df: pd.DataFrame, lang: str):
+    """
+    Creates 'normalized_token_dict' column (normalized dictionary for entire row).
+    Applies IAA text and numerical scores to preprocessed DataFrame.
+    Merges all score columns to DataFrame and applies aggregation min, max, mean to scores.
+    Returns DataFrame
+    """
+    for pers in PERSONS:
+        df = preprocessing.normalize_person_tokens(df, pers, lang)
+        df = preprocessing.string_to_dict(df, f'tokens_ws_dict_{pers}')
+        df = preprocessing.string_to_dict(df, f'tokens_dict_{pers}')
+
+    print("Calculating scores...")
+    r, be, m, b = calculate_text_scores_annotations(df, lang)
+    score_df_list = [calculate_overlap_min_max(df, lang),
+                     calculate_jaccard_similarity_distance(df, lang), r, be, m, b]
+    for score_df in score_df_list:
+        df = df.merge(score_df, on=f'annotations_{lang}',
+                      how='outer')
+
+    for agg in AGGREGATIONS:
+        for score in SCORES:
+            df = apply_aggregation(df, score, agg)
+
+    return df
+
+
+def calculate_IAA_occlusion(df: pd.DataFrame, lang: str):
+    """
+    @Todo Finish functionalities
+    """
+    print("Calculating scores...")
+    # r, be, m, b = calculate_text_scores_occlusion(df, lang)
+    min_max = calculate_overlap_min_max_occlusion(df, lang)
+
+
+def calculate_text_scores_occlusion(df: pd.DataFrame, lang: str) -> (pd.DataFrame, pd.DataFrame):
+    """
+    @Todo Comment
+    """
+    bert_list = []
+    meteor_list = []
+    rouge_list = []
+    bleu_list = []
+    for value_list in df[["id", "occluded_text_model", "occluded_text_human"]].values:
+        rouge_list = calculate_rouge_score(value_list[0], [(value_list[1], value_list[2])], rouge_list, lang)
+        bert_list = calculate_bert_score(value_list[0], [(value_list[1], value_list[2])], bert_list, lang)
+        meteor_list = calculate_meteor_score(value_list[0], [(value_list[1], value_list[2])], meteor_list, lang)
+        bleu_list = calculate_bleu_score(value_list[0], [(value_list[1], value_list[2])], bleu_list, lang)
+    return pd.DataFrame.from_records(rouge_list), pd.DataFrame.from_records(bert_list), pd.DataFrame.from_records(
+        meteor_list), pd.DataFrame.from_records(bleu_list)
+
+
+def calculate_overlap_min_max_occlusion(df: pd.DataFrame, lang: str) -> pd.DataFrame:
+    """
+    @todo Comment
+    """
+    overlap_min_max_list = []
+    for value_list in df.copy()[["id", "occluded_text_model", "occluded_text_human"]].values:
+        overlap_min_max = {f"annotations_{lang}": value_list[0], "overlap_maximum": 0,
+                           "overlap_minimum": 0}
+        tokens_model, tokens_human = word_tokenize(value_list[1]), word_tokenize(value_list[2])
+        comb = sorted([tokens_model, tokens_human], key=len)
+        len_min_comb, len_max_comb = len(comb[0]), len(comb[1])
+        max_overlap = get_max_overlap(comb[0], comb[1])
+        if max_overlap != 0:
+            overlap_min_max["overlap_maximum"] = max_overlap / len_max_comb
+            overlap_min_max["overlap_minimum"] = max_overlap / len_min_comb
+        overlap_min_max_list.append(overlap_min_max)
+    return pd.DataFrame.from_records(overlap_min_max_list)
+
+
+def get_max_overlap(s1, s2) -> int:
+    """
+    @todo Comment
+    """
+    lst = []
+    j = 1
+    while j <= len(s1):
+        if ''.join(str(i) for i in s1[:j]) in ''.join(str(i) for i in s2):
+            lst.append(s1[:j])
+            j += 1
+        # Section is finished, slice list and check again
+        else:
+            s1 = s1[j:]
+            j = 1
+    if len(lst) == 0:
+        return 0
+    else:
+        return max(len(elem) for elem in lst)
 
 
 def calculate_overlap_min_max(df: pd.DataFrame, lang: str) -> pd.DataFrame:
@@ -40,6 +148,7 @@ def calculate_overlap_min_max(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     If there is no overlap or the sample content is Nan ([10000]) the overlap_maximum and overlap_minimum equals 0.
     Adds the overlap_maximum and overlap_minimum scores to the dict and adds this dict to a list.
     Creates a DataFrame from the list and returns it.
+    @todo might need correction? Implement @get_max_overlap
     """
 
     overlap_min_max_list = []
@@ -76,6 +185,9 @@ def calculate_overlap_min_max(df: pd.DataFrame, lang: str) -> pd.DataFrame:
 
 
 def calculate_jaccard_similarity_distance(df: pd.DataFrame, lang) -> pd.DataFrame:
+    """
+    @todo Comment
+    """
     jaccard_list = []
     for value_list in df.copy()[
         [f'annotations_{lang}', f"normalized_tokens_{PERSONS[0]}", f"normalized_tokens_{PERSONS[1]}",
@@ -99,6 +211,9 @@ def calculate_jaccard_similarity_distance(df: pd.DataFrame, lang) -> pd.DataFram
 
 
 def calculate_rouge_score(i: int, text_combinations: list, rouge_list: list, lang: str) -> list:
+    """
+    @todo Comment
+    """
     rouge_scores = ['rouge1', 'rouge2', 'rougeL']
     scorer = rs.RougeScorer(rouge_scores, use_stemmer=True)
     rouge = {f'annotations_{lang}': i, rouge_scores[0]: [], rouge_scores[1]: [],
@@ -113,6 +228,9 @@ def calculate_rouge_score(i: int, text_combinations: list, rouge_list: list, lan
 
 
 def calculate_bleu_score(i: int, text_combinations: list, bleu_list: list, lang: str):
+    """
+    @todo Comment
+    """
     bleu = {f'annotations_{lang}': i, "bleu_score": []}
     for comb in text_combinations:
         b_s = sentence_bleu([comb[0]], comb[1])
@@ -122,6 +240,9 @@ def calculate_bleu_score(i: int, text_combinations: list, bleu_list: list, lang:
 
 
 def calculate_meteor_score(i: int, text_combinations: list, meteor_list: list, lang: str):
+    """
+    @todo Comment
+    """
     meteor = {f'annotations_{lang}': i, "meteor_score": []}
     for comb in text_combinations:
         m_s = nltk.translate.meteor_score.meteor_score([comb[0]], comb[1])
@@ -131,6 +252,9 @@ def calculate_meteor_score(i: int, text_combinations: list, meteor_list: list, l
 
 
 def calculate_bert_score(i: int, text_combinations: list, bert_list: list, lang: str) -> list:
+    """
+    @todo Comment, add plots?
+    """
     bert = {f'annotations_{lang}': i, "P": [], "R": [], "F1": []}
     for comb in text_combinations:
         P, R, F1 = bert_score([comb[0]], [comb[1]], lang="other", verbose=True)
@@ -142,7 +266,10 @@ def calculate_bert_score(i: int, text_combinations: list, bert_list: list, lang:
     return bert_list
 
 
-def calculate_text_scores(df: pd.DataFrame, lang: str) -> (pd.DataFrame, pd.DataFrame):
+def calculate_text_scores_annotations(df: pd.DataFrame, lang: str) -> (pd.DataFrame, pd.DataFrame):
+    """
+    @todo Comment
+    """
     bert_list = []
     meteor_list = []
     rouge_list = []
@@ -162,6 +289,9 @@ def calculate_text_scores(df: pd.DataFrame, lang: str) -> (pd.DataFrame, pd.Data
 
 
 def get_text(token_list: list, tokens_dict: dict, ws_dict: dict) -> str:
+    """
+    @todo Comment
+    """
     text = ""
     for nr in token_list:
         if nr != NAN_KEY:
@@ -173,6 +303,9 @@ def get_text(token_list: list, tokens_dict: dict, ws_dict: dict) -> str:
 
 
 def get_text_combinations(token_list: list, token_dict_list: list) -> list:
+    """
+    @todo Comment
+    """
     text_list = []
     dict_indexes = {PERSONS[0]: [4, 5], PERSONS[1]: [6, 7], PERSONS[2]: [8, 9]}
     for i in range(0, len(token_list)):
@@ -203,38 +336,102 @@ def apply_aggregation(df: pd.DataFrame, column_name, aggregation: str):
     return df
 
 
-def calculate_IAA(df: pd.DataFrame, lang: str):
+def calculate_explainability_score(df: pd.DataFrame):
     """
-    Creates 'normalized_token_dict' column (normalized dictionary for entire row).
-    Applies IAA text and numerical scores to preprocessed DataFrame.
-    Merges all score columns to DataFrame and applies aggregation min, max, mean to scores.
-    Returns DataFrame
+    @todo Comment
     """
-    for pers in PERSONS:
-        df = preprocessing.normalize_person_tokens(df, pers, lang)
-        df = preprocessing.string_to_dict(df, f'tokens_ws_dict_{pers}')
-        df = preprocessing.string_to_dict(df, f'tokens_dict_{pers}')
+    score_list = []
+    baseline = df[df["explainability_label"] == "Baseline"]
+    occlusion = df[df["explainability_label"] != "Baseline"]
+    for index, row in occlusion.iterrows():
+        baseline_value = baseline[baseline["id"] == row["id"]]["confidence"].max()
+        score_list.append(float(baseline_value) - float(row["confidence"]))
+    occlusion["explainability_score"] = score_list
+    occlusion = occlusion.append(baseline)
+    return occlusion
 
-    print("Calculating scores...")
-    r, be, m, b = calculate_text_scores(df, lang)
-    score_df_list = [calculate_overlap_min_max(df, lang),
-                     calculate_jaccard_similarity_distance(df, lang), r, be, m, b]
-    for score_df in score_df_list:
-        df = df.merge(score_df, on=f'annotations_{"de"}',
-                      how='outer')
 
-    for agg in AGGREGATIONS:
-        for score in SCORES:
-            df = apply_aggregation(df, score, agg)
+def find_flipped_cases(df: pd.DataFrame):
+    """
+    @todo Comment
+    """
+    score_list = []
+    baseline = df[df["explainability_label"] == "Baseline"]
+    occlusion = df[df["explainability_label"] != "Baseline"]
+    for index, row in occlusion.iterrows():
+        baseline_value = baseline[baseline["id"] == row["id"]]["prediction"].max()
+        if row["prediction"] == baseline_value:
+            score_list.append(False)
+        else:
+            score_list.append(True)
+    occlusion["has_flipped"] = score_list
+    occlusion = occlusion.append(baseline)
+    return occlusion
 
+
+def get_confidence_direction(df: pd.DataFrame, prediction: int):
+    """
+    @todo Comment
+    """
+    df["confidence_direction"] = df["explainability_score"].apply(
+        lambda row: normalize_exp_score_direction(row, prediction)[0])
     return df
 
 
-def write_IAA_to_csv(df: pd.DataFrame, lang: str, label: str, version: str):
+def get_norm_explainability_score(df: pd.DataFrame, prediction: int):
     """
-    Calculate IAA_scores of preprocessed DataFrame.
-    Writes DataFrame to csv
+    @todo Comment
     """
-    df = calculate_IAA(df, lang)
-    preprocessing.write_csv(Path("{}/{}_{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}", version)), df)
-    print("Saved {}_{}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}", version))
+    df["norm_explainability_score"] = df["explainability_score"].apply(
+        lambda row: normalize_exp_score_direction(row, prediction)[1])
+    return df
+
+
+def normalize_exp_score_direction(explainability_score: float, prediction: int) -> (int, float):
+    """
+    Returns direction of confidence depending on prediction and explainability score.
+    Meaning of return values:
+    1: More confident than baseline
+    0: equally as confident as baseline
+    -1: less confident than baseline
+    """
+    if explainability_score == 0 or math.isnan(explainability_score):
+        return 0, explainability_score
+    if prediction == 0:
+        if explainability_score < 0:
+            return -1, explainability_score
+        if explainability_score > 0:
+            return 1, explainability_score
+    else:
+        if explainability_score < 0:
+            return 1, abs(explainability_score)
+        if explainability_score > 0:
+            return -1, (-1) * explainability_score
+
+
+def lower_court_agg(df: pd.DataFrame):
+    """
+    @todo Comment, add correct return value or json dump
+    """
+    sum_pos = df[df["confidence_direction"] > 0].groupby("lower_court")[
+        ["confidence_direction", "norm_explainability_score"]] \
+        .agg({"confidence_direction": "sum", "norm_explainability_score": "mean"})
+    sum_neg = df[df["confidence_direction"] < 0].groupby("lower_court")[
+        ["confidence_direction", "norm_explainability_score"]] \
+        .agg({"confidence_direction": "sum", "norm_explainability_score": "mean"})
+    sum = df.groupby("lower_court")[["confidence_direction", "norm_explainability_score"]] \
+        .agg({"confidence_direction": "sum", "norm_explainability_score": "mean"})
+
+
+def get_correct_direction(df: pd.DataFrame):
+    """
+    @todo
+    Total number of lines. must be w/o baseline
+    """
+    df["numeric_label"] = np.where(df["explainability_label"] == LABELS[1], -1, df["explainability_label"])
+    df["numeric_label"] = np.where(df["explainability_label"] == LABELS[2], 1, df["numeric_label"])
+    df["numeric_label"] = np.where(df["explainability_label"] == "Neutral", 0, df["numeric_label"])
+    df["correct_direction"] = np.where(df["numeric_label"] == df["confidence_direction"], True, False)
+    s_0, s_1 = df[df["correct_direction"] == False], df[df["correct_direction"] == True]
+    s_1 = s_1.groupby("explainability_label")["correct_direction"].count()
+    return df, s_0, s_1, s_0.groupby("explainability_label")["correct_direction"].count()

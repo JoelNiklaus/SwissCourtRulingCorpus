@@ -52,7 +52,32 @@ The other recipes can be run in parallel to each other.
 ### Test set creation
 @ToDo
 ### Running on Ubelix
-@ToDo
+Some part of the implementation can take very long to run. If you have access to a 
+high-performance computing cluster we recommend these parts on there. These instructions refer to UBELIX the cluster 
+of the university of Berne. It is recommended to first read the [documentation](https://hpc-unibe-ch.github.io/quick-start.html)
+to get familiar with the infrastructure.
+
+If you are already familiar with UBELIX please follow the following steps:
+1. Open the .bashrc file in your $HOME Folder and enter module load CUDA
+2. Enter module load Anaconda3 in the terminal
+3. Enter the conda environment using eval "$(conda shell.bash hook)"
+    
+#### Occlusion 
+@Todo
+
+- clone SCR
+- Place files correctly 
+- run with readme infos
+#### Analysis
+The annotation_analysis uses BERT (for the bert_score). Please follow the general steps above before running the analysis.
+Then clone this repository into your home directory using ``git clone https://github.com/ninabaumgartner/SwissCourtRulingCorpus.git``. 
+Change to the analysis directory with ``cd SwissCourtRulingCorpus/scrc/annotation/judgment_explainability/analysis``.
+1. Create a new environment called "judgment-explainability" with ``conda env create -f env.yml`` 
+2. Activate the "judgment-explainability" environment using ``conda activate judgment-explainability``
+3. Place your annotation under directory ``legal_expert_annotation/language/`` using the ``scp`` command.
+4. Run the analysis using ``sbatch run_analysis_ubelix.sh``
+Note that if you want to use another file structure or naming convention the paths in the scripts have to adapted accordingly.
+
 
 ## Refrences
 Niklaus, J., Chalkidis, I., & St ̈urmer, M. (2021). Swiss-judgment-prediction: A multilingual legal
