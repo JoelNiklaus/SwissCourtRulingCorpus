@@ -1,12 +1,7 @@
 """
 Sources for the implementations
-- [x] ROUGE-L, ROUGE-1, ROUGE-2 (Lin, 2004) https://pypi.org/project/rouge-score/
-- [x] BLEU (Papineni et al., 2001) (unigram and bigram averaging) https://www.journaldev.com/46659/bleu-score-in-python
-- [x] METEOR (Lavie and Agarwal, 2007) https://stackoverflow.com/questions/63778133/how-can-i-implement-meteor-score-when-evaluating-a-model-when-using-the-meteor-s
-- [x] Jaccard Similarity, Jaccard distance https://pyshark.com/jaccard-similarity-and-jaccard-distance-in-python/
-- [x] Overlap Maximum and Overlap Minimum https://www.geeksforgeeks.org/maximum-number-of-overlapping-intervals/
-- BARTScore (Yuan et al., 2021) https://github.com/neulab/BARTScore
-- [x] BERTScore Zhang et al. (2020) https://pypi.org/project/bert-score/
+- Overlap Maximum and Overlap Minimum https://www.geeksforgeeks.org/maximum-number-of-overlapping-intervals/
+- [x]
 - By looking at the annotated sentences themselves and at the reasoning in the free-text annotation for some of the more complex cases4 a qualitative analysis of
 the annotation is also possible.
 """
@@ -18,6 +13,7 @@ from pathlib import Path
 import nltk
 import numpy as np
 import pandas as pd
+from nltk.tokenize import word_tokenize
 from nltk.translate.bleu_score import sentence_bleu
 
 nltk.download('punkt')
@@ -25,14 +21,12 @@ nltk.download('wordnet')
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 import rouge_score.rouge_scorer as rs
 from bert_score import score as bert_score
-from nltk.tokenize import word_tokenize
 
 LANGUAGES = ["de", "fr", "it"]
 PERSONS = ["angela", "lynn", "thomas"]
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
-SCORES = ["overlap_maximum", "overlap_minimum", "jaccard_similarity", "jaccard_distance", "meteor_score", "bleu_score"]
-NAN_KEY = preprocessing.NAN_KEY
-AGGREGATIONS = preprocessing.AGGREGATIONS
+NAN_KEY = 10000
+AGGREGATIONS = ["mean", "max", "min"]
 
 
 def write_IAA_to_csv(df: pd.DataFrame, lang: str, label: str, version: str):
@@ -46,7 +40,7 @@ def write_IAA_to_csv(df: pd.DataFrame, lang: str, label: str, version: str):
     print("Saved {}_{}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}", version))
 
 
-def calculate_IAA_annotations(df: pd.DataFrame, lang: str):
+def calculate_IAA_annotations(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     """
     Creates 'normalized_token_dict' column (normalized dictionary for entire row).
     Applies IAA text and numerical scores to preprocessed DataFrame.
@@ -60,26 +54,39 @@ def calculate_IAA_annotations(df: pd.DataFrame, lang: str):
 
     print("Calculating scores...")
     r, be, m, b = calculate_text_scores_annotations(df, lang)
-    score_df_list = [calculate_overlap_min_max(df, lang),
-                     calculate_jaccard_similarity_distance(df, lang), r, be, m, b]
+    score_df_list = [calculate_overlap_min_max_annotation(df, lang),
+                     calculate_jaccard_similarity_distance_annotation(df, lang), r, be, m, b]
     for score_df in score_df_list:
         df = df.merge(score_df, on=f'annotations_{lang}',
                       how='outer')
-
+    scores = ["overlap_maximum", "overlap_minimum", "jaccard_similarity", "jaccard_distance", "meteor_score",
+              "bleu_score"]
     for agg in AGGREGATIONS:
-        for score in SCORES:
+        for score in scores:
             df = apply_aggregation(df, score, agg)
 
     return df
 
 
-def calculate_IAA_occlusion(df: pd.DataFrame, lang: str):
+def calculate_IAA_occlusion(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     """
     @Todo Finish functionalities
+    Attention id is not a good identifiere since it is the same for a lot of cases!
     """
     print("Calculating scores...")
-    # r, be, m, b = calculate_text_scores_occlusion(df, lang)
-    min_max = calculate_overlap_min_max_occlusion(df, lang)
+    df = df.reset_index()
+    r, be, m, b = calculate_text_scores_occlusion(df, lang)
+    score_df_list = [calculate_overlap_min_max_occlusion(df),
+                     calculate_jaccard_similarity_distance_occlusion(df, lang),
+                     r.rename(columns={f"annotations_{lang}": "index"}),
+                     be.rename(columns={f"annotations_{lang}": "index"}),
+                     m.rename(columns={f"annotations_{lang}": "index"}),
+                     b.rename(columns={f"annotations_{lang}": "index"})]
+
+    for score_df in score_df_list:
+        df = df.merge(score_df, on=f'index',
+                      how='outer')
+    return df.drop("index", axis=1)
 
 
 def calculate_text_scores_occlusion(df: pd.DataFrame, lang: str) -> (pd.DataFrame, pd.DataFrame):
@@ -90,7 +97,7 @@ def calculate_text_scores_occlusion(df: pd.DataFrame, lang: str) -> (pd.DataFram
     meteor_list = []
     rouge_list = []
     bleu_list = []
-    for value_list in df[["id", "occluded_text_model", "occluded_text_human"]].values:
+    for value_list in df[["index", "occluded_text_model", "occluded_text_human"]].values:
         rouge_list = calculate_rouge_score(value_list[0], [(value_list[1], value_list[2])], rouge_list, lang)
         bert_list = calculate_bert_score(value_list[0], [(value_list[1], value_list[2])], bert_list, lang)
         meteor_list = calculate_meteor_score(value_list[0], [(value_list[1], value_list[2])], meteor_list, lang)
@@ -99,28 +106,35 @@ def calculate_text_scores_occlusion(df: pd.DataFrame, lang: str) -> (pd.DataFram
         meteor_list), pd.DataFrame.from_records(bleu_list)
 
 
-def calculate_overlap_min_max_occlusion(df: pd.DataFrame, lang: str) -> pd.DataFrame:
+def calculate_overlap_min_max_occlusion(df: pd.DataFrame) -> pd.DataFrame:
     """
-    @todo Comment
+    Loops through value_lists, creates dictionary and tokenizes model and human strings.
+    Gets length of maximal overlapping sequence for each model vs. human comparison.
+    Asserts max length is less than or equal to smallest sample.
+    Calculates the overlapping maximum and minimum score using the length of this sequence divided by the maximum or minimum of the sample sets.
+    If there is no overlap the overlap_maximum and overlap_minimum equals 0.
+    Returns Dataframe containing overlap scores.
     """
     overlap_min_max_list = []
-    for value_list in df.copy()[["id", "occluded_text_model", "occluded_text_human"]].values:
-        overlap_min_max = {f"annotations_{lang}": value_list[0], "overlap_maximum": 0,
+    for value_list in df.copy()[["index", "occluded_text_model", "occluded_text_human"]].values:
+        overlap_min_max = {"index": value_list[0], "overlap_maximum": 0,
                            "overlap_minimum": 0}
         tokens_model, tokens_human = word_tokenize(value_list[1]), word_tokenize(value_list[2])
         comb = sorted([tokens_model, tokens_human], key=len)
         len_min_comb, len_max_comb = len(comb[0]), len(comb[1])
         max_overlap = get_max_overlap(comb[0], comb[1])
         if max_overlap != 0:
+            assert max_overlap <= len_min_comb
             overlap_min_max["overlap_maximum"] = max_overlap / len_max_comb
             overlap_min_max["overlap_minimum"] = max_overlap / len_min_comb
         overlap_min_max_list.append(overlap_min_max)
     return pd.DataFrame.from_records(overlap_min_max_list)
 
 
-def get_max_overlap(s1, s2) -> int:
+def get_max_overlap(s1: list, s2: list) -> int:
     """
-    @todo Comment
+    Appends continuous overlapping section of two lists of tokens to a list.
+    Returns length of maximum overlapping section.
     """
     lst = []
     j = 1
@@ -138,17 +152,14 @@ def get_max_overlap(s1, s2) -> int:
         return max(len(elem) for elem in lst)
 
 
-def calculate_overlap_min_max(df: pd.DataFrame, lang: str) -> pd.DataFrame:
+def calculate_overlap_min_max_annotation(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     """
-    Gets value_list containing all normalized token lists per id for a language.
-    Creates dictionary and gets combinations of the token value_lists.
-    For each combination of two lists finds the maximal overlapping sequence (e.g. [1,2,3] and [2,3,4] -> [2,3]).
+    Loops through value lists, creates dictionary and gets combinations of the token value_lists.
+    For each combination of two lists gets length of maximal overlapping sequence (e.g. [1,2,3] and [2,3,4] -> [2,3]).
     Asserts max length is less than or equal to smallest sample (maximum of overlapping section is section itself).
     Calculates the overlapping maximum and minimum score using the length of this sequence divided by the maximum or minimum of the sample sets.
     If there is no overlap or the sample content is Nan ([10000]) the overlap_maximum and overlap_minimum equals 0.
-    Adds the overlap_maximum and overlap_minimum scores to the dict and adds this dict to a list.
-    Creates a DataFrame from the list and returns it.
-    @todo might need correction? Implement @get_max_overlap
+    Returns Dataframe containing overlap scores.
     """
 
     overlap_min_max_list = []
@@ -159,34 +170,51 @@ def calculate_overlap_min_max(df: pd.DataFrame, lang: str) -> pd.DataFrame:
                            "overlap_minimum": []}
         combinations = preprocessing.get_combinations(value_list[1:-1], 2)
         for comb in combinations:
-            overlap_list = []
             comb = sorted(comb, key=len)
             len_min_comb, len_max_comb = len(comb[0]), len(comb[1])
-            j = 1
-            while j <= len(comb[0]):
-                if ''.join(str(i) for i in comb[0][:j]) in ''.join(str(i) for i in comb[1]):
-                    j += 1
-                    overlap_list.append(comb[0][:j])
-                # Section is finished, slice list and check again
-                else:
-                    comb[0] = comb[0][j:]
-                    j = 1
-            if len(overlap_list) == 0 or comb == [[NAN_KEY], [NAN_KEY]]:
+            max_overlap = get_max_overlap(comb[0], comb[1])
+            if max_overlap == 0 or comb == [[NAN_KEY], [NAN_KEY]]:
                 overlap_min_max["overlap_maximum"] += [0]
                 overlap_min_max["overlap_minimum"] += [0]
             else:
-                overlap_max = max(len(elem) for elem in overlap_list)
-                assert overlap_max <= len_min_comb
-                overlap_min_max["overlap_maximum"] += [overlap_max / len_max_comb]
-                overlap_min_max["overlap_minimum"] += [overlap_max / len_min_comb]
+                assert max_overlap <= len_min_comb
+                overlap_min_max["overlap_maximum"] += [max_overlap / len_max_comb]
+                overlap_min_max["overlap_minimum"] += [max_overlap / len_min_comb]
         overlap_min_max_list.append(overlap_min_max)
 
     return pd.DataFrame.from_records(overlap_min_max_list)
 
 
-def calculate_jaccard_similarity_distance(df: pd.DataFrame, lang) -> pd.DataFrame:
+def calculate_jaccard_similarity_distance_occlusion(df: pd.DataFrame, lang) -> pd.DataFrame:
     """
-    @todo Comment
+    Calculates the Jaccard Similarity and Jaccard distance.
+    Following this implementation https://pyshark.com/jaccard-similarity-and-jaccard-distance-in-python/
+    @Todo
+    """
+    jaccard_list = []
+    for value_list in df.copy()[["index", "occluded_text_model", "occluded_text_human"]].values:
+        jaccard = {"index": value_list[0], "jaccard_similarity": 0, "jaccard_distance": 0}
+        tokens_model, tokens_human = word_tokenize(value_list[1]), word_tokenize(value_list[2])
+        tokens_normalized = preprocessing.normalize_list_length([tokens_model, tokens_human], {"Nan": "Nan"})
+        set_1, set_2 = set(list(tokens_normalized[0])), set(list(tokens_normalized[1]))
+        # Find intersection of two sets
+        nominator_1 = set_1.intersection(set_2)
+        # Find symmetric difference of two sets
+        nominator_2 = set_1.symmetric_difference(set_2)
+        # Find union of two sets
+        denominator = set_1.union(set_2)
+        # Take the ratio of sizes
+        jaccard["jaccard_similarity"] = len(nominator_1) / len(denominator)
+        jaccard["jaccard_distance"] = len(nominator_2) / len(denominator)
+        jaccard_list.append(jaccard)
+    return pd.DataFrame.from_records(jaccard_list)
+
+
+def calculate_jaccard_similarity_distance_annotation(df: pd.DataFrame, lang) -> pd.DataFrame:
+    """
+    Calculates the Jaccard Similarity and Jaccard distance.
+    Following this implementation https://pyshark.com/jaccard-similarity-and-jaccard-distance-in-python/
+    @Todo
     """
     jaccard_list = []
     for value_list in df.copy()[
@@ -212,12 +240,14 @@ def calculate_jaccard_similarity_distance(df: pd.DataFrame, lang) -> pd.DataFram
 
 def calculate_rouge_score(i: int, text_combinations: list, rouge_list: list, lang: str) -> list:
     """
-    @todo Comment
+    Calculates ROUGE-L,ROUGE-Lsum, ROUGE-1, ROUGE-2  originally introduce by Lin, 2004.
+    Returns a list containing a dictionary for each row.
+    Uses Python ROUGE Implementation via https://pypi.org/project/rouge-score/
     """
-    rouge_scores = ['rouge1', 'rouge2', 'rougeL']
+    rouge_scores = ['rouge1', 'rouge2', 'rougeL', 'rougeLsum']
     scorer = rs.RougeScorer(rouge_scores, use_stemmer=True)
     rouge = {f'annotations_{lang}': i, rouge_scores[0]: [], rouge_scores[1]: [],
-             rouge_scores[2]: []}
+             rouge_scores[2]: [], rouge_scores[3]: []}
     for comb in text_combinations:
         scores = scorer.score(comb[0], comb[1])
         for i in range(len(rouge_scores)):
@@ -229,7 +259,9 @@ def calculate_rouge_score(i: int, text_combinations: list, rouge_list: list, lan
 
 def calculate_bleu_score(i: int, text_combinations: list, bleu_list: list, lang: str):
     """
-    @todo Comment
+    Calculates BLEU score (unigram and bigram averaging) originally introduce by Papineni et al., 2001
+    Returns a list containing a dictionary for each row.
+    Uses nltk.translate.bleu_score.
     """
     bleu = {f'annotations_{lang}': i, "bleu_score": []}
     for comb in text_combinations:
@@ -241,7 +273,9 @@ def calculate_bleu_score(i: int, text_combinations: list, bleu_list: list, lang:
 
 def calculate_meteor_score(i: int, text_combinations: list, meteor_list: list, lang: str):
     """
-    @todo Comment
+    Calculates METEOR introduced by Lavie and Agarwal, 2007.
+    Returns a list containing a dictionary for each row.
+    Uses nltk.translate.meteor_score.meteor_score.
     """
     meteor = {f'annotations_{lang}': i, "meteor_score": []}
     for comb in text_combinations:
@@ -253,7 +287,10 @@ def calculate_meteor_score(i: int, text_combinations: list, meteor_list: list, l
 
 def calculate_bert_score(i: int, text_combinations: list, bert_list: list, lang: str) -> list:
     """
-    @todo Comment, add plots?
+    Calculates BERTScore originally introduce by Zhang et al., 2020.
+    Returns a list containing a dictionary for each row.
+    Uses Python BERTScore Implementation via https://pypi.org/project/bert-score/
+    @ToDo add plots?
     """
     bert = {f'annotations_{lang}': i, "P": [], "R": [], "F1": []}
     for comb in text_combinations:
@@ -338,14 +375,16 @@ def apply_aggregation(df: pd.DataFrame, column_name, aggregation: str):
 
 def calculate_explainability_score(df: pd.DataFrame):
     """
-    @todo Comment
+    Separates baseline entries and non baseline entries.
+    Calculates difference between the baseline confidence of a case and the confidence of the occlusion.
+    Adds explainability_score as column to Dataframe, appends baseline back to it and returns it.
     """
     score_list = []
     baseline = df[df["explainability_label"] == "Baseline"]
     occlusion = df[df["explainability_label"] != "Baseline"]
     for index, row in occlusion.iterrows():
         baseline_value = baseline[baseline["id"] == row["id"]]["confidence"].max()
-        score_list.append(float(baseline_value) - float(row["confidence"]))
+        score_list.append(float(baseline_value) - float(row["confidence"]))  # diffrence between baseline and occlusion
     occlusion["explainability_score"] = score_list
     occlusion = occlusion.append(baseline)
     return occlusion
@@ -353,7 +392,9 @@ def calculate_explainability_score(df: pd.DataFrame):
 
 def find_flipped_cases(df: pd.DataFrame):
     """
-    @todo Comment
+    Separates baseline entries and non baseline entries.
+    Adds boolean column has_flipped (True when baseline prediction equals occlusion prediction).
+    Appends baseline back to Dataframe and returns it.
     """
     score_list = []
     baseline = df[df["explainability_label"] == "Baseline"]
@@ -371,7 +412,7 @@ def find_flipped_cases(df: pd.DataFrame):
 
 def get_confidence_direction(df: pd.DataFrame, prediction: int):
     """
-    @todo Comment
+    Returns Dataframe with column confidence_direction (-1, 0, 1).
     """
     df["confidence_direction"] = df["explainability_score"].apply(
         lambda row: normalize_exp_score_direction(row, prediction)[0])
@@ -380,7 +421,7 @@ def get_confidence_direction(df: pd.DataFrame, prediction: int):
 
 def get_norm_explainability_score(df: pd.DataFrame, prediction: int):
     """
-    @todo Comment
+    Returns Dataframe with column norm_explainability_score.
     """
     df["norm_explainability_score"] = df["explainability_score"].apply(
         lambda row: normalize_exp_score_direction(row, prediction)[1])
@@ -389,7 +430,10 @@ def get_norm_explainability_score(df: pd.DataFrame, prediction: int):
 
 def normalize_exp_score_direction(explainability_score: float, prediction: int) -> (int, float):
     """
-    Returns direction of confidence depending on prediction and explainability score.
+    Calculates direction of confidence depending on prediction and explainability score (e.g. for prediction 0
+    explainability_score <0 means less confidence).
+    Normalizes explainability_score (flips sign of explainability_score for prediction 1)
+    Returns confidence direction and normalized explainability_score.
     Meaning of return values:
     1: More confident than baseline
     0: equally as confident as baseline
@@ -409,24 +453,55 @@ def normalize_exp_score_direction(explainability_score: float, prediction: int) 
             return -1, (-1) * explainability_score
 
 
-def lower_court_agg(df: pd.DataFrame):
+def lower_court_agg(df: pd.DataFrame) -> (pd.Series, pd.Series, pd.Series, pd.Series):
     """
-    @todo Comment, add correct return value or json dump
+    @todo Comment, add correct return value or json dump, add Mean of both sum_pos/sum_neg (total mean)
     """
+    lower_court_distribution = sort_normal_distribution(df.groupby("lower_court")["id"].count().reset_index()) \
+        .reset_index().rename(columns={"index": "lower_court", 0: "count"})
     sum_pos = df[df["confidence_direction"] > 0].groupby("lower_court")[
         ["confidence_direction", "norm_explainability_score"]] \
-        .agg({"confidence_direction": "sum", "norm_explainability_score": "mean"})
+        .agg({"confidence_direction": "sum", "norm_explainability_score": "mean"}) \
+        .reset_index().rename(columns={"norm_explainability_score": "mean_norm_explainability_score"})
+    sum_pos = lower_court_distribution.merge(sum_pos, on="lower_court", how="inner")
+    sum_pos["confidence_direction"] = sum_pos["confidence_direction"].div(sum_pos["count"].values)
     sum_neg = df[df["confidence_direction"] < 0].groupby("lower_court")[
         ["confidence_direction", "norm_explainability_score"]] \
-        .agg({"confidence_direction": "sum", "norm_explainability_score": "mean"})
-    sum = df.groupby("lower_court")[["confidence_direction", "norm_explainability_score"]] \
-        .agg({"confidence_direction": "sum", "norm_explainability_score": "mean"})
+        .agg({"confidence_direction": "sum", "norm_explainability_score": "mean"}) \
+        .reset_index().rename(columns={"norm_explainability_score": "mean_norm_explainability_score"})
+    sum_neg = lower_court_distribution.merge(sum_neg, on="lower_court", how="inner")
+    sum_neg["confidence_direction"] = sum_neg["confidence_direction"].div(sum_neg["count"].values)
+    lower_court_distribution["count"] = lower_court_distribution["count"].div(lower_court_distribution["count"].sum())
+
+    return lower_court_distribution, sum_pos, sum_neg,
+
+
+def sort_normal_distribution(s: pd.Series)-> pd.DataFrame:
+    """
+    Sorts according to normal distribution (minimums at beginning and ends).
+    Returns sorted Dataframe.
+    """
+    s_list = s.values.tolist()
+    s_dict = {item[0]: item[1:][0] for item in s_list}
+    result_list = [len(s_dict) * [None], len(s_dict) * [None]]
+    i = 0
+    while len(s_dict) > 0:
+        result_list[0][-(1 + i)] = min(s_dict.values())
+        result_list[1][-(1 + i)] = min(s_dict, key=s_dict.get)
+        del s_dict[min(s_dict, key=s_dict.get)]
+        result_list[0][i] = min(s_dict.values())
+        result_list[1][i] = min(s_dict, key=s_dict.get)
+        del s_dict[min(s_dict, key=s_dict.get)]
+        i += 1
+    return pd.DataFrame(result_list[0], index=result_list[1])
 
 
 def get_correct_direction(df: pd.DataFrame):
     """
-    @todo
-    Total number of lines. must be w/o baseline
+    Adds numeric_label column with values (-1: Supports judgement, 0: Neutral, 1: Opposes judgement).
+    Adds correct_direction boolean column (True if numeric_label == confidence direction).
+    Splits df into direction sets (0: False, 1: True).
+    Returns Dataframe, direction set 0, grouped set 1 and grouped set 0.
     """
     df["numeric_label"] = np.where(df["explainability_label"] == LABELS[1], -1, df["explainability_label"])
     df["numeric_label"] = np.where(df["explainability_label"] == LABELS[2], 1, df["numeric_label"])
@@ -435,3 +510,23 @@ def get_correct_direction(df: pd.DataFrame):
     s_0, s_1 = df[df["correct_direction"] == False], df[df["correct_direction"] == True]
     s_1 = s_1.groupby("explainability_label")["correct_direction"].count()
     return df, s_0, s_1, s_0.groupby("explainability_label")["correct_direction"].count()
+
+
+def occlusion_preprocessing(lang: str, df: pd.DataFrame, filename: str):
+    """
+    @Todo Comment & clean up
+    """
+    df = df.set_index("index")
+    df = calculate_explainability_score(df)
+    df = find_flipped_cases(df)
+    df_0, df_1 = df[df["prediction"] == 0].sort_values(by=['explainability_score'],
+                                                       ascending=True), \
+                 df[df["prediction"] == 1].sort_values(by=['explainability_score'],
+
+                                                       ascending=False)
+    df_0, df_1 = get_confidence_direction(df_0, 0), get_confidence_direction(
+        df_1, 1)
+    df_0, df_1 = get_norm_explainability_score(df_0, 0), get_norm_explainability_score(df_1, 1)
+    preprocessing.write_csv(Path(f"{lang}/occlusion/{filename}_0.csv"), df_0)
+    preprocessing.write_csv(Path(f"{lang}/occlusion/{filename}_1.csv"), df_1)
+    return df_0, df_1

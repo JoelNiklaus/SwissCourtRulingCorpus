@@ -38,7 +38,7 @@ def annotation_analysis(datasets: dict, lang: str, version: str):
         label_df = preprocessing.get_span_df(annotations_spans, annotations_tokens, label, lang)[0]
         # Getting the necessary dictionaries
         ws_df = preprocessing.get_white_space_dicts(label_df, "annotations_{}".format(lang))
-        label_df = preprocessing.get_tokens_dict(label_df, "tokens_id", "tokens_text", "tokens_dict")
+        label_df = preprocessing.join_to_dict(label_df, "tokens_id", "tokens_text", "tokens_dict")
         label_df = label_df.join(ws_df[[f"annotations_{lang}", 'tokens_ws_dict']].set_index(f"annotations_{lang}"),
                                  on="annotations_{}".format(lang))
         for pers in PERSONS:
@@ -59,11 +59,10 @@ def annotation_analysis(datasets: dict, lang: str, version: str):
 if __name__ == '__main__':
     assert len(sys.argv) == 2
     l = sys.argv[1]
-    """
-    for ver in range(1,4):
-        annotation_analysis(preprocessing.extract_dataset(ANNOTATION_PATHS[ver][0], ANNOTATION_PATHS[ver][1]), l,
-                              ver)
-    """
+    for ver in range(1, 4):
+        annotation_analysis(preprocessing.extract_dataset(ANNOTATION_PATHS[str(ver)][0], ANNOTATION_PATHS[str(ver)][1]),
+                            l,
+                            str(ver))
 
     qt.annotation_analysis()
     ql.annotation_analysis()

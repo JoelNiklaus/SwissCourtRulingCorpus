@@ -1,8 +1,8 @@
 import sys
-from pathlib import Path
 
 import pandas as pd
 
+import scrc.annotation.judgment_explainability.analysis.utils.plots as plots
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 import scrc.annotation.judgment_explainability.analysis.utils.qualitative_analysis as ql
 import scrc.annotation.judgment_explainability.analysis.utils.quantitative_analysis as qt
@@ -18,85 +18,78 @@ OCCLUSION_PATHS = {"test_sets": ("../occlusion/lower_court_test_sets/{}/lower_co
 NUMBER_OF_EXP = [1, 2, 3, 4]
 
 
-def occlusion_analysis(lang: str, mode: str, exp_nr: int):
+def lower_court_analysis(lang: str, lower_court_df: pd.DataFrame, filename: str):
     """
-    @todo finish documentation, clean up, refactor and finish IAA calculation and dumps
+    @ToDo documentation scores_lower_court_{lang}
+     Label gets cut of T-Test? is difference significant? Wie viele insgesamt?
     """
-    baseline_test_set = preprocessing.read_csv(OCCLUSION_PATHS["test_sets"][1].format(lang, lang, 1), "id")
-    baseline_prediction = preprocessing.temp_scaling(
-        preprocessing.read_csv(OCCLUSION_PATHS["prediction"][1].format(lang, 1),
-                               "id")).reset_index().reset_index().drop(["label"], axis=1)
-    baseline_df = pd.merge(baseline_test_set, baseline_prediction, on="index", suffixes=(f'_test_set', f'_prediction'),
-                           how="outer").drop_duplicates()
-    baseline_df = baseline_df[baseline_df["explainability_label"] == "Baseline"]
+    lower_court_df_0, lower_court_df_0 = scores.occlusion_preprocessing(lang, lower_court_df, filename)
+    lower_court_df = lower_court_df_0.append(lower_court_df_0).drop_duplicates()
+    lower_court_df = lower_court_df[lower_court_df["explainability_label"] != "Baseline"]
 
-    if mode == "lower_court":
-        test_set = preprocessing.read_csv(OCCLUSION_PATHS["test_sets"][0].format(lang, lang), "index").reset_index()
-        prediction = preprocessing.temp_scaling(
-            preprocessing.read_csv(OCCLUSION_PATHS["prediction"][0].format(lang),
-                                   "id")).reset_index().reset_index().drop(["id", "label"], axis=1)
-        filename = f"bias_{mode}_{lang}"
+    lower_court_distribution, sum_pos, sum_neg = scores.lower_court_agg(lower_court_df)
+    plots.distribution_plot(lang, lower_court_distribution, col_x="lower_court", col_y="count",
+                            label_texts=["Lower Court", "Occurrence of Lower Courts in Dataset"],
+                            title=f"Lower Court distribution in the {lang} Dataset")
+    plots.lower_court_effect_plot(lang, sum_pos, sum_neg, col_x="lower_court", col_y="confidence_direction",
+                                  label_texts=["Confidence Direction", "Lower Court"],
+                                  legend_texts=["Positive Influence", "Negativ Influence"],
+                                  title="Effect of Lower Courts on the Prediction Confidence", filepath=f'{lang}/plots/lower_court_effect.png')
+    plots.lower_court_effect_plot(lang, sum_pos, sum_neg, col_x="lower_court", col_y="mean_norm_explainability_score",
+                                  label_texts=["Mean explainability score for one direction", "Lower Court"],
+                                  legend_texts=["Exp_Score > 0", "Exp_Score < 0"],
+                                  title="Mean distribution on Explainability Scores in both directions", filepath=f'{lang}/plots/mean_explainability_score.png')
 
-    if mode == "occlusion":
-        test_set = preprocessing.read_csv(OCCLUSION_PATHS["test_sets"][1].format(lang, lang, exp_nr), "id")
-        prediction = preprocessing.temp_scaling(
-            preprocessing.read_csv(OCCLUSION_PATHS["prediction"][1].format(lang, exp_nr),
-                                   "id")).reset_index().reset_index().drop(["label"], axis=1)
-        filename = f"{mode}_{nr}_{lang}"
 
-    occlusion = pd.merge(prediction, test_set, on="index",
-                         suffixes=(f'_test_set', f'_prediction'),
-                         how="outer").drop_duplicates()
+def occlusion_analysis(lang: str, occlusion_df: pd.DataFrame, filename: str, exp_nr: int, baseline_df):
+    """
+    @todo finish documentation, clean up, refactor and finish IAA calculation and dumps,
+    """
     if exp_nr in NUMBER_OF_EXP[1:]:
-        occlusion = occlusion.append(baseline_df)
-    occlusion = occlusion.set_index("index")
-    occlusion = scores.calculate_explainability_score(occlusion)
-    occlusion = scores.find_flipped_cases(occlusion)
-    occlusion_0, occlusion_1 = occlusion[occlusion["prediction"] == 0].sort_values(by=['explainability_score'],
-                                                                                   ascending=True), \
-                               occlusion[occlusion["prediction"] == 1].sort_values(by=['explainability_score'],
+        occlusion_df = occlusion_df.append(baseline_df)
+    occlusion_df_0, occlusion_df_0 = scores.occlusion_preprocessing(lang, occlusion_df, filename)
 
-                                                                                   ascending=False)
-    occlusion_0, occlusion_1 = scores.get_confidence_direction(occlusion_0, 0), scores.get_confidence_direction(
-        occlusion_1, 1)
-    occlusion_0, occlusion_1 = scores.get_norm_explainability_score(occlusion_0,
-                                                                    0), scores.get_norm_explainability_score(
-        occlusion_1, 1)
+    occlusion_df = occlusion_df_0.append(occlusion_df_0).drop_duplicates()
+    occlusion_df = occlusion_df[occlusion_df["explainability_label"] != "Baseline"]
+    occlusion_df, false_classification, score_1, score_0 = scores.get_correct_direction(occlusion_df)
+    false_classification = false_classification[
+        false_classification["confidence_direction"] != 0]  # ignore neutral classification
+    false_classification_pos, false_classification_neg = false_classification[
+                                                             false_classification["confidence_direction"] == 1], \
+                                                         false_classification[
+                                                             false_classification["confidence_direction"] == -1]
+    o_judgement, s_judgement = occlusion_df[occlusion_df["numeric_label"] == 1], occlusion_df[
+        occlusion_df["numeric_label"] == -1]
+    o_judgement, s_judgement = o_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]], \
+                               s_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]]
+    o_judgement, s_judgement = pd.merge(false_classification_pos, o_judgement, on="id",
+                                        suffixes=(f'_model', f'_human'),
+                                        how="inner").drop_duplicates(), \
+                               pd.merge(false_classification_neg, s_judgement, on="id",
+                                        suffixes=(f'_model', f'_human'),
+                                        how="inner").drop_duplicates()
 
-    preprocessing.write_csv(Path(f"{lang}/occlusion/{filename}_0.csv"), occlusion_0)
-    preprocessing.write_csv(Path(f"{lang}/occlusion/{filename}_1.csv"), occlusion_1)
-
-    occlusion = occlusion_0.append(occlusion_1).drop_duplicates()
-    occlusion = occlusion[occlusion["explainability_label"] != "Baseline"]
-    if mode == "lower_court":
-        scores.lower_court_agg(occlusion)
-
-    if mode == "occlusion":
-        scores.get_correct_direction(occlusion)
-        occlusion, false_classification, score_1, score_0 = scores.get_correct_direction(occlusion)
-        false_classification = false_classification[false_classification["confidence_direction"] != 0]
-        false_classification_pos, false_classification_neg = false_classification[
-                                                                 false_classification["confidence_direction"] == 1], \
-                                                             false_classification[
-                                                                 false_classification["confidence_direction"] == -1]
-        o_judgement, s_judgement = occlusion[occlusion["numeric_label"] == 1], occlusion[
-            occlusion["numeric_label"] == -1]
-        o_judgement, s_judgement = o_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]], \
-                                   s_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]]
-        o_judgement = pd.merge(false_classification_pos, o_judgement, on="id",
-                               suffixes=(f'_model', f'_human'),
-                               how="inner").drop_duplicates()
-        s_judgement = pd.merge(false_classification_neg, s_judgement, on="id",
-                               suffixes=(f'_model', f'_human'),
-                               how="inner").drop_duplicates()
-
-        scores.calculate_IAA_occlusion(o_judgement, lang)
+    o_judgement = scores.calculate_IAA_occlusion(o_judgement, lang)
+    s_judgement = scores.calculate_IAA_occlusion(s_judgement, lang)
 
 
 if __name__ == '__main__':
     assert len(sys.argv) == 2
-    occlusion_analysis(sys.argv[1], "lower_court", 0)
+    language = sys.argv[1]
+    lower_court = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][0].format(language),
+                                                            OCCLUSION_PATHS["test_sets"][0].format(language, language)
+                                                            )
+    lower_court_analysis(language, lower_court, f"bias_lower_court_{language}")
+
+    baseline_df = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][1].format(language, 1),
+                                                            OCCLUSION_PATHS["test_sets"][1].format(language, language,
+                                                                                                   1))
     for nr in NUMBER_OF_EXP:
-        occlusion_analysis(sys.argv[1], "occlusion", nr)
+        occlusion = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][1].format(language, nr),
+                                                              OCCLUSION_PATHS["test_sets"][1].format(language, language,
+                                                                                                     nr)
+                                                              )
+        occlusion_analysis(language, occlusion, f"occlusion_{nr}_{language}", nr,
+                           baseline_df[baseline_df["explainability_label"] == "Baseline"])
     qt.occlusion_analysis()
     ql.occlusion_analysis()

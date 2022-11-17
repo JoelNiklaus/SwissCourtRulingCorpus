@@ -27,13 +27,6 @@ OCCLUSION_PATHS = {"test_sets": ("../occlusion/lower_court_test_sets/{}/lower_co
 NUMBER_OF_EXP = [1, 2, 3, 4]
 
 
-def write_csv(path: Path, df_list: list):
-    with open(path, "w") as f:
-        f.truncate()
-        for df in df_list:
-            df.to_csv(f)
-            f.write("\n")
-
 
 def dump_user_input(datasets: dict, lang: str, version: str, ):
     """
@@ -56,22 +49,12 @@ def dump_user_input(datasets: dict, lang: str, version: str, ):
 
 def get_flipped_column(dataset: pd.DataFrame, column: str):
     """
-    Returns dtaset of only flipped cases and counts per column of flipped cases.
+    Returns dataset of only flipped cases and counts per column of flipped cases.
     """
     dataset = dataset[dataset["explainability_label"] != "Baseline"]
     dataset = dataset[dataset["has_flipped"] == True]
     counts = dataset[column].value_counts()
     return dataset, counts
-
-
-def produce_explanaition():
-    """
-    @Todo
-    For each experiment size (1 sentence, 2 sentence etc.)
-    Produce the sentence speaking most for the judgemnt and most against the judgement
-    These are either the sentences which were correctly interpreted by bert or those with the highest agreement.
-    """
-    pass
 
 
 def annotation_analysis():
@@ -121,5 +104,5 @@ def occlusion_analysis():
                 json_dict[f"number_of_flipped_cases_occlusion"] = {f"number_of_flipped_cases_occlusion_{nr}": len(
                     get_flipped_column(occlusion, "explainability_label")[0]["id"].unique())}
 
-        write_csv(Path(f"{l}/qualitative/occlusion_analysis.csv"), df_list)
+        preprocessing.write_csv_from_list(Path(f"{l}/qualitative/occlusion_analysis.csv"), df_list)
         preprocessing.write_json(Path(f"{l}/qualitative/occlusion_analysis.json"), json_dict)

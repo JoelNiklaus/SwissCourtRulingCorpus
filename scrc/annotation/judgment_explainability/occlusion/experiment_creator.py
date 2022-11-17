@@ -70,8 +70,8 @@ def process_span_token_df(label_df: pd.DataFrame, separated_spans, lang) -> pd.D
     @Todo
     """
     columns = [f'annotations_{lang}', 'id_scrc', 'id_csv', 'text', 'tokens_text', 'tokens_id', 'tokens_dict']
-    spans_tokens_df = preprocessing.group_columns(preprocessing.get_tokens_dict(label_df, "tokens_id", "tokens_text", "tokens_dict"),
-                                    lang)[columns].drop_duplicates()
+    spans_tokens_df = preprocessing.group_columns(preprocessing.join_to_dict(label_df, "tokens_id", "tokens_text", "tokens_dict"),
+                                                  lang)[columns].drop_duplicates()
     spans_tokens_df = splits_string_list(spans_tokens_df)
     spans_tokens_df = separated_spans.join(spans_tokens_df.set_index(f'annotations_{lang}'),
                                            on=f'annotations_{lang}')

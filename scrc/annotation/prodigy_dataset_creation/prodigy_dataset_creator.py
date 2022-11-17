@@ -293,7 +293,7 @@ if __name__ == '__main__':
             filepath_dataset = FILEPATH_DATASET_JE.format(language)
             if judgement_mode == "jp":
                 filepath_dataset = FILEPATH_DATASET_P.format(language)
-                IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(preprocessing.read_jsnol(FILEPATH_ANNOTATION)))
+                IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(preprocessing.read_jsonl(FILEPATH_ANNOTATION)))
             dataset = filter_dataset(db_stream(language, judgement_mode, IDS_SCRC), judgement_mode)
             preprocessing.write_jsonl(filepath_dataset.format(language), dataset)
         else:
@@ -301,7 +301,7 @@ if __name__ == '__main__':
                 filepath_dataset = FILEPATH_DATASET_JE.format(l)
                 FILEPATH_ANNOTATION = FILEPATH_ANNOTATION.format(l,l)
                 if judgement_mode == "jp":
-                    IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(preprocessing.read_jsnol(FILEPATH_ANNOTATION)))
+                    IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(preprocessing.read_jsonl(FILEPATH_ANNOTATION)))
                     filepath_dataset = FILEPATH_DATASET_P.format(l)
                 if language == "-all":
                     # judgement outcome needs new cases, IDS_SCRC is set to all cases in judgment explainability dataset
@@ -309,12 +309,12 @@ if __name__ == '__main__':
                     preprocessing.write_jsonl(filepath_dataset.format(l), dataset)
                 # for new cases IDS_SCRC is set to all the accepted cases ids in the dataset
                 if language == "-new":
-                    IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(preprocessing.read_jsnol(FILEPATH_ANNOTATION)))
+                    IDS_SCRC = set_id_scrc(pd.DataFrame.from_records(preprocessing.read_jsonl(FILEPATH_ANNOTATION)))
                     dataset = db_stream(l, judgement_mode, IDS_SCRC)
-                    new_case_list = filter_new_cases(pd.DataFrame.from_records(preprocessing.read_jsnol(FILEPATH_ANNOTATION)),
+                    new_case_list = filter_new_cases(pd.DataFrame.from_records(preprocessing.read_jsonl(FILEPATH_ANNOTATION)),
                                                      dataset)
                     preprocessing.write_jsonl(filepath_dataset.format(l),
-                                              new_case_list + preprocessing.read_jsnol(FILEPATH_DATASET_JE.format(l)))
+                                              new_case_list + preprocessing.read_jsonl(FILEPATH_DATASET_JE.format(l)))
     except psycopg2.errors.UndefinedTable as err:
         print(f"Invalid language argument:\n {err}")
         print(usage)

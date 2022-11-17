@@ -8,12 +8,10 @@ from nltk.tokenize import word_tokenize
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 
 """
-@Todo maybe read some file already up here
+Contains functions for the quantitative analysis. Uses preprocessing.py. Is used by annotation_analysis and occlusion_analysis.
 """
 LANGUAGES = ["de", "fr", "it"]
-PERSONS = ["angela", "lynn", "thomas"]
 PERSON_NUMBER = {"angela": 1, "lynn": 2, "thomas": 3}
-LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
 LABELS_OCCLUSION = ["Lower court", "Supports judgment", "Opposes judgment", "Neutral"]
 AGGREGATIONS = ["mean", "max", "min"]
 GOLD_SESSION = "gold_nina"
@@ -138,6 +136,9 @@ def apply_aggregation(column: pd.Series, aggregation: str) -> pd.Series:
 
 
 def get_agg_table(annotations: pd.DataFrame, col_name: str) -> pd.DataFrame:
+    """
+    @Todo Comment & clean up
+    """
     df = pd.DataFrame(index=YEARS, columns=LEGAL_AREAS)
     df.index.name = "year"
     for index, row in annotations.iterrows():
@@ -152,6 +153,9 @@ def get_agg_table(annotations: pd.DataFrame, col_name: str) -> pd.DataFrame:
 
 
 def get_total_agg(annotations: pd.DataFrame, aggregation: str, col_name: str):
+    """
+    @Todo Comment & clean up
+    """
     if aggregation == "mean":
         la = annotations.groupby(["legal_area"])[col_name].mean()
         year = annotations.groupby(["year"])[col_name].mean()
@@ -166,6 +170,9 @@ def get_total_agg(annotations: pd.DataFrame, aggregation: str, col_name: str):
 
 
 def count_fact_length(dataset: pd.DataFrame):
+    """
+    @Todo Comment & clean up
+    """
     df_list = []
     annotations = dataset[dataset["answer"] == "accept"]
     annotations["text"] = annotations["text"].str.len()
@@ -187,14 +194,17 @@ def count_fact_length(dataset: pd.DataFrame):
 
 
 def count_tokens_per_label(lang: str):
+    """
+    @Todo Comment & clean up
+    """
     pers_mean = {"label": [], "annotator": [], "mean_token": []}
     label_df_list = []
     label_mean = {"label": [], "mean_token": []}
-    for label in LABELS:
+    for label in LABELS_OCCLUSION[:-1]:
         label_df = preprocessing.read_csv(f"{lang}/{label.lower().replace(' ', '_')}_{lang}_3.csv", "index")
         label_df["length"] = 0
         pers_mean[f"{label}_mean_token"] = []
-        for person in PERSONS:
+        for person in PERSON_NUMBER.keys():
             try:
                 label_df[f"length_{person}"] = label_df[f"tokens_id_{person}"].apply(lambda x: get_length(x))
                 label_df["length"].append(label_df[f"length_{person}"])
@@ -220,6 +230,9 @@ def count_lower_court(dataset: pd.DataFrame):
 
 
 def count_occlusion_tokens(lang: str):
+    """
+    @Todo Comment & clean up
+    """
     # Lenght og occluded text --> Version 1 mean length of a sentence
     df_dict = {}
     for nr in NUMBER_OF_EXP:
@@ -244,30 +257,26 @@ def count_occlusion_tokens(lang: str):
 
 
 def count_number_of_sentences(lang: str):
+    """
+    @Todo Comment & clean up
+    """
     occlusion_test_set = preprocessing.read_csv(OCCLUSION_PATHS["test_sets"][1].format(lang, lang, 1), "index")
     return occlusion_test_set.groupby("id").count()["text"].mean()
 
 
 def get_length(string: str):
+    """
+    Returns "Nan" for length 0 or length.
+    """
     if string != "Nan":
         return len(ast.literal_eval(string))
     else:
         return 0
 
-
-def write_from_list(f, lst: list):
-    for string in lst:
-        f.write(string)
-    f.write("\n")
-
-
-def write_from_dict(f, dic: dict):
-    for key in dic:
-        f.write(f"{key}:{dic[key]}\n")
-    f.write("\n")
-
-
 def write_csv(path: Path, label_mean: pd.DataFrame, pers_mean: pd.DataFrame, df_list: list):
+    """
+    @Todo Add to preprocessing
+    """
     with open(path, "w") as f:
         f.truncate()
         label_mean.to_csv(f)
