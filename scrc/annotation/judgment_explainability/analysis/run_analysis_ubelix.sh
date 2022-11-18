@@ -19,8 +19,5 @@ conda activate judgement_explainability
 # run with: sbatch run_analysis.sh
 for VARIABLE_1 in de fr it;
       do
-        for VARIABLE_2 in 1 2 3;
-          do
-            python annotation_analysis.py $VARIABLE_1 $VARIABLE_2
-          done;
+        python annotation_analysis.py $VARIABLE_1
       done;
