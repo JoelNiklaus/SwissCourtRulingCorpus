@@ -57,6 +57,8 @@ def annotation_analysis(datasets: dict, lang: str, version: str):
 
 
 if __name__ == '__main__':
+    qt.annotation_analysis()
+    ql.annotation_analysis()
     assert len(sys.argv) == 2
     l = sys.argv[1]
     for ver in range(1, 4):
@@ -64,5 +66,4 @@ if __name__ == '__main__':
                             l,
                             str(ver))
 
-    qt.annotation_analysis()
-    ql.annotation_analysis()
+

@@ -31,11 +31,11 @@ def lower_court_analysis(lang: str, lower_court_df: pd.DataFrame, filename: str)
     plots.distribution_plot(lang, lower_court_distribution, col_x="lower_court", col_y="count",
                             label_texts=["Lower Court", "Occurrence of Lower Courts in Dataset"],
                             title=f"Lower Court distribution in the {lang} Dataset")
-    plots.lower_court_effect_plot(lang, sum_pos, sum_neg, col_x="lower_court", col_y="confidence_direction",
+    plots.lower_court_effect_plot(sum_pos, sum_neg, col_y="confidence_direction",col_x="lower_court",
                                   label_texts=["Confidence Direction", "Lower Court"],
                                   legend_texts=["Positive Influence", "Negativ Influence"],
                                   title="Effect of Lower Courts on the Prediction Confidence", filepath=f'{lang}/plots/lower_court_effect.png')
-    plots.lower_court_effect_plot(lang, sum_pos, sum_neg, col_x="lower_court", col_y="mean_norm_explainability_score",
+    plots.lower_court_effect_plot(sum_pos, sum_neg, col_y="mean_norm_explainability_score",col_x="lower_court",
                                   label_texts=["Mean explainability score for one direction", "Lower Court"],
                                   legend_texts=["Exp_Score > 0", "Exp_Score < 0"],
                                   title="Mean distribution on Explainability Scores in both directions", filepath=f'{lang}/plots/mean_explainability_score.png')

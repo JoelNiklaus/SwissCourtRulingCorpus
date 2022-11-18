@@ -1,14 +1,15 @@
 import ast
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import pandas as pd
 from nltk.tokenize import word_tokenize
 
+import scrc.annotation.judgment_explainability.analysis.utils.plots as plots
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 
 """
-Contains functions for the quantitative analysis. Uses preprocessing.py. Is used by annotation_analysis and occlusion_analysis.
+Contains functions for the quantitative analysis. Uses preprocessing.py and plots.py. 
+Is used by annotation_analysis and occlusion_analysis.
 """
 LANGUAGES = ["de", "fr", "it"]
 PERSON_NUMBER = {"angela": 1, "lynn": 2, "thomas": 3}
@@ -152,50 +153,35 @@ def get_agg_table(annotations: pd.DataFrame, col_name: str) -> pd.DataFrame:
     return annotations
 
 
-def get_total_agg(annotations: pd.DataFrame, aggregation: str, col_name: str):
+def get_mean_col(annotations: pd.DataFrame, col_name: str):
     """
     @Todo Comment & clean up
     """
-    if aggregation == "mean":
-        la = annotations.groupby(["legal_area"])[col_name].mean()
-        year = annotations.groupby(["year"])[col_name].mean()
-    if aggregation == "max":
-        la = annotations.groupby(["legal_area"])[col_name].max()
-        year = annotations.groupby(["year"])[col_name].max()
-    if aggregation == "min":
-        la = annotations.groupby(["legal_area"])[col_name].min()
-        year = annotations.groupby(["year"])[col_name].min()
-    la.name = f"{aggregation}_legal_area"
+    la = annotations.groupby(["legal_area"])[col_name].mean()
+    year = annotations.groupby(["year"])[col_name].mean()
+    la.name = f"mean_legal_area"
     return la, year
 
 
-def count_fact_length(dataset: pd.DataFrame):
+def count_mean_fact_length(dataset: pd.DataFrame) -> pd.DataFrame:
     """
-    @Todo Comment & clean up
+    Gets facts per case, calculates mean token length per case.
+    Returns Dataframe.
     """
-    df_list = []
-    annotations = dataset[dataset["answer"] == "accept"]
-    annotations["text"] = annotations["text"].str.len()
-    annotations["tokens"] = annotations["tokens"].map(len)
-    for agg in AGGREGATIONS:
-        char = get_agg_table(apply_aggregation(
-            annotations.groupby(["year", "legal_area"])["text"], agg).to_frame().reset_index(), "text")
-        char = char.append(get_total_agg(annotations, agg, "text")[0])
-        char[f"{agg}_year"] = get_total_agg(annotations, agg, "text")[1]
-        char.index.name = f"char_{agg}"
-        tokens = get_agg_table(apply_aggregation(
-            annotations.groupby(["year", "legal_area"])["tokens"], agg).to_frame().reset_index(), "tokens")
-        tokens = tokens.append(get_total_agg(annotations, agg, "tokens")[0])
-        tokens[f"{agg}_year"] = get_total_agg(annotations, agg, "tokens")[1]
-        tokens.index.name = f"tokens_{agg}"
-        df_list.append(char)
-        df_list.append(tokens)
-    return df_list
+    dataset.loc[:, "tokens"] = dataset["tokens"].map(len)
+    tokens = get_agg_table(apply_aggregation(
+        dataset.groupby(["year", "legal_area"])["tokens"], "mean").to_frame().reset_index(), "tokens")
+    tokens = tokens.append(get_mean_col(dataset, "tokens")[0])
+    tokens[f"mean_year"] = get_mean_col(dataset, "tokens")[1]
+    tokens.index.name = f"tokens_mean"
+    return tokens
 
 
 def count_tokens_per_label(lang: str):
     """
-    @Todo Comment & clean up
+    Gets number of tokens of each explainability label per person and case.
+    Calculates mean token number of each explainability label per person.
+    Returns Dataframe.
     """
     pers_mean = {"label": [], "annotator": [], "mean_token": []}
     label_df_list = []
@@ -203,7 +189,7 @@ def count_tokens_per_label(lang: str):
     for label in LABELS_OCCLUSION[:-1]:
         label_df = preprocessing.read_csv(f"{lang}/{label.lower().replace(' ', '_')}_{lang}_3.csv", "index")
         label_df["length"] = 0
-        pers_mean[f"{label}_mean_token"] = []
+        pers_mean[f"{label.lower().replace(' ', '_')}_mean_token"] = []
         for person in PERSON_NUMBER.keys():
             try:
                 label_df[f"length_{person}"] = label_df[f"tokens_id_{person}"].apply(lambda x: get_length(x))
@@ -211,7 +197,7 @@ def count_tokens_per_label(lang: str):
                 pers_mean["label"].append(label)
                 pers_mean["annotator"].append(PERSON_NUMBER[person])
                 pers_mean["mean_token"].append(label_df[f"length_{person}"].mean())
-                pers_mean[f"{label}_mean_token"].append(label_df[f"length_{person}"].mean())
+                pers_mean[f"{label.lower().replace(' ', '_')}_mean_token"].append(label_df[f"length_{person}"].mean())
                 label_df_list = label_df_list + list(label_df[f"length_{person}"].values)
             except KeyError:
                 pass
@@ -273,61 +259,56 @@ def get_length(string: str):
     else:
         return 0
 
-def write_csv(path: Path, label_mean: pd.DataFrame, pers_mean: pd.DataFrame, df_list: list):
+
+def write_csv(path: Path, label_mean_df: pd.DataFrame, pers_mean_df: pd.DataFrame, token_mean_df: pd.DataFrame):
     """
     @Todo Add to preprocessing
     """
     with open(path, "w") as f:
         f.truncate()
-        label_mean.to_csv(f)
-        f.write("\n")
-        pers_mean.to_csv(f)
-        f.write("\n")
-        for df in df_list:
+        for df in [label_mean_df, pers_mean_df, token_mean_df]:
             df.to_csv(f)
             f.write("\n")
 
 
-def create_plots(label_mean: pd.DataFrame, pers_mean: pd.DataFrame, df_list: list):
-    for df in df_list:
-        for agg in AGGREGATIONS:
-            try:
-                df = df.drop(f"{agg}_legal_area").drop(f"{agg}_year", axis=1)
-            except KeyError:
-                pass
-        # plt.figure()
-        # df.plot()
-        # plt.show()
-
-    pers_mean = pers_mean.drop(["label", "mean_token"], axis=1).fillna(0)
-    pers_mean = pers_mean.groupby("annotator").sum()
-    pers_mean.plot(kind='bar')
-    plt.show()
-
-
 def annotation_analysis():
     """
-    @Todo Comment & clean up
+    This functions prepares the quantitative annotation analysis.
+    Dumps scores individual core numbers into a json and core Dataframes into a csv.
+    Creates plots for quantitative analysis.
     """
     for l in LANGUAGES:
-        facts_count_list = count_fact_length(EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"])
-        counts = {"total_number_of_cases":
-                      len(get_accepted_cases(EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"])),
+        facts_count_df = count_mean_fact_length(
+            get_accepted_cases(EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"]))
+        total_number_of_cases = len(get_accepted_cases(EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"]))
+        counts = {"total_number_of_cases":total_number_of_cases,
                   "number_of_comments":
-                      count_user_input(EXTRACTED_DATASETS_MERGED[f"annotations_{l}"]),
+                      count_user_input(EXTRACTED_DATASETS_MERGED[f"annotations_{l}"]) / total_number_of_cases,
                   "number_of_not_accepted": count_not_accept(
-                      EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"]),
+                      EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"]) / total_number_of_cases,
                   "number_of_is_correct": count_is_correct(
-                      EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"])[0],
+                      EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"])[0] / total_number_of_cases,
                   "number_of_approved_prediction":
-                      count_approved_dismissed(EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"])[0],
+                      count_approved_dismissed(EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"])[
+                          0] / total_number_of_cases,
                   "number_of_dismissed_prediction":
-                      count_approved_dismissed(EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"])[1]}
+                      count_approved_dismissed(EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"])[
+                          1] / total_number_of_cases}
         label_mean, pers_mean = count_tokens_per_label(l)
         preprocessing.write_json(Path(f"{l}/quantitative/annotation_analysis_{l}.json"), counts)
         write_csv(Path(f"{l}/quantitative/annotation_analysis_{l}.csv"), label_mean, pers_mean,
-                  facts_count_list)
-        create_plots(label_mean, pers_mean, facts_count_list)
+                  facts_count_df)
+        pers_mean = pers_mean.drop(["label", "mean_token"], axis=1).fillna(0)
+        pers_mean = pers_mean.groupby("annotator").sum()
+        plots.mean_plot(facts_count_df.drop(f"mean_legal_area").drop(f"mean_year", axis=1),
+                        filepath=f"{l}/plots/mean_tokens_year_legal_area_{l}.png",
+                        title="Token over legal area and year Distribution ", mean_lines={})
+        plots.mean_plot(pers_mean, filepath=f"{l}/plots/mean_tokens_exp_labels_{l}.png",
+                        title="Token Distribution of Annotation Labels",
+                        mean_lines={f"mean_tokens_{LABELS_OCCLUSION[0].lower().replace(' ', '_')}":label_mean[label_mean["label"]== LABELS_OCCLUSION[0]]["mean_token"].item(),
+                                    f"mean_tokens_{LABELS_OCCLUSION[1].lower().replace(' ', '_')}":label_mean[label_mean["label"]== LABELS_OCCLUSION[1]]["mean_token"].item(),
+                                    f"mean_tokens_{LABELS_OCCLUSION[2].lower().replace(' ', '_')}":label_mean[label_mean["label"]== LABELS_OCCLUSION[2]]["mean_token"].item()})
+
 
 
 def occlusion_analysis():
