@@ -53,7 +53,7 @@ class CoverageVerification(AbstractPreprocessor):
     def write_document(self, spider, conn: Connection):
         document = Document()
         decision_list = []
-        for x in range(0, 45):  
+        for x in range(0, 50):  
             result = self.get_valid_decision(conn, spider, decision_list)
             self.write_to_doc(document, result, x)
         document.save(self.get_path(spider))
@@ -108,7 +108,7 @@ class CoverageVerification(AbstractPreprocessor):
     
     
     def get_ruling_outcome(self, decision_id: str, conn: Connection):
-        return conn.execute(self.ruling_outcome_query(decision_id))
+        return conn.execute(self.ruling_outcome_query(decision_id)).fetchall()
         
     
     def ruling_outcome_query(self, decision_id: str):
