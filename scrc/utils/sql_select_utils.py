@@ -24,6 +24,7 @@ def join_decision_on_language() -> str:
     """
     return ' LEFT JOIN language ON language.language_id = decision.language_id '
 
+
 def coverage_query(spider: str, section_type: int, language: int):
     return (f"SELECT count(*) FROM section "
             f"LEFT JOIN decision ON decision.decision_id = section.decision_id "
@@ -53,6 +54,7 @@ def get_judgment_query(spider):
             f"LEFT JOIN judgment_map j ON j.decision_id = d.decision_id "
             f"WHERE judgment_id IS NOT NULL "
             f"AND sp.name = '{spider}' ")
+
 
 def get_total_judgments(spider, ruling_id):
     return (f"SELECT count(*) FROM decision d "
@@ -102,8 +104,6 @@ def join_file_on_decision() -> str:
     return ' LEFT JOIN file ON file.file_id = decision.file_id '
 
 
-
-
 def where_string_spider(decision_field: str, spider: str) -> str:
     """Returns the string for the where clause in the sql selection such that only the decisions of certain spider are selected.
         Use by <TABLE>.<FIELDNAME> IN where_string_spider(<FIELDNAME>, <SPIDER>)
@@ -115,6 +115,19 @@ def where_string_spider(decision_field: str, spider: str) -> str:
         str: The where clause
     """
     return f" (SELECT {decision_field} from decision WHERE chamber_id IN (SELECT chamber_id FROM chamber WHERE spider_id IN (SELECT spider_id FROM spider WHERE spider.name = '{spider}'))) "
+
+
+def where_string_court(decision_field: str, court: str) -> str:
+    """Returns the string for the where clause in the sql selection such that only the decisions of certain court are selected.
+        Use by <TABLE>.<FIELDNAME> IN where_string_court(<FIELDNAME>, <COURT>)
+    Args:
+        decision_field (str): The field name to be searched in the decision table
+        court (str): The court name
+
+    Returns:
+        str: The where clause
+    """
+    return f" (SELECT {decision_field} from decision WHERE chamber_id IN (SELECT chamber_id FROM chamber WHERE court_id IN (SELECT court_id FROM court WHERE court.court_string = '{court}'))) "
 
 
 def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
@@ -202,12 +215,11 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
 
     df = df.apply(add_ids_to_df_for_decision, 1)
 
-    df = df.replace(
-                        {np.NaN: None}) # Convert pandas NaT values (Non-Type for Datetime) to None using np as np recognizes these types
+    # Convert pandas NaT values (Non-Type for Datetime) to None using np as np recognizes these types
+    df = df.replace({np.NaN: None})
     df['date'] = df['date'].replace(r'^\s*$', None, regex=True)
     df['date'] = df['date'].astype('datetime64[ns]')
-    save_to_db(
-        df[['language_id', 'chamber_id', 'file_id', 'date', 'topic']], 'decision')
+    save_to_db(df[['language_id', 'chamber_id', 'file_id', 'date', 'topic']], 'decision')
     df.apply(save_the_file_numbers, 1)
 
 
@@ -215,8 +227,7 @@ def delete_stmt_decisions_with_df(df: pd.DataFrame) -> TextClause:
     if df.ndim == 1:
         decision_id_list = f"'{df['decision_id']}'"
     else:
-        decision_id_list = ','.join(
-            ["'" + str(item) + "'" for item in df['decision_id'].values.tolist()])
+        decision_id_list = ','.join(["'" + str(item) + "'" for item in df['decision_id'].values.tolist()])
     return text(f"decision_id in ({decision_id_list})")
 
 
@@ -225,8 +236,13 @@ def join(table_name: str, join_field: str = 'decision_id', join_table: str = 'd'
     return f" LEFT JOIN {table_name} ON {table_name}.{join_field} = {join_table}.{join_field} "
 
 
-def map_join(map_field: str, new_map_field_name: str, table: str, fill: Optional[Dict[str, str]] = None,
-             group: str = 'decision_id', join_table: str = 'd', additional_fields: str = '') -> str:
+def map_join(map_field: str,
+             new_map_field_name: str,
+             table: str,
+             fill: Optional[Dict[str, str]] = None,
+             group: str = 'decision_id',
+             join_table: str = 'd',
+             additional_fields: str = '') -> str:
     """ Joins a table and concatenates multiple value onto one line """
     if fill:
         json_object_build_string = ','.join(
@@ -261,12 +277,12 @@ def join_tables_on_decision(tables: List[str]) -> str:
             'table_name': 'section_type', 'field_name': 'name, section_text', 'join_field': 'section_type_id'})
 
     if ('num_tokens' in tables):
-        # Dont use num tokens and section or section_type as num_tokens includes both of them
+        # Don't use num tokens and section or section_type as num_tokens includes both of them
         join_string += (" LEFT JOIN "
                         "(SELECT section_mapped.decision_id, json_strip_nulls(json_agg(json_build_object"
-                        "('name', name,'section_text', section_text, 'num_tokens_bert', num_tokens_bert, 'num_tokens_spacy', num_tokens_spacy))) sections "
+                        "('name', name, 'section_text', section_text, 'num_tokens_bert', num_tokens_bert, 'num_tokens_spacy', num_tokens_spacy))) sections "
                         "FROM (SELECT name, section_text, section.decision_id, num_tokens_bert, num_tokens_spacy FROM section "
-                        "LEFT JOIN section_type  ON section_type.section_type_id = section.section_type_id "
+                        "LEFT JOIN section_type ON section_type.section_type_id = section.section_type_id "
                         "LEFT JOIN num_tokens ON num_tokens.section_id = section.section_id) as section_mapped "
                         "GROUP BY decision_id) as section ON section.decision_id = d.decision_id")
 
@@ -278,7 +294,8 @@ def join_tables_on_decision(tables: List[str]) -> str:
 
     if ('chamber' in tables or 'court' in tables or 'spider' in tables):
         join_string += join('chamber', 'chamber_id') + \
-                       ' LEFT JOIN court ON court.court_id = chamber.court_id LEFT JOIN spider ON chamber.spider_id = spider.spider_id'
+                       ' LEFT JOIN court ON court.court_id = chamber.court_id' \
+                       ' LEFT JOIN spider ON chamber.spider_id = spider.spider_id'
 
     if ('citation' in tables or 'citation_type' in tables):
         join_string += map_join('citation_id', 'citations', 'citation', fill={
@@ -313,12 +330,16 @@ def select_sections_with_decision_and_meta_data() -> Tuple[str, str]:
     fields = ['d.*', 'extract(year from d.date) as year']
     fields.append('judgments')
     fields.append('citations')
-    fields.append(
-        'file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw')
+    fields.append('file.file_name, file.html_url, file.pdf_url, file.html_raw, file.pdf_raw')
     fields.append('sections')
     fields.append('file_numbers')
     fields.append(
-        'lower_court.date as origin_date, lower_court.court_id as origin_court, lower_court.canton_id as origin_canton, lower_court.chamber_id as origin_chamber, lower_court.file_number as origin_file_number')
+        'lower_court.date as origin_date, '
+        'lower_court.court_id as origin_court, '
+        'lower_court.canton_id as origin_canton, '
+        'lower_court.chamber_id as origin_chamber, '
+        'lower_court.file_number as origin_file_number'
+    )
 
     return (
         join_tables_on_decision(['judgment', 'citation', 'file', 'section', 'lower_court']),
@@ -415,8 +436,7 @@ def get_region(canton):
     for region, cantons in regions.items():
         if canton in cantons:
             return region
-    raise ValueError(
-        f"Please provide a valid canton name. Could not find {canton} in {regions}")
+    raise ValueError(f"Please provide a valid canton name. Could not find {canton} in {regions}")
 
 
 legal_areas = {
@@ -425,7 +445,8 @@ legal_areas = {
     "penal_law": [Chamber.CH_BGer_006, Chamber.CH_BGer_013],
     "social_law": [Chamber.CH_BGer_008, Chamber.CH_BGer_009],
     "insurance_law": [Chamber.CH_BGer_016],
-    "other": [Chamber.CH_BGer_010, Chamber.CH_BGer_012, Chamber.CH_BGer_014, Chamber.CH_BGer_015, Chamber.CH_BGer_999, Chamber.CH_BGer_011],
+    "other": [Chamber.CH_BGer_010, Chamber.CH_BGer_011, Chamber.CH_BGer_012, Chamber.CH_BGer_014, Chamber.CH_BGer_015,
+              Chamber.CH_BGer_999],
 }
 
 
@@ -441,3 +462,16 @@ def get_legal_area(chamber: int):
             return legal_area
     raise ValueError(
         f"Please provide a valid chamber name. Could not find {chamber} in {legal_areas}")
+
+
+def get_legal_area_bger(chamber_number):
+    switch = {
+        1: 'public_law',
+        2: 'public_law',
+        4: 'civil_law',
+        5: 'civil_law',
+        6: 'penal_law',
+        8: 'social_law',
+        9: 'social_law'
+    }
+    return switch.get(chamber_number, "other")

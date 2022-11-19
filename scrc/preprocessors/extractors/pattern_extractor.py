@@ -284,7 +284,7 @@ class PatternExtractor(AbstractExtractor):
         if lang != Language.EN:
             with pd.ExcelWriter(self.get_path(self.spider, lang)) as writer:
                 for key in dfs:
-                    if key != Section.FULLTEXT:
+                    if key != Section.FULL_TEXT:
                         if 'totalcount' in dfs[key].columns:
                             dfs[key].sort_values(
                                 by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key),

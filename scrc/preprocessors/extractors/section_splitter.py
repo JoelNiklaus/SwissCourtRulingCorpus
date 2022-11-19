@@ -85,7 +85,7 @@ class SectionSplitter(AbstractExtractor):
 
             if len(row['sections']) > 0:
                 # The fulltext equals all other sections combined
-                row['sections'][Section.FULLTEXT] = ['\n'.join(row['sections'][section]) for section in row['sections']]
+                row['sections'][Section.FULL_TEXT] = ['\n'.join(row['sections'][section]) for section in row['sections']]
 
         def get_section_from_df(series, section: Section):
             if isinstance(series[section], str):
