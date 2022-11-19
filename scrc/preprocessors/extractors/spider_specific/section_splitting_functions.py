@@ -74,16 +74,9 @@ def GE_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
                               r"Demnach wird verfügt", r"Dispositiv"],
             Section.FOOTER: [r'Rechtsmittellehre']
         },
-        Language.EN: {
-            Section.HEADER: [],
-            Section.FACTS: [],
-            Section.CONSIDERATIONS: [],
-            Section.RULINGS: [],
-            Section.FOOTER: []
-        },
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -107,7 +100,7 @@ def BE_Anwaltsaufsicht(decision: Union[bs4.BeautifulSoup, str], namespace: dict)
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -121,7 +114,7 @@ def BE_Weitere(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opti
         Language.DE: {
             Section.FACTS: [r'Sachverhalt'],
             Section.CONSIDERATIONS: [r'Erwägung', r'Erwägungen', r'erwogen', r'Ausgangslage$'],
-            Section.RULINGS: [r'entscheidet', r'wird erkannt', r'erkannt :', r'erkannt:', r'III. Entscheid', r'[1-9] Entscheid'],
+            Section.RULINGS: [r'entscheidet$', r'wird erkannt', r'erkannt :', r'erkannt:', r'III. Entscheid', r'[1-9] Entscheid'],
             Section.FOOTER: [r'^Rechtsmittelbelehrung']
         },
         Language.FR: {
@@ -132,7 +125,7 @@ def BE_Weitere(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opti
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -151,7 +144,7 @@ def AR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -180,7 +173,7 @@ def BE_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
     }
     
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -198,7 +191,7 @@ def GL_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -216,7 +209,7 @@ def BL_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -234,7 +227,7 @@ def AG_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         },
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -252,7 +245,7 @@ def AG_Weitere(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opti
         },
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -274,17 +267,9 @@ def CH_WEKO(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
             Section.RULINGS: [r'Dispositif$', r'DISPOSITIF$'],
             Section.FOOTER: [r'Voie de droit:?$']
         },
-        Language.EN: {
-            Section.HEADER: [],
-            Section.FACTS: [],
-            Section.CONSIDERATIONS: [],
-            Section.RULINGS: [],
-            Section.FOOTER: []
-        },
-        
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -309,15 +294,9 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
                              r'La présidente:', r'Au nom du Tribunal administratif :', r'La présidente: Le greffier:',
                              r'Le président : Le greffier :']
         },
-        Language.EN: {
-            Section.FACTS: [],
-            Section.CONSIDERATIONS: [],
-            Section.RULINGS: [],
-            Section.FOOTER: []
-        }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -342,17 +321,10 @@ def TI_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
                               r'pronuncia:$', r'Per i quali motivi,', r'Per i quali motivi', r'^decide:$',
                               r'per questi motivi,', r'pronuncia: 1\.'],
             Section.FOOTER: [r'Per il Tribunale cantonale delle assicurazioni', r'Il presidente La segretaria', r'Per il Tribunale cantonale amministrativo', r'Per la seconda Camera civile del Tribunale d’appello', r'Il presidente La vicecancelliera']
-        },
-        Language.EN: {
-        },
-        Language.FR: {
-        },
-        Language.DE: {
-        }
-        
+        }, 
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -437,9 +409,8 @@ def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         }
     }
 
-    if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
-        raise ValueError(message)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
+
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -477,7 +448,7 @@ def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -523,7 +494,7 @@ def GR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
     paragraphs = get_pdf_paragraphs(decision)
@@ -549,7 +520,7 @@ def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
                              r'AUFSICHTSKOMMISSION', r'APPELLATIONSGERICHT']
         }
     }
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -574,7 +545,7 @@ def VS_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
             Section.FOOTER: [r'no footer available']
         }
     }
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -599,7 +570,7 @@ def SZ_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
             Section.FOOTER: [r'^Namens', r'^Versand']
         }
     }
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -630,7 +601,7 @@ def SO_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -661,10 +632,7 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
             Section.CONSIDERATIONS: [r'Erwägung:', r'[Ii]n Erwägung', r'Erwägungen:'],
             Section.RULINGS: [r'erkennt d[\w]{2} Präsident', r'Demnach (erkennt|beschliesst)', r'beschliesst.*:\s*$',
                               r'verfügt(\s[\wäöü]*){0,3}:\s*$', r'erk[ae]nnt(\s[\wäöü]*){0,3}:\s*$',
-                              r'Demnach verfügt[^e]'],
-            Section.FOOTER: [
-                r'^[\-\s\w\(]*,( den| vom)?\s\d?\d\.?\s?(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\s\d{4}([\s]*$|.*(:|Im Namen))',
-                r'Im Namen des']
+                              r'Demnach verfügt[^e]', r'beschlossen:', r'erkennt das Eidg. Versicherungsgericht'],
         },
         Language.FR: {
             Section.TOPIC: [r'Objet'],
@@ -672,23 +640,18 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
             Section.CONSIDERATIONS: [r'Considérant en (?:fait et en )?droit\s?:', r'(?:C|c)onsidérant(s?)\s?:',
                                      r'considère'],
             Section.RULINGS: [r'prononce\s?:', r'Par ces? motifs?\s?', r'ordonne\s?:'],
-            Section.FOOTER: [
-                r'\w*,\s(le\s?)?((\d?\d)|\d\s?(er|re|e)|premier|première|deuxième|troisième)\s?(?:janv|févr|mars|avr|mai|juin|juill|août|sept|oct|nov|déc).{0,10}\d?\d?\d\d\s?(.{0,5}[A-Z]{3}|(?!.{2})|[\.])',
-                r'Au nom de la Cour'
-            ]
         },
         Language.IT: {
             Section.TOPIC: [r'Oggetto'],
             Section.FACTS: [r'(F|f)att(i|o)\s?:'],
             Section.CONSIDERATIONS: [r'(C|c)onsiderando', r'(D|d)iritto\s?:', r'Visto:', r'Considerato'],
-            Section.RULINGS: [r'(P|p)er questi motivi'],
-            Section.FOOTER: [
+            Section.RULINGS: [r'(P|p)er questi motivi'],            Section.FOOTER: [
                 r'\w*,\s(il\s?)?((\d?\d)|\d\s?(°))\s?(?:gen(?:naio)?|feb(?:braio)?|mar(?:zo)?|apr(?:ile)?|mag(?:gio)|giu(?:gno)?|lug(?:lio)?|ago(?:sto)?|set(?:tembre)?|ott(?:obre)?|nov(?:embre)?|dic(?:embre)?)\s?\d?\d?\d\d\s?([A-Za-z\/]{0,7}):?\s*$'
             ]
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -762,7 +725,7 @@ def CH_BSTG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -830,9 +793,13 @@ def valid_namespace(namespace: dict, all_section_markers):
     :param all_section_markers:     the section markers of a decision
     """
     if namespace['language'] not in all_section_markers:
-        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far."
+        message = f"This function is only implemented for the languages {list(all_section_markers.keys())} so far. All paragraphs for {namespace['language']} will be added to the header."
         # Should exit exec here
-        raise ValueError(message)
+        all_section_markers[namespace['language']] = {}
+        get_logger(__name__).warning(message)
+        return all_section_markers
+    return all_section_markers
+        # raise ValueError(message)
 
 
 
@@ -854,14 +821,12 @@ def prepare_section_markers(all_section_markers, namespace: dict) -> Dict[Sectio
 def FR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     all_section_markers = {
         Language.DE: {
-            Section.HEADER: [],
             Section.FACTS: [r'Sachverhalt'],
             Section.CONSIDERATIONS: [r'Erwägungen', r' zieht in Erwägung,'],
             Section.RULINGS: [r'erkennt:$',r'erkennt der Hof:', r'entscheidet:$'],
             Section.FOOTER: [r'Gegen diesen Entscheid kann innerhalb', r'Dieses Urteil kann innert', r'Gegen die Festsetzung der Höhe der Verfahrenskosten', r'Gegen diesen Entscheid kann innert 30 Tagen', r'innert 30 Tagen']
         },
         Language.FR: {
-            Section.HEADER: [],
             Section.FACTS: [r'considérant en fait', r'^attendu$'],
             Section.CONSIDERATIONS: [r'considérant en fait et en droit', r'en droit$', r'^considérant$'],
             Section.RULINGS: [r'la Cour arrête', r'prononce:$', r'la Chambre arrête', r'arrête:?$'],
@@ -869,7 +834,7 @@ def FR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         },
     }
  
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -890,7 +855,7 @@ def OW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
 
     custom_order = [Section.RULINGS, Section.FACTS, Section.CONSIDERATIONS]
     
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -921,17 +886,10 @@ def CH_EDOEB(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Option
             Section.RULINGS: [r'trasparenza formula le seguenti raccomandazioni'],
             Section.FOOTER: [r'Rechtsmittelbelehrung']
         },
-        Language.EN: {
-            Section.HEADER: [],
-            Section.FACTS: [],
-            Section.CONSIDERATIONS: [],
-            Section.RULINGS: [],
-            Section.FOOTER: []
-        },
     }
  
     
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -951,7 +909,7 @@ def SH_OG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
         },
     }
     
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -977,7 +935,7 @@ def VD_FindInfo(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         },
     }
     
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -998,7 +956,7 @@ def LU_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     
     custom_order = [Section.HEADER, Section.FACTS, Section.RULINGS, Section.CONSIDERATIONS, Section.FOOTER]
     
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1018,7 +976,7 @@ def JU_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         },
     }
     
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1049,16 +1007,9 @@ def CH_BVGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Option
             Section.CONSIDERATIONS: [r'Ritenuto in fatto e considerato in diritto:', r'Diritto:', r'e considerato', r'Considerando in diritto'],
             Section.FOOTER: [r'Il presidente del collegio:', r'La presidente del collegio:', r'Rimedi di diritto', r'Data di spedizione:']
         },
-        Language.EN: {
-            Section.HEADER: [],
-            Section.FACTS: [],
-            Section.CONSIDERATIONS: [],
-            Section.RULINGS: [],
-            Section.FOOTER: []
-        },
     }
     
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1085,7 +1036,7 @@ def GR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         },  
     }
     
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1099,12 +1050,12 @@ def NE_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
             Section.HEADER: [],
             Section.FACTS: [r'Résumé'],
             Section.CONSIDERATIONS: [r'C O N S I D E R A N T', r'C O N S I D E RA N T', r'CO N S I D E R A N T', r'en droit', r'e n  d r o i t'],
-            Section.RULINGS: [r'Par ces motifs',r'Par cesmotifs'],
+            Section.RULINGS: [r'Par ces motifs',r'Par cesmotifs', r'Par ces motifs,'],
             Section.FOOTER: [r'Le greffier',r'AU NOM DU TRIBUNAL ADMINISTRATIF', r'^Neuchâtel, le ']
         }
     }
  
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1117,7 +1068,6 @@ def NE_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
 def SG_Publikationen(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
     all_section_markers = {
         Language.DE: {
-            Section.HEADER: [],
             Section.FACTS: [r'Sachverhalt', r'in Sachen', r'Aus dem Sachverhalt:', r'Zum Sachverhalt:', r'hat das Verwaltungsgericht festgestellt:', r'Das Verwaltungsgericht stellt fest:'],
             Section.CONSIDERATIONS: [r'Erwägungen', r'in Erwägung', r'Darüber zieht das Verwaltungsgericht in Erwägung:', r'Der Abteilungspräsident erwägt:'],
             Section.RULINGS: [r'zu Recht erkannt:',r'Demnach erkennt das Verwaltungsgericht zu Recht:', r'Demnach erkennt das Verwaltungsgericht auf dem Zirkulationsweg zu Recht:', r'Demnach hat das Verwaltungsgericht zu Recht erkannt:', r'Der Abteilungspräsident verfügt:', r'Der Präsident verfügt:'
@@ -1126,7 +1076,7 @@ def SG_Publikationen(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -
         }
     }
  
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1144,7 +1094,7 @@ def SG_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         }
     }
  
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1197,7 +1147,7 @@ def update_section(current_section: Section, paragraph: str, section_markers, se
     :param sections:        if some sections are not present in the court, pass a list with the missing section excluded
     :return:                the updated section
     """
-    sections = sorted([Section.HEADER] + list(section_markers), key=lambda x: x.value)
+    sections = sorted([*set([Section.HEADER] + list(section_markers))], key=lambda x: x.value)
     paragraph = unicodedata.normalize(
         'NFC', paragraph)  # if we don't do this, we get weird matching behaviour
     if sections.index(current_section) == len(sections) - 1:
@@ -1231,17 +1181,10 @@ def CH_BGE(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional
             Section.CONSIDERATIONS: [r'Erwägungen'],
             Section.RULINGS: [r'Dispositiv'],
             Section.FOOTER: [r'^Rechtsmittelbelehrung']},
-        Language.EN: {
-            Section.HEADER: [],
-            Section.FACTS: [],
-            Section.CONSIDERATIONS: [],
-            Section.RULINGS: [],
-            Section.FOOTER: []
-        },
     }
  
     
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1258,7 +1201,7 @@ def AI_Aktuell(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opti
         }
     }
  
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1275,7 +1218,7 @@ def AI_Bericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opti
         }
     }
  
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1293,7 +1236,7 @@ def AR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
         }
     }
  
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1343,7 +1286,7 @@ def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -1383,7 +1326,7 @@ def ZH_Baurekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Op
         },
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -1416,7 +1359,7 @@ def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> 
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -1446,7 +1389,7 @@ def ZH_Sozialversicherungsgericht(decision: Union[bs4.BeautifulSoup, str], names
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1476,7 +1419,7 @@ def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -1520,7 +1463,7 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -1584,7 +1527,7 @@ def BE_BVD(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional
         },
     }
     
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
@@ -1653,7 +1596,7 @@ def BE_ZivilStraf(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> O
         }
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
@@ -1699,7 +1642,7 @@ def CH_BPatG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Option
             
     }
 
-    valid_namespace(namespace, all_section_markers)
+    all_section_markers = valid_namespace(namespace, all_section_markers)
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
