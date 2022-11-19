@@ -22,7 +22,9 @@ class CoverageVerification(AbstractPreprocessor):
     """Ouputs docx files of court rulings with highlighted paragraphs of each section recognized aswell as the ruling outcome to data/verification folder. 
     To run simply remove your desired spider from coverage_verification.txt and run:
     
-    python -m scrc.analyses.coverage_verification | python -m scrc.analyses.coverage_verification 1 (for rulings only)"""
+    python -m scrc.analyses.coverage_verification | python -m scrc.analyses.coverage_verification 1 (for rulings only)
+    
+    If you wish to increase the outputted document size, change the range in line 56 to a higher number."""
     
     def __init__(self, config: dict):
         super().__init__(config)
@@ -51,7 +53,7 @@ class CoverageVerification(AbstractPreprocessor):
     def write_document(self, spider, conn: Connection):
         document = Document()
         decision_list = []
-        for x in range(0, 40):  
+        for x in range(0, 45):  
             result = self.get_valid_decision(conn, spider, decision_list)
             self.write_to_doc(document, result, x)
         document.save(self.get_path(spider))
