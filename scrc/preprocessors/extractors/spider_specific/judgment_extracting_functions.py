@@ -62,8 +62,7 @@ Formelle Mitteilung:
 all_judgment_markers = {
     Language.DE: {
         Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung'],
-        Judgment.PARTIAL_APPROVAL: ['teilweise gutgeheissen', 'teilweise gutzuheissen',
-                                    'In teilweiser Gutheissung'],
+        Judgment.PARTIAL_APPROVAL: ['teilweise gutgeheissen', 'teilweise gutzuheissen', 'In teilweiser Gutheissung', 'in teilweiser Gutheissung'],
         Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen', 'erstinstanzliche Urteil wird bestätigt', 'freigesprochen'],
         Judgment.PARTIAL_DISMISSAL: ['abgewiesen, soweit darauf einzutreten ist',
                                      'abzuweisen, soweit darauf einzutreten ist',
@@ -345,6 +344,9 @@ def get_judgments(rulings: str, namespace: dict) -> set:
 
     pattern = rf"{1}\.(.+?)(?:{2}\.|$)"
     romanPattern = rf"{int_to_roman(1)}\.(.+?)(?:{int_to_roman(2)}\.|$)"
+
+    if str(namespace['id']) == '49185fd8-2bf7-5801-a095-b97489dd98c0':
+        print('yo')
 
     if (re.search(pattern, rulings) or re.search(romanPattern, rulings)):
         judgments = numbered_rulings(
