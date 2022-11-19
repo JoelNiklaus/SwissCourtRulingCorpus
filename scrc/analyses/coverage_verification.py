@@ -20,11 +20,9 @@ class Color(Enum):
 
 class CoverageVerification(AbstractPreprocessor):
     """Ouputs docx files of court rulings with highlighted paragraphs of each section recognized aswell as the ruling outcome to data/verification folder. 
-    To run simply execute:
+    To run simply remove your desired spider from coverage_verification.txt and run:
     
-    python -m scrc.analyses.coverage_verification | python -m scrc.analyses.coverage_verification 1 (for rulings only)
-    
-    and make sure coverage_verification.txt exists."""
+    python -m scrc.analyses.coverage_verification | python -m scrc.analyses.coverage_verification 1 (for rulings only)"""
     
     def __init__(self, config: dict):
         super().__init__(config)
@@ -39,10 +37,6 @@ class CoverageVerification(AbstractPreprocessor):
 
     
     def start(self):
-        self.init_engine()
-        
-        
-    def init_engine(self):
         spider_list, message = self.compute_remaining_spiders(self.processed_file_path)
         self.logger.info(message)
         engine = self.get_engine(self.db_scrc)
@@ -52,7 +46,7 @@ class CoverageVerification(AbstractPreprocessor):
                 self.logger.info(self.logger_info['finish_spider'] + ' ' + spider)
                 self.mark_as_processed(self.processed_file_path, spider)
             self.logger.info(self.logger_info['finished'])
-
+        
                 
     def write_document(self, spider, conn: Connection):
         document = Document()
@@ -100,7 +94,7 @@ class CoverageVerification(AbstractPreprocessor):
                     ruling_text = ""
                     for ruling in rulings:
                         ruling_text += ruling.text + " "
-                    return {"wrapper": sections, "ruling": ruling.text}
+                    return {"wrapper": sections, "ruling": ruling_text}
           
             
     def get_sections(self, result: str, conn: Connection,):
