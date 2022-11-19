@@ -74,3 +74,16 @@ Sometimes ``pip install`` says that the requirement is already satisfied. If the
 try ``python -m pip install ...``.
 
 Dask does not work with csv files containing new lines inside fields because it cannot process csv chunks
+
+## useful DB queries
+
+Amount of approvals for a specific court:
+SELECT count(*) FROM judgment
+            LEFT JOIN judgment_map ON judgment_map.judgment_id = judgment.judgment_id
+            LEFT JOIN decision ON decision.decision_id = judgment_map.decision_id
+            LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id
+            LEFT JOIN spider ON spider.spider_id = chamber.spider_id
+            WHERE spider.name = 'BS_Omni'
+            AND judgment.judgment_id = 1
+
+
