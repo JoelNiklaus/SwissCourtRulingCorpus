@@ -11,7 +11,6 @@ from scrc.utils.main_utils import clean_text, int_to_roman
 
 import pandas as pd
 from sqlalchemy.engine.base import Engine
-from scrc.enums.judgment import Judgment
 from scrc.enums.language import Language
 from nltk import ngrams
 from scrc.enums.section import Section
@@ -23,7 +22,7 @@ from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import get_judgment_query, get_total_decisions, get_total_judgments, join_decision_and_language_on_parameter, \
     join_file_on_decision, where_decisionid_in_list, where_string_spider
     
-from scrc.preprocessors.extractors.spider_specific.judgment_extracting_functions import get_nth_ruling, prepare_judgment_markers, search_rulings
+from scrc.preprocessors.extractors.spider_specific.judgment_extracting_functions import search_rulings
 
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
@@ -31,7 +30,16 @@ if TYPE_CHECKING:
 
 class JudgmentExtractor(AbstractExtractor):
     """
-    Extracts the pattern of ruling section indicators for a given court. Only outputs the coverage if a command line argument it given.
+    Extracts the pattern of ruling section indicators for a given court. Only outputs the coverage if a command line argument it given. 
+    Before running make sure judgment_pattern_extractor.txt exists!
+    Remove the spider from the text file to run the extraction.
+    
+    Run with: 
+    python -m scrc.preprocessors.extractors.judgment_pattern_extractor 
+    python -m scrc.preprocessors.extractors.judgment_pattern_extractor 1 (for judgment coverage only)
+    
+    The output can be found in data/judgment_patterns
+    
     """
 
     def __init__(self, config: dict):
@@ -193,7 +201,6 @@ class JudgmentExtractor(AbstractExtractor):
                 type = f"{len(element[0])}_gram"
                 if(type not in assigned_dict[key]):
                     assigned_dict[key][type] = []
-                string = ' '.join(element[0]) 
                 assigned_dict[key][type].append((element))
         return assigned_dict
         

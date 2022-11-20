@@ -23,16 +23,15 @@ if TYPE_CHECKING:
 
 class PatternExtractor(AbstractExtractor):
     """
-    Extracts and counts paragraphs/keywords commonly used across a court. The output can be found in ./data/patterns
-    To start the pattern of a court, remove the court from pattern_etraction.txt and run the module. 
+    Extracts the patterns for the section indicators for a given court. Only outputs the coverage if a command line argument it given. 
+    Before running make sure pattern_extraction.txt exists!
+    Remove the spider from the text file to run the extraction.
     
-    If you simply want to check the coverage of a court run the following command:
+    Run with: 
+    python -m scrc.preprocessors.extractors.pattern_extractor 
+    python -m scrc.preprocessors.extractors.pattern_extractor 1 (for section coverage only)
     
-    python -m scrc.preprocessors.extractors.pattern_extractor 1
-
-    If you want to extract the patterns run the following command:
-    
-    python -m scrc.preprocessors.extractors.pattern_extractor
+    The output can be found in data/patterns
     """
 
     def __init__(self, config: dict):
