@@ -90,7 +90,7 @@ SELECT count(*) FROM judgment
 ### The following two queries are integrated within the judgment_pattern_extractor module. Check out the modules readme to execute them automatically
 
 
-Amount of total judgments for a specific court (decisions with 2 or more judgments counted once):
+Amount of total judgment outcomes for a specific court (decisions with 2 or more judgments counted once):
 ```bash
 SELECT count(DISTINCT d.decision_id) FROM decision d 
     LEFT JOIN chamber c ON c.chamber_id = d.chamber_id 
