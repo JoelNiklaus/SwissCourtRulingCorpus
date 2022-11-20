@@ -100,7 +100,7 @@ SELECT count(DISTINCT d.decision_id) FROM decision d
     AND sp.name = 'CH_BGer' 
 ```
 
-Amount of ruling sections found for a specific court:
+Amount of sections of section_type 6 (rulings) found for a specific court (change last line's number to desired section_type):
 ```bash
 SELECT count(*) FROM decision d
     LEFT JOIN section s ON d.decision_id = s.decision_id
