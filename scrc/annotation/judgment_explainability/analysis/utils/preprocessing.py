@@ -1,20 +1,24 @@
 import ast
 import itertools
 import json
+import math
+import warnings
 from pathlib import Path
 from random import randint
 
 import numpy as np
-import pandas as pd
 from netcal.scaling import TemperatureScaling
+
+warnings.filterwarnings("ignore")
+import pandas as pd
 
 """
 This is a collection of helper functions used by the diffrent components of the analysis, 
 experiment_creator and prodigy_dataset_creator.
 """
 
-# Constant variable definitions
 LANGUAGES = ["de", "fr", "it"]
+LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
 PERSONS = ["angela", "lynn", "thomas"]
 SESSIONS = ["angela", "lynn", "thomas", "gold_nina"]
 NAN_KEY = 10000
@@ -103,6 +107,7 @@ def write_csv(filepath: Path, df: pd.DataFrame):
     filepath.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(filepath, index=True, index_label="index")
 
+
 def write_csv_from_list(path: Path, df_list: list):
     """
     Writes csv file from Dataframe list.
@@ -123,19 +128,23 @@ def write_json(filepath: Path, dictionary: dict):
         outfile.write(json_object)
 
 
-def join_to_dict(df: pd.DataFrame, col_1: str, col_2: str, new_col: str) -> pd.DataFrame:
+def annotation_preprocessing(filepaths: list, lang: str, dataset_name: str) -> (pd.DataFrame, pd.DataFrame):
     """
-    Joins two columns of a dataframe to dictionary string (str({row[col_1]: row[col_2]})).
-    Appends strings to list.
-    Returns Dataframe with new column from list.
+    Extract datasets from jsonl, gets acceoted cases.
+    Separates spans and tokens columns and joins them into dictionary.
+    Returns label_df list.
     """
-    dict_list = []
-    for index, row in df.iterrows():
-        token_dict = str({row[col_1]: row[col_2]})
-        dict_list.append(token_dict)
+    datasets = extract_dataset(filepaths[0], filepaths[1])
+    dataset = get_accepted_cases(datasets[dataset_name])
+    dataset.index.name = f"annotations_{lang}"
+    return extract_values_from_column(dataset, "spans", "tokens"), extract_values_from_column(dataset, "tokens", "spans")
 
-    df[new_col] = dict_list
-    return df
+
+def get_accepted_cases(dataset: pd.DataFrame) -> pd.DataFrame:
+    """
+    Returns accepted cases from dataset.
+    """
+    return dataset[dataset["answer"] == "accept"]
 
 
 def extract_values_from_column(df: pd.DataFrame, col_1: str, col_2: str) -> pd.DataFrame:
@@ -145,10 +154,10 @@ def extract_values_from_column(df: pd.DataFrame, col_1: str, col_2: str) -> pd.D
     Drops original column (col_1).
     Joins full dataframe with new column and returns it.
     """
-    annotations_col = df.explode(col_1).reset_index().drop([col_2], axis=1)
-    df_col = annotations_col[col_1].apply(pd.Series).add_prefix(f"{col_1}_")
-    annotations_col = annotations_col.drop([col_1], axis=1)
-    return annotations_col.join(df_col)
+    exploded_cols = df.explode(col_1).reset_index().drop([col_2], axis=1)
+    df_col = exploded_cols[col_1].apply(pd.Series).add_prefix(f"{col_1}_")
+    exploded_cols = exploded_cols.drop([col_1], axis=1)
+    return exploded_cols.join(df_col)
 
 
 def get_span_df(spans_df: pd.DataFrame, tokens_df: pd.DataFrame, span: str,
@@ -177,6 +186,43 @@ def get_span_df(spans_df: pd.DataFrame, tokens_df: pd.DataFrame, span: str,
         new_annotations_tokens = new_annotations_tokens[new_annotations_tokens['_annotator_id'] == key.split(".")[1]]
         spans_list.append(new_annotations_tokens)
     return pd.concat(spans_list), token_numbers
+
+
+def join_to_dict(df: pd.DataFrame, col_1: str, col_2: str, new_col: str) -> pd.DataFrame:
+    """
+    Joins two columns of a dataframe to dictionary string (str({row[col_1]: row[col_2]})).
+    Appends strings to list.
+    Returns Dataframe with new column from list.
+    """
+    dict_list = []
+    for index, row in df.iterrows():
+        token_dict = str({row[col_1]: row[col_2]})
+        dict_list.append(token_dict)
+
+    df[new_col] = dict_list
+    return df
+
+
+def get_label_df(lang: str, spans_df: pd.DataFrame, tokens_df: pd.DataFrame, label: str):
+    label_df = get_span_df(spans_df, tokens_df, label, lang)[0]
+    # Getting the necessary dictionaries
+    ws_df = get_white_space_dicts(label_df, "annotations_{}".format(lang))
+    label_df = join_to_dict(label_df, "tokens_id", "tokens_text", "tokens_dict")
+    label_df = label_df.join(ws_df[[f"annotations_{lang}", 'tokens_ws_dict']].set_index(f"annotations_{lang}"),
+                             on="annotations_{}".format(lang))
+    return label_df
+
+
+def get_white_space_dicts(ws_df: pd.DataFrame, index: str) -> pd.DataFrame:
+    """
+    Creates new column 'id_ws_dict' by joining columns 'tokens_id' and 'tokens_ws'
+    using @join_to_dict.
+    Returns Dataframe containing new column.
+    """
+    ws_df = join_to_dict(ws_df, 'tokens_id', 'tokens_ws', 'id_ws_dict')[[index, 'id_ws_dict']]
+    ws_df.loc[:, 'tokens_ws_dict'] = ws_df.groupby([index])['id_ws_dict'].transform(
+        lambda x: "{{{}}}".format(','.join(x.astype(str)).replace("{", "").replace("}", "")))
+    return ws_df.drop('id_ws_dict', axis=1).drop_duplicates()
 
 
 def group_columns(df: pd.DataFrame, lang: str) -> pd.DataFrame:
@@ -208,18 +254,6 @@ def string_to_dict(df: pd.DataFrame, col_name) -> pd.DataFrame:
     return df
 
 
-def get_white_space_dicts(ws_df: pd.DataFrame, index: str) -> pd.DataFrame:
-    """
-    Creates new column 'id_ws_dict' by joining columns 'tokens_id' and 'tokens_ws'
-    using @join_to_dict.
-    Returns Dataframe containing new column.
-    """
-    ws_df = join_to_dict(ws_df, 'tokens_id', 'tokens_ws', 'id_ws_dict')[[index, 'id_ws_dict']]
-    ws_df['tokens_ws_dict'] = ws_df.groupby([index])['id_ws_dict'].transform(
-        lambda x: "{{{}}}".format(','.join(x.astype(str)).replace("{", "").replace("}", "")))
-    return ws_df.drop('id_ws_dict', axis=1).drop_duplicates()
-
-
 def get_combinations(val_list: list, length_subset: int) -> list:
     """
     Gets combinations of a list of values and returns them.
@@ -233,7 +267,7 @@ def get_combinations(val_list: list, length_subset: int) -> list:
     return combinations
 
 
-def get_annotator_df(annotator_name: str, tokens: pd.DataFrame, lang: str, version: str) -> pd.DataFrame:
+def get_annotator_df(tokens_df: pd.DataFrame, lang: str, annotator: str, version: str) -> pd.DataFrame:
     """
     Copies entries from Dataframe from specific annotator.
     Groups tokens_text, tokens_id, tokens_dict from getone case together.
@@ -242,29 +276,28 @@ def get_annotator_df(annotator_name: str, tokens: pd.DataFrame, lang: str, versi
     Transforms tokens_id string to list.
     Returns Dataframe
     """
-    if version == "1":
-        annotator = tokens[
-            tokens['_annotator_id'] == f"annotations_{lang}-{annotator_name}"].drop_duplicates().copy()
-    if version == "2":
-        annotator = tokens[
-            tokens['_annotator_id'] == f"annotations_{lang}_inspect-{annotator_name}"].drop_duplicates().copy()
+    annotator_df = tokens_df
+    version_ids = {"1": "annotations_{}-{}", "2": "annotations_{}_inspect-{}"}
+    if version in ["1", "2"]:
+        annotator_df = tokens_df[
+            tokens_df['_annotator_id'] == version_ids[version].format(lang, annotator)].drop_duplicates().copy()
     if version == "3":
-        annotator = tokens[
-            tokens['_annotator_id'] == f"annotations_{lang}_inspect-{annotator_name}"].drop_duplicates().copy()
-        annotator = annotator.append(tokens[
-                                         tokens[
-                                             '_annotator_id'] == f"annotations_{lang}-{annotator_name}"].drop_duplicates().copy())
+        annotator_df = tokens_df[
+            tokens_df['_annotator_id'] == version_ids["1"].format(lang, annotator)].drop_duplicates().copy()
+        annotator_df = annotator_df\
+            .append(tokens_df[tokens_df['_annotator_id'] == version_ids["2"].format(lang, annotator)]
+                    .drop_duplicates().copy())
 
-    annotator = group_columns(annotator, lang)
-    annotator = annotator[[f'annotations_{lang}', 'tokens_text', 'tokens_id', 'tokens_dict', 'tokens_ws_dict']]
-    annotator = annotator.drop_duplicates()
-    annotator["tokens_id"] = annotator["tokens_id"].astype(str).str.split(",")
+    annotator_df = group_columns(annotator_df, lang)
+    annotator_df = annotator_df[[f'annotations_{lang}', 'tokens_text', 'tokens_id', 'tokens_dict', 'tokens_ws_dict']]
+    annotator_df = annotator_df.drop_duplicates()
+    annotator_df["tokens_id"] = annotator_df["tokens_id"].astype(str).str.split(",")
     no_duplicates = []
-    for lst in annotator["tokens_id"].values:
+    for lst in annotator_df["tokens_id"].values:
         lst = list(dict.fromkeys(lst))
         no_duplicates.append(lst)
-    annotator["tokens_id"] = no_duplicates
-    return annotator
+    annotator_df["tokens_id"] = no_duplicates
+    return annotator_df
 
 
 def merge_triple(df_list: list, person_suffixes: list, lang: str):
@@ -342,7 +375,7 @@ def normalize_list_length(list_of_list: list, token_dict: dict) -> (list, list):
     max_length = max(len(x) for x in list_of_list)
     for lst in list_of_list:
         index = list(list_of_list).index(lst)
-        if NAN_KEY not in lst:
+        if NAN_KEY in lst:
             while len(lst) < max_length:
                 lst.append(token_dict["Nan"])
             list_of_list[index] = lst
@@ -368,3 +401,132 @@ def temp_scaling(df: pd.DataFrame) -> pd.DataFrame:
     temperature.fit(confidences, ground_truth)
     df["confidence_scaled"] = temperature.transform(confidences)
     return df
+
+
+def occlusion_preprocessing(lang: str, df: pd.DataFrame, filename: str):
+    """
+    @Todo Comment & clean up
+    """
+    df = df.set_index("index")
+    df = calculate_explainability_score(df)
+    df = find_flipped_cases(df)
+    df_0, df_1 = df[df["prediction"] == 0].sort_values(by=['explainability_score'],
+                                                       ascending=True), \
+                 df[df["prediction"] == 1].sort_values(by=['explainability_score'],
+
+                                                       ascending=False)
+    df_0, df_1 = get_confidence_direction(df_0, 0), get_confidence_direction(
+        df_1, 1)
+    df_0, df_1 = get_norm_explainability_score(df_0, 0), get_norm_explainability_score(df_1, 1)
+    write_csv(Path(f"{lang}/occlusion/{filename}_0.csv"), df_0)
+    write_csv(Path(f"{lang}/occlusion/{filename}_1.csv"), df_1)
+    return df_0, df_1
+
+
+def get_correct_direction(df: pd.DataFrame):
+    """
+    Adds numeric_label column with values (-1: Supports judgement, 0: Neutral, 1: Opposes judgement).
+    Adds correct_direction boolean column (True if numeric_label == confidence direction).
+    Splits df into direction sets (0: False, 1: True).
+    Returns Dataframe, direction set 0, grouped set 1 and grouped set 0.
+    """
+    df["numeric_label"] = np.where(df["explainability_label"] == LABELS[1], -1, df["explainability_label"])
+    df["numeric_label"] = np.where(df["explainability_label"] == LABELS[2], 1, df["numeric_label"])
+    df["numeric_label"] = np.where(df["explainability_label"] == "Neutral", 0, df["numeric_label"])
+    df["correct_direction"] = np.where(df["numeric_label"] == df["confidence_direction"], True, False)
+    s_0, s_1 = df[df["correct_direction"] == False], df[df["correct_direction"] == True]
+    s_1 = s_1.groupby("explainability_label")["correct_direction"].count()
+    return df, s_0, s_1, s_0.groupby("explainability_label")["correct_direction"].count()
+
+
+def get_confidence_direction(df: pd.DataFrame, prediction: int):
+    """
+    Returns Dataframe with column confidence_direction (-1, 0, 1).
+    """
+    df["confidence_direction"] = df["explainability_score"].apply(
+        lambda row: normalize_exp_score_direction(row, prediction)[0])
+    return df
+
+
+def get_norm_explainability_score(df: pd.DataFrame, prediction: int):
+    """
+    Returns Dataframe with column norm_explainability_score.
+    """
+    df["norm_explainability_score"] = df["explainability_score"].apply(
+        lambda row: normalize_exp_score_direction(row, prediction)[1])
+    return df
+
+
+def normalize_exp_score_direction(explainability_score: float, prediction: int) -> (int, float):
+    """
+    Calculates direction of confidence depending on prediction and explainability score (e.g. for prediction 0
+    explainability_score <0 means less confidence).
+    Normalizes explainability_score (flips sign of explainability_score for prediction 1)
+    Returns confidence direction and normalized explainability_score.
+    Meaning of return values:
+    1: More confident than baseline
+    0: equally as confident as baseline
+    -1: less confident than baseline
+    """
+    if explainability_score == 0 or math.isnan(explainability_score):
+        return 0, explainability_score
+    if prediction == 0:
+        if explainability_score < 0:
+            return -1, explainability_score
+        if explainability_score > 0:
+            return 1, explainability_score
+    else:
+        if explainability_score < 0:
+            return 1, abs(explainability_score)
+        if explainability_score > 0:
+            return -1, (-1) * explainability_score
+
+
+def calculate_explainability_score(df: pd.DataFrame):
+    """
+    Separates baseline entries and non baseline entries.
+    Calculates difference between the baseline confidence of a case and the confidence of the occlusion.
+    Adds explainability_score as column to Dataframe, appends baseline back to it and returns it.
+    """
+    score_list = []
+    baseline = df[df["explainability_label"] == "Baseline"]
+    occlusion = df[df["explainability_label"] != "Baseline"]
+    for index, row in occlusion.iterrows():
+        baseline_value = baseline[baseline["id"] == row["id"]]["confidence"].max()
+        score_list.append(float(baseline_value) - float(row["confidence"]))  # diffrence between baseline and occlusion
+    occlusion.loc[:, "explainability_score"] = score_list
+    occlusion = occlusion.append(baseline)
+    return occlusion
+
+
+def find_flipped_cases(df: pd.DataFrame):
+    """
+    Separates baseline entries and non baseline entries.
+    Adds boolean column has_flipped (True when baseline prediction equals occlusion prediction).
+    Appends baseline back to Dataframe and returns it.
+    """
+    score_list = []
+    baseline = df[df["explainability_label"] == "Baseline"]
+    occlusion = df[df["explainability_label"] != "Baseline"]
+    for index, row in occlusion.iterrows():
+        baseline_value = baseline[baseline["id"] == row["id"]]["prediction"].max()
+        if row["prediction"] == baseline_value:
+            score_list.append(False)
+        else:
+            score_list.append(True)
+    occlusion.loc[:, "has_flipped"] = score_list
+    occlusion = occlusion.append(baseline)
+    return occlusion
+
+
+def normalize_string(string: str) -> str:
+    """
+    Returns string w/o trailing whitespace.
+    """
+    if string[-1] == ' ':
+        if string[-2] == ' ':
+            return string[:-2]
+        else:
+            return string[:-1]
+    if string[-1] != ' ':
+        return string

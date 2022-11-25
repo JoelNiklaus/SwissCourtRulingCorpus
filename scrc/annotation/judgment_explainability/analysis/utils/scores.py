@@ -1,26 +1,19 @@
-"""
-Sources for the implementations
-- Overlap Maximum and Overlap Minimum https://www.geeksforgeeks.org/maximum-number-of-overlapping-intervals/
-- [x]
-- By looking at the annotated sentences themselves and at the reasoning in the free-text annotation for some of the more complex cases4 a qualitative analysis of
-the annotation is also possible.
-"""
-
 import copy
-import math
+from decimal import Decimal
 from pathlib import Path
-
 import nltk
-import numpy as np
 import pandas as pd
 from nltk.tokenize import word_tokenize
 from nltk.translate.bleu_score import sentence_bleu
+import rouge_score.rouge_scorer as rs
+from bert_score import score as bert_score
+from scipy import stats
+
+import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 
 nltk.download('punkt')
 nltk.download('wordnet')
-import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
-import rouge_score.rouge_scorer as rs
-from bert_score import score as bert_score
+
 
 LANGUAGES = ["de", "fr", "it"]
 PERSONS = ["angela", "lynn", "thomas"]
@@ -52,7 +45,7 @@ def calculate_IAA_annotations(df: pd.DataFrame, lang: str) -> pd.DataFrame:
         df = preprocessing.string_to_dict(df, f'tokens_ws_dict_{pers}')
         df = preprocessing.string_to_dict(df, f'tokens_dict_{pers}')
 
-    print("Calculating scores...")
+    # Calculate IAA scores
     r, be, m, b = calculate_text_scores_annotations(df, lang)
     score_df_list = [calculate_overlap_min_max_annotation(df, lang),
                      calculate_jaccard_similarity_distance_annotation(df, lang), r, be, m, b]
@@ -71,7 +64,6 @@ def calculate_IAA_annotations(df: pd.DataFrame, lang: str) -> pd.DataFrame:
 def calculate_IAA_occlusion(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     """
     @Todo Finish functionalities
-    Attention id is not a good identifiere since it is the same for a lot of cases!
     """
     print("Calculating scores...")
     df = df.reset_index()
@@ -373,86 +365,6 @@ def apply_aggregation(df: pd.DataFrame, column_name, aggregation: str):
     return df
 
 
-def calculate_explainability_score(df: pd.DataFrame):
-    """
-    Separates baseline entries and non baseline entries.
-    Calculates difference between the baseline confidence of a case and the confidence of the occlusion.
-    Adds explainability_score as column to Dataframe, appends baseline back to it and returns it.
-    """
-    score_list = []
-    baseline = df[df["explainability_label"] == "Baseline"]
-    occlusion = df[df["explainability_label"] != "Baseline"]
-    for index, row in occlusion.iterrows():
-        baseline_value = baseline[baseline["id"] == row["id"]]["confidence"].max()
-        score_list.append(float(baseline_value) - float(row["confidence"]))  # diffrence between baseline and occlusion
-    occlusion["explainability_score"] = score_list
-    occlusion = occlusion.append(baseline)
-    return occlusion
-
-
-def find_flipped_cases(df: pd.DataFrame):
-    """
-    Separates baseline entries and non baseline entries.
-    Adds boolean column has_flipped (True when baseline prediction equals occlusion prediction).
-    Appends baseline back to Dataframe and returns it.
-    """
-    score_list = []
-    baseline = df[df["explainability_label"] == "Baseline"]
-    occlusion = df[df["explainability_label"] != "Baseline"]
-    for index, row in occlusion.iterrows():
-        baseline_value = baseline[baseline["id"] == row["id"]]["prediction"].max()
-        if row["prediction"] == baseline_value:
-            score_list.append(False)
-        else:
-            score_list.append(True)
-    occlusion["has_flipped"] = score_list
-    occlusion = occlusion.append(baseline)
-    return occlusion
-
-
-def get_confidence_direction(df: pd.DataFrame, prediction: int):
-    """
-    Returns Dataframe with column confidence_direction (-1, 0, 1).
-    """
-    df["confidence_direction"] = df["explainability_score"].apply(
-        lambda row: normalize_exp_score_direction(row, prediction)[0])
-    return df
-
-
-def get_norm_explainability_score(df: pd.DataFrame, prediction: int):
-    """
-    Returns Dataframe with column norm_explainability_score.
-    """
-    df["norm_explainability_score"] = df["explainability_score"].apply(
-        lambda row: normalize_exp_score_direction(row, prediction)[1])
-    return df
-
-
-def normalize_exp_score_direction(explainability_score: float, prediction: int) -> (int, float):
-    """
-    Calculates direction of confidence depending on prediction and explainability score (e.g. for prediction 0
-    explainability_score <0 means less confidence).
-    Normalizes explainability_score (flips sign of explainability_score for prediction 1)
-    Returns confidence direction and normalized explainability_score.
-    Meaning of return values:
-    1: More confident than baseline
-    0: equally as confident as baseline
-    -1: less confident than baseline
-    """
-    if explainability_score == 0 or math.isnan(explainability_score):
-        return 0, explainability_score
-    if prediction == 0:
-        if explainability_score < 0:
-            return -1, explainability_score
-        if explainability_score > 0:
-            return 1, explainability_score
-    else:
-        if explainability_score < 0:
-            return 1, abs(explainability_score)
-        if explainability_score > 0:
-            return -1, (-1) * explainability_score
-
-
 def lower_court_agg(df: pd.DataFrame) -> (pd.Series, pd.Series, pd.Series, pd.Series):
     """
     @todo Comment, add correct return value or json dump, add Mean of both sum_pos/sum_neg (total mean)
@@ -473,10 +385,10 @@ def lower_court_agg(df: pd.DataFrame) -> (pd.Series, pd.Series, pd.Series, pd.Se
     sum_neg["confidence_direction"] = sum_neg["confidence_direction"].div(sum_neg["count"].values)
     lower_court_distribution["count"] = lower_court_distribution["count"].div(lower_court_distribution["count"].sum())
 
-    return lower_court_distribution, sum_pos, sum_neg,
+    return lower_court_distribution, sum_pos, sum_neg
 
 
-def sort_normal_distribution(s: pd.Series)-> pd.DataFrame:
+def sort_normal_distribution(s: pd.Series) -> pd.DataFrame:
     """
     Sorts according to normal distribution (minimums at beginning and ends).
     Returns sorted Dataframe.
@@ -496,37 +408,15 @@ def sort_normal_distribution(s: pd.Series)-> pd.DataFrame:
     return pd.DataFrame(result_list[0], index=result_list[1])
 
 
-def get_correct_direction(df: pd.DataFrame):
-    """
-    Adds numeric_label column with values (-1: Supports judgement, 0: Neutral, 1: Opposes judgement).
-    Adds correct_direction boolean column (True if numeric_label == confidence direction).
-    Splits df into direction sets (0: False, 1: True).
-    Returns Dataframe, direction set 0, grouped set 1 and grouped set 0.
-    """
-    df["numeric_label"] = np.where(df["explainability_label"] == LABELS[1], -1, df["explainability_label"])
-    df["numeric_label"] = np.where(df["explainability_label"] == LABELS[2], 1, df["numeric_label"])
-    df["numeric_label"] = np.where(df["explainability_label"] == "Neutral", 0, df["numeric_label"])
-    df["correct_direction"] = np.where(df["numeric_label"] == df["confidence_direction"], True, False)
-    s_0, s_1 = df[df["correct_direction"] == False], df[df["correct_direction"] == True]
-    s_1 = s_1.groupby("explainability_label")["correct_direction"].count()
-    return df, s_0, s_1, s_0.groupby("explainability_label")["correct_direction"].count()
-
-
-def occlusion_preprocessing(lang: str, df: pd.DataFrame, filename: str):
-    """
-    @Todo Comment & clean up
-    """
-    df = df.set_index("index")
-    df = calculate_explainability_score(df)
-    df = find_flipped_cases(df)
-    df_0, df_1 = df[df["prediction"] == 0].sort_values(by=['explainability_score'],
-                                                       ascending=True), \
-                 df[df["prediction"] == 1].sort_values(by=['explainability_score'],
-
-                                                       ascending=False)
-    df_0, df_1 = get_confidence_direction(df_0, 0), get_confidence_direction(
-        df_1, 1)
-    df_0, df_1 = get_norm_explainability_score(df_0, 0), get_norm_explainability_score(df_1, 1)
-    preprocessing.write_csv(Path(f"{lang}/occlusion/{filename}_0.csv"), df_0)
-    preprocessing.write_csv(Path(f"{lang}/occlusion/{filename}_1.csv"), df_1)
-    return df_0, df_1
+def ttest(sample_df: pd.DataFrame, mu_df, col):
+    tc_list = []
+    pvalue_list = []
+    for lower_court in sample_df.values:
+        mu = mu_df[mu_df["lower_court"] == lower_court[0]][col].values[0]
+        result = stats.ttest_1samp(lower_court[1], popmean=mu)
+        tc_list.append(result.statistic)
+        pvalue_list.append(result.pvalue)
+    sample_df["tc"] = tc_list
+    sample_df["pvalue"] = pvalue_list
+    sample_df["pvalue"] = sample_df["pvalue"].apply(Decimal)
+    return sample_df

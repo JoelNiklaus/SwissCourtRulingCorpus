@@ -14,6 +14,14 @@ from psycopg2 import sql
 
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 
+"""
+This file provides the functions and argument handling for the prodigy datsset creation.
+Needs the sjp datasets (original predictions) and original the test and validations sets.
+Uses preprocessing.py.
+Note that you may need to adapt the filepath for your need or extend this workflow according to your desired needs.
+The output may change when the scrc database changes.
+Please provide a .env file with the correct DB configuration.
+"""
 
 FILEPATH_ANNOTATION = "../judgment_explainability/legal_expert_annotations/{}/annotations_{}.jsonl"
 FILEPATH_DATASET_JE = "../judgment_explainability/annotation_datasets/annotation_input_set_{}.jsonl"
@@ -28,13 +36,11 @@ PREDICTION_EVAL = preprocessing.read_csv(PATH_PREDICTIONS + "2/predictions_eval.
 CONFIG = f'dbname=scrc user={os.getenv("DB_USER")} password={os.getenv("DB_PASSWORD")} host=localhost port=5432'
 
 LEGAL_AREAS = ["penal_law", "social_law", "civil_law"]
-
+LANGUAGES = ["de", "fr", "it"]
 # Patterns to add formatting to the facts
 PATTERNS = {"de": "[u|U]rteil \w+ \d+?.? \w+ \d{4}",
             "fr": "([a|A]rrêt \w+ \d+?.? \w+ \d{4})|([a|A]rrêt \w+ \d+?er \w+ \d{4})",
             "it": "([s|S]entenza \w+ \d+?.? \w+ \d{4})|([s|S]entenza \w+'\d+?.? \w+ \d{4})"}
-
-LANGUAGES =  ast.literal_eval(os.getenv("LANGUAGES"))
 
 IDS_SCRC = []
 
@@ -274,6 +280,9 @@ def db_stream(lang: str, mode: str, ids_scrc) -> list:
 
 
 if __name__ == '__main__':
+    """
+    Argument handling for prodigy dataset creator.
+    """
     usage = "Arguments:\n - language: the language you want to extract the dataset from, e.g. de. " \
             "\n - mode je for judment explainability, jp for judgment prediction" \
             "Type -all to create dataset for all the possible languages. \n " \

@@ -10,6 +10,7 @@ judgment_explainability/analysis/*.xlsx
 judgment_explainability/analysis/de/
 judgment_explainability/analysis/fr/
 judgment_explainability/analysis/it/
+judgment_explainability/analysis/plots/
 judgment_explainability/occlusion/lower_court_test_sets/
 judgment_explainability/occlusion/lower_court_predictions/
 judgment_explainability/occlusion/occlusion_test_sets/

@@ -1,6 +1,7 @@
 #!/bin/sh
+# Sets up docker container for prodigy using Dockerfile
+# Please adapt container name to fir your setup
 
-WARN="\033[1;31m"
 SUCCESS="\033[1;32m"
 NC="\033[0m"
 
@@ -17,8 +18,8 @@ docker rm prodigy_nina
 docker image rm prodigy_nina:latest
 echo "Building image"
 docker build \
-  --build-arg user=${PRODIGY_BASIC_AUTH_USER} \
-  --build-arg password=${PRODIGY_BASIC_AUTH_PASS} \
+  --build-arg user="${PRODIGY_BASIC_AUTH_USER}" \
+  --build-arg password="${PRODIGY_BASIC_AUTH_PASS}" \
   -t prodigy_nina .
 
 echo "Setup started..."
@@ -33,4 +34,4 @@ docker run -d \
   --mount type=bind,source="$(pwd)",target=/app \
   prodigy_nina:latest
 
-printf "${SUCCESS}Setup finished, use 'bash run.sh' to start the server.${NC}\n\n\n"
+printf "${SUCCESS} Setup finished, use 'bash run.sh' to start the server.${NC} %s\n\n\n"

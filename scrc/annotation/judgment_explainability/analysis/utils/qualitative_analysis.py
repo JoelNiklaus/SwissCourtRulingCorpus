@@ -27,7 +27,6 @@ OCCLUSION_PATHS = {"test_sets": ("../occlusion/lower_court_test_sets/{}/lower_co
 NUMBER_OF_EXP = [1, 2, 3, 4]
 
 
-
 def dump_user_input(datasets: dict, lang: str, version: str, ):
     """
     Dumps all the user inputs and not accepted cases as csv.

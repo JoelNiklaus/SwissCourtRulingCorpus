@@ -11,32 +11,34 @@ from pathlib import Path
 import pandas as pd
 
 # Constant variable definitions
-GOLD_SESSIONS = {"de": "gold_nina", "fr": "gold_nina", "it": "gold_nina"}
+GOLD_SESSION = "gold_nina"
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment", "Neutral"]
 CSV_PATH = "../../prodigy_dataset_creation/dataset_scrc/{}/test.csv"
 OCCLUSION_COLUMNS = ['id_csv', 'year', 'label', 'language', 'origin_region',
                      'origin_canton', 'legal_area', 'explainability_label', 'occluded_text', 'facts']
-NUMBER_OF_EXP = [2,3,4]
+NUMBER_OF_EXP = [2, 3, 4]
 
 NAN_KEY = 10000
 ORIGINAL_TEST_SET = pd.DataFrame
 
-LANGUAGES=["de","fr","it"]
-PERSONS=["angela", "lynn", "thomas"]
+LANGUAGES = ["de", "fr", "it"]
+PERSONS = ["angela", "lynn", "thomas"]
 
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 
+
 def process_dataset(datasets: dict, lang: str):
-    annotations = datasets[f'annotations_{lang}-{GOLD_SESSIONS[lang]}'][
-        datasets[f'annotations_{lang}-{GOLD_SESSIONS[lang]}']["answer"] == "accept"]
+    annotations = datasets[f'annotations_{lang}-{GOLD_SESSION}'][
+        datasets[f'annotations_{lang}-{GOLD_SESSION}']["answer"] == "accept"]
     annotations.index.name = f"annotations_{lang}"
     annotations_spans = preprocessing.extract_values_from_column(annotations, "spans", "tokens")
     annotations_tokens = preprocessing.extract_values_from_column(annotations, "tokens", "spans")
 
     ws_df = annotations.copy().explode("tokens").reset_index()
     ws_df = preprocessing.string_to_dict(
-        preprocessing.get_white_space_dicts(ws_df.join(ws_df["tokens"].apply(pd.Series).add_prefix("{}_".format("tokens"))),
-                              "id_scrc"), 'tokens_ws_dict')
+        preprocessing.get_white_space_dicts(
+            ws_df.join(ws_df["tokens"].apply(pd.Series).add_prefix("{}_".format("tokens"))),
+            "id_scrc"), 'tokens_ws_dict')
 
     for label in LABELS:
         label_df, spans_list = preprocessing.get_span_df(annotations_spans, annotations_tokens, label, lang)
@@ -70,8 +72,9 @@ def process_span_token_df(label_df: pd.DataFrame, separated_spans, lang) -> pd.D
     @Todo
     """
     columns = [f'annotations_{lang}', 'id_scrc', 'id_csv', 'text', 'tokens_text', 'tokens_id', 'tokens_dict']
-    spans_tokens_df = preprocessing.group_columns(preprocessing.join_to_dict(label_df, "tokens_id", "tokens_text", "tokens_dict"),
-                                                  lang)[columns].drop_duplicates()
+    spans_tokens_df = \
+        preprocessing.group_columns(preprocessing.join_to_dict(label_df, "tokens_id", "tokens_text", "tokens_dict"),
+                                    lang)[columns].drop_duplicates()
     spans_tokens_df = splits_string_list(spans_tokens_df)
     spans_tokens_df = separated_spans.join(spans_tokens_df.set_index(f'annotations_{lang}'),
                                            on=f'annotations_{lang}')
@@ -164,6 +167,7 @@ def occlude_text_1(df: pd.DataFrame, label: str) -> pd.DataFrame:
     df["occluded_text"] = occlusion_list
     return df.drop(["text"], axis=1)
 
+
 def occlude_text_n(df: pd.DataFrame, label: str) -> pd.DataFrame:
     """
     Occlusion for dim n @todo
@@ -182,6 +186,7 @@ def occlude_text_n(df: pd.DataFrame, label: str) -> pd.DataFrame:
     df["occluded_text"] = occlusion_list
     df["explainability_label"] = label
     return df
+
 
 def get_facts(df: pd.DataFrame, lang) -> pd.DataFrame:
     """
@@ -204,10 +209,12 @@ def appends_df(filename: str, lang: str):
     df = pd.DataFrame()
     for label in LABELS[1:]:
         df = df.append(globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
-    preprocessing.write_csv(Path(filename), df.rename(columns={"facts": "text",  "id_csv": "id"}).drop_duplicates().reset_index().drop("index", axis=1))
+    preprocessing.write_csv(Path(filename),
+                            df.rename(columns={"facts": "text", "id_csv": "id"}).drop_duplicates().reset_index().drop(
+                                "index", axis=1))
 
 
-def permutation(filename: str,lang: str, permutations_number: int):
+def permutation(filename: str, lang: str, permutations_number: int):
     """
 
     """
@@ -215,12 +222,14 @@ def permutation(filename: str,lang: str, permutations_number: int):
     for label in LABELS[1:]:
         df_exp = pd.DataFrame.from_records(globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
         df_baseline = df_exp[df_exp["explainability_label"] == "Baseline"]
-        df_exp = get_occlusion_string_dict(df_exp[df_exp["explainability_label"] == label][['id_csv', 'occluded_text']].values, permutations_number)
+        df_exp = get_occlusion_string_dict(
+            df_exp[df_exp["explainability_label"] == label][['id_csv', 'occluded_text']].values, permutations_number)
 
         df_exp = df_baseline.merge(df_exp, on="id_csv", how="inner")
         df_exp = df_exp.explode("combinations")
         df = df.append(occlude_text_n(df_exp, label))
-    preprocessing.write_csv(Path(filename), df.reset_index().drop("index", axis=1).rename(columns={"facts": "text","id_csv": "id"}))
+    preprocessing.write_csv(Path(filename),
+                            df.reset_index().drop("index", axis=1).rename(columns={"facts": "text", "id_csv": "id"}))
 
 
 def get_occlusion_string_dict(value_pairs: list, permutations_number: int) -> pd.DataFrame:
@@ -244,21 +253,31 @@ def get_occlusion_string_dict(value_pairs: list, permutations_number: int) -> pd
     return df
 
 
-
-
 def insert_lower_courts(filename: str, lang: str):
+    """
+    Gets Dataframe with explainability_label == Lower_court.
+    Creates List of lower courts.
+    Normalizes list (removes whitespaces and duplicates).
+    Creates new column "lower court" were each case gets assigned each lower court.
+    Normalizes original court, get original court, inserts different lower courts in fact section.
+    Separates original court entries and joins w/ baseline entries.
+    Joins lower_court_df and baseline_df.
+    Saves csv.
+    """
     lower_court_df = pd.DataFrame.from_records(globals()[f"{LABELS[0].lower().replace(' ', '_')}_{lang}"])
     lower_court_list = list(lower_court_df[lower_court_df["explainability_label"] == LABELS[0]]["occluded_text"])
     normalized_lower_court_list = list(set(normalize_white_spaces(lower_court_list)))
     lower_court_df["lower_court"] = [normalized_lower_court_list] * len(lower_court_df)
     lower_court_df = lower_court_df.explode("lower_court")
+    lower_court_df["occluded_text"] = lower_court_df.apply(
+        lambda row: preprocessing.normalize_string(row["occluded_text"]), axis=1)
     lower_court_df["lower_court"] = lower_court_df.apply(
         lambda row: get_original_court(row["lower_court"], row["occluded_text"]), axis=1)
     lower_court_df["facts"] = lower_court_df.apply(
         lambda row: row["facts"].replace("[*]", row["lower_court"] + " "), axis=1)
 
     original_court_df = lower_court_df[lower_court_df["lower_court"] == "original court"]
-    original_court_df["lower_court"] = original_court_df["occluded_text"]
+    original_court_df.loc[:, "lower_court"] = original_court_df["occluded_text"]
     original_court_df = original_court_df[["id_csv", "lower_court"]]
 
     baseline_df = lower_court_df[lower_court_df["explainability_label"] != LABELS[0]].drop("lower_court",
@@ -268,10 +287,17 @@ def insert_lower_courts(filename: str, lang: str):
     lower_court_df["occluded_text"] = lower_court_df["lower_court"]
     lower_court_df = lower_court_df[lower_court_df["explainability_label"] == LABELS[0]]
     lower_court_df = lower_court_df[lower_court_df["lower_court"] != "original court"].drop("occluded_text", axis=1)
-    preprocessing.write_csv(Path(filename), lower_court_df.append(baseline_df).drop_duplicates().reset_index().drop("index", axis=1).rename(columns={"facts": "text","id_csv": "id"}))
+    preprocessing.write_csv(Path(filename),
+                            lower_court_df.append(baseline_df).drop_duplicates().reset_index().drop("index",
+                                                                                                    axis=1).rename(
+                                columns={"facts": "text", "id_csv": "id"}))
 
 
 def normalize_white_spaces(string_list: list) -> list:
+    """
+    Checks if there are trailing whitespaces at the end of a lower court and removes them.
+    Returns normalized list.
+    """
     normalized_list = []
     for string in string_list:
         if string[-1] == ' ':
@@ -281,11 +307,15 @@ def normalize_white_spaces(string_list: list) -> list:
                 normalized_list.append(string[:-1])
         if string[-1] != ' ':
             normalized_list.append(string)
-    return normalized_list
+    return list(dict.fromkeys(normalized_list))
 
 
 def get_original_court(lower_court, original_court):
-    if lower_court in original_court:
+    """
+    Returns the "original_court", if the lower_court is in the occluded text".
+    Returns lower_court if not.
+    """
+    if lower_court == original_court:
         return "original court"
     else:
         return lower_court
@@ -293,15 +323,16 @@ def get_original_court(lower_court, original_court):
 
 if __name__ == '__main__':
     extracted_datasets = preprocessing.extract_dataset("../legal_expert_annotations/{}/gold/gold_annotations_{}.jsonl",
-                                         "../legal_expert_annotations/{}/gold/gold_annotations_{}-{}.jsonl")
+                                                       "../legal_expert_annotations/{}/gold/gold_annotations_{}-{}.jsonl")
     for l in LANGUAGES:
-        ORIGINAL_TEST_SET = preprocessing.read_csv(CSV_PATH.format(l), "id")[['text', 'label', 'origin_canton', 'origin_region']]
+        ORIGINAL_TEST_SET = preprocessing.read_csv(CSV_PATH.format(l), "id")[
+            ['text', 'label', 'origin_canton', 'origin_region']]
         ORIGINAL_TEST_SET.index.name = "id_csv"
         try:
             process_dataset(extracted_datasets, l)
             appends_df(f"occlusion_test_sets/{l}/occlusion_test_set_{l}_exp_1.csv", l)
             for nr in NUMBER_OF_EXP:
-                permutation(f"occlusion_test_sets/{l}/occlusion_test_set_{l}_exp_{nr}.csv",l, nr)
+                permutation(f"occlusion_test_sets/{l}/occlusion_test_set_{l}_exp_{nr}.csv", l, nr)
             insert_lower_courts(f"lower_court_test_sets/{l}/lower_court_test_set_{l}.csv", l)
         except KeyError as err:
             print(err)
