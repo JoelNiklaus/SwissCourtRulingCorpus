@@ -184,7 +184,6 @@ class ReportCreator:
         """
 
         for attribute in metadata:
-            self.plot_attribute(df[df['bge_label'] == 'critical'], attribute, name='all')
             for label in labels:
                 match = df[label] == 'non-critical'
                 self.plot_attribute(df[~match], attribute, name=str(label))
@@ -192,7 +191,13 @@ class ReportCreator:
         for feature_col in feature_cols:
             tokens_dict: Dict[str, str] = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',
                     f'{feature_col}_num_tokens_spacy': 'num_tokens_spacy'}
-            self.plot_input_length(df.rename(columns=tokens_dict), feature_col)
+            try:
+                self.plot_input_length(df.rename(columns=tokens_dict), feature_col)
+            except np.linalg.LinAlgError as err:
+                if 'singular matrix' in str(err):
+                    print("Singular matrix error in plot_input_length")
+                else:
+                    raise err
 
     def report_citations_count(self, df, name):
         """
