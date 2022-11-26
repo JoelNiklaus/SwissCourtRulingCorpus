@@ -365,49 +365,6 @@ def apply_aggregation(df: pd.DataFrame, column_name, aggregation: str):
     return df
 
 
-def lower_court_agg(df: pd.DataFrame) -> (pd.Series, pd.Series, pd.Series, pd.Series):
-    """
-    @todo Comment, add correct return value or json dump, add Mean of both sum_pos/sum_neg (total mean)
-    """
-    lower_court_distribution = sort_normal_distribution(df.groupby("lower_court")["id"].count().reset_index()) \
-        .reset_index().rename(columns={"index": "lower_court", 0: "count"})
-    sum_pos = df[df["confidence_direction"] > 0].groupby("lower_court")[
-        ["confidence_direction", "norm_explainability_score"]] \
-        .agg({"confidence_direction": "sum", "norm_explainability_score": "mean"}) \
-        .reset_index().rename(columns={"norm_explainability_score": "mean_norm_explainability_score"})
-    sum_pos = lower_court_distribution.merge(sum_pos, on="lower_court", how="inner")
-    sum_pos["confidence_direction"] = sum_pos["confidence_direction"].div(sum_pos["count"].values)
-    sum_neg = df[df["confidence_direction"] < 0].groupby("lower_court")[
-        ["confidence_direction", "norm_explainability_score"]] \
-        .agg({"confidence_direction": "sum", "norm_explainability_score": "mean"}) \
-        .reset_index().rename(columns={"norm_explainability_score": "mean_norm_explainability_score"})
-    sum_neg = lower_court_distribution.merge(sum_neg, on="lower_court", how="inner")
-    sum_neg["confidence_direction"] = sum_neg["confidence_direction"].div(sum_neg["count"].values)
-    lower_court_distribution["count"] = lower_court_distribution["count"].div(lower_court_distribution["count"].sum())
-
-    return lower_court_distribution, sum_pos, sum_neg
-
-
-def sort_normal_distribution(s: pd.Series) -> pd.DataFrame:
-    """
-    Sorts according to normal distribution (minimums at beginning and ends).
-    Returns sorted Dataframe.
-    """
-    s_list = s.values.tolist()
-    s_dict = {item[0]: item[1:][0] for item in s_list}
-    result_list = [len(s_dict) * [None], len(s_dict) * [None]]
-    i = 0
-    while len(s_dict) > 0:
-        result_list[0][-(1 + i)] = min(s_dict.values())
-        result_list[1][-(1 + i)] = min(s_dict, key=s_dict.get)
-        del s_dict[min(s_dict, key=s_dict.get)]
-        result_list[0][i] = min(s_dict.values())
-        result_list[1][i] = min(s_dict, key=s_dict.get)
-        del s_dict[min(s_dict, key=s_dict.get)]
-        i += 1
-    return pd.DataFrame(result_list[0], index=result_list[1])
-
-
 def ttest(sample_df: pd.DataFrame, mu_df, col):
     tc_list = []
     pvalue_list = []

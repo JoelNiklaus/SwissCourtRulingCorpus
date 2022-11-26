@@ -11,18 +11,25 @@ OCCLUSION_PATHS = {"test_sets": ("../occlusion/lower_court_test_sets/{}/lower_co
                                  "../occlusion/occlusion_test_sets/{}/occlusion_test_set_{}_exp_{}.csv"),
                    "prediction": ("../occlusion/lower_court_predictions/{}/predictions_test.csv",
                                   "../occlusion/occlusion_predictions/{}_{}/predictions_test.csv")}
+
 NUMBER_OF_EXP = [1, 2, 3, 4]
 
 if __name__ == '__main__':
+    """
+    Argument handling, dataset extraction.
+    """
     assert len(sys.argv) == 2
     language = sys.argv[1]
-    lower_court = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][0].format(language),
-                                                            OCCLUSION_PATHS["test_sets"][0].format(language, language)
-                                                            )
-    preprocessing.occlusion_preprocessing(language, lower_court, f"bias_lower_court_{language}")
+    # Lower court analysis
+    lower_court_df = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][0].format(language),
+                                                               OCCLUSION_PATHS["test_sets"][0].format(language, language)
+                                                               )
+    preprocessing.occlusion_preprocessing(language, lower_court_df, f"bias_lower_court_{language}")
     qt.lower_court_analysis()
-    baseline = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][1].format(language, 1),
-                                                         OCCLUSION_PATHS["test_sets"][1].format(language, language,
+
+    # Occlusion analysis
+    baseline_df = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][1].format(language, 1),
+                                                            OCCLUSION_PATHS["test_sets"][1].format(language, language,
                                                                                                 1))
     for nr in NUMBER_OF_EXP:
         occlusion = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][1].format(language, nr),
@@ -30,7 +37,7 @@ if __name__ == '__main__':
                                                                                                      nr)
                                                               )
         if nr in NUMBER_OF_EXP[1:]:
-            occlusion = occlusion.append(baseline)
+            occlusion = occlusion.append(baseline_df)
         preprocessing.occlusion_preprocessing(language, occlusion, f"occlusion_{nr}_{language}")
 
     qt.occlusion_analysis()

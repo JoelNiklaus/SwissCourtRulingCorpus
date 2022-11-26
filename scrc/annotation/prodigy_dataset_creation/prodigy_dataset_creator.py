@@ -44,6 +44,7 @@ PATTERNS = {"de": "[u|U]rteil \w+ \d+?.? \w+ \d{4}",
 
 IDS_SCRC = []
 
+
 def set_id_scrc(df: pd.DataFrame) -> numpy.ndarray:
     """
     Returns a list of all used ids

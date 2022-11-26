@@ -84,14 +84,14 @@ if __name__ == '__main__':
     """
     assert len(sys.argv) == 2
     qt.annotation_analysis()
-    l = sys.argv[1]
+    language = sys.argv[1]
     for ver in range(1, 5):
         df_1, df_2 = preprocessing.annotation_preprocessing([ANNOTATION_PATHS[str(ver)][0],
                                                              ANNOTATION_PATHS[str(ver)][1]],
-                                                            l, f"annotations_{l}")
+                                                            language, f"annotations_{language}")[:-1]
         if ver == 4:
-            annotation_analysis_gold(l, df_1, df_2, str(ver))
+            annotation_analysis_gold(language, df_1, df_2, str(ver))
         else:
-            annotation_analysis(l, df_1, df_2, str(ver))
+            annotation_analysis(language, df_1, df_2, str(ver))
     qt.annotation_analysis()
     ql.annotation_analysis()

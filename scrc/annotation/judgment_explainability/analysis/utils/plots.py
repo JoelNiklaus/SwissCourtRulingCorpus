@@ -42,6 +42,7 @@ def distribution_plot_1(lang: str, distribution_df: pd.DataFrame, col_x: str, co
     plt.tight_layout()
     plt.savefig(filepath, bbox_inches="tight")
 
+
 def lower_court_effect_plot(df_1, df_2, col_y: str, col_x: str, label_texts: list, legend_texts: list,
                             title: str, filepath: str):
     """

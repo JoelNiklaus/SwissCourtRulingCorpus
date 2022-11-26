@@ -3,6 +3,7 @@ import warnings
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from nltk.tokenize import word_tokenize
 
 import scrc.annotation.judgment_explainability.analysis.utils.plots as plots
@@ -10,7 +11,6 @@ import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as p
 import scrc.annotation.judgment_explainability.analysis.utils.scores as scores
 
 warnings.filterwarnings("ignore")
-import pandas as pd
 
 """
 Contains functions for the quantitative analysis. Uses preprocessing.py and plots.py. 
@@ -34,16 +34,9 @@ OCCLUSION_PATHS = {"test_sets": ("../occlusion/lower_court_test_sets/{}/lower_co
                                  "../occlusion/occlusion_test_sets/{}/occlusion_test_set_{}_exp_{}.csv"),
                    "prediction": ("../occlusion/lower_court_predictions/{}/predictions_test.csv",
                                   "../occlusion/occlusion_predictions/{}_{}/predictions_test.csv"),
-                   "analysis": ("{}/occlusion/bias_lower_court_{}_{}.csv", "{}/occlusion/occlusion_{}_{}_{}.csv")}
+                   "analysis": ("{}/occlusion/bias_lower_court_{}.csv", "{}/occlusion/occlusion_{}_{}.csv")}
 
 NUMBER_OF_EXP = [1, 2, 3, 4]
-
-
-def remove_baseline(dataset: pd.DataFrame) -> pd.DataFrame:
-    """
-    Returns Dataframe w/o baseline entries.
-    """
-    return dataset[dataset["explainability_label"] != "Baseline"]
 
 
 def count_user_input(dataset: pd.DataFrame) -> int:
@@ -64,34 +57,38 @@ def count_is_correct(dataset: pd.DataFrame) -> (int, int):
     """
     Returns total of number of correct predictions.
     """
-    return len(dataset[dataset["is_correct"] == True].groupby("id_csv")), len(dataset)
+    return len(dataset[dataset["is_correct"] is True].groupby("id_csv")), len(dataset)
 
 
 def count_approved_dismissed(dataset: pd.DataFrame) -> (int, int):
     """
-    Gets all the false dismissal and true approvals.
-    Calculates len of approval Dataframe.
     Returns number approved cases and number of dismissed cases.
     """
-    dataset = preprocessing.get_accepted_cases(dataset)
-    dismissal = dataset[dataset["judgment"] == "dismissal"]
-    approval = dataset[dataset["judgment"] == "approval"]
-    return len(approval.groupby("id_csv")), len(dismissal.groupby("id_csv"))
+    return len(dataset[dataset["judgment"] == "approval"].groupby("id_csv")), \
+           len(dataset[dataset["judgment"] == "dismissal"].groupby("id_csv"))
 
 
-def get_mean_expl_score(dataset: pd.DataFrame, column: str) -> pd.Series:
+def count_lower_court(dataset: pd.DataFrame):
     """
-    Returns the mean explainability score
+    Returns number of distinct lower courts and their length in tokens.
     """
-    return remove_baseline(dataset).groupby(column).mean()["explainability_score"]
+    dataset["length"] = dataset["lower_court"].apply(lambda x: len(word_tokenize(x)))
+    return dataset["lower_court"].nunique(), dataset["length"].mean()
 
 
 def count_has_flipped(dataset: pd.DataFrame) -> (int, int, int):
     """
     Returns number of flipped experiments, number of unflipped experiments and length of Dataframe.
     """
-    dataset = remove_baseline(dataset)
     return len(dataset[dataset["has_flipped"] == True]), len(dataset[dataset["has_flipped"] == False]), len(dataset)
+
+
+def group_by_agg_column(dataset: pd.DataFrame, col_1, agg_dict: dict) -> pd.DataFrame:
+    """
+    Groups by col_1 and applies count of "id" and mean of 'confidence_scaled'.
+    Returns Dataframe
+    """
+    return dataset.groupby(col_1).agg(agg_dict).reset_index()
 
 
 def get_label_mean_df(lang: str) -> pd.DataFrame:
@@ -145,7 +142,7 @@ def count_mean_fact_length(dataset: pd.DataFrame) -> pd.DataFrame:
     """
     dataset.loc[:, "tokens"] = dataset["tokens"].map(len)
     tokens_df = reshape_df(dataset.groupby(["year", "legal_area"])["tokens"].mean().to_frame().reset_index(),
-                              "tokens")
+                           "tokens")
     tokens_df = tokens_df.append(get_mean_col(dataset, "tokens")[0])
     tokens_df[f"mean_year"] = get_mean_col(dataset, "tokens")[1]
     tokens_df.index.name = f"tokens_mean"
@@ -194,6 +191,131 @@ def get_legal_area_distribution(dataset: pd.DataFrame) -> pd.DataFrame:
     return distribution_df.drop("id_scrc", axis=1, inplace=False)
 
 
+def get_lower_court_distribution(dataset: pd.DataFrame) -> (pd.DataFrame):
+    """
+    Sorts dataset according to normal distribution
+    Counts proportional occurrences of each lower court.
+    Returns Dataframe
+    """
+    distribution_df = sort_normal_distribution(dataset.groupby("lower_court")["id"].count().reset_index()) \
+        .reset_index().rename(columns={"index": "lower_court", 0: "count"})
+    distribution_df["count"] = distribution_df["count"].div(distribution_df["count"].sum())
+    return distribution_df
+
+
+def sort_normal_distribution(dataset: pd.DataFrame) -> pd.DataFrame:
+    """
+    Sorts according to normal distribution (minimums at beginning and ends).
+    Returns sorted Dataframe.
+    """
+    df_list = dataset.values.tolist()
+    df_dict = {item[0]: item[1:][0] for item in df_list}
+    result_list = [len(df_dict) * [None], len(df_dict) * [None]]
+    i = 0
+    while len(df_dict) > 0:
+        result_list[0][-(1 + i)] = min(df_dict.values())
+        result_list[1][-(1 + i)] = min(df_dict, key=df_dict.get)
+        del df_dict[min(df_dict, key=df_dict.get)]
+        result_list[0][i] = min(df_dict.values())
+        result_list[1][i] = min(df_dict, key=df_dict.get)
+        del df_dict[min(df_dict, key=df_dict.get)]
+        i += 1
+    return pd.DataFrame(result_list[0], index=result_list[1])
+
+
+def get_one_sided_agg(dataset: pd.DataFrame, sorted_df: pd.DataFrame):
+    """
+    Gets mean of one sided explainability_score and confidence_direction.
+    Returns Dataframe.
+    """
+    dataset = group_by_agg_column(dataset, "lower_court",
+                                  agg_dict={"confidence_direction": "mean", "norm_explainability_score": "mean"}) \
+        .rename(columns={"norm_explainability_score": "mean_norm_explainability_score"})
+    return sorted_df.merge(dataset, on="lower_court", how="inner")
+
+
+def get_lc_la_distribution(dataset: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
+    """
+    Groups by lower_court and applies list() to rows.
+    Gets mean confidence_scaled per legal_area and distribution over legal areas.
+    Returns Dataframes.
+    """
+    legal_area_df = group_by_agg_column(dataset, "lower_court",
+                                        agg_dict={"id": "count", "confidence_scaled": lambda x: list(x),
+                                                  "legal_area": lambda x: list(x)})
+    conf_df = get_mean_count_legal_area(legal_area_df, "conf_legal_area", get_conf_dict_legal_area)
+    for la in LEGAL_AREAS:
+        conf_df[la] = conf_df[la].apply(np.mean)
+    distribution_df = get_mean_count_legal_area(legal_area_df, "count_legal_area", get_count_dict_legal_area)
+    distribution_df[LEGAL_AREAS] = distribution_df[LEGAL_AREAS].div(legal_area_df["id"], axis=0)
+    return distribution_df[["lower_court"] + LEGAL_AREAS], conf_df[["lower_court"] + LEGAL_AREAS]
+
+
+def get_mean_count_legal_area(dataset: pd.DataFrame, col: str, func):
+    """
+    Applies either get_conf_dict_legal_area or get_count_dict_legal_area to rows.
+    Returns Dataframe.
+    """
+    dataset[col] = dataset.apply(lambda row: func(
+        {row["confidence_scaled"][i]: row["legal_area"][i] for i in range(len(row["confidence_scaled"]))},), axis=1)
+    dataset[LEGAL_AREAS] = dataset[col].apply(pd.Series)
+    return dataset
+
+
+def get_conf_dict_legal_area(conf_legal_area_dict: dict) -> dict:
+    """
+    Returns dict of shape {"legal_area_1": [conf_1, conf_2, ...]}
+    """
+    legal_area_dict = {i: [] for i in LEGAL_AREAS}
+    for k in conf_legal_area_dict.keys():
+        if conf_legal_area_dict[k] == LEGAL_AREAS[0]:
+            legal_area_dict[LEGAL_AREAS[0]].append(float(k))
+        if conf_legal_area_dict[k] == LEGAL_AREAS[1]:
+            legal_area_dict[LEGAL_AREAS[1]].append(float(k))
+        if conf_legal_area_dict[k] == LEGAL_AREAS[2]:
+            legal_area_dict[LEGAL_AREAS[2]].append(float(k))
+    return legal_area_dict
+
+
+def get_count_dict_legal_area(conf_legal_area_dict):
+    """
+    Returns dict of shape {legal_area_1: count_legal_area}
+    """
+    legal_area_dict = {i: 0 for i in LEGAL_AREAS}
+    for k in conf_legal_area_dict.keys():
+        if conf_legal_area_dict[k] == LEGAL_AREAS[0]:
+            legal_area_dict[LEGAL_AREAS[0]] += 1
+        if conf_legal_area_dict[k] == LEGAL_AREAS[1]:
+            legal_area_dict[LEGAL_AREAS[1]] += 1
+        if conf_legal_area_dict[k] == LEGAL_AREAS[2]:
+            legal_area_dict[LEGAL_AREAS[2]] += 1
+    return legal_area_dict
+
+
+def create_lc_la_distribution_plot(lang: str, lc_la_df: pd.DataFrame):
+    """
+    Creates lower_court legal_area distribution plot.
+    """
+    plots.mean_plot_2(lang, len(lc_la_df.columns),
+                      lc_la_df, cols=LEGAL_AREAS,
+                      ax_labels=["Lower Court", ""],
+                      x_labels=lc_la_df.columns,
+                      legend_texts=tuple([la.replace("_", " ") for la in LEGAL_AREAS]),
+                      title="Distribution of Lower Courts in Legal Areas",
+                      filepath=f'plots/lc_distribution_la_{lang}.png')
+
+
+def create_ttest_plot(lang: str, mu_df: pd.DataFrame, sample_df: pd.DataFrame, filepath: str, col, title):
+    """
+    @todo
+    """
+    plots.ttest_plot(lang, scores.ttest(group_to_list(sample_df, "lower_court", col), mu_df, col), "pvalue",
+                     "lower_court", 0.05,
+                     label_texts=["P-value", "Lower Courts"],
+                     title=title,
+                     filepath=filepath)
+
+
 def get_agg_expl_score_occlusion(dataset_0: pd.DataFrame, dataset_1: pd.DataFrame, list_dict: dict) -> dict:
     """
     Applies aggregations to explainability scores.
@@ -215,10 +337,6 @@ def get_agg_expl_score_occlusion(dataset_0: pd.DataFrame, dataset_1: pd.DataFram
         return list_dict
 
 
-def get_mean_conf_col(dataset: pd.DataFrame, col_1) -> pd.DataFrame:
-    return dataset.groupby(col_1).agg({"confidence_scaled": "mean", "id": "count"}).reset_index()
-
-
 def group_to_list(dataset: pd.DataFrame, col_1, col_2) -> pd.DataFrame:
     return dataset.groupby(col_1)[col_2].apply(list).reset_index()
 
@@ -234,14 +352,6 @@ def apply_aggregation(column: pd.Series, aggregation: str) -> pd.Series:
         return column.max()
     if aggregation == "min":
         return column.min()
-
-
-def count_lower_court(dataset: pd.DataFrame):
-    """
-    Returns number of distinct lower courts and their length in tokens.
-    """
-    dataset["length"] = dataset["lower_court"].apply(lambda x: len(word_tokenize(x)))
-    return dataset[dataset["explainability_label"] == "Baseline"]["lower_court"].nunique(), dataset["length"].mean()
 
 
 def split_oppose_support(dataset_1: pd.DataFrame, dataset_2: pd.DataFrame):
@@ -291,7 +401,7 @@ def count_occlusion_tokens(lang: str):
 
 def count_number_of_sentences(lang: str):
     """
-    @Todo Comment & clean up
+    @Todo
     """
     occlusion_test_set = preprocessing.read_csv(OCCLUSION_PATHS["test_sets"][1].format(lang, lang, 1), "index")
     return occlusion_test_set.groupby("id").count()["text"].mean()
@@ -305,51 +415,6 @@ def get_length(string: str):
         return len(ast.literal_eval(string))
     else:
         return np.NaN
-
-
-def create_ttest_plot(lang, mu_df: pd.DataFrame, sample_df: pd.DataFrame, filepath: str, col, title):
-    plots.ttest_plot(lang, scores.ttest(group_to_list(sample_df, "lower_court", col), mu_df, col), "pvalue",
-                     "lower_court", 0.05,
-                     label_texts=["P-value", "Lower Courts"],
-                     title=title,
-                     filepath=filepath)
-
-
-def write_csv(path: Path, df_list):
-    """
-    @Todo Add to preprocessing
-    """
-    with open(path, "w") as f:
-        f.truncate()
-        for df in df_list:
-            df.to_csv(f)
-            f.write("\n")
-
-
-def get_conf_list_legal_area(list_keys, list_values):
-    d = {list_keys[i]: list_values[i] for i in range(len(list_keys))}
-    legal_area_dict = {i: [] for i in LEGAL_AREAS}
-    for k in d.keys():
-        if d[k] == LEGAL_AREAS[0]:
-            legal_area_dict[LEGAL_AREAS[0]].append(k)
-        if d[k] == LEGAL_AREAS[1]:
-            legal_area_dict[LEGAL_AREAS[1]].append(k)
-        if d[k] == LEGAL_AREAS[2]:
-            legal_area_dict[LEGAL_AREAS[2]].append(k)
-    return legal_area_dict
-
-
-def count_number_legal_area(list_keys, list_values):
-    d = {list_keys[i]: list_values[i] for i in range(len(list_keys))}
-    legal_area_dict = {i: 0 for i in LEGAL_AREAS}
-    for k in d.keys():
-        if d[k] == LEGAL_AREAS[0]:
-            legal_area_dict[LEGAL_AREAS[0]] += 1
-        if d[k] == LEGAL_AREAS[1]:
-            legal_area_dict[LEGAL_AREAS[1]] += 1
-        if d[k] == LEGAL_AREAS[2]:
-            legal_area_dict[LEGAL_AREAS[2]] += 1
-    return legal_area_dict
 
 
 def annotation_analysis():
@@ -376,8 +441,9 @@ def annotation_analysis():
         label_mean_df, pers_mean_df = get_label_mean_df(l), get_pers_mean_df(l)
         facts_count_df = count_mean_fact_length(df_gold)
         legal_area_count_df = get_legal_area_distribution(df_gold)
-        write_csv(Path(f"{l}/quantitative/annotation_analysis_{l}.csv"), [label_mean_df, pers_mean_df,
-                                                                          facts_count_df, legal_area_count_df])
+        preprocessing.write_csv_from_list(Path(f"{l}/quantitative/annotation_analysis_{l}.csv"),
+                                          [label_mean_df, pers_mean_df,
+                                           facts_count_df, legal_area_count_df])
         # Prepare plot tables
         pers_mean_df = pers_mean_df.drop(["label", "mean_token"], axis=1).fillna(0).groupby("annotator").sum()
         plots.mean_plot_1(facts_count_df.drop(f"mean_legal_area").drop(f"mean_year", axis=1),
@@ -405,6 +471,7 @@ def annotation_analysis():
 def multilingual_annotation_analysis(df_list: list):
     """
     Prepares language Dataframes for plots.
+    Creates multilingual plots.
     """
     df = df_list[0].merge(df_list[1], on="index", how="inner", suffixes=(f'_{LANGUAGES[0]}', f'_{LANGUAGES[1]}'))
     df = df.merge(df_list[2], on="index", how="inner").rename(columns={'mean_token': f'mean_token_{LANGUAGES[2]}'})
@@ -419,88 +486,60 @@ def multilingual_annotation_analysis(df_list: list):
 
 
 def lower_court_analysis():
+    """
+    This functions prepares and performs the quantitative lower_court analysis.
+    Dumps individual core numbers into a json.
+    Creates plots for quantitative analysis.
+    """
     for l in LANGUAGES:
-        lower_court_0, lower_court_1 = preprocessing.read_csv(OCCLUSION_PATHS["analysis"][0].format(l, l, 0), "index"), \
-                                       preprocessing.read_csv(OCCLUSION_PATHS["analysis"][0].format(l, l, 1), "index")
-        lower_court_df = lower_court_0.append(lower_court_1).drop_duplicates()
-        baseline_df = lower_court_df[lower_court_df["explainability_label"] == "Baseline"]
-        lower_court_df = remove_baseline(lower_court_df)
-        # @Todo
-        lower_court_df_legal_area = lower_court_df.groupby('lower_court') \
-            .agg({"id": "count", "confidence_scaled": lambda x: list(x), "norm_explainability_score": "mean",
-                  "confidence_direction": lambda x: list(x), "legal_area": lambda x: list(x)}).reset_index()
+        lower_court_df = preprocessing.read_csv(OCCLUSION_PATHS["analysis"][0].format(l, l), "index")
+        baseline_df = preprocessing.get_baseline(lower_court_df)
+        lower_court_df = preprocessing.remove_baseline(lower_court_df)
 
-        lower_court_df_legal_area = lower_court_df_legal_area.drop(
-            ["norm_explainability_score", "confidence_direction"], axis=1)
-        lower_court_df_legal_area["conf_legal_area"] = lower_court_df_legal_area \
-            .apply(lambda row: get_conf_list_legal_area(row["confidence_scaled"], row["legal_area"]), axis=1)
-        lower_court_df_legal_area["count_legal_area"] = lower_court_df_legal_area \
-            .apply(lambda row: count_number_legal_area(row["confidence_scaled"], row["legal_area"]), axis=1)
+        # Prepare json scores
+        lower_court_dict = {"number_of_lower_courts": count_lower_court(baseline_df)[0],
+                            "mean_tokens_lower_court": count_lower_court(baseline_df)[1],
+                            "number_of_has_flipped_lc(T/F)": list(count_has_flipped(lower_court_df))}
+        preprocessing.write_json(Path(f"{l}/quantitative/lower_court_analysis_{l}.json"), lower_court_dict)
 
-        legal_area_distribution = lower_court_df_legal_area["count_legal_area"].apply(pd.Series).reset_index()
-        legal_area_distribution = lower_court_df_legal_area.reset_index() \
-            .merge(legal_area_distribution, on="index")[["id", "lower_court"] + LEGAL_AREAS]
-        legal_area_distribution[LEGAL_AREAS] = legal_area_distribution[LEGAL_AREAS].div(legal_area_distribution["id"],
-                                                                                        axis=0)
-        legal_area_distribution.drop(["id"], axis=1, inplace=True)
-        legal_areas_conf = lower_court_df_legal_area["conf_legal_area"].apply(pd.Series).reset_index()
-        legal_areas_conf = lower_court_df_legal_area.reset_index().merge(legal_areas_conf, on="index")
-        for legal_area in LEGAL_AREAS:
-            legal_areas_conf[legal_area] = legal_areas_conf[legal_area].apply(np.mean)
-        legal_areas_conf = legal_areas_conf[["lower_court"] + LEGAL_AREAS]
+        # Lower court distribution plots
+        distribution_df = get_lower_court_distribution(lower_court_df)
+        mean_pos_df = get_one_sided_agg(lower_court_df[lower_court_df["confidence_direction"] > 0], distribution_df)
+        mean_neg_df = get_one_sided_agg(lower_court_df[lower_court_df["confidence_direction"] < 0], distribution_df)
 
-        plots.mean_plot_2(l, len(legal_area_distribution.set_index("lower_court").T.columns),
-                          legal_area_distribution.set_index("lower_court").T, cols=LEGAL_AREAS,
-                          ax_labels=["Lower Court", ""],
-                          x_labels=legal_area_distribution.set_index("lower_court").T.columns,
-                          legend_texts=tuple([la.replace("_", " ") for la in LEGAL_AREAS]),
-                          title="Distribution of Lower Courts in Legal Areas",
-                          filepath=f'plots/lc_distribution_la_{l}.png')
+        plots.distribution_plot_1(l, distribution_df, col_x="lower_court", col_y="count",
+                                  label_texts=["Lower Court", "Occurrence of Lower Courts in Dataset"],
+                                  title=f"Lower Court distribution in the {l} Dataset",
+                                  filepath=f'plots/lc_distribution_{l}.png')
+        plots.lower_court_effect_plot(mean_pos_df, mean_neg_df, col_y="confidence_direction",
+                                      col_x="lower_court",
+                                      label_texts=["Confidence Direction", "Lower Court"],
+                                      legend_texts=["Positive Influence", "Negative Influence"],
+                                      title=f"Effect of Lower Courts on the Prediction Confidence",
+                                      filepath=f'plots/lower_court_effect_{l}.png')
+        plots.lower_court_effect_plot(mean_pos_df, mean_neg_df, col_y="mean_norm_explainability_score",
+                                      col_x="lower_court",
+                                      label_texts=["Mean explainability score for one direction", "Lower Court"],
+                                      legend_texts=["Exp_Score > 0", "Exp_Score < 0"],
+                                      title=f"Mean Distribution on Explainability Scores in both directions",
+                                      filepath=f'plots/lc_mean_explainability_score_{l}.png')
 
-        plots.mean_plot_2(l, len(legal_areas_conf.set_index("lower_court").T.columns),
-                          legal_areas_conf.set_index("lower_court").T,
-                          cols=LEGAL_AREAS,
-                          ax_labels=["Lower Court", ""],
-                          x_labels=legal_areas_conf.set_index("lower_court").T.columns,
-                          legend_texts=tuple([la.replace("_", " ") for la in LEGAL_AREAS]),
-                          title="Mean scaled Confidences of Lower Courts in Legal Areas",
-                          filepath=f'plots/lc_mean_conf_distribution_la_{l}.png')
+        # Lower court legal area distribution plots
+        legal_area_distribution, legal_area_conf = get_lc_la_distribution(
+            lower_court_df.drop(["norm_explainability_score", "confidence_direction"], axis=1))
 
-        """
-        plots.distribution_plot_2(l, legal_areas_conf, "lower_court", label_texts=LEGAL_AREAS,
-                                  title="Mean scaled Confidences of Lower Courts in Legal Areas",
-                                  filepath=f'plots/lc_mean_conf_distribution_la_{l}.png')
-        """
+        create_lc_la_distribution_plot(l, legal_area_distribution.set_index("lower_court").T)
+        create_lc_la_distribution_plot(l, legal_area_conf.set_index("lower_court").T)
+
         # T-test plots
-        baseline_df_mean = get_mean_conf_col(baseline_df, "lower_court")
+        baseline_df_mean = group_by_agg_column(baseline_df, "lower_court",
+                                               agg_dict={"id": "count", "confidence_scaled": "mean"})
         create_ttest_plot(l, baseline_df_mean, lower_court_df, filepath=f'plots/lc_ttest_conf_score_{l}.png',
                           col="confidence_scaled", title="Distribution of p-values over lower courts.")
 
         baseline_df_mean["norm_explainability_score"] = 0
         create_ttest_plot(l, baseline_df_mean, lower_court_df, filepath=f'plots/lc_ttest_exp_score_{l}.png',
                           col="norm_explainability_score", title="Distribution of p-values over lower courts.")
-        lower_court_distribution, sum_pos, sum_neg = scores.lower_court_agg(lower_court_df)
-        plots.distribution_plot_1(l, lower_court_distribution, col_x="lower_court", col_y="count",
-                                  label_texts=["Lower Court", "Occurrence of Lower Courts in Dataset"],
-                                  title=f"Lower Court distribution in the {l} Dataset",
-                                  filepath=f'plots/lc_distribution_{l}.png')
-        plots.lower_court_effect_plot(sum_pos, sum_neg, col_y="confidence_direction", col_x="lower_court",
-                                      label_texts=["Confidence Direction", "Lower Court"],
-                                      legend_texts=["Positive Influence", "Negativ Influence"],
-                                      title=f"Effect of Lower Courts on the Prediction Confidence",
-                                      filepath=f'plots/lower_court_effect_{l}.png')
-        plots.lower_court_effect_plot(sum_pos, sum_neg, col_y="mean_norm_explainability_score", col_x="lower_court",
-                                      label_texts=["Mean explainability score for one direction", "Lower Court"],
-                                      legend_texts=["Exp_Score > 0", "Exp_Score < 0"],
-                                      title=f"Mean distribution on Explainability Scores in both directions",
-                                      filepath=f'plots/lc_mean_explainability_score_{l}.png')
-
-        lower_court_test_set = preprocessing.read_csv(OCCLUSION_PATHS["test_sets"][0].format(l, l), "index")
-
-        lower_court_dict = {"number_of_lower_courts": count_lower_court(lower_court_test_set)[0],
-                            "mean_tokens_lower_court": count_lower_court(lower_court_test_set)[1],
-                            "number_of_has_flipped_lc(T/F)": list(count_has_flipped(lower_court_df))}
-        preprocessing.write_json(Path(f"{l}/quantitative/lower_court_analysis_{l}.json"), lower_court_dict)
 
 
 def occlusion_analysis():
@@ -509,29 +548,23 @@ def occlusion_analysis():
     """
     for l in LANGUAGES:
         occlusion_dict = {}
-        exp_score_dict = {}
         for nr in NUMBER_OF_EXP:
-            occlusion_0, occlusion_1 = preprocessing.read_csv(OCCLUSION_PATHS["analysis"][1].format(l, nr, l, 0),
-                                                              "index"), \
-                                       preprocessing.read_csv(OCCLUSION_PATHS["analysis"][1].format(l, nr, l, 1),
-                                                              "index")
-            occlusion_df = occlusion_0.append(occlusion_1)
+            occlusion_df = preprocessing.read_csv(OCCLUSION_PATHS["analysis"][1].format(l, nr, l), "index")
+
             baseline_df = occlusion_df[occlusion_df["explainability_label"] == "Baseline"]
-            occlusion_df = remove_baseline(occlusion_df)
+            occlusion_df = preprocessing.remove_baseline(occlusion_df)
             occlusion_df = occlusion_df[occlusion_df["confidence_direction"] != 0]  # ignore neutral classification
             occlusion_df, false_classification, score_1, score_0 = preprocessing.get_correct_direction(occlusion_df)
+            # Prepare json scores
+            occlusion_dict = {"number of correct classification": score_1,
+                              "number of incorrect_classification": score_0}
+            preprocessing.write_json(Path(f"{l}/quantitative/occlusion_analysis_{l}.json"), occlusion_dict)
+
+            preprocessing.write_csv_from_list(Path(f"{l}/quantitative/occlusion_analysis_{l}.csv"),
+                                              [count_occlusion_tokens(l)])
 
             # @todo Plot of correct and incorrect classifications
 
             o_judgement, s_judgement = split_oppose_support(occlusion_df, false_classification)
-            o_judgement, s_judgement = scores.calculate_IAA_occlusion(o_judgement, l), scores.calculate_IAA_occlusion(
-                s_judgement, l)
-
-            exp_score_dict = get_agg_expl_score_occlusion(occlusion_0, occlusion_1, exp_score_dict)
-            is_correct_list = list(count_is_correct(occlusion_df[occlusion_df["explainability_label"] != "Baseline"]))
-            occlusion_dict = {f"number_of_is_correct_(occlusion_{nr}/total lines)": is_correct_list,
-                              "number of correct classification": score_1,
-                              "number of incorrect_classification": score_0}
-
-        preprocessing.write_json(Path(f"{l}/quantitative/occlusion_analysis_{l}.json"), occlusion_dict)
-        write_csv(Path(f"{l}/quantitative/occlusion_analysis_{l}.csv"), [count_occlusion_tokens(l)])
+            o_judgement, s_judgement = scores.calculate_IAA_occlusion(o_judgement, l), \
+                                       scores.calculate_IAA_occlusion(s_judgement, l)

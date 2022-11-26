@@ -5,12 +5,11 @@ import math
 import warnings
 from pathlib import Path
 from random import randint
-
+import pandas as pd
 import numpy as np
 from netcal.scaling import TemperatureScaling
 
 warnings.filterwarnings("ignore")
-import pandas as pd
 
 """
 This is a collection of helper functions used by the diffrent components of the analysis, 
@@ -128,7 +127,7 @@ def write_json(filepath: Path, dictionary: dict):
         outfile.write(json_object)
 
 
-def annotation_preprocessing(filepaths: list, lang: str, dataset_name: str) -> (pd.DataFrame, pd.DataFrame):
+def annotation_preprocessing(filepaths: list, lang: str, dataset_name: str) -> (pd.DataFrame,pd.DataFrame, pd.DataFrame):
     """
     Extract datasets from jsonl, gets acceoted cases.
     Separates spans and tokens columns and joins them into dictionary.
@@ -137,7 +136,7 @@ def annotation_preprocessing(filepaths: list, lang: str, dataset_name: str) -> (
     datasets = extract_dataset(filepaths[0], filepaths[1])
     dataset = get_accepted_cases(datasets[dataset_name])
     dataset.index.name = f"annotations_{lang}"
-    return extract_values_from_column(dataset, "spans", "tokens"), extract_values_from_column(dataset, "tokens", "spans")
+    return dataset,extract_values_from_column(dataset, "spans", "tokens"), extract_values_from_column(dataset, "tokens", "spans")
 
 
 def get_accepted_cases(dataset: pd.DataFrame) -> pd.DataFrame:
@@ -145,6 +144,22 @@ def get_accepted_cases(dataset: pd.DataFrame) -> pd.DataFrame:
     Returns accepted cases from dataset.
     """
     return dataset[dataset["answer"] == "accept"]
+
+
+def remove_baseline(dataset: pd.DataFrame) -> pd.DataFrame:
+    """
+    Returns Dataframe w/o baseline entries.
+    """
+    return dataset[dataset["explainability_label"] != "Baseline"]
+
+
+def get_baseline(dataset: pd.DataFrame) -> pd.DataFrame:
+    """
+    Returns baseline Dataframe.
+    """
+    return dataset[dataset["explainability_label"] == "Baseline"]
+
+
 
 
 def extract_values_from_column(df: pd.DataFrame, col_1: str, col_2: str) -> pd.DataFrame:
@@ -225,7 +240,7 @@ def get_white_space_dicts(ws_df: pd.DataFrame, index: str) -> pd.DataFrame:
     return ws_df.drop('id_ws_dict', axis=1).drop_duplicates()
 
 
-def group_columns(df: pd.DataFrame, lang: str) -> pd.DataFrame:
+def group_token_columns(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     """
     Groups columns tokens_text, tokens_id and tokens_dict by same index (e.g. annotations_de).
     Each column is joint differently (e.g. tokens_dict joint as string dictionary).
@@ -238,6 +253,27 @@ def group_columns(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     df['tokens_dict'] = df.groupby([f'annotations_{lang}'])['tokens_dict'].transform(
         lambda x: "{{{}}}".format(','.join(x.astype(str)).replace("{", "").replace("}", "")))
     return df
+
+
+def group_lower_court_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df["occluded_text"] = df.apply(
+        lambda row: normalize_string(row["occluded_text"]), axis=1)
+    df["lower_court"] = df.apply(
+        lambda row: get_original_court(row["lower_court"], row["occluded_text"]), axis=1)
+    df["facts"] = df.apply(
+        lambda row: row["facts"].replace("[*]", row["lower_court"] + " "), axis=1)
+    return df
+
+
+def get_original_court(lower_court, original_court):
+    """
+    Returns the "original_court", if the lower_court is in the occluded text".
+    Returns lower_court if not.
+    """
+    if lower_court == original_court:
+        return "original court"
+    else:
+        return lower_court
 
 
 def string_to_dict(df: pd.DataFrame, col_name) -> pd.DataFrame:
@@ -288,7 +324,7 @@ def get_annotator_df(tokens_df: pd.DataFrame, lang: str, annotator: str, version
             .append(tokens_df[tokens_df['_annotator_id'] == version_ids["2"].format(lang, annotator)]
                     .drop_duplicates().copy())
 
-    annotator_df = group_columns(annotator_df, lang)
+    annotator_df = group_token_columns(annotator_df, lang)
     annotator_df = annotator_df[[f'annotations_{lang}', 'tokens_text', 'tokens_id', 'tokens_dict', 'tokens_ws_dict']]
     annotator_df = annotator_df.drop_duplicates()
     annotator_df["tokens_id"] = annotator_df["tokens_id"].astype(str).str.split(",")
@@ -418,9 +454,8 @@ def occlusion_preprocessing(lang: str, df: pd.DataFrame, filename: str):
     df_0, df_1 = get_confidence_direction(df_0, 0), get_confidence_direction(
         df_1, 1)
     df_0, df_1 = get_norm_explainability_score(df_0, 0), get_norm_explainability_score(df_1, 1)
-    write_csv(Path(f"{lang}/occlusion/{filename}_0.csv"), df_0)
-    write_csv(Path(f"{lang}/occlusion/{filename}_1.csv"), df_1)
-    return df_0, df_1
+
+    write_csv(Path(f"{lang}/occlusion/{filename}.csv"), df_0.append(df_1))
 
 
 def get_correct_direction(df: pd.DataFrame):
@@ -489,14 +524,14 @@ def calculate_explainability_score(df: pd.DataFrame):
     Adds explainability_score as column to Dataframe, appends baseline back to it and returns it.
     """
     score_list = []
-    baseline = df[df["explainability_label"] == "Baseline"]
-    occlusion = df[df["explainability_label"] != "Baseline"]
-    for index, row in occlusion.iterrows():
-        baseline_value = baseline[baseline["id"] == row["id"]]["confidence"].max()
+    baseline_df = get_baseline(df)
+    occlusion_df = remove_baseline(df)
+    for index, row in occlusion_df.iterrows():
+        baseline_value = baseline_df[baseline_df["id"] == row["id"]]["confidence"].max()
         score_list.append(float(baseline_value) - float(row["confidence"]))  # diffrence between baseline and occlusion
-    occlusion.loc[:, "explainability_score"] = score_list
-    occlusion = occlusion.append(baseline)
-    return occlusion
+    occlusion_df.loc[:, "explainability_score"] = score_list
+    occlusion_df = occlusion_df.append(baseline_df)
+    return occlusion_df
 
 
 def find_flipped_cases(df: pd.DataFrame):
@@ -506,17 +541,17 @@ def find_flipped_cases(df: pd.DataFrame):
     Appends baseline back to Dataframe and returns it.
     """
     score_list = []
-    baseline = df[df["explainability_label"] == "Baseline"]
-    occlusion = df[df["explainability_label"] != "Baseline"]
-    for index, row in occlusion.iterrows():
-        baseline_value = baseline[baseline["id"] == row["id"]]["prediction"].max()
+    baseline_df = get_baseline(df)
+    occlusion_df = remove_baseline(df)
+    for index, row in occlusion_df.iterrows():
+        baseline_value = baseline_df[baseline_df["id"] == row["id"]]["prediction"].max()
         if row["prediction"] == baseline_value:
             score_list.append(False)
         else:
             score_list.append(True)
-    occlusion.loc[:, "has_flipped"] = score_list
-    occlusion = occlusion.append(baseline)
-    return occlusion
+    occlusion_df.loc[:, "has_flipped"] = score_list
+    occlusion_df = occlusion_df.append(baseline_df)
+    return occlusion_df
 
 
 def normalize_string(string: str) -> str:
