@@ -1,19 +1,17 @@
 import copy
-from decimal import Decimal
 from pathlib import Path
+
 import nltk
 import pandas as pd
-from nltk.tokenize import word_tokenize
-from nltk.translate.bleu_score import sentence_bleu
 import rouge_score.rouge_scorer as rs
 from bert_score import score as bert_score
-from scipy import stats
+from nltk.tokenize import word_tokenize
+from nltk.translate.bleu_score import sentence_bleu
 
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 
 nltk.download('punkt')
 nltk.download('wordnet')
-
 
 LANGUAGES = ["de", "fr", "it"]
 PERSONS = ["angela", "lynn", "thomas"]
@@ -69,7 +67,7 @@ def calculate_IAA_occlusion(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     df = df.reset_index()
     r, be, m, b = calculate_text_scores_occlusion(df, lang)
     score_df_list = [calculate_overlap_min_max_occlusion(df),
-                     calculate_jaccard_similarity_distance_occlusion(df, lang),
+                     calculate_jaccard_similarity_distance_occlusion(df),
                      r.rename(columns={f"annotations_{lang}": "index"}),
                      be.rename(columns={f"annotations_{lang}": "index"}),
                      m.rename(columns={f"annotations_{lang}": "index"}),
@@ -177,36 +175,10 @@ def calculate_overlap_min_max_annotation(df: pd.DataFrame, lang: str) -> pd.Data
     return pd.DataFrame.from_records(overlap_min_max_list)
 
 
-def calculate_jaccard_similarity_distance_occlusion(df: pd.DataFrame, lang) -> pd.DataFrame:
-    """
-    Calculates the Jaccard Similarity and Jaccard distance.
-    Following this implementation https://pyshark.com/jaccard-similarity-and-jaccard-distance-in-python/
-    @Todo
-    """
-    jaccard_list = []
-    for value_list in df.copy()[["index", "occluded_text_model", "occluded_text_human"]].values:
-        jaccard = {"index": value_list[0], "jaccard_similarity": 0, "jaccard_distance": 0}
-        tokens_model, tokens_human = word_tokenize(value_list[1]), word_tokenize(value_list[2])
-        tokens_normalized = preprocessing.normalize_list_length([tokens_model, tokens_human], {"Nan": "Nan"})
-        set_1, set_2 = set(list(tokens_normalized[0])), set(list(tokens_normalized[1]))
-        # Find intersection of two sets
-        nominator_1 = set_1.intersection(set_2)
-        # Find symmetric difference of two sets
-        nominator_2 = set_1.symmetric_difference(set_2)
-        # Find union of two sets
-        denominator = set_1.union(set_2)
-        # Take the ratio of sizes
-        jaccard["jaccard_similarity"] = len(nominator_1) / len(denominator)
-        jaccard["jaccard_distance"] = len(nominator_2) / len(denominator)
-        jaccard_list.append(jaccard)
-    return pd.DataFrame.from_records(jaccard_list)
-
-
 def calculate_jaccard_similarity_distance_annotation(df: pd.DataFrame, lang) -> pd.DataFrame:
     """
-    Calculates the Jaccard Similarity and Jaccard distance.
+    Calculates the Jaccard Similarity and Jaccard distance for annotations.
     Following this implementation https://pyshark.com/jaccard-similarity-and-jaccard-distance-in-python/
-    @Todo
     """
     jaccard_list = []
     for value_list in df.copy()[
@@ -226,6 +198,30 @@ def calculate_jaccard_similarity_distance_annotation(df: pd.DataFrame, lang) -> 
             # Take the ratio of sizes
             jaccard["jaccard_similarity"].append(len(nominator_1) / len(denominator))
             jaccard["jaccard_distance"].append(len(nominator_2) / len(denominator))
+        jaccard_list.append(jaccard)
+    return pd.DataFrame.from_records(jaccard_list)
+
+
+def calculate_jaccard_similarity_distance_occlusion(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculates the Jaccard Similarity and Jaccard distance for occlusions.
+    Following this implementation https://pyshark.com/jaccard-similarity-and-jaccard-distance-in-python/
+    """
+    jaccard_list = []
+    for value_list in df.copy()[["index", "occluded_text_model", "occluded_text_human"]].values:
+        jaccard = {"index": value_list[0], "jaccard_similarity": 0, "jaccard_distance": 0}
+        tokens_model, tokens_human = word_tokenize(value_list[1]), word_tokenize(value_list[2])
+        tokens_normalized = preprocessing.normalize_list_length([tokens_model, tokens_human], {"Nan": "Nan"})
+        set_1, set_2 = set(list(tokens_normalized[0])), set(list(tokens_normalized[1]))
+        # Find intersection of two sets
+        nominator_1 = set_1.intersection(set_2)
+        # Find symmetric difference of two sets
+        nominator_2 = set_1.symmetric_difference(set_2)
+        # Find union of two sets
+        denominator = set_1.union(set_2)
+        # Take the ratio of sizes
+        jaccard["jaccard_similarity"] = len(nominator_1) / len(denominator)
+        jaccard["jaccard_distance"] = len(nominator_2) / len(denominator)
         jaccard_list.append(jaccard)
     return pd.DataFrame.from_records(jaccard_list)
 
@@ -363,17 +359,3 @@ def apply_aggregation(df: pd.DataFrame, column_name, aggregation: str):
     if aggregation == "min":
         df["{}_{}".format(aggregation, column_name)] = pd.DataFrame(df[column_name].values.tolist()).min(1)
     return df
-
-
-def ttest(sample_df: pd.DataFrame, mu_df, col):
-    tc_list = []
-    pvalue_list = []
-    for lower_court in sample_df.values:
-        mu = mu_df[mu_df["lower_court"] == lower_court[0]][col].values[0]
-        result = stats.ttest_1samp(lower_court[1], popmean=mu)
-        tc_list.append(result.statistic)
-        pvalue_list.append(result.pvalue)
-    sample_df["tc"] = tc_list
-    sample_df["pvalue"] = pvalue_list
-    sample_df["pvalue"] = sample_df["pvalue"].apply(Decimal)
-    return sample_df

@@ -3,11 +3,14 @@ import itertools
 import json
 import math
 import warnings
+from decimal import Decimal
 from pathlib import Path
 from random import randint
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 from netcal.scaling import TemperatureScaling
+from scipy.stats import stats
 
 warnings.filterwarnings("ignore")
 
@@ -127,18 +130,6 @@ def write_json(filepath: Path, dictionary: dict):
         outfile.write(json_object)
 
 
-def annotation_preprocessing(filepaths: list, lang: str, dataset_name: str) -> (pd.DataFrame,pd.DataFrame, pd.DataFrame):
-    """
-    Extract datasets from jsonl, gets acceoted cases.
-    Separates spans and tokens columns and joins them into dictionary.
-    Returns label_df list.
-    """
-    datasets = extract_dataset(filepaths[0], filepaths[1])
-    dataset = get_accepted_cases(datasets[dataset_name])
-    dataset.index.name = f"annotations_{lang}"
-    return dataset,extract_values_from_column(dataset, "spans", "tokens"), extract_values_from_column(dataset, "tokens", "spans")
-
-
 def get_accepted_cases(dataset: pd.DataFrame) -> pd.DataFrame:
     """
     Returns accepted cases from dataset.
@@ -160,6 +151,31 @@ def get_baseline(dataset: pd.DataFrame) -> pd.DataFrame:
     return dataset[dataset["explainability_label"] == "Baseline"]
 
 
+def group_to_list(dataset: pd.DataFrame, col_1, col_2) -> pd.DataFrame:
+    return dataset.groupby(col_1)[col_2].apply(list).reset_index()
+
+
+def group_by_agg_column(dataset: pd.DataFrame, col_1, agg_dict: dict) -> pd.DataFrame:
+    """
+    Groups by col_1 and applies count of "id" and mean of 'confidence_scaled'.
+    Returns Dataframe
+    """
+    return dataset.groupby(col_1).agg(agg_dict).reset_index()
+
+
+def annotation_preprocessing(filepaths: list, lang: str, dataset_name: str) -> (
+        pd.DataFrame, pd.DataFrame, pd.DataFrame):
+    """
+    Extract datasets from jsonl, gets acceoted cases.
+    Separates spans and tokens columns and joins them into dictionary.
+    Returns extracted dataset, spans Dataframe and tokens Dataframe.
+    """
+    datasets = extract_dataset(filepaths[0], filepaths[1])
+    dataset = get_accepted_cases(datasets[dataset_name])
+    dataset.index.name = f"annotations_{lang}"
+    return dataset, extract_values_from_column(dataset, "spans", "tokens"), extract_values_from_column(dataset,
+                                                                                                       "tokens",
+                                                                                                       "spans")
 
 
 def extract_values_from_column(df: pd.DataFrame, col_1: str, col_2: str) -> pd.DataFrame:
@@ -255,7 +271,12 @@ def group_token_columns(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     return df
 
 
-def group_lower_court_columns(df: pd.DataFrame) -> pd.DataFrame:
+def apply_functions_lower_court(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Applies normalize_string to ccluded_text.
+    Gets original court for each row and inserts lower_court as occlusion
+    Returns Dataframe.
+    """
     df["occluded_text"] = df.apply(
         lambda row: normalize_string(row["occluded_text"]), axis=1)
     df["lower_court"] = df.apply(
@@ -320,7 +341,7 @@ def get_annotator_df(tokens_df: pd.DataFrame, lang: str, annotator: str, version
     if version == "3":
         annotator_df = tokens_df[
             tokens_df['_annotator_id'] == version_ids["1"].format(lang, annotator)].drop_duplicates().copy()
-        annotator_df = annotator_df\
+        annotator_df = annotator_df \
             .append(tokens_df[tokens_df['_annotator_id'] == version_ids["2"].format(lang, annotator)]
                     .drop_duplicates().copy())
 
@@ -441,7 +462,7 @@ def temp_scaling(df: pd.DataFrame) -> pd.DataFrame:
 
 def occlusion_preprocessing(lang: str, df: pd.DataFrame, filename: str):
     """
-    @Todo Comment & clean up
+    @todo
     """
     df = df.set_index("index")
     df = calculate_explainability_score(df)
@@ -458,7 +479,7 @@ def occlusion_preprocessing(lang: str, df: pd.DataFrame, filename: str):
     write_csv(Path(f"{lang}/occlusion/{filename}.csv"), df_0.append(df_1))
 
 
-def get_correct_direction(df: pd.DataFrame):
+def get_correct_direction(df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame, pd.Series, pd.Series):
     """
     Adds numeric_label column with values (-1: Supports judgement, 0: Neutral, 1: Opposes judgement).
     Adds correct_direction boolean column (True if numeric_label == confidence direction).
@@ -534,6 +555,21 @@ def calculate_explainability_score(df: pd.DataFrame):
     return occlusion_df
 
 
+def get_one_sided_agg(dataset: pd.DataFrame, sorted_df: pd.DataFrame, col):
+    """
+    Gets mean of one sided explainability_score and confidence_direction.
+    Returns Dataframe.
+    """
+    dataset = group_by_agg_column(dataset, col,
+                                  agg_dict={"confidence_scaled": "mean", "confidence_direction": "mean",
+                                            "norm_explainability_score": "mean"}) \
+        .rename(columns={"norm_explainability_score": "mean_norm_explainability_score"})
+    if col == "lower_court":
+        dataset = sorted_df.merge(dataset, on="lower_court", how="inner")
+    dataset["confidence_direction"] = dataset["confidence_direction"] * dataset["confidence_scaled"]
+    return dataset
+
+
 def find_flipped_cases(df: pd.DataFrame):
     """
     Separates baseline entries and non baseline entries.
@@ -554,6 +590,19 @@ def find_flipped_cases(df: pd.DataFrame):
     return occlusion_df
 
 
+def group_by_flipped(dataset: pd.DataFrame, col) -> pd.DataFrame:
+    """
+    Groups by col.
+    Returns Dataframe with proportional count of flipped and unflipped rows.
+    """
+    has_flipped_df = group_by_agg_column(dataset[dataset["has_flipped"] == True], col, {"has_flipped": "count"})
+    dataset = group_by_agg_column(dataset, col, {"id": "count"})
+    dataset = dataset.merge(has_flipped_df, on=col)
+    dataset["has_not_flipped"] = (dataset["id"] - dataset["has_flipped"])
+    dataset["has_flipped"] = dataset["has_flipped"]
+    return dataset
+
+
 def normalize_string(string: str) -> str:
     """
     Returns string w/o trailing whitespace.
@@ -565,3 +614,20 @@ def normalize_string(string: str) -> str:
             return string[:-1]
     if string[-1] != ' ':
         return string
+
+
+def ttest(sample_df: pd.DataFrame, mu_df, col):
+    """
+    @todo
+    """
+    tc_list = []
+    pvalue_list = []
+    for lower_court in sample_df.values:
+        mu = mu_df[mu_df["lower_court"] == lower_court[0]][col].values[0]
+        result = stats.ttest_1samp(lower_court[1], popmean=mu)
+        tc_list.append(result.statistic)
+        pvalue_list.append(result.pvalue)
+    sample_df["tc"] = tc_list
+    sample_df["pvalue"] = pvalue_list
+    sample_df["pvalue"] = sample_df["pvalue"].apply(Decimal)
+    return sample_df

@@ -1,7 +1,6 @@
 import sys
 
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
-import scrc.annotation.judgment_explainability.analysis.utils.qualitative_analysis as ql
 import scrc.annotation.judgment_explainability.analysis.utils.quantitative_analysis as qt
 
 LANGUAGES = ["de", "fr", "it"]
@@ -22,7 +21,8 @@ if __name__ == '__main__':
     language = sys.argv[1]
     # Lower court analysis
     lower_court_df = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][0].format(language),
-                                                               OCCLUSION_PATHS["test_sets"][0].format(language, language)
+                                                               OCCLUSION_PATHS["test_sets"][0].format(language,
+                                                                                                      language)
                                                                )
     preprocessing.occlusion_preprocessing(language, lower_court_df, f"bias_lower_court_{language}")
     qt.lower_court_analysis()
@@ -30,15 +30,14 @@ if __name__ == '__main__':
     # Occlusion analysis
     baseline_df = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][1].format(language, 1),
                                                             OCCLUSION_PATHS["test_sets"][1].format(language, language,
-                                                                                                1))
+                                                                                                   1))
     for nr in NUMBER_OF_EXP:
         occlusion = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][1].format(language, nr),
                                                               OCCLUSION_PATHS["test_sets"][1].format(language, language,
-                                                                                                     nr)
-                                                              )
+                                                                                                     nr))
         if nr in NUMBER_OF_EXP[1:]:
             occlusion = occlusion.append(baseline_df)
         preprocessing.occlusion_preprocessing(language, occlusion, f"occlusion_{nr}_{language}")
 
     qt.occlusion_analysis()
-    ql.occlusion_analysis()
+    # ql.occlusion_analysis()

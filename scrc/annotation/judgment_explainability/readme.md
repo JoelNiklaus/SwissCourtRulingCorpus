@@ -71,11 +71,22 @@ If you are already familiar with UBELIX please follow the following steps:
 
 #### Occlusion
 
-@Todo
+This implementation of the occlusion method has the aim to produce new prediction with the sjp model using 
+the occlusion test sets created  with ``experiment_creator.py``. To run the occlusion experiments on Ubelix. Clone 
+the  SwissJudgementPrediction repository into your home directory using ``git clone https://github.com/JoelNiklaus/SwissJudgementPrediction.git``. 
+1. If not already done create a directory called data with a subdirectory for each language you want to test. Place `train.csv`,
+`val.csv` and your desired occlusion test set under each language directory
+2. Change the file name in `SwissJudgementPrediction/run_tc.py` from `test.csv` to the name of your occlusion test set.
+3. Create a new environment called "sjp" and install packages from the env.yml file using `conda env create -f env.yml`
+4. Activate the sjp environment using `conda activate sjp`.
+5. Use the following command to install the right version of PyTorch: `pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113`
+6. Create a Weights & Biases account, get your API token, and enter wandb login inside your conda environment. 
+After you entered the token, it will be saved in the .netrc file in you $HOME folder
+7. Run occlusion using ``sbatch run_ubelix_job.sh adapters test xlm-roberta-base hierarchical lang lang switzerland no_augmentation civil_law False``
 
-- clone SCR
-- Place files correctly
-- run with readme infos
+The prediction results will be placed under ``/SwissJudgementPrediction/sjp/adapters/xlm-roberta-base-hierarchical/lang/2``.
+Note that you might need to adapt some line in ``run_ubelix_job.sh`` to fit your setup.
+
 
 #### Analysis
 

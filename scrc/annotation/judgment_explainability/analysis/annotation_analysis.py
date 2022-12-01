@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 import pandas as pd
 
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
@@ -88,7 +89,7 @@ if __name__ == '__main__':
     for ver in range(1, 5):
         df_1, df_2 = preprocessing.annotation_preprocessing([ANNOTATION_PATHS[str(ver)][0],
                                                              ANNOTATION_PATHS[str(ver)][1]],
-                                                            language, f"annotations_{language}")[:-1]
+                                                            language, f"annotations_{language}")[1:]
         if ver == 4:
             annotation_analysis_gold(language, df_1, df_2, str(ver))
         else:
