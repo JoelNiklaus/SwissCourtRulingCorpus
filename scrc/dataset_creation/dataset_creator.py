@@ -34,7 +34,7 @@ from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cach
 from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision, legal_areas, get_region, \
     where_string_spider, where_string_court
 
-from scrc.utils.court_names import court_names_backup, get_issue_courts, get_error_courts
+from scrc.utils.court_names import court_names_backup, get_error_courts, get_empty_courts
 from scrc.enums.split import Split
 
 import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
@@ -156,7 +156,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.debug = debug
         self.seed = 42
-        self.minFeatureColLength = 100  # characters
+        self.minFeatureColLength = 10  # tokens
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
@@ -296,11 +296,11 @@ class DatasetCreator(AbstractPreprocessor):
         datasets_list = []
         label_concat = None
 
-        for court_string in court_list:
+        for court_string in tqdm(court_list):
             self.logger.info(f"Creating dataset for {court_string}")
             dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
 
-            if len(dataset) == 0:
+            if len(dataset) <= 1:
                 self.logger.info(f"Dataset for {court_string} could not be created")
                 not_created.append(court_string)
             else:
@@ -356,20 +356,20 @@ class DatasetCreator(AbstractPreprocessor):
         court_list_tmp = self.get_all_courts()  # get names of all courts
 
         # taking all folder names from /data/datasets as a list to know which courts are already generated
-        courts_done = os.listdir(str(self.datasets_subdir))
+        courts_done = os.listdir(str(self.datasets_subdir / self.dataset_name))
+        self.logger.info(f"Already generated courts: {courts_done}")
 
         courts_error = get_error_courts()  # all courts that couldn't be created
-
-        courts_issues = get_issue_courts()  # all courts that can be generated but with some issues
+        courts_empty = get_empty_courts()  # all courts that were empty
 
         # court_string = court_string - (courts_done + courts_error + courts_issues)
         court_list = []
         for court in court_list_tmp:
-            if court not in (courts_done + courts_error + courts_issues):
+            if court not in (courts_done + courts_error + courts_empty):
                 court_list.append(court)
 
-        # 76/183 not created
-        # 107/183 created - 2 without reports, 6 without file_numbers
+        # 114/183 not created
+        # 69/183 created
         return court_list
 
     def create_multiple_datasets(self, court_list=None, concatenate=False, overview=True, save_reports=True,
@@ -529,12 +529,14 @@ class DatasetCreator(AbstractPreprocessor):
         table = f"{join_tables_on_decision(['file'])}"
         columns = 'file.file_name, file.html_url, file.pdf_url'
         file_ids = ["'" + str(x) + "'" for x in df['file_id'].tolist()]
-
-        where = f"file.file_id IN ({','.join(file_ids)})"
-        file_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
-        df['file_name'] = file_df['file_name']
-        df['html_url'] = file_df['html_url']
-        df['pdf_url'] = file_df['pdf_url']
+        if len(file_ids) > 0:
+            where = f"file.file_id IN ({','.join(file_ids)})"
+            file_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
+            df['file_name'] = file_df['file_name']
+            df['html_url'] = file_df['html_url']
+            df['pdf_url'] = file_df['pdf_url']
+        else:
+            self.logger.info("file_ids empty")
         return df
 
     def load_judgment(self, decision_ids, df, engine):
@@ -629,8 +631,8 @@ class DatasetCreator(AbstractPreprocessor):
         :param save_reports:whether or not to compute and save reports
         :return:
         """
-        # clean df before saving it
-        dataset = self.clean_dataset(dataset)
+        # filter out examples with short feature cols dataset before saving it
+        dataset = dataset.filter(self.filter_by_length, fn_kwargs={"how": 'all'})
         self.logger.info("start creating splits")
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
         self.save_huggingface_dataset(splits, folder)
@@ -655,25 +657,22 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"Saved dataset files to {folder}")
         return splits
 
-    def clean_dataset(self, dataset):
-        # replace empty strings with nan so that they can be removed
-        self.logger.info(f"start cleaning")
-        empty_rows = []
-        def get_empty_rows(row):
-            if row["num_tokens"] <= self.minFeatureColLength:
-                empty_rows.append(row['__index_level_0__'])
-
+    def filter_by_length(self, example, how='any'):
+        """
+        Removes examples that are too short
+        :param example:    the example to check
+        :param how:         how to check for length. 'all' means that all feature cols must be long enough,
+         'any' means that at least one feature col must be long enough
+        :return:
+        """
+        keep_counter = 0
         for feature_col in self.get_feature_col_names():
-            dataset = dataset.rename_column(f"{feature_col}_num_tokens_bert", "num_tokens")
-            dataset.map(get_empty_rows)
-            dataset = dataset.rename_column("num_tokens", f"{feature_col}_num_tokens_bert")
-
-        duplicates = [number for number in empty_rows if empty_rows.count(number) == len(self.get_feature_col_names())]
-        non_empty_rows = [i for i in range(len(dataset)) if i not in duplicates]
-        dataset = dataset.select(non_empty_rows)
-
-        self.logger.info(f"finished cleaning")
-        return dataset
+            if example[f"{feature_col}_num_tokens_bert"] > self.minFeatureColLength:
+                keep_counter += 1
+        if how == 'all':
+            return keep_counter == len(self.get_feature_col_names())  # keep if all feature cols are long enough
+        elif how == 'any':
+            return keep_counter > 0  # keep if at least one feature col is long enough
 
     def prepare_kaggle_splits(self, splits):
         self.logger.info("Saving the data in kaggle format")
@@ -718,16 +717,16 @@ class DatasetCreator(AbstractPreprocessor):
                 # Additionally, we don't want to save the long text columns to the csv files because it becomes unreadable
                 self.logger.info(f"Exporting metadata columns of dataset to pandas dataframe for easier plotting")
                 df = dataset.remove_columns(self.get_feature_col_names()).to_pandas()
-            if save_reports:
-                self.logger.info(f"Computing metadata reports")
-                self.save_report(folder, split, df)
+                if save_reports:
+                    self.logger.info(f"Computing metadata reports")
+                    self.save_report(folder, split, df)
 
-            if save_csvs:
-                if isinstance(save_csvs, list):
-                    if split not in save_csvs:
-                        continue  # Only save if the split is in the list
-                self.logger.info("Saving csv file")
-                df.to_csv(folder / f"{split}.csv", index_label='id', index=False)
+                if save_csvs:
+                    if isinstance(save_csvs, list):
+                        if split not in save_csvs:
+                            continue  # Only save if the split is in the list
+                    self.logger.info("Saving csv file")
+                    df.to_csv(folder / f"{split}.csv", index_label='id', index=False)
 
     def create_splits(self, dataset, split_type, include_all=False):
         # TODO is the .value of the Split enum really necessary? It probably also works without
@@ -907,6 +906,7 @@ class DatasetCreator(AbstractPreprocessor):
         if export_path is None:
             export_path = self.get_dataset_folder()
 
+        self.logger.info("Creating overview of the datasets")
         courts_av_tmp = os.listdir(path)
         courts_av = []
         # filtering to only have dir's
