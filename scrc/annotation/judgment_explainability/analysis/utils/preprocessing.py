@@ -110,6 +110,15 @@ def write_csv(filepath: Path, df: pd.DataFrame):
     df.to_csv(filepath, index=True, index_label="index")
 
 
+def read_json(filepath: str) -> dict:
+    """
+    Reads json file and returns dict.
+    """
+    with open(filepath) as json_file:
+        data = json.load(json_file)
+        return data
+
+
 def write_csv_from_list(path: Path, df_list: list):
     """
     Writes csv file from Dataframe list.
@@ -613,6 +622,18 @@ def normalize_string(string: str) -> str:
             return string[:-1]
     if string[-1] != ' ':
         return string
+
+
+def normalize_df_length(df: pd.DataFrame, col:str, column_values: list):
+    """
+    @todo
+    """
+    for value in column_values:
+        if value not in df[col].values:
+            row = pd.DataFrame(columns=df.columns, data={col: [0] for col in df.columns})
+            row[col] = value
+            df = df.append(row)
+    return df.sort_values(by=[col])
 
 
 def ttest(sample_df: pd.DataFrame, mu_df, col):

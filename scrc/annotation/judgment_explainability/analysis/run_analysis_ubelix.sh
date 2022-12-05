@@ -19,6 +19,7 @@ for VARIABLE_1 in de fr it;
       do
         python annotation_analysis.py $VARIABLE_1
         python occlusion_analysis.py $VARIABLE_1
+        python lower_court_analysis.py $VARIABLE_1
       done;
 
 # run with: sbatch run_analysis.sh

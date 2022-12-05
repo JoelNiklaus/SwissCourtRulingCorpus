@@ -2,10 +2,8 @@ import ast
 import warnings
 from pathlib import Path
 
-import matplotlib
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
 from nltk.tokenize import word_tokenize
 
 import scrc.annotation.judgment_explainability.analysis.utils.plots as plots
@@ -27,6 +25,7 @@ GOLD_SESSION = "gold_nina"
 LEGAL_AREAS = ["penal_law", "social_law", "civil_law"]
 YEARS = ["2015", "2016", "2017", "2018", "2019", "2020"]
 NUMBER_OF_EXP = [1, 2, 3, 4]
+LOWER_COURT_ABBREVIATIONS = preprocessing.read_json("lower_court_abbrevation.json")
 
 EXTRACTED_DATASETS_GOLD = preprocessing.extract_dataset(
     "../legal_expert_annotations/{}/gold/gold_annotations_{}.jsonl",
@@ -88,8 +87,8 @@ def count_lower_court(dataset: pd.DataFrame) -> (int, float):
     """
     Returns number of distinct lower courts and their length in tokens.
     """
-    dataset["length"] = dataset["lower_court"].apply(lambda x: len(word_tokenize(x)))
-    return dataset["lower_court"].nunique(), dataset["length"].mean()
+    dataset["length"] = dataset["lower_court_long"].apply(lambda x: len(word_tokenize(x)))
+    return dataset["lower_court_long"].nunique(), dataset["length"].mean()
 
 
 def count_has_flipped(dataset: pd.DataFrame) -> (int, int, int):
@@ -210,36 +209,22 @@ def get_legal_area_distribution(dataset: pd.DataFrame) -> pd.DataFrame:
     return distribution_df.drop("id_scrc", axis=1, inplace=False)
 
 
+def abbreviate_lower_courts(lang: str, row):
+    for key in LOWER_COURT_ABBREVIATIONS[lang].keys():
+        if key in row:
+            return f"{LOWER_COURT_ABBREVIATIONS[lang][key]}"
+
+
 def get_lower_court_distribution(dataset: pd.DataFrame) -> pd.DataFrame:
     """
     Sorts dataset according to normal distribution
     Counts proportional occurrences of each lower court.
     Returns Dataframe
     """
-    distribution_df = sort_normal_distribution(dataset.groupby("lower_court")["id"].count().reset_index()) \
-        .reset_index().rename(columns={"index": "lower_court", 0: "count"})
+    distribution_df = dataset.groupby("lower_court")["id"].count().reset_index()\
+        .rename(columns={"index": "lower_court", "id": "count"})
     distribution_df["count"] = distribution_df["count"].div(distribution_df["count"].sum())
     return distribution_df
-
-
-def sort_normal_distribution(dataset: pd.DataFrame) -> pd.DataFrame:
-    """
-    Sorts according to normal distribution (minimums at beginning and ends).
-    Returns sorted Dataframe.
-    """
-    df_list = dataset.values.tolist()
-    df_dict = {item[0]: item[1:][0] for item in df_list}
-    result_list = [len(df_dict) * [None], len(df_dict) * [None]]
-    i = 0
-    while len(df_dict) > 0:
-        result_list[0][-(1 + i)] = min(df_dict.values())
-        result_list[1][-(1 + i)] = min(df_dict, key=df_dict.get)
-        del df_dict[min(df_dict, key=df_dict.get)]
-        result_list[0][i] = min(df_dict.values())
-        result_list[1][i] = min(df_dict, key=df_dict.get)
-        del df_dict[min(df_dict, key=df_dict.get)]
-        i += 1
-    return pd.DataFrame(result_list[0], index=result_list[1])
 
 
 def get_lc_la_distribution(dataset: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
@@ -372,6 +357,7 @@ def annotation_analysis():
     multilingual_mean_df_list = []
 
     for l in LANGUAGES:
+        # @Todo make table instead of graph
         df_gold = preprocessing.get_accepted_cases(EXTRACTED_DATASETS_GOLD[f"annotations_{l}-{GOLD_SESSION}"])
         # Prepare json scores
         counts = {"total_number_of_cases": len(df_gold),
@@ -415,6 +401,7 @@ def annotation_analysis():
 
 
 def lower_court_analysis():
+    # @Todo add lower court abbrevation print table
     """
     This functions prepares and performs the quantitative lower_court analysis.
     Dumps individual core numbers into a json.
@@ -424,22 +411,26 @@ def lower_court_analysis():
     distribution_df_dict = {}
     for l in LANGUAGES:
         lower_court_df = preprocessing.read_csv(OCCLUSION_PATHS["analysis"][0].format(l, l), "index")
+        lower_court_df["lower_court_long"] = lower_court_df["lower_court"].copy()
+        lower_court_df["lower_court"] = lower_court_df["lower_court"].apply(lambda row: abbreviate_lower_courts(l, row))
         baseline_df = preprocessing.get_baseline(lower_court_df)
-        lower_court_df = preprocessing.remove_baseline(lower_court_df)
+        lower_court_df = preprocessing.remove_baseline(lower_court_df).sort_values("lower_court")
 
         # Prepare json scores
-        lower_court_dict = {"number_of_lower_courts": count_lower_court(baseline_df)[0],
-                            "mean_tokens_lower_court": count_lower_court(baseline_df)[1],
+        lower_court_dict = {"number_of_distinct_lower_court": len(list(baseline_df["lower_court"].unique())),
+                            "number_of_full_lower_courts": count_lower_court(baseline_df)[0],
+                            "full_lower_court_list": list(baseline_df["lower_court_long"].unique()),
+                            "mean_tokens_full_lower_court": count_lower_court(baseline_df)[1],
                             "number_of_has_flipped_lc(T/F/Total)": list(count_has_flipped(lower_court_df))}
         preprocessing.write_json(Path(f"{l}/quantitative/lower_court_analysis_{l}.json"), lower_court_dict)
 
         # Lower court has flipped distribution plots
-        plots.create_group_by_flipped_plot(l, "", lower_court_df, ["lower_court", "has_not_flipped", "has_flipped"],
-                                           label_texts=["Lower Court", "Number of Experiments"],
-                                           legend_texts=[f"{lst[0]}flipped Prediction {lst[1]}" for lst in
-                                                         [["", 0], ["", 1], ["not ", 0], ["not ", 1]]],
-                                           title=f"Distribution of flipped Experiments per Lower Court",
-                                           filepath='plots/lc_flipped_distribution_{}.png')
+        plots.create_lc_group_by_flipped_plot(l, lower_court_df, ["lower_court", "has_not_flipped", "has_flipped"],
+                                              label_texts=["Lower Court", "Number of Experiments"],
+                                              legend_texts=[f"{lst[0]}flipped Prediction {lst[1]}" for lst in
+                                                            [["", 0], ["", 1], ["not ", 0], ["not ", 1]]],
+                                              title=f"Distribution of flipped Experiments per Lower Court",
+                                              filepath=f'plots/lc_flipped_distribution_{l}.png')
         # Lower court legal area distribution plots
         legal_area_distribution, legal_area_conf = get_lc_la_distribution(
             lower_court_df.drop(["norm_explainability_score", "confidence_direction"], axis=1))
@@ -449,10 +440,13 @@ def lower_court_analysis():
         # Lower court distribution plots
         distribution_df = get_lower_court_distribution(lower_court_df)
 
+
         plots.distribution_plot_1(l, distribution_df.reset_index(), col_x="lower_court", col_y_1="count",
                                   label_texts=["Lower Court", "Occurrence of Lower Courts in Dataset"],
                                   title=f"Lower Court distribution in the Dataset",
                                   filepath=f'plots/lc_distribution_{l}.png')
+        preprocessing.write_csv_from_list(Path(f"{l}/quantitative/lc_distribution_{l}.csv"),
+                                          [distribution_df.reset_index()])
 
         # T-test plots
         baseline_df_mean = preprocessing.group_by_agg_column(baseline_df, "lower_court",
@@ -500,15 +494,9 @@ def occlusion_analysis():
             # Prepare csv tables
             preprocessing.write_csv_from_list(Path(f"{l}/quantitative/occlusion_analysis_{l}.csv"),
                                               [])
-            # Occlusion has flipped distribution plots
-            plots.create_group_by_flipped_plot(l, nr, occlusion_df,
-                                               ["explainability_label", "has_not_flipped", "has_flipped"],
-                                               label_texts=["Explainability label", "Number of Experiments"],
-                                               legend_texts=[f"{lst[0]}flipped Prediction {lst[1]}" for lst in
-                                                             [["", 0], ["", 1], ["not ", 0], ["not ", 1]]],
-                                               title=f"Distribution of flipped Experiments per Explainability Label",
-                                               filepath='plots/occ_flipped_distribution_{}_{}.png')
+            # Occlusion has flipped plots preparation
             flipped_df_dict[nr].append(occlusion_df)
+
             # Append to multilingual lists
             multilingual_mean_length_list.append(get_occlusion_label_mean(occlusion_df)[1])
 
@@ -519,7 +507,7 @@ def occlusion_analysis():
             score_0, score_1 = false_classification.groupby("explainability_label")["correct_direction"].count(), \
                                correct_classification.groupby("explainability_label")["correct_direction"].count()
 
-            # Occlusion effect plots
+            # Occlusion effect plots preparation
             effect_df_dict[l].append(occlusion_df)
 
             # Prepare json scores
@@ -531,7 +519,7 @@ def occlusion_analysis():
             preprocessing.write_json(Path(f"{l}/quantitative/occlusion_analysis_{l}_{nr}.json"), occlusion_dict)
 
             # @todo Plot of correct and incorrect classifications
-            o_judgement_f, s_judgement_f = split_oppose_support(occlusion_df, false_classification)
+            """o_judgement_f, s_judgement_f = split_oppose_support(occlusion_df, false_classification)
             o_judgement_c, s_judgement_c = split_oppose_support(occlusion_df, correct_classification)
             multilingual_classification_dict[f'{l}_{nr}_c'] = pd.concat([o_judgement_c, s_judgement_c])
             multilingual_classification_dict[f'{l}_{nr}_f'] = pd.concat([o_judgement_f, s_judgement_f])
@@ -540,12 +528,19 @@ def occlusion_analysis():
                                filepath=f'plots/occ_correct_classification_{l}_{nr}.png')
             plots.scatter_plot(o_judgement_f, s_judgement_f, mode=False,
                                title="Models Classification of Explainability Label (Incorrectly Classified)",
-                               filepath=f'plots/occ_false_classification_{l}_{nr}.png')
+                               filepath=f'plots/occ_false_classification_{l}_{nr}.png')"""
             """o_judgement_f, s_judgement_f = scores.calculate_IAA_occlusion(o_judgement_f, l), \
                                        scores.calculate_IAA_occlusion(s_judgement, l)"""
 
         plots.create_multilingual_occlusion_plot(multilingual_mean_length_list, nr)
 
+    # Occlusion flipped plots
+    plots.create_occ_group_by_flipped_plot(flipped_df_dict, ["explainability_label", "has_not_flipped", "has_flipped"],
+                                           label_texts=["Explainability label", "Number of Experiments"],
+                                           legend_texts=[f"{lst[0]}flipped Prediction {lst[1]}" for lst in
+                                                         [["", 0], ["", 1], ["not ", 0], ["not ", 1]]],
+                                           title=f"Distribution of flipped Experiments per Explainability Label",
+                                           filepath='plots/occ_flipped_distribution_{}.png')
     # Occlusion effect plots
     plots.create_effect_plot(effect_df_dict, {l: "" for l in LANGUAGES},
                              cols=["explainability_label", "confidence_direction"],
@@ -561,6 +556,7 @@ def occlusion_analysis():
                              legend_texts=["Exp_Score > 0", "Exp_Score < 0"],
                              title=f"Mean Distribution of Explainability Scores in both directions",
                              filepath='plots/occ_effect_mean_{}.png')
+
     create_classification_distibution_plot(multilingual_classification_dict)
 
 

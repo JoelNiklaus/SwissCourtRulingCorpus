@@ -19,15 +19,6 @@ if __name__ == '__main__':
     """
     assert len(sys.argv) == 2
     language = sys.argv[1]
-    # Lower court analysis
-    lower_court_df = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][0].format(language),
-                                                               OCCLUSION_PATHS["test_sets"][0].format(language,
-                                                                                                      language)
-                                                               )
-    preprocessing.occlusion_preprocessing(language, lower_court_df, f"bias_lower_court_{language}")
-    qt.lower_court_analysis()
-
-    # Occlusion analysis
     baseline_df = preprocessing.extract_prediction_test_set(OCCLUSION_PATHS["prediction"][1].format(language, 1),
                                                             OCCLUSION_PATHS["test_sets"][1].format(language, language,
                                                                                                    1))
