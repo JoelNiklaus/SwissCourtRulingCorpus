@@ -479,20 +479,19 @@ def occlusion_preprocessing(lang: str, df: pd.DataFrame, filename: str):
     write_csv(Path(f"{lang}/occlusion/{filename}.csv"), df_0.append(df_1))
 
 
-def get_correct_direction(df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame, pd.Series, pd.Series):
+def get_correct_direction(df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame,pd.DataFrame, pd.Series, pd.Series):
     """
     Adds numeric_label column with values (-1: Supports judgement, 0: Neutral, 1: Opposes judgement).
     Adds correct_direction boolean column (True if numeric_label == confidence direction).
     Splits df into direction sets (0: False, 1: True).
-    Returns Dataframe, direction set 0, grouped set 1 and grouped set 0.
+    Returns Dataframe, direction set 0, direction set_1.
     """
     df["numeric_label"] = np.where(df["explainability_label"] == LABELS[1], -1, df["explainability_label"])
     df["numeric_label"] = np.where(df["explainability_label"] == LABELS[2], 1, df["numeric_label"])
     df["numeric_label"] = np.where(df["explainability_label"] == "Neutral", 0, df["numeric_label"])
     df["correct_direction"] = np.where(df["numeric_label"] == df["confidence_direction"], True, False)
     s_0, s_1 = df[df["correct_direction"] == False], df[df["correct_direction"] == True]
-    s_1 = s_1.groupby("explainability_label")["correct_direction"].count()
-    return df, s_0, s_1, s_0.groupby("explainability_label")["correct_direction"].count()
+    return df, s_0, s_1
 
 
 def get_confidence_direction(df: pd.DataFrame, prediction: int):

@@ -2,8 +2,10 @@ import ast
 import warnings
 from pathlib import Path
 
+import matplotlib
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 from nltk.tokenize import word_tokenize
 
 import scrc.annotation.judgment_explainability.analysis.utils.plots as plots
@@ -341,6 +343,7 @@ def split_oppose_support(dataset_1: pd.DataFrame, dataset_2: pd.DataFrame):
         dataset_1["numeric_label"] == -1]
     o_judgement, s_judgement = o_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]], \
                                s_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]]
+
     o_judgement, s_judgement = pd.merge(false_classification_pos, o_judgement, on="id",
                                         suffixes=(f'_model', f'_human'),
                                         how="inner").drop_duplicates(), \
@@ -468,7 +471,6 @@ def lower_court_analysis():
                              label_texts=["Confidence Direction", "Lower Court"],
                              legend_texts=["Positive Influence", "Negative Influence"],
                              title=f"Effect of Lower Courts on the Prediction Confidence",
-                             height=0.8,
                              filepath='plots/lc_effect_{}.png'
                              )
 
@@ -477,7 +479,6 @@ def lower_court_analysis():
                              label_texts=["Mean Explainability Score", "Lower Court"],
                              legend_texts=["Exp_Score > 0", "Exp_Score < 0"],
                              title=f"Mean Distribution of Explainability Scores in both directions",
-                             height=0.8,
                              filepath='plots/lc_effect_mean_{}.png')
 
 
@@ -485,9 +486,12 @@ def occlusion_analysis():
     """
     @Todo Comment & clean up
     """
-    occlusion_df_dict = {l: [] for l in LANGUAGES}
+    effect_df_dict = {l: [] for l in LANGUAGES}
+    flipped_df_dict = {nr: [] for nr in NUMBER_OF_EXP}
+    multilingual_classification_dict = {}
     for nr in NUMBER_OF_EXP:
-        multilingual_mean_length_list_2 = []
+        multilingual_mean_length_list = []
+
         for l in LANGUAGES:
             occlusion_df = preprocessing.read_csv(OCCLUSION_PATHS["analysis"][1].format(l, nr, l), "index")
             baseline_df = preprocessing.get_baseline(occlusion_df)
@@ -504,15 +508,19 @@ def occlusion_analysis():
                                                              [["", 0], ["", 1], ["not ", 0], ["not ", 1]]],
                                                title=f"Distribution of flipped Experiments per Explainability Label",
                                                filepath='plots/occ_flipped_distribution_{}_{}.png')
+            flipped_df_dict[nr].append(occlusion_df)
             # Append to multilingual lists
-            multilingual_mean_length_list_2.append(get_occlusion_label_mean(occlusion_df)[1])
+            multilingual_mean_length_list.append(get_occlusion_label_mean(occlusion_df)[1])
 
             occlusion_df = occlusion_df[
                 occlusion_df["confidence_direction"] != 0]  # ignore neutral classification
-            occlusion_df, false_classification, score_1, score_0 = preprocessing.get_correct_direction(occlusion_df)
+            occlusion_df, false_classification, correct_classification = preprocessing.get_correct_direction(
+                occlusion_df)
+            score_0, score_1 = false_classification.groupby("explainability_label")["correct_direction"].count(), \
+                               correct_classification.groupby("explainability_label")["correct_direction"].count()
 
             # Occlusion effect plots
-            occlusion_df_dict[l].append(occlusion_df)
+            effect_df_dict[l].append(occlusion_df)
 
             # Prepare json scores
             occlusion_dict = {"number_of_has_flipped(T/F/Total)": list(count_has_flipped(occlusion_df)),
@@ -523,27 +531,38 @@ def occlusion_analysis():
             preprocessing.write_json(Path(f"{l}/quantitative/occlusion_analysis_{l}_{nr}.json"), occlusion_dict)
 
             # @todo Plot of correct and incorrect classifications
-            o_judgement, s_judgement = split_oppose_support(occlusion_df, false_classification)
-
-            """o_judgement, s_judgement = scores.calculate_IAA_occlusion(o_judgement, l), \
+            o_judgement_f, s_judgement_f = split_oppose_support(occlusion_df, false_classification)
+            o_judgement_c, s_judgement_c = split_oppose_support(occlusion_df, correct_classification)
+            multilingual_classification_dict[f'{l}_{nr}_c'] = pd.concat([o_judgement_c, s_judgement_c])
+            multilingual_classification_dict[f'{l}_{nr}_f'] = pd.concat([o_judgement_f, s_judgement_f])
+            plots.scatter_plot(o_judgement_c, s_judgement_c, mode=True,
+                               title="Models Classification of Explainability Label (Correctly Classified)",
+                               filepath=f'plots/occ_correct_classification_{l}_{nr}.png')
+            plots.scatter_plot(o_judgement_f, s_judgement_f, mode=False,
+                               title="Models Classification of Explainability Label (Incorrectly Classified)",
+                               filepath=f'plots/occ_false_classification_{l}_{nr}.png')
+            """o_judgement_f, s_judgement_f = scores.calculate_IAA_occlusion(o_judgement_f, l), \
                                        scores.calculate_IAA_occlusion(s_judgement, l)"""
 
-        plots.create_multilingual_occlusion_plot(multilingual_mean_length_list_2, nr)
+        plots.create_multilingual_occlusion_plot(multilingual_mean_length_list, nr)
 
     # Occlusion effect plots
-    plots.create_effect_plot(occlusion_df_dict, {l: "" for l in LANGUAGES},
+    plots.create_effect_plot(effect_df_dict, {l: "" for l in LANGUAGES},
                              cols=["explainability_label", "confidence_direction"],
                              label_texts=["Confidence Direction", "Explainability Label"],
                              legend_texts=["Positive Influence", "Negative Influence"],
                              title=f"Effect of Explainability Label on the Prediction Confidence",
-                             height=0.2,
                              filepath='plots/occ_effect_{}.png'
                              )
 
-    plots.create_effect_plot(occlusion_df_dict, {l: "" for l in LANGUAGES},
+    plots.create_effect_plot(effect_df_dict, {l: "" for l in LANGUAGES},
                              cols=["explainability_label", "mean_norm_explainability_score"],
                              label_texts=["Mean explainability Score", "Explainability Label"],
                              legend_texts=["Exp_Score > 0", "Exp_Score < 0"],
                              title=f"Mean Distribution of Explainability Scores in both directions",
-                             height=0.2,
                              filepath='plots/occ_effect_mean_{}.png')
+    create_classification_distibution_plot(multilingual_classification_dict)
+
+
+def create_classification_distibution_plot(df_dict):
+    df_dict
