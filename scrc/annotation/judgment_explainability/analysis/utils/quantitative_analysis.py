@@ -217,11 +217,10 @@ def abbreviate_lower_courts(lang: str, row):
 
 def get_lower_court_distribution(dataset: pd.DataFrame) -> pd.DataFrame:
     """
-    Sorts dataset according to normal distribution
     Counts proportional occurrences of each lower court.
     Returns Dataframe
     """
-    distribution_df = dataset.groupby("lower_court")["id"].count().reset_index()\
+    distribution_df = dataset.groupby("lower_court")["id"].count().reset_index() \
         .rename(columns={"index": "lower_court", "id": "count"})
     distribution_df["count"] = distribution_df["count"].div(distribution_df["count"].sum())
     return distribution_df
@@ -381,6 +380,7 @@ def annotation_analysis():
         plots.mean_plot_1(facts_count_df.drop(f"mean_legal_area").drop(f"mean_year", axis=1),
                           labels=["Years", "Number of Tokens"],
                           legend_texts=[la.replace("_", " ") for la in LEGAL_AREAS],
+                          ylim=[0, 600],
                           title="Token over legal area and year Distribution ",
                           mean_lines={},
                           filepath=f"plots/ann_mean_tokens_year_legal_area_{l}.png")
@@ -390,6 +390,7 @@ def annotation_analysis():
                           labels=["Annotators", "Number of Tokens"],
                           legend_texts=legend + [f"mean tokens {label.lower()}"
                                                  for label in LABELS_OCCLUSION[:-1]],
+                          ylim=[0, 110],
                           title="Token Distribution of Annotation Labels",
                           mean_lines={f"mean_tokens_{label.lower().replace(' ', '_')}":
                                           label_mean_df[label_mean_df["label"] == label]["mean_token"].item()
@@ -408,7 +409,6 @@ def lower_court_analysis():
     Creates plots for quantitative analysis.
     """
     lower_court_df_dict = {l: [] for l in LANGUAGES}
-    distribution_df_dict = {}
     for l in LANGUAGES:
         lower_court_df = preprocessing.read_csv(OCCLUSION_PATHS["analysis"][0].format(l, l), "index")
         lower_court_df["lower_court_long"] = lower_court_df["lower_court"].copy()
@@ -425,54 +425,67 @@ def lower_court_analysis():
         preprocessing.write_json(Path(f"{l}/quantitative/lower_court_analysis_{l}.json"), lower_court_dict)
 
         # Lower court has flipped distribution plots
-        plots.create_lc_group_by_flipped_plot(l, lower_court_df, ["lower_court", "has_not_flipped", "has_flipped"],
+        plots.create_lc_group_by_flipped_plot(lower_court_df, ["lower_court", "has_not_flipped", "has_flipped"],
                                               label_texts=["Lower Court", "Number of Experiments"],
                                               legend_texts=[f"{lst[0]}flipped Prediction {lst[1]}" for lst in
-                                                            [["", 0], ["", 1], ["not ", 0], ["not ", 1]]],
+                                                            [["not ", 0], ["", 0], ["not ", 1], ["", 1]]],
                                               title=f"Distribution of flipped Experiments per Lower Court",
                                               filepath=f'plots/lc_flipped_distribution_{l}.png')
+
         # Lower court legal area distribution plots
         legal_area_distribution, legal_area_conf = get_lc_la_distribution(
             lower_court_df.drop(["norm_explainability_score", "confidence_direction"], axis=1))
-
         plots.create_lc_la_distribution_plot(l, legal_area_distribution.set_index("lower_court").T)
-        plots.create_lc_la_distribution_plot(l, legal_area_conf.set_index("lower_court").T)
-        # Lower court distribution plots
+
+        # Lower court distribution table
         distribution_df = get_lower_court_distribution(lower_court_df)
-
-
-        plots.distribution_plot_1(l, distribution_df.reset_index(), col_x="lower_court", col_y_1="count",
-                                  label_texts=["Lower Court", "Occurrence of Lower Courts in Dataset"],
-                                  title=f"Lower Court distribution in the Dataset",
-                                  filepath=f'plots/lc_distribution_{l}.png')
-        preprocessing.write_csv_from_list(Path(f"{l}/quantitative/lc_distribution_{l}.csv"),
+        preprocessing.write_csv_from_list(Path(f"tables/lc_distribution_{l}.csv"),
                                           [distribution_df.reset_index()])
 
-        # T-test plots
-        baseline_df_mean = preprocessing.group_by_agg_column(baseline_df, "lower_court",
-                                                             agg_dict={"id": "count", "confidence_scaled": "mean"})
-        plots.create_ttest_plot(l, baseline_df_mean, lower_court_df, filepath=f'plots/lc_ttest_conf_score_{l}.png',
-                                col="confidence_scaled", title="Distribution of p-values over lower courts.")
-
-        baseline_df_mean["norm_explainability_score"] = 0
-        plots.create_ttest_plot(l, baseline_df_mean, lower_court_df, filepath=f'plots/lc_ttest_exp_score_{l}.png',
-                                col="norm_explainability_score", title="Distribution of p-values over lower courts.")
+        # Preparation for effect plots
+        # @Todo add to function
         lower_court_df_dict[l].append(lower_court_df)
-        distribution_df_dict[l] = distribution_df
+        baseline_df_mean = preprocessing.group_by_agg_column(baseline_df, "lower_court",
+                                                             agg_dict={"id": "count", "confidence_scaled": "mean"}) \
+            .rename({"confidence_scaled": "mean_confidence_direction_pos"}, axis=1)
+        baseline_df_mean["mean_confidence_direction_neg"] = -baseline_df_mean["mean_confidence_direction_pos"]
+
+        baseline_df_mean = baseline_df_mean.merge(
+            lower_court_df[lower_court_df["confidence_direction"] > 0].groupby("lower_court") \
+                .agg({"confidence_scaled": list,
+                      "norm_explainability_score": list}),
+            on="lower_court")
+        baseline_df_mean = baseline_df_mean.merge(
+            lower_court_df[lower_court_df["confidence_direction"] < 0].groupby("lower_court") \
+                .agg({"confidence_scaled": list,
+                      "norm_explainability_score": list}),
+            on="lower_court", suffixes=("_pos", "_neg"))
+
+        baseline_df_mean = baseline_df_mean.rename({"confidence_scaled_pos": "confidence_direction_pos",
+                                                    "confidence_scaled_neg": "confidence_direction_neg"}, axis=1)
+
+        baseline_df_mean["confidence_direction_neg"] = baseline_df_mean["confidence_direction_neg"].apply(
+            lambda lst: [-nr for nr in lst])
+
+        baseline_df_mean[["mean_norm_explainability_score_pos", "mean_norm_explainability_score_neg"]] = 0
+        lower_court_df_dict[f"{l}_mu"] = baseline_df_mean
 
     # Lower court effect plots
-    plots.create_effect_plot(lower_court_df_dict, distribution_df_dict, cols=["lower_court", "confidence_direction"],
-                             label_texts=["Confidence Direction", "Lower Court"],
-                             legend_texts=["Positive Influence", "Negative Influence"],
-                             title=f"Effect of Lower Courts on the Prediction Confidence",
+    plots.create_effect_plot(lower_court_df_dict, cols=["lower_court", "confidence_direction"],
+                             label_texts=["Directional Scaled Confidence", "Lower Court"],
+                             legend_texts=["Positive Influence", "Significant Positive Influence", "Negative Influence",
+                                           "Significant Negative Influence"],
+                             xlim=[-0.5, 0.5],
+                             title=f"Effect of Lower Courts on the Prediction Confidence (with Significance)",
                              filepath='plots/lc_effect_{}.png'
                              )
 
-    plots.create_effect_plot(lower_court_df_dict, distribution_df_dict,
+    plots.create_effect_plot(lower_court_df_dict,
                              cols=["lower_court", "mean_norm_explainability_score"],
-                             label_texts=["Mean Explainability Score", "Lower Court"],
-                             legend_texts=["Exp_Score > 0", "Exp_Score < 0"],
-                             title=f"Mean Distribution of Explainability Scores in both directions",
+                             label_texts=["Explainability Score", "Lower Court"],
+                             legend_texts=["Exp_Score > 0", "Exp_Score >> 0", "Exp_Score < 0", "Exp_Score << 0"],
+                             xlim=[-0.05, 0.05],
+                             title=f"Mean Explainability Scores in both directions (with Significance)",
                              filepath='plots/lc_effect_mean_{}.png')
 
 
@@ -483,9 +496,10 @@ def occlusion_analysis():
     effect_df_dict = {l: [] for l in LANGUAGES}
     flipped_df_dict = {nr: [] for nr in NUMBER_OF_EXP}
     multilingual_classification_dict = {}
+    scatter_plot_dict = {l: {'c_o': [], 'c_s': [], 'f_o': [], 'f_s': []} for l in LANGUAGES}
+
     for nr in NUMBER_OF_EXP:
         multilingual_mean_length_list = []
-
         for l in LANGUAGES:
             occlusion_df = preprocessing.read_csv(OCCLUSION_PATHS["analysis"][1].format(l, nr, l), "index")
             baseline_df = preprocessing.get_baseline(occlusion_df)
@@ -519,11 +533,15 @@ def occlusion_analysis():
             preprocessing.write_json(Path(f"{l}/quantitative/occlusion_analysis_{l}_{nr}.json"), occlusion_dict)
 
             # @todo Plot of correct and incorrect classifications
-            """o_judgement_f, s_judgement_f = split_oppose_support(occlusion_df, false_classification)
+            o_judgement_f, s_judgement_f = split_oppose_support(occlusion_df, false_classification)
             o_judgement_c, s_judgement_c = split_oppose_support(occlusion_df, correct_classification)
             multilingual_classification_dict[f'{l}_{nr}_c'] = pd.concat([o_judgement_c, s_judgement_c])
             multilingual_classification_dict[f'{l}_{nr}_f'] = pd.concat([o_judgement_f, s_judgement_f])
-            plots.scatter_plot(o_judgement_c, s_judgement_c, mode=True,
+            scatter_plot_dict[l]['c_o'].append(o_judgement_c)
+            scatter_plot_dict[l]['c_s'].append(s_judgement_c)
+            scatter_plot_dict[l]['f_o'].append(o_judgement_f)
+            scatter_plot_dict[l]['f_o'].append(s_judgement_f)
+            """plots.scatter_plot(o_judgement_c, o_judgement_c, mode=True,
                                title="Models Classification of Explainability Label (Correctly Classified)",
                                filepath=f'plots/occ_correct_classification_{l}_{nr}.png')
             plots.scatter_plot(o_judgement_f, s_judgement_f, mode=False,
@@ -535,17 +553,19 @@ def occlusion_analysis():
         plots.create_multilingual_occlusion_plot(multilingual_mean_length_list, nr)
 
     # Occlusion flipped plots
+    legend_texts = [f"{lst[0]}Flipped Prediction {lst[1]} {{}}" for lst in [["", 0], ["", 1], ["Not ", 0], ["Not ", 1]]]
     plots.create_occ_group_by_flipped_plot(flipped_df_dict, ["explainability_label", "has_not_flipped", "has_flipped"],
                                            label_texts=["Explainability label", "Number of Experiments"],
-                                           legend_texts=[f"{lst[0]}flipped Prediction {lst[1]}" for lst in
-                                                         [["", 0], ["", 1], ["not ", 0], ["not ", 1]]],
-                                           title=f"Distribution of flipped Experiments per Explainability Label",
+                                           legend_texts=[string.format(l.upper()) for string in legend_texts for l in
+                                                         LANGUAGES],
+                                           title="Distribution of Flipped {} Sentence Occlusion Experiments",
                                            filepath='plots/occ_flipped_distribution_{}.png')
     # Occlusion effect plots
-    plots.create_effect_plot(effect_df_dict, {l: "" for l in LANGUAGES},
+    """plots.create_effect_plot(effect_df_dict, {l: "" for l in LANGUAGES},
                              cols=["explainability_label", "confidence_direction"],
                              label_texts=["Confidence Direction", "Explainability Label"],
                              legend_texts=["Positive Influence", "Negative Influence"],
+                             xlim=[-0.5, 0.5],
                              title=f"Effect of Explainability Label on the Prediction Confidence",
                              filepath='plots/occ_effect_{}.png'
                              )
@@ -554,9 +574,10 @@ def occlusion_analysis():
                              cols=["explainability_label", "mean_norm_explainability_score"],
                              label_texts=["Mean explainability Score", "Explainability Label"],
                              legend_texts=["Exp_Score > 0", "Exp_Score < 0"],
+                             xlim=[-0.2, 0.2],
                              title=f"Mean Distribution of Explainability Scores in both directions",
-                             filepath='plots/occ_effect_mean_{}.png')
-
+                             filepath='plots/occ_effect_mean_{}.png')"""
+    plots.create_scatter_plot(scatter_plot_dict)
     create_classification_distibution_plot(multilingual_classification_dict)
 
 

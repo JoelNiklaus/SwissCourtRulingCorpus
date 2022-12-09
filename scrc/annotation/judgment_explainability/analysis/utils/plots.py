@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from textwrap import wrap
 
 import matplotlib
@@ -17,13 +18,8 @@ AGGREGATIONS = ["mean", "max", "min"]
 COLORS = {"red": "#883955".lower(), "yellow": "#EFEA5A".lower(), "green": "#83E377".lower(), "blue": "#2C699A".lower(),
           "purple": "#54478C".lower(), "grey": "#737370".lower(),
           "turquoise": "#0DB39E".lower()}
+
 WRAPS = {"de": 18, "fr": 30, "it": 20}
-
-"""
-colors = {"green": ["#37BA26".lower(), "#47d534".lower(), "#65DC56".lower(), "#83E377".lower()],
-             "purple": ["#54478C".lower(), "#6B5CAD".lower(), "#8477BB".lower(), "#9C92C8".lower()]}
-
-"""
 
 
 def set_texts(ax, label_texts, labels, title, len_ticks, orientation, rotation):
@@ -31,17 +27,20 @@ def set_texts(ax, label_texts, labels, title, len_ticks, orientation, rotation):
     @todo
     """
     plt.title(title, fontsize=12)
-    ax.set_xlabel(label_texts[0], fontsize=8)
-    ax.set_ylabel(label_texts[1], fontsize=8)
+    ax.set_xlabel(label_texts[0], fontsize=10)
+    ax.set_ylabel(label_texts[1], fontsize=10)
     if orientation == "h":
         ax.set_yticks(np.arange(len_ticks))
-        ax.set_yticklabels(labels, fontsize=6, rotation=rotation)
+        ax.set_yticklabels(labels, fontsize=9, rotation=rotation)
     else:
         ax.set_xticks(np.arange(len_ticks))
-        ax.set_xticklabels(labels, fontsize=6, rotation=rotation)
+        ax.set_xticklabels(labels, fontsize=9, rotation=rotation)
 
 
 def add_mean_lines(mean_lines: dict, legend: list, colors: list):
+    """
+    Adds mean lines to a plot.
+    """
     i = 0
     for key in mean_lines.keys():
         plt.axhline(y=mean_lines[key], c=colors[i], linestyle='dashed', label="horizontal")
@@ -50,84 +49,56 @@ def add_mean_lines(mean_lines: dict, legend: list, colors: list):
         plt.legend(legend, loc='best')
 
 
-def add_var_numbers(bar, text, ):
-    # Add counts above the two bar graphs
-    for rect in bar:
-        plt.text(-0.0001, rect.get_y() + rect.get_height() / 2.0, f'{text}', ha='center', va='center', c="white")
-
-
-def distribution_plot_1(lang: str, distribution_df: pd.DataFrame, col_x: str, col_y_1: str,
-                        label_texts: list, title: str,
-                        filepath: str):
-    """
-    Dumps vertical bar plot for distributions.
-    """
-    labels = distribution_df[col_x].values
-    plt.figure(dpi=1200)
-    fig, ax = plt.subplots()
-    ax.bar(distribution_df[col_x], distribution_df[col_y_1],
-           color=COLORS["turquoise"])
-    set_texts(ax, label_texts, labels, title, len(labels),"v", 90)
-    ax.legend(fontsize=6)
-    if col_x != "lower_court":
-        ax.set_xticklabels(labels, fontsize=6, rotation=0)
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(filepath, bbox_inches="tight")
-
-
-def distribution_plot_2(lang: str, distribution_df_list: list, width: float, col_x: str, col_y_1: str, col_y_2: str,
-                        label_texts: list, legend_texts: list, ylim: list,colors: list, title: str,
-                        filepath: str):
-    """
-    Dumps vertical bar plot for distributions.
-    """
-    # @todo Add hatching and adapt for occlusion
-    plt.figure(dpi=1200)
-    fig, ax = plt.subplots()
-    legend = []
+def get_labels_from_list(df_list: list, col):
     labels = []
-    for distribution_df in distribution_df_list:
-        labels = labels + list(distribution_df[col_x].values)
-    labels = list(set(labels))
+    for df in df_list:
+        labels = labels + list(df[col].values)
+    return list(set(labels))
+
+
+def flipped_distribution_plot(distribution_df_list: list, width: float, shift: float, col_x: str, col_y_1: str,
+                              col_y_2: str,
+                              label_texts: list, legend_texts: list, title: str,
+                              filepath: str):
+    """
+    Dumps vertical bar plot for distributions.
+    """
+    colors = ["#C36F8C".lower(), "#652A3F".lower(),
+              "#776AB4".lower(), "#41376D".lower(),
+              "#408BC9".lower(), "#1F4B6F".lower()]
+    # @todo Change colors to distinguish languages?
+    fig, ax = plt.subplots(dpi=1200)
+    labels = get_labels_from_list(distribution_df_list, col_x)
     i = 0
-    shift = -width / 2
     for distribution_df in distribution_df_list:
         distribution_df = preprocessing.normalize_df_length(distribution_df, col_x, labels)
-        text_labels = ['\n'.join(wrap(l, WRAPS[lang])) for l in labels]
         ind = np.arange(len(labels))
         if col_x == "lower_court":
-            set_texts(ax, label_texts, text_labels, title, len(text_labels),"v" ,90)
+            set_texts(ax, label_texts, labels, title, len(labels), "v", 20)
         else:
-            set_texts(ax, label_texts, text_labels, title, len(text_labels),"v", 0)
-
-        bar1 = ax.bar(ind + shift, distribution_df[col_y_1], width, color=colors[i][0])
-        bar2 = ax.bar(ind + shift, distribution_df[col_y_2], width, color=colors[i][1], hatch='//', edgecolor = "black")
-        if i == 0:
-            shift = 0
+            set_texts(ax, label_texts, labels, title, len(labels), "v", 0)
+        if not (distribution_df[col_y_1] == 0).all():
+            ax.bar(ind + shift, distribution_df[col_y_1], width, color=colors[i], hatch='//', edgecolor="black")
+        if not (distribution_df[col_y_2] == 0).all():
+            ax.bar(ind + shift, distribution_df[col_y_2], width, color=colors[i], edgecolor="black")
+        shift = shift + width
         i += 1
-        shift = shift + width / 2
-        legend = legend + [bar1, bar2]
-    legend = ax.legend(legend, legend_texts, fontsize=6, ncol=len(legend_texts))
-    if len(ylim) != 0:
-        plt.ylim(ylim)
-    plt.grid()
+
+    legend = ax.legend(legend_texts, bbox_to_anchor=(1, 0.5), loc='center left', fontsize=8)
+    plt.grid(axis="y")
     plt.tight_layout()
-    plt.gca().add_artist(legend)
-    plt.savefig(filepath, bbox_inches="tight")
+    plt.savefig(filepath, bbox_extra_artists=(legend,), bbox_inches="tight")
 
 
 def effect_plot(df_1: pd.DataFrame, df_2: pd.DataFrame, col_y: str, col_x: str, label_texts: list, legend_texts: list,
-                title: str, filepath: str):
+                xlim: list, title: str, filepath: str):
     """
     Dumps horizontal bar plot for opposing value sets.
-    @ Todo change axis, add grid
     """
+    colors = {"green": ["#93E788".lower(),"#47D534".lower()], "purple": ["#8477BB".lower(), "#41376D".lower()]}
     second_legend = {"N": "Neutral", "O": "Opposes Judgement", "S": "Supports Judgement"}
-    plt.figure(dpi=1200)
-    fig, ax = plt.subplots()
-    labels = df_1.reset_index()[col_x].values
-    labels = ['\n'.join(wrap(l, 35)) for l in labels]
+    fig, ax = plt.subplots(dpi=1200, figsize=(9,6))
+    labels = df_1[col_x].values
     if col_x == 'explainability_label':
         labels = []
         for char in second_legend.keys():
@@ -135,52 +106,60 @@ def effect_plot(df_1: pd.DataFrame, df_2: pd.DataFrame, col_y: str, col_x: str, 
         df_1[col_x] = labels
         df_2[col_x] = labels
 
-    bar1 = ax.barh(df_1.reset_index()[col_x].values, df_1.reset_index()[col_y],
-                   color=COLORS["green"])
-    bar2 = ax.barh(df_2.reset_index()[col_x].values, df_2.reset_index()[col_y],
-                   color=COLORS["purple"])
-    set_texts(ax, label_texts, labels, title, len(labels),"h", 0)
+    ax.barh(df_1[df_1[f"significance_{col_y}"] == False][col_x].values, df_1[df_1[f"significance_{col_y}"] == False][col_y],
+                color=colors["green"][0])
+    ax.barh(df_1[df_1[f"significance_{col_y}"] == True][col_x].values, df_1[df_1[f"significance_{col_y}"] == True][col_y],
+                color=colors["green"][1])
+    ax.barh(df_2[df_2[f"significance_{col_y}"] == False][col_x].values, df_2[df_2[f"significance_{col_y}"] == False][col_y],
+                color=colors["purple"][0])
+    ax.barh(df_2[df_2[f"significance_{col_y}"] == True][col_x].values, df_2[df_2[f"significance_{col_y}"] == True][col_y],
+                color=colors["purple"][1])
+    set_texts(ax, label_texts, labels, title, len(labels), "h", 0)
 
-    legend1 = plt.legend(labels=legend_texts, fontsize=6)
+    legend1 = plt.legend(labels=legend_texts, fontsize=10, loc='upper left', bbox_to_anchor=(1, 0.5))
     ax.add_artist(legend1)
     ax.invert_yaxis()
+
+
+    plt.xlim(xlim)
     plt.tight_layout()
-    plt.grid()
+    plt.grid(axis="x")
     fig.subplots_adjust(left=0.3)
-    plt.savefig(filepath, bbox_extra_artists=(), bbox_inches="tight")
+    plt.savefig(filepath, bbox_extra_artists=(legend1,), bbox_inches="tight")
 
     if col_x == 'explainability_label':
         labels = [f"{label}: {second_legend[re.sub('[0-9]', '', label)]}" for label in labels]
         legend2 = plt.legend(
             handles=[Rectangle((0, 0), 1, 1, fc="w", fill=False, edgecolor='none', linewidth=0) for label in labels],
             labels=labels, loc='center left', bbox_to_anchor=(1, 0.5), fontsize=8)
-        plt.gca().add_artist(legend2)
-        plt.savefig(filepath, bbox_extra_artists=(legend2,), bbox_inches="tight")
+        plt.savefig(filepath, bbox_extra_artists=(legend1, legend2), bbox_inches="tight")
 
 
-def mean_plot_1(mean_df: pd.DataFrame, labels: list, legend_texts: list, title: str, mean_lines: dict, filepath: str):
+def mean_plot_1(mean_df: pd.DataFrame, labels: list, legend_texts: list, ylim: list, title: str, mean_lines: dict,
+                filepath: str):
     """
     Dumps a vertical bar plot for mean values.
     With optional mean axlines.
     """
-    plt.figure(dpi=1200)
-    fig, ax = plt.subplots()
+    plt.subplots(dpi=1200)
     colors = [COLORS["purple"], COLORS["green"], COLORS["blue"]]
     mean_df.plot(kind='bar', color=colors)
-    plt.rcParams.update({'font.size': 8})
+    plt.rcParams.update({'font.size': 9})
     plt.title(title, fontsize=12)
     plt.legend(legend_texts, ncol=len(legend_texts), loc='best')
     add_mean_lines(mean_lines, legend_texts, colors)
 
     plt.xlabel(labels[0])
     plt.ylabel(labels[1])
+    if len(ylim) != 0:
+        plt.ylim(ylim)
     plt.xticks(rotation=0)
-    plt.grid()
+    plt.grid(axis="y")
     plt.tight_layout()
     plt.savefig(filepath, bbox_inches="tight")
 
 
-def mean_plot_2(lang: str, N: int, mean_df: pd.DataFrame, rows: list, ax_labels: list, x_labels, legend_texts: tuple,
+def mean_plot_2(N: int, mean_df: pd.DataFrame, rows: list, ax_labels: list, x_labels, legend_texts: tuple,
                 ylim: list, title: str, filepath: str):
     """
     Dumps a vertical bar plot for mean values.
@@ -189,9 +168,8 @@ def mean_plot_2(lang: str, N: int, mean_df: pd.DataFrame, rows: list, ax_labels:
     plt.clf()
     ind = np.arange(N)
     width = 0.25
-    plt.figure(dpi=1200)
-    fig, ax = plt.subplots()
-    ax.clear()
+    fig, ax = plt.subplots(dpi=1200)
+
     plt.title(title, fontsize=12)
 
     bar1 = ax.bar(ind, mean_df.loc[[rows[0]]].values.flatten().tolist(), width,
@@ -204,38 +182,17 @@ def mean_plot_2(lang: str, N: int, mean_df: pd.DataFrame, rows: list, ax_labels:
     plt.ylabel(ax_labels[1])
     if len(ylim) != 0:
         plt.ylim(ylim)
-
-    if N > 10:
-        x_labels = ['\n'.join(wrap(l, WRAPS[lang])) for l in x_labels]
+    if N > 6:
+        x_labels = ['\n'.join(wrap(l, 15)) for l in x_labels]
         ax.set_xticks(ind + width)
-        ax.set_xticklabels(x_labels, fontsize=6, rotation=90)
+        ax.set_xticklabels(x_labels, fontsize=9, rotation=20)
     else:
         plt.xticks(ind + width, x_labels)
     plt.legend((bar1, bar2, bar3), legend_texts)
-    plt.grid()
+    plt.grid(axis="y")
     plt.tight_layout()
     plt.savefig(filepath, bbox_inches="tight")
-
-
-def ttest_plot(lang, pvalue_df: pd.DataFrame, col_x, col_y, alpha, label_texts, title, filepath):
-    """
-    Dumps a stem plot from p-values.
-    """
-    labels = pvalue_df[col_y].values
-    labels = ['\n'.join(wrap(l, WRAPS[lang])) for l in labels]
-    plt.figure(dpi=1200)
-    fig, ax = plt.subplots()
-    stem_plt = ax.stem(pvalue_df[col_y], pvalue_df[col_x], linefmt=COLORS["turquoise"], use_line_collection=True)
-    (markers, stemlines, baseline) = stem_plt
-    plt.setp(markers, markeredgecolor=COLORS["turquoise"])
-    plt.setp(baseline, color=COLORS["turquoise"])
-    plt.axhline(y=alpha, c="black", linestyle='dashed', label="horizontal")
-    set_texts(ax, label_texts, labels, title, len(labels), "v",90)
-    ax.legend(fontsize=6)
-    plt.legend(["α=0.05"])
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(filepath, bbox_inches="tight")
+    return
 
 
 def scatter_plot(df_1, df_2, mode: bool, title, filepath):
@@ -243,12 +200,20 @@ def scatter_plot(df_1, df_2, mode: bool, title, filepath):
     ax = fig.add_subplot(111)
     colors = [COLORS["red"], COLORS['green'], COLORS['blue']]
     plt.title(title, fontsize=12)
+    df_1_0, df_2_0 = df_1[df_1["prediction"] == 0], df_2[df_2["prediction"] == 0]
+    df_1_1, df_2_1 = df_1[df_1["prediction"] == 1], df_2[df_2["prediction"] == 1]
     if mode:
-        ax.scatter(x=df_1["confidence_scaled"], y=df_1["norm_explainability_score"],
-                   c=df_1["numeric_label_model"], s=10, alpha=0.5,
+        ax.scatter(x=df_1_0["confidence_scaled"], y=df_1_0["norm_explainability_score"],
+                   c=df_1_0["numeric_label_model"], alpha=0.5, marker="o",
                    cmap=matplotlib.colors.ListedColormap([colors[1]]))
-        ax.scatter(x=df_2["confidence_scaled"], y=df_2["norm_explainability_score"],
-                   c=df_2["numeric_label_model"], s=10, alpha=0.5,
+        ax.scatter(x=df_2_0["confidence_scaled"], y=df_2_0["norm_explainability_score"],
+                   c=df_2_0["numeric_label_model"], alpha=0.5, marker="o",
+                   cmap=matplotlib.colors.ListedColormap([colors[2]]))
+        ax.scatter(x=df_1_1["confidence_scaled"], y=df_1_1["norm_explainability_score"],
+                   c=df_1_1["numeric_label_model"], alpha=0.5, marker="+",
+                   cmap=matplotlib.colors.ListedColormap([colors[1]]))
+        ax.scatter(x=df_2_1["confidence_scaled"], y=df_2_1["norm_explainability_score"],
+                   c=df_2_1["numeric_label_model"], alpha=0.5, marker="+",
                    cmap=matplotlib.colors.ListedColormap([colors[2]]))
         patches = []
         labels = [LABELS_OCCLUSION[1], LABELS_OCCLUSION[2]]
@@ -260,11 +225,17 @@ def scatter_plot(df_1, df_2, mode: bool, title, filepath):
                             loc='center left', bbox_to_anchor=(1, 0.5), fontsize=8, title="Explainability Labels")
         ax.add_artist(legend1)
     else:
-        ax.scatter(x=df_1["confidence_scaled"], y=df_1["norm_explainability_score"],
-                   c=df_1["numeric_label_model"], s=10, alpha=0.5,
-                   cmap=matplotlib.colors.ListedColormap([colors[0], colors[1]]))
-        ax.scatter(x=df_2["confidence_scaled"], y=df_2["norm_explainability_score"],
-                   c=df_2["numeric_label_model"], s=10, alpha=0.5,
+        ax.scatter(x=df_1_0["confidence_scaled"], y=df_1_0["norm_explainability_score"],
+                   c=df_1_0["numeric_label_model"], alpha=0.5, marker="o",
+                   cmap=matplotlib.colors.ListedColormap([colors[0], colors[2]]))
+        ax.scatter(x=df_2_0["confidence_scaled"], y=df_2_0["norm_explainability_score"],
+                   c=df_2_0["numeric_label_model"], alpha=0.5, marker="o",
+                   cmap=matplotlib.colors.ListedColormap([colors[0], colors[2]]))
+        ax.scatter(x=df_1_1["confidence_scaled"], y=df_1_1["norm_explainability_score"],
+                   c=df_1_1["numeric_label_model"], alpha=0.5, marker="+",
+                   cmap=matplotlib.colors.ListedColormap([colors[0], colors[2]]))
+        ax.scatter(x=df_2_1["confidence_scaled"], y=df_2_1["norm_explainability_score"],
+                   c=df_2_1["numeric_label_model"], alpha=0.5, marker="+",
                    cmap=matplotlib.colors.ListedColormap([colors[0], colors[2]]))
         patches = []
         labels = [LABELS_OCCLUSION[3], LABELS_OCCLUSION[1], LABELS_OCCLUSION[2]]
@@ -273,19 +244,13 @@ def scatter_plot(df_1, df_2, mode: bool, title, filepath):
             patches.append(Patch(color=color, label=labels[i]))
             i += 1
         legend1 = ax.legend(handles=patches,
-                            loc='center left', bbox_to_anchor=(1, 0.5), fontsize=8, title="Explainability Labels")
+                            loc='center left', bbox_to_anchor=(1, 0.5), fontsize=10, title="Explainability Labels")
         ax.add_artist(legend1)
-    ax.set_xlabel("confidence_scaled")
-    ax.set_ylabel("norm_explainability_score")
-    # Add prediction threshold
-    df = pd.concat([df_1, df_2])
-    line = df[df["prediction"] == 1]["confidence_scaled"].mean()
-    axvline = ax.axvline(x=line, c="black", linestyle='dashed', label="Approximate Threshold for Prediction = 1")
-    legend2 = ax.legend(handles=[axvline], fontsize=8)
-    ax.add_artist(legend2)
+    ax.set_xlabel("Scaled Confidence")
+    ax.set_ylabel("Normalized Explainability Score")
     ax.grid()
     plt.tight_layout()
-    plt.savefig(filepath, bbox_extra_artists=(legend1, legend2), bbox_inches="tight")
+    plt.savefig(filepath, bbox_extra_artists=(legend1,), bbox_inches="tight")
     plt.figure().clear()
 
 
@@ -293,26 +258,14 @@ def create_lc_la_distribution_plot(lang: str, lc_la_df: pd.DataFrame):
     """
     Creates lower_court legal_area distribution plot.
     """
-    mean_plot_2(lang, len(lc_la_df.columns),
+    mean_plot_2(len(lc_la_df.columns),
                 lc_la_df, rows=LEGAL_AREAS,
-                ax_labels=["Lower Court", ""],
+                ax_labels=["Lower Court", "Ration"],
                 x_labels=lc_la_df.columns,
                 legend_texts=tuple([la.replace("_", " ") for la in LEGAL_AREAS]),
-                ylim=[],
-                title="Distribution of Lower Courts in Legal Areas",
+                ylim=[0, 0.5],
+                title="Distribution of Lower Courts over Legal Areas",
                 filepath=f'plots/lc_distribution_la_{lang}.png')
-
-
-def create_ttest_plot(lang: str, mu_df: pd.DataFrame, sample_df: pd.DataFrame, filepath: str, col, title):
-    """
-    @todo
-    """
-    ttest_plot(lang, preprocessing.ttest(preprocessing.group_to_list(sample_df, "lower_court", col), mu_df, col),
-               "pvalue",
-               "lower_court", 0.05,
-               label_texts=["P-value", "Lower Courts"],
-               title=title,
-               filepath=filepath)
 
 
 def multilingual_annotation_plot(df_list: list):
@@ -323,7 +276,7 @@ def multilingual_annotation_plot(df_list: list):
     df = df_list[0].merge(df_list[1], on="index", how="inner", suffixes=(f'_{LANGUAGES[0]}', f'_{LANGUAGES[1]}'))
     df = df.merge(df_list[2], on="index", how="inner").rename(columns={'mean_token': f'mean_token_{LANGUAGES[2]}'})
     df.drop([f"label_{LANGUAGES[0]}", f"label_{LANGUAGES[1]}", "index"], axis=1, inplace=False)
-    mean_plot_2("", len(LABELS_OCCLUSION), df.set_index("label").T,
+    mean_plot_2(len(LABELS_OCCLUSION), df.set_index("label").T,
                 rows=[f"mean_token_{lang}" for lang in LANGUAGES],
                 ax_labels=["Explainability Labels", "Number of Tokens"],
                 x_labels=LABELS_OCCLUSION,
@@ -333,15 +286,15 @@ def multilingual_annotation_plot(df_list: list):
                 filepath=f"plots/ann_mean_tokens_exp_labels_gold.png")
 
 
-def create_lc_group_by_flipped_plot(lang: str, occlusion_df: pd.DataFrame, cols: list, label_texts: list,
+def create_lc_group_by_flipped_plot(occlusion_df: pd.DataFrame, cols: list, label_texts: list,
                                     legend_texts: list, title: str, filepath: str):
     flipped_df_list = []
     for df in [occlusion_df[occlusion_df["prediction"] == p] for p in [0, 1]]:
         flipped_df_list.append(preprocessing.group_by_flipped(df, cols[0]))
-    distribution_plot_2(lang, flipped_df_list, width=0.375, col_x=cols[0], col_y_1=cols[1], col_y_2=cols[2],
-                        label_texts=label_texts, legend_texts=legend_texts, ylim=[0, 20],
-                        colors=[[COLORS["turquoise"], COLORS["purple"]], [COLORS["green"], COLORS["red"]]],
-                        title=title, filepath=filepath.format(1))
+    flipped_distribution_plot(flipped_df_list, width=0.375, shift=(-0.375 / 2), col_x=cols[0], col_y_1=cols[1],
+                              col_y_2=cols[2],
+                              label_texts=label_texts, legend_texts=legend_texts,
+                              title=title, filepath=filepath.format(1))
 
 
 def create_occ_group_by_flipped_plot(occlusion_df_dict: dict, cols: list, label_texts: list,
@@ -351,37 +304,51 @@ def create_occ_group_by_flipped_plot(occlusion_df_dict: dict, cols: list, label_
         for df_1 in occlusion_df_dict[nr]:
             for df_2 in [df_1[df_1["prediction"] == p] for p in [0, 1]]:
                 flipped_df_list.append(preprocessing.group_by_flipped(df_2, cols[0]))
-        distribution_plot_2("de", flipped_df_list, width=0.25, col_x=cols[0], col_y_1=cols[1], col_y_2=cols[2],
-                            label_texts=label_texts, legend_texts=legend_texts, ylim=[],
-                            colors=[[COLORS["turquoise"], COLORS["purple"]], [COLORS["green"], COLORS["red"]],
-                                    [COLORS["turquoise"], COLORS["purple"]], [COLORS["green"], COLORS["red"]],
-                                    [COLORS["turquoise"], COLORS["purple"]], [COLORS["green"], COLORS["red"]],
-                                    [COLORS["turquoise"], COLORS["purple"]], [COLORS["green"], COLORS["red"]],
-                                    [COLORS["turquoise"], COLORS["purple"]], [COLORS["green"], COLORS["red"]],
-                                    [COLORS["turquoise"], COLORS["purple"]], [COLORS["green"], COLORS["red"]],
-                                    [COLORS["turquoise"], COLORS["purple"]], [COLORS["green"], COLORS["red"]],
-                                    [COLORS["turquoise"], COLORS["purple"]], [COLORS["green"], COLORS["red"]]],
-                            title=title, filepath=filepath.format(nr))
+        flipped_distribution_plot(flipped_df_list, width=0.125, shift=(-0.125 * 2.39), col_x=cols[0], col_y_1=cols[1],
+                                  col_y_2=cols[2],
+                                  label_texts=label_texts, legend_texts=legend_texts,
+                                  title=title.format(nr), filepath=filepath.format(nr))
 
 
-def create_effect_plot(occlusion_df_dict: dict, distribution_df_dict: dict, cols: list,
-                       label_texts: list, legend_texts: list, title: str, filepath: str):
+def create_effect_plot(occlusion_df_dict: dict, cols: list,
+                       label_texts: list, legend_texts: list, xlim: list, title: str, filepath: str):
     for key in occlusion_df_dict:
-        mean_pos_df_list, mean_neg_df_list = [], []
-        for occlusion_df in occlusion_df_dict[key]:
-            mean_pos_df = preprocessing.get_one_sided_agg(occlusion_df[occlusion_df["confidence_direction"] > 0],
-                                                          distribution_df_dict[key], cols[0])
-            mean_neg_df = preprocessing.get_one_sided_agg(occlusion_df[occlusion_df["confidence_direction"] < 0],
-                                                          distribution_df_dict[key], cols[0])
+        if key in LANGUAGES:
+            mean_pos_df_list, mean_neg_df_list = [], []
+            for occlusion_df in occlusion_df_dict[key]:
+                mean_pos_df = preprocessing.get_one_sided_effect_df(occlusion_df[occlusion_df["confidence_direction"] > 0],
+                                                                    occlusion_df_dict[f"{key}_mu"], cols[0], "pos")
+                mean_neg_df = preprocessing.get_one_sided_effect_df(occlusion_df[occlusion_df["confidence_direction"] < 0],
+                                                                    occlusion_df_dict[f"{key}_mu"], cols[0], "neg")
 
-            mean_pos_df_list.append(mean_pos_df)
-            mean_neg_df_list.append(mean_neg_df)
-        effect_plot(pd.concat(mean_pos_df_list), pd.concat(mean_neg_df_list), col_y=cols[1],
-                    col_x=cols[0],
-                    label_texts=label_texts,
-                    legend_texts=legend_texts,
-                    title=title,
-                    filepath=filepath.format(key))
+                mean_pos_df_list.append(mean_pos_df)
+                mean_neg_df_list.append(mean_neg_df)
+            effect_plot(pd.concat(mean_pos_df_list), pd.concat(mean_neg_df_list), col_y=cols[1],
+                col_x=cols[0],
+                label_texts=label_texts,
+                legend_texts=legend_texts,
+                xlim=xlim,
+                title=title,
+                filepath=filepath.format(key))
+
+
+def create_scatter_plot(occlusion_df_dict):
+    for l in LANGUAGES:
+        correct_df_list =[]
+        correct_df_list = []
+        for key in occlusion_df_dict[l]:
+            if key.startswith("c",0):
+                correct
+                scatter_plot(o_judgement_c, o_judgement_c, mode=True,
+                                      title="Models Classification of Explainability Label (Correctly Classified)",
+                                      filepath=f'plots/occ_correct_classification_{l}_{nr}.png')
+                   """plots.scatter_plot(o_judgement_f, s_judgement_f, mode=False,
+                                      title="Models Classification of Explainability Label (Incorrectly Classified)",
+                                      filepath=f'plots/occ_false_classification_{l}_{nr}.png')"""
+
+
+
+
 
 
 def create_multilingual_occlusion_plot(df_list: list, nr_exp: int):
@@ -390,13 +357,14 @@ def create_multilingual_occlusion_plot(df_list: list, nr_exp: int):
     Creates multilingual plots.
     """
     df = pd.concat(df_list).set_index(pd.Index(LANGUAGES))
-    mean_plot_2("", len(LABELS_OCCLUSION[1:]), df,
+    preprocessing.write_csv(Path(f"tables/occ_mean_chunk_length_{nr_exp}.csv"),df)
+    mean_plot_2(len(LABELS_OCCLUSION[1:]), df,
                 rows=LANGUAGES,
                 ax_labels=["Explainability Labels", "Number of Tokens"],
                 x_labels=LABELS_OCCLUSION[1:],
                 legend_texts=tuple([f"Mean Chunk Length {i.upper()}" for i in LANGUAGES]),
                 ylim=[0, 120],
-                title=f"Chunk Length Distribution of Explainability Labels in Occlusion Experiment {nr_exp}",
+                title=f"Chunk Length per Explainability Label in {nr_exp} Sentence Occlusion Experiment",
                 filepath=f"plots/occ_mean_chunk_length_{nr_exp}.png")
 
 
