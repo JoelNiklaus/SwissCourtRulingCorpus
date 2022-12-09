@@ -23,16 +23,15 @@ if TYPE_CHECKING:
 
 class PatternExtractor(AbstractExtractor):
     """
-    Extracts and counts paragraphs/keywords commonly used across a court. The output can be found in ./data/patterns
-    To start the pattern of a court, remove the court from pattern_etraction.txt and run the module. 
+    Extracts the patterns for the section indicators for a given court. Only outputs the coverage if a command line argument it given. 
+    Before running make sure pattern_extraction.txt exists!
+    Remove the spider from the text file to run the extraction.
     
-    If you simply want to check the coverage of a court run the following command:
+    Run with: 
+    python -m scrc.preprocessors.extractors.pattern_extractor 
+    python -m scrc.preprocessors.extractors.pattern_extractor 1 (for section coverage only)
     
-    python -m scrc.preprocessors.extractors.pattern_extractor 1
-
-    If you want to extract the patterns run the following command:
-    
-    python -m scrc.preprocessors.extractors.pattern_extractor
+    The output can be found in data/patterns
     """
 
     def __init__(self, config: dict):
@@ -112,7 +111,7 @@ class PatternExtractor(AbstractExtractor):
             for lang_key in Language:
                 language_key = Language.get_id_value(lang_key.value)
                 if language_key != -1:
-                    total_result = conn.execute(get_total_decisions(spider, language_key)).fetchone()
+                    total_result = conn.execute(get_total_decisions(spider, True, language_key)).fetchone()
                     if total_result[0] != 0:
                         self.logger.info(f'Your coverage for {lang_key} of {spider} ({total_result[0]}):')
                         for section_key in Section:
@@ -122,7 +121,7 @@ class PatternExtractor(AbstractExtractor):
                                 if not coverage_result[0]:
                                     self.logger.info(f'No sections found for: {section_key}')
                                 else:
-                                    self.logger.info(f'{section_key} is {coverage}%')
+                                    self.logger.info(f'{section_key} is {coverage}%. Amount: {coverage_result[0]}')
     
     def start_spider_loop(self, spider_list: Set, engine: Engine):
         for spider in spider_list:
@@ -264,12 +263,12 @@ class PatternExtractor(AbstractExtractor):
                 foundAssigntment = False
                 for key in section_markers:
                     if re.search(section_markers[key], element):
-                        # if key == Section.RULINGS or len(element) < 400:
-                        row = df.loc[index]
-                        row['coverage'] = row['totalcount'] / count * 100
-                        dfs[key] = dfs[key].append(
-                            row, ignore_index=True)
-                        foundAssigntment = True
+                        if len(element) < 35:
+                            row = df.loc[index]
+                            row['coverage'] = row['totalcount'] / count * 100
+                            dfs[key] = dfs[key].append(
+                                row, ignore_index=True)
+                            foundAssigntment = True
                 if not foundAssigntment:
                     row = df.loc[index]
                     row['coverage'] = row['totalcount'] / count * 100

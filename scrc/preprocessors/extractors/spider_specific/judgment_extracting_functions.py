@@ -61,9 +61,8 @@ Formelle Mitteilung:
 
 all_judgment_markers = {
     Language.DE: {
-        Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung', 'schuldig erklärt', 'rechtmässig'],
-        Judgment.PARTIAL_APPROVAL: ['teilweise gutgeheissen', 'teilweise gutzuheissen',
-                                    'In teilweiser Gutheissung'],
+        Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung'],
+        Judgment.PARTIAL_APPROVAL: ['teilweise gutgeheissen', 'teilweise gutzuheissen', 'In teilweiser Gutheissung', 'in teilweiser Gutheissung'],
         Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen', 'erstinstanzliche Urteil wird bestätigt', 'freigesprochen'],
         Judgment.PARTIAL_DISMISSAL: ['abgewiesen, soweit darauf einzutreten ist',
                                      'abzuweisen, soweit darauf einzutreten ist',
@@ -79,7 +78,7 @@ all_judgment_markers = {
     Language.FR: {
         Judgment.APPROVAL: ['admis', 'est annulé', 'Admet', 'admet'],
         Judgment.PARTIAL_APPROVAL: ['Admet partiellement',
-                                    'partiellement admis',
+                                    'partiellement admis', 'admis partiellement'
                                     'admis dans la mesure où il est recevable',
                                     'admis dans la mesure où ils sont recevables'
                                     ],
@@ -136,7 +135,7 @@ def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     judgments = get_judgments(rulings, namespace)
 
     judgments = verify_judgments(judgments, rulings, namespace)
-    
+
     return judgments
 
 def ZH_Baurekurs(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
@@ -340,16 +339,18 @@ def get_judgments(rulings: str, namespace: dict) -> set:
     :return:            the set of judgment outcomes
     """
     judgments = set()
-
     judgment_markers = prepare_judgment_markers(
         all_judgment_markers, namespace)
 
     pattern = rf"{1}\.(.+?)(?:{2}\.|$)"
     romanPattern = rf"{int_to_roman(1)}\.(.+?)(?:{int_to_roman(2)}\.|$)"
 
+
     if (re.search(pattern, rulings) or re.search(romanPattern, rulings)):
         judgments = numbered_rulings(
             judgments, rulings, namespace, judgment_markers)
+    else:
+        judgments = unnumbered_rulings(rulings, namespace)
     return judgments
 
 def verify_judgments(judgments, rulings, namespace):
