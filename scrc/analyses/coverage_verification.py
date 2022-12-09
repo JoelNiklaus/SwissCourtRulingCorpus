@@ -1,4 +1,5 @@
 
+from scrc.enums.section import Section
 from enum import Enum
 from pathlib import Path
 from sqlite3 import Connection
@@ -120,8 +121,8 @@ class CoverageVerification(AbstractPreprocessor):
     def section_query(self, decision_id):
         return (f"SELECT * FROM section "
                 f"WHERE section.decision_id = '{decision_id}' "
-                f"AND section.section_type_id != 1"
-                f"AND section.section_type_id != 3")
+                f"AND section.section_type_id != {Section.FULL_TEXT.value} "
+                f"AND section.section_type_id != {Section.TOPIC.value} ")
         
     def random_decision_query(self, spider: str):
         return (f"SELECT * FROM decision "
