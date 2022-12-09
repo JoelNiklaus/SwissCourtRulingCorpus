@@ -7,8 +7,8 @@ from scrc.enums.judgment import Judgment
 from scrc.enums.language import Language
 from scrc.utils.main_utils import clean_text, int_to_roman
 
-# if a ruling section exceeds 3000 characters we can assume that the judgment extraction function will be inaccurate due to the pattern matching system. 
-# Therefore, we set a maximum character count for ruling sections.
+# if a ruling section exceeds 3000 characters we can assume that the judgment extraction function will be inaccurate due to the nature of a pattern matching system. 
+# Therefore, we set a maximum character count for the ruling sections.
 MAX_CHAR_COUNT = 3000
 
 """
