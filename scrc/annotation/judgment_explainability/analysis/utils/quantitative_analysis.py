@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from nltk.tokenize import word_tokenize
-
+from scipy.stats import sem
 import scrc.annotation.judgment_explainability.analysis.utils.plots as plots
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 
@@ -105,11 +105,12 @@ def get_annotation_label_mean(lang: str) -> pd.DataFrame:
     Returns Dataframe.
     """
     label_df_list = []
-    label_mean = {"label": [], "mean_token": []}
+    label_mean = {"label": [], "mean_token": [], "error": []}
     for label in LABELS_OCCLUSION:
         label_df = preprocessing.read_csv(f"{lang}/{label.lower().replace(' ', '_')}_{lang}_4.csv", "index")
         label_df["length"] = label_df["tokens_id"].apply(lambda x: get_length(x))
         label_df_list = label_df_list + list(label_df[f"length"].values)
+        label_mean["error"].append(sem(label_df_list))
         label_mean["label"].append(label)
         label_mean["mean_token"].append(
             float(sum(label_df_list) / len(list(filter(lambda num: num != 0, label_df_list)))))
@@ -136,21 +137,27 @@ def get_annotation_pers_mean(lang: str) -> pd.DataFrame:
     Calculates mean token number of each explainability label per person.
     Returns Dataframe.
     """
-    pers_mean = {"label": [], "annotator": [], "mean_token": []}
+    pers_mean = {"label": [], "annotator": [], "mean_token": [],}
     for label in LABELS:
         label_df = preprocessing.read_csv(f"{lang}/{label.lower().replace(' ', '_')}_{lang}_3.csv", "index")
         pers_mean[f"{label.lower().replace(' ', '_')}_mean_token"] = []
+        pers_mean[f"{label.lower().replace(' ', '_')}_error"] = []
+        label_mean = []
         for person in PERSON_NUMBER.keys():
             try:
                 label_df[f"length_{PERSON_NUMBER[person]}"] = label_df[f"tokens_id_{person}"].apply(
                     lambda x: get_length(x))
                 pers_mean["label"].append(label)
                 pers_mean["annotator"].append(PERSON_NUMBER[person])
+                pers_mean[f"{label.lower().replace(' ', '_')}_error"].append(sem(list(label_df[f"length_{PERSON_NUMBER[person]}"].dropna().values)))
                 pers_mean["mean_token"].append(label_df[f"length_{PERSON_NUMBER[person]}"].mean())
                 pers_mean[f"{label.lower().replace(' ', '_')}_mean_token"].append(
                     label_df[f"length_{PERSON_NUMBER[person]}"].mean())
+                label_mean = label_mean+list(label_df[f"length_{PERSON_NUMBER[person]}"].dropna().values)
             except KeyError:
                 pass
+        pers_mean[f"{label.lower().replace(' ', '_')}_mean"] = float(sum(label_mean) / len(list(filter(lambda num: num != 0,  label_mean))))
+
     return pd.DataFrame.from_dict(dict([(k, pd.Series(v)) for k, v in pers_mean.items()]))
 
 
@@ -325,8 +332,8 @@ def split_oppose_support(dataset_1: pd.DataFrame, dataset_2: pd.DataFrame):
                                                              dataset_2["confidence_direction"] == -1]
     o_judgement, s_judgement = dataset_1[dataset_1["numeric_label"] == 1], dataset_1[
         dataset_1["numeric_label"] == -1]
-    o_judgement, s_judgement = o_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]], \
-                               s_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]]
+    o_judgement, s_judgement = o_judgement[["id", "explainability_label", "numeric_label"]], \
+                               s_judgement[["id", "explainability_label", "numeric_label"]]
 
     o_judgement, s_judgement = pd.merge(false_classification_pos, o_judgement, on="id",
                                         suffixes=(f'_model', f'_human'),
@@ -345,6 +352,36 @@ def get_length(string: str):
         return len(ast.literal_eval(string))
     else:
         return np.NaN
+
+
+def prepare_ttest_df(baseline_df: pd.DataFrame, occlusion_df: pd.DataFrame, col: str) -> pd.DataFrame:
+    baseline_df_mean = preprocessing.group_by_agg_column(baseline_df, col, agg_dict={"confidence_scaled": "mean"})
+    baseline_df_mean = baseline_df_mean.rename({"confidence_scaled": "mean_confidence_direction_pos"}, axis=1)
+    baseline_df_mean["mean_confidence_direction_neg"] = -baseline_df_mean["mean_confidence_direction_pos"]
+    occlusion_df_p = occlusion_df[occlusion_df["confidence_direction"] > 0].groupby(col)\
+        .agg({"confidence_scaled": list,"norm_explainability_score": list})
+    occlusion_df_n = occlusion_df[occlusion_df["confidence_direction"] < 0].groupby(col)\
+        .agg({"confidence_scaled": list,"norm_explainability_score": list})
+    if not occlusion_df_n.empty and not occlusion_df_p.empty:
+        baseline_df_mean = baseline_df_mean.merge(occlusion_df_p, on=col)
+        baseline_df_mean = baseline_df_mean.merge(occlusion_df_n, on=col, suffixes=("_pos", "_neg"))
+        baseline_df_mean = baseline_df_mean.rename({"confidence_scaled_pos": "confidence_direction_pos",
+                                                    "confidence_scaled_neg": "confidence_direction_neg"}, axis=1)
+        baseline_df_mean["confidence_direction_neg"] = baseline_df_mean["confidence_direction_neg"] \
+            .apply(lambda lst: [-nr for nr in lst])
+    if occlusion_df_n.empty:
+        baseline_df_mean = baseline_df_mean.merge(occlusion_df_p, on=col)
+        baseline_df_mean = baseline_df_mean.rename({"confidence_scaled": "confidence_direction_pos",
+                                                    "norm_explainability_score": "norm_explainability_score_pos"}, axis=1)
+    if occlusion_df_p.empty:
+        baseline_df_mean = baseline_df_mean.merge(occlusion_df_n, on=col)
+        baseline_df_mean = baseline_df_mean.rename({"confidence_scaled": "confidence_direction_neg",
+                                                    "norm_explainability_score": "norm_explainability_score_neg"}, axis=1)
+        baseline_df_mean["confidence_direction_neg"] = baseline_df_mean["confidence_direction_neg"] \
+            .apply(lambda lst: [-nr for nr in lst])
+
+    baseline_df_mean[["mean_norm_explainability_score_pos", "mean_norm_explainability_score_neg"]] = 0
+    return baseline_df_mean
 
 
 def annotation_analysis():
@@ -381,20 +418,22 @@ def annotation_analysis():
                           labels=["Years", "Number of Tokens"],
                           legend_texts=[la.replace("_", " ") for la in LEGAL_AREAS],
                           ylim=[0, 600],
-                          title="Token over legal area and year Distribution ",
+                          title="Token over legal area and year Distribution",
+                          error_bars=pd.DataFrame(),
                           mean_lines={},
                           filepath=f"plots/ann_mean_tokens_year_legal_area_{l}.png")
 
         legend = [f"mean {label.lower()}" for label in LABELS_OCCLUSION[:-1]]
-        plots.mean_plot_1(pers_mean_df,
+        plots.mean_plot_1(pers_mean_df[[f"{label.lower().replace(' ', '_')}_mean_token" for label in LABELS]],
                           labels=["Annotators", "Number of Tokens"],
                           legend_texts=legend + [f"mean tokens {label.lower()}"
                                                  for label in LABELS_OCCLUSION[:-1]],
-                          ylim=[0, 110],
+                          ylim=[0, 140],
                           title="Token Distribution of Annotation Labels",
+                          error_bars=pers_mean_df[[f"{label.lower().replace(' ', '_')}_error" for label in LABELS]],
                           mean_lines={f"mean_tokens_{label.lower().replace(' ', '_')}":
-                                          label_mean_df[label_mean_df["label"] == label]["mean_token"].item()
-                                      for label in LABELS_OCCLUSION[:-1]},
+                                          list(pers_mean_df[f"{label.lower().replace(' ', '_')}_mean"].values)[0]
+                                      for label in LABELS},
                           filepath=f"plots/ann_mean_tokens_exp_labels_{l}.png")
 
         multilingual_mean_df_list.append(label_mean_df.reset_index())
@@ -443,32 +482,8 @@ def lower_court_analysis():
                                           [distribution_df.reset_index()])
 
         # Preparation for effect plots
-        # @Todo add to function
         lower_court_df_dict[l].append(lower_court_df)
-        baseline_df_mean = preprocessing.group_by_agg_column(baseline_df, "lower_court",
-                                                             agg_dict={"id": "count", "confidence_scaled": "mean"}) \
-            .rename({"confidence_scaled": "mean_confidence_direction_pos"}, axis=1)
-        baseline_df_mean["mean_confidence_direction_neg"] = -baseline_df_mean["mean_confidence_direction_pos"]
-
-        baseline_df_mean = baseline_df_mean.merge(
-            lower_court_df[lower_court_df["confidence_direction"] > 0].groupby("lower_court") \
-                .agg({"confidence_scaled": list,
-                      "norm_explainability_score": list}),
-            on="lower_court")
-        baseline_df_mean = baseline_df_mean.merge(
-            lower_court_df[lower_court_df["confidence_direction"] < 0].groupby("lower_court") \
-                .agg({"confidence_scaled": list,
-                      "norm_explainability_score": list}),
-            on="lower_court", suffixes=("_pos", "_neg"))
-
-        baseline_df_mean = baseline_df_mean.rename({"confidence_scaled_pos": "confidence_direction_pos",
-                                                    "confidence_scaled_neg": "confidence_direction_neg"}, axis=1)
-
-        baseline_df_mean["confidence_direction_neg"] = baseline_df_mean["confidence_direction_neg"].apply(
-            lambda lst: [-nr for nr in lst])
-
-        baseline_df_mean[["mean_norm_explainability_score_pos", "mean_norm_explainability_score_neg"]] = 0
-        lower_court_df_dict[f"{l}_mu"] = baseline_df_mean
+        lower_court_df_dict[f"{l}_mu"] = prepare_ttest_df(baseline_df, lower_court_df, "lower_court")
 
     # Lower court effect plots
     plots.create_effect_plot(lower_court_df_dict, cols=["lower_court", "confidence_direction"],
@@ -492,8 +507,9 @@ def lower_court_analysis():
 def occlusion_analysis():
     """
     @Todo Comment & clean up
+    Very important note!!!!!!! Only cases from test set were accepted in occlusion!
     """
-    effect_df_dict = {l: [] for l in LANGUAGES}
+    ttest_df_dict = {}
     flipped_df_dict = {nr: [] for nr in NUMBER_OF_EXP}
     multilingual_classification_dict = {}
     scatter_plot_dict = {l: {'c_o': [], 'c_s': [], 'f_o': [], 'f_s': []} for l in LANGUAGES}
@@ -521,32 +537,33 @@ def occlusion_analysis():
             score_0, score_1 = false_classification.groupby("explainability_label")["correct_direction"].count(), \
                                correct_classification.groupby("explainability_label")["correct_direction"].count()
 
-            # Occlusion effect plots preparation
-            effect_df_dict[l].append(occlusion_df)
-
             # Prepare json scores
-            occlusion_dict = {"number_of_has_flipped(T/F/Total)": list(count_has_flipped(occlusion_df)),
+            occlusion_dict = {"number of distinct cases": len(list(baseline_df["id"].values)),
+                              "number of has flipped(T/F/Total)": list(count_has_flipped(occlusion_df)),
                               "mean sentence length": get_occlusion_label_mean(occlusion_df)[0],
                               "mean number of sentences": get_number_of_sentences(occlusion_df),
                               "number of correct classification": score_1.to_dict(),
                               "number of incorrect_classification": score_0.to_dict()}
             preprocessing.write_json(Path(f"{l}/quantitative/occlusion_analysis_{l}_{nr}.json"), occlusion_dict)
 
-            # @todo Plot of correct and incorrect classifications
             o_judgement_f, s_judgement_f = split_oppose_support(occlusion_df, false_classification)
             o_judgement_c, s_judgement_c = split_oppose_support(occlusion_df, correct_classification)
-            multilingual_classification_dict[f'{l}_{nr}_c'] = pd.concat([o_judgement_c, s_judgement_c])
-            multilingual_classification_dict[f'{l}_{nr}_f'] = pd.concat([o_judgement_f, s_judgement_f])
+            # Occlusion effect plots preparation
+            for direction, df in {"pos": o_judgement_f,  "neg": s_judgement_f}.items():
+                label_df = prepare_ttest_df(baseline_df, df, "id")
+                df.merge(preprocessing.ttest(label_df[["id", f"norm_explainability_score_{direction}"]],
+                                                     label_df[["id", f"mean_norm_explainability_score_{direction}"]],
+                                                     "norm_explainability_score", "id", 0.05), on="id")
+                df.merge(preprocessing.ttest(label_df[["id", f"confidence_direction_{direction}"]],
+                                                     label_df[["id", f"mean_confidence_direction_{direction}"]],
+                                                     "confidence_direction", "id", 0.05),  on="id")
+
+
             scatter_plot_dict[l]['c_o'].append(o_judgement_c)
             scatter_plot_dict[l]['c_s'].append(s_judgement_c)
             scatter_plot_dict[l]['f_o'].append(o_judgement_f)
-            scatter_plot_dict[l]['f_o'].append(s_judgement_f)
-            """plots.scatter_plot(o_judgement_c, o_judgement_c, mode=True,
-                               title="Models Classification of Explainability Label (Correctly Classified)",
-                               filepath=f'plots/occ_correct_classification_{l}_{nr}.png')
-            plots.scatter_plot(o_judgement_f, s_judgement_f, mode=False,
-                               title="Models Classification of Explainability Label (Incorrectly Classified)",
-                               filepath=f'plots/occ_false_classification_{l}_{nr}.png')"""
+            scatter_plot_dict[l]['f_s'].append(s_judgement_f)
+
             """o_judgement_f, s_judgement_f = scores.calculate_IAA_occlusion(o_judgement_f, l), \
                                        scores.calculate_IAA_occlusion(s_judgement, l)"""
 
@@ -560,26 +577,5 @@ def occlusion_analysis():
                                                          LANGUAGES],
                                            title="Distribution of Flipped {} Sentence Occlusion Experiments",
                                            filepath='plots/occ_flipped_distribution_{}.png')
-    # Occlusion effect plots
-    """plots.create_effect_plot(effect_df_dict, {l: "" for l in LANGUAGES},
-                             cols=["explainability_label", "confidence_direction"],
-                             label_texts=["Confidence Direction", "Explainability Label"],
-                             legend_texts=["Positive Influence", "Negative Influence"],
-                             xlim=[-0.5, 0.5],
-                             title=f"Effect of Explainability Label on the Prediction Confidence",
-                             filepath='plots/occ_effect_{}.png'
-                             )
 
-    plots.create_effect_plot(effect_df_dict, {l: "" for l in LANGUAGES},
-                             cols=["explainability_label", "mean_norm_explainability_score"],
-                             label_texts=["Mean explainability Score", "Explainability Label"],
-                             legend_texts=["Exp_Score > 0", "Exp_Score < 0"],
-                             xlim=[-0.2, 0.2],
-                             title=f"Mean Distribution of Explainability Scores in both directions",
-                             filepath='plots/occ_effect_mean_{}.png')"""
     plots.create_scatter_plot(scatter_plot_dict)
-    create_classification_distibution_plot(multilingual_classification_dict)
-
-
-def create_classification_distibution_plot(df_dict):
-    df_dict

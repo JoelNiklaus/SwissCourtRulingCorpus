@@ -1,0 +1,45 @@
+{"de": {
+    "Verwaltungsgericht des Kantons Bern": "BE_VGer",
+    "Obergericht des Kantons Aargau": "AG_OGer",
+    "Kantonsgericht Schwyz": "SZ_KGer",
+    "Obergericht des Kantons Bern": "BE_Oger",
+    "Appellationsgericht Basel-Stadt": "BS_AppGer",
+    "Kantonsgericht Luzern": "LU_KGer",
+    "Sozialversicherungsgericht des Kantons Z\u00fcrich": "ZU_KGer",
+    "Obergericht des Kantons Z\u00fcrich": "ZU_OGer",
+    "Obergericht des Kantons Appenzell Ausserrhoden": "AR_KGer",
+    "Verwaltungsgericht des Kantons Glarus":"GL_VGer",
+    "Verwaltungsgericht des Kantons Schwyz": "SZ_VGer",
+    "Versicherungsgericht des Kantons Aargau": "AG_VerGer",
+    "Kantonsgericht Basel-Landschaft": "BL_KGer"
+  },
+  "fr": {
+    "Cour de justice de la R\u00e9publique et canton de Gen\u00e8ve": "GE_CJRC",
+    "Cour des mesures de protection de l'enfant et de l'adulte du canton de Neuch\u00e2tel": "NE_CEA",
+    "Chambre civile du Tribunal cantonal du canton du Valais": "VS_ChCivTC",
+    "Cour p\u00e9nale du Tribunal cantonal du canton de Neuch\u00e2tel": "NE_CPe",
+    "Tribunal cantonal du canton de Vaud": "VD_TC",
+    "Tribunal f\u00e9d\u00e9ral": "CH_BGer",
+    "Tribunal administratif f\u00e9d\u00e9ral": "CH_BVGE",
+    "Cour de droit public du Tribunal cantonal du canton de Neuch\u00e2tel": "NE_CPuTC",
+    "Cour d'appel p\u00e9nale du Tribunal cantonal du canton de Vaud": "VD_CAPPe",
+    "Cour d'appel civil du Tribunal cantonal fribourgeois": "FR_CAPCiv",
+    "Cour des assurances sociales du Tribunal cantonal du canton de Vaud": "VD_CASoTC",
+    "Chambre des recours p\u00e9nale du Tribunal cantonal vaudois": "VD_ChRPeTC",
+    "Chambre des curatelles du Tribunal cantonal du canton de Vaud": "VD_ChCTA",
+    "Cour civile du Tribunal cantonal du canton du Jura": "JU_CCiTC",
+    "Cour de justice": "GE_CJ",
+    "Chambre des recours p\u00e9nale de la Cour de justice genevoise": "GE_ChRPeCJ"
+  },
+  "it": {
+    "Tribunale delle assicurazioni del Cantone Ticino": "TI_TCAS",
+    "Tribunale di appello del Cantone Ticino": "TI_TRAP",
+    "Corte di appello e di revisione penale del Cantone Ticino": "TI_CARP",
+    "Camera civile del Tribunale di appello del Canto ne Ticino": "TI_CCivAP",
+    "Camera di esecuzione e fallimenti del Tribunale di appello del Cantone Ticino": "TI_CEFTRAP",
+    "Corte dei reclami penali del Tribunale d'appello": "TI_CRPTA",
+    "Camera di protezione del Tribunale d'appello del Cantone Ticino": "TI_CPTRAP",
+    "Tribunale amministrativo del Cantone dei Grigioni": "GR_VG",
+    "Tribunale amministrativo federale": "CH_BVGE"
+  }
+}

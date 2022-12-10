@@ -574,15 +574,16 @@ def get_one_sided_effect_df(dataset_1: pd.DataFrame, dataset_2: pd.DataFrame,col
                                               "norm_explainability_score": "mean"}) \
         .rename(columns={"norm_explainability_score": "mean_norm_explainability_score"})
     dataset_1["confidence_direction"] = dataset_1["confidence_direction"] * dataset_1["confidence_scaled"]
-    ttest_df_1 = ttest(dataset_2[["lower_court", f"confidence_direction_{direction}"]],
-                       dataset_2[["lower_court", f"mean_confidence_direction_{direction}"]], "confidence_direction",
+    ttest_df_1 = ttest(dataset_2[[col, f"confidence_direction_{direction}"]],
+                       dataset_2[[col, f"mean_confidence_direction_{direction}"]], "confidence_direction","lower_court",
                        0.05).drop(f"confidence_direction_{direction}", axis=1)
-    ttest_df_2 = ttest(dataset_2[["lower_court", f"norm_explainability_score_{direction}"]],
-                       dataset_2[["lower_court", f"mean_norm_explainability_score_{direction}"]],
-                       "mean_norm_explainability_score", 0.05).drop(f"norm_explainability_score_{direction}",
+    ttest_df_2 = ttest(dataset_2[[col, f"norm_explainability_score_{direction}"]],
+                       dataset_2[[col, f"mean_norm_explainability_score_{direction}"]],
+                       "mean_norm_explainability_score","lower_court", 0.05).drop(f"norm_explainability_score_{direction}",
                                                                axis=1)
-    dataset_1 = dataset_1.merge(ttest_df_1, on="lower_court")
-    return dataset_1.merge(ttest_df_2, on="lower_court")
+
+    dataset_1 = dataset_1.merge(ttest_df_1, on=col)
+    return dataset_1.merge(ttest_df_2, on=col)
 
 
 def find_flipped_cases(df: pd.DataFrame):
@@ -643,19 +644,19 @@ def normalize_df_length(df: pd.DataFrame, col: str, column_values: list):
     return df.sort_values(by=[col])
 
 
-def ttest(sample_df: pd.DataFrame, mu_df, col, alpha):
+def ttest(sample_df: pd.DataFrame, mu_df, col_1, col_2, alpha):
     """
     @todo
     """
     tc_list = []
     pvalue_list = []
-    for lower_court in sample_df.values:
-        mu = mu_df[mu_df["lower_court"] == lower_court[0]].values[0][1]
-        result = stats.ttest_1samp(lower_court[1], popmean=mu)
+    for sample in sample_df.values:
+        mu = mu_df[mu_df[col_2] == sample[0]].values[0][1]
+        result = stats.ttest_1samp(sample[1], popmean=mu)
         tc_list.append(result.statistic)
         pvalue_list.append(result.pvalue)
-    sample_df[f"tc_{col}"] = tc_list
-    sample_df[f"pvalue_{col}"] = pvalue_list
-    sample_df[f"pvalue_{col}"] = sample_df[f"pvalue_{col}"].apply(Decimal)
-    sample_df[f"significance_{col}"] = np.where(sample_df[f"pvalue_{col}"] < alpha, True, False)
+    sample_df[f"tc_{col_1}"] = tc_list
+    sample_df[f"pvalue_{col_1}"] = pvalue_list
+    sample_df[f"pvalue_{col_1}"] = sample_df[f"pvalue_{col_1}"].apply(Decimal)
+    sample_df[f"significance_{col_1}"] = np.where(sample_df[f"pvalue_{col_1}"] < alpha, True, False)
     return sample_df

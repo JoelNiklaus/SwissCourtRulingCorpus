@@ -5,7 +5,6 @@ wheel/
 judgment_explainability/documentation/
 judgment_explainability/legal_expert_annotations/
 judgment_explainability/analysis/*.csv
-judgment_explainability/analysis/*.json
 judgment_explainability/analysis/*.xlsx
 judgment_explainability/analysis/de/
 judgment_explainability/analysis/fr/
