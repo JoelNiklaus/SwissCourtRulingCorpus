@@ -36,11 +36,11 @@ def dump_user_input(datasets: dict, lang: str, version: str, ):
         try:
             user_input = datasets[f"annotations_{lang}-{session}"][
                 datasets[f"annotations_{lang}-{session}"]["user_input"].notnull()]
-            preprocessing.write_csv(Path(f"{lang}/qualitative/user_input_{lang}-{session}_{version}.csv"),
+            preprocessing.write_csv(f"{lang}/qualitative/user_input_{lang}-{session}_{version}.csv",
                                     user_input[['id_scrc', '_annotator_id', "user_input"]])
             case_not_accepted = datasets[f"annotations_{lang}-{session}"][
                 datasets[f"annotations_{lang}-{session}"]["answer"] != "accept"]
-            preprocessing.write_csv(Path(f"{lang}/qualitative/ig_re_{lang}-{session}_{version}.csv"),
+            preprocessing.write_csv(f"{lang}/qualitative/ig_re_{lang}-{session}_{version}.csv",
                                     case_not_accepted[['id_scrc', '_annotator_id', "user_input"]])
         except KeyError:
             pass
@@ -103,5 +103,5 @@ def occlusion_analysis():
                 json_dict[f"number_of_flipped_cases_occlusion"] = {f"number_of_flipped_cases_occlusion_{nr}": len(
                     get_flipped_column(occlusion, "explainability_label")[0]["id"].unique())}
 
-        preprocessing.write_csv_from_list(Path(f"{l}/qualitative/occlusion_analysis.csv"), df_list)
+        preprocessing.write_csv_from_list(f"{l}/qualitative/occlusion_analysis.csv", df_list)
         preprocessing.write_json(Path(f"{l}/qualitative/occlusion_analysis.json"), json_dict)

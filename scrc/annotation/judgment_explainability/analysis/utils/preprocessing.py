@@ -102,11 +102,11 @@ def read_csv(filepath: str, index: str) -> pd.DataFrame:
     return df
 
 
-def write_csv(filepath: Path, df: pd.DataFrame):
+def write_csv(filepath: str, df: pd.DataFrame):
     """
     Writes CSV file from Dataframe.
     """
-    filepath.parent.mkdir(parents=True, exist_ok=True)
+    Path(filepath).parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(filepath, index=True, index_label="index")
 
 
@@ -119,11 +119,11 @@ def read_json(filepath: str) -> dict:
         return data
 
 
-def write_csv_from_list(path: Path, df_list: list):
+def write_csv_from_list(filepath: str, df_list: list):
     """
     Writes csv file from Dataframe list.
     """
-    with open(path, "w") as f:
+    with open(Path(filepath), "w") as f:
         f.truncate()
         for df in df_list:
             df.to_csv(f)
@@ -485,7 +485,7 @@ def occlusion_preprocessing(lang: str, df: pd.DataFrame, filename: str):
         df_1, 1)
     df_0, df_1 = get_norm_explainability_score(df_0, 0), get_norm_explainability_score(df_1, 1)
 
-    write_csv(Path(f"{lang}/occlusion/{filename}.csv"), df_0.append(df_1))
+    write_csv(f"{lang}/occlusion/{filename}.csv", df_0.append(df_1))
 
 
 def get_correct_direction(df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series, pd.Series):

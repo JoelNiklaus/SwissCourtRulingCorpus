@@ -222,7 +222,7 @@ def appends_df(filename: str, lang: str):
     df = pd.DataFrame()
     for label in LABELS_OCCLUSION[1:]:
         df = df.append(globals()[f"{label.lower().replace(' ', '_')}_{lang}"])
-    preprocessing.write_csv(Path(filename),
+    preprocessing.write_csv(filename,
                             df.rename(columns={"facts": "text", "id_csv": "id"}).drop_duplicates().reset_index().drop(
                                 "index", axis=1))
 
@@ -251,7 +251,7 @@ def create_lower_court_experiment(filename: str, lang: str):
     lower_court_df["occluded_text"] = lower_court_df["lower_court"]
     lower_court_df = lower_court_df[lower_court_df["explainability_label"] == LABELS_OCCLUSION[0]]
     lower_court_df = lower_court_df[lower_court_df["lower_court"] != "original court"].drop("occluded_text", axis=1)
-    preprocessing.write_csv(Path(filename),
+    preprocessing.write_csv(filename,
                             lower_court_df.append(baseline_df).drop_duplicates().reset_index().drop("index",
                                                                                                     axis=1).rename(
                                 columns={"facts": "text", "id_csv": "id"}))
@@ -296,7 +296,7 @@ def permutation(filename: str, lang: str, permutations_number: int):
         occlusion_df = baseline_df.merge(occlusion_df, on="id_csv", how="inner")
         occlusion_df = occlusion_df.explode("combinations")
         df = df.append(occlude_text_n(occlusion_df, label))
-    preprocessing.write_csv(Path(filename),
+    preprocessing.write_csv(filename,
                             df.reset_index().drop("index", axis=1).rename(columns={"facts": "text", "id_csv": "id"}))
 
 

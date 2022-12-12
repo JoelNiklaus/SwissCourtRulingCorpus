@@ -21,15 +21,24 @@ NAN_KEY = 10000
 AGGREGATIONS = ["mean", "max", "min"]
 
 
-def write_IAA_to_csv(df: pd.DataFrame, lang: str, label: str, version: str):
+def write_IAA_to_csv_annotations(df: pd.DataFrame, lang: str, label: str, version: str):
     """
     Calculate IAA_scores of preprocessed DataFrame.
     Writes DataFrame to csv
     @ Todo implement occlusion
     """
     df = calculate_IAA_annotations(df, lang)
-    preprocessing.write_csv(Path("{}/{}_{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}", version)), df)
-    print("Saved {}_{}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}", version))
+    preprocessing.write_csv(f"{lang}/{label.lower().replace(' ', '_')}_{lang}_{version}.csv", df)
+
+
+def write_IAA_to_csv_occlusion(df: pd.DataFrame, lang: str,filepath: str):
+    """
+    Calculate IAA_scores of preprocessed DataFrame.
+    Writes DataFrame to csv
+    @ Todo implement occlusion
+    """
+    df = calculate_IAA_occlusion(df, lang)
+    preprocessing.write_csv(filepath, df)
 
 
 def calculate_IAA_annotations(df: pd.DataFrame, lang: str) -> pd.DataFrame:

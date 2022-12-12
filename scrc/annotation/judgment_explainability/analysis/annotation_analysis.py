@@ -48,9 +48,8 @@ def annotation_analysis_gold(lang: str, spans_df: pd.DataFrame, tokens_df: pd.Da
             .merge(annotator_df, on=f'annotations_{lang}', how="inner")
 
         preprocessing.write_csv(
-            Path("{}/{}_{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}", version)),
+            "{}/{}_{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}", version),
             label_df)
-        print("Saved {}_{}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}", version))
 
 
 def annotation_analysis(lang: str, spans_df: pd.DataFrame, tokens_df: pd.DataFrame, version: str):
@@ -71,12 +70,11 @@ def annotation_analysis(lang: str, spans_df: pd.DataFrame, tokens_df: pd.DataFra
         # Normalizes token dictionary
         label_df = preprocessing.get_normalize_tokens_dict(label_df)
         if lang == "de":
-            scores.write_IAA_to_csv(label_df, lang, label, version)
+            scores.write_IAA_to_csv_annotations(label_df, lang, label, version)
         else:
             preprocessing.write_csv(
-                Path("{}/{}_{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}", version)),
+                "{}/{}_{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}", version),
                 label_df)
-            print("Saved {}_{}.csv successfully!".format(f"{label.lower().replace(' ', '_')}_{lang}", version))
 
 
 if __name__ == '__main__':
