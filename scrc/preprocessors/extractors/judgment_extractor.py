@@ -50,7 +50,7 @@ class JudgmentExtractor(AbstractExtractor):
         ruling_id = Section.RULINGS.value
         with self.get_engine(self.db_scrc).connect() as conn:
             total_judgments = conn.execute(get_total_judgments(spider, ruling_id)).fetchone()
-            coverage_result = conn.execute(get_judgment_query(spider, ruling_id)).fetchone()
+            coverage_result = conn.execute(get_judgment_query(spider)).fetchone()
             coverage =  round(coverage_result[0] / total_judgments[0]  * 100, 2)
             self.logger.info(f"{spider}: Found judgment outcome for {coverage}% of the rulings")
 

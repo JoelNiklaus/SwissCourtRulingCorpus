@@ -7,6 +7,10 @@ from scrc.enums.judgment import Judgment
 from scrc.enums.language import Language
 from scrc.utils.main_utils import clean_text, int_to_roman
 
+# if a ruling section exceeds 3000 characters we can assume that the judgment extraction function will be inaccurate due to the nature of a pattern matching system. 
+# Therefore, we set a maximum character count for the ruling sections.
+MAX_CHAR_COUNT = 3000
+
 """
 This file is used to extract the judgment outcomes from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
@@ -61,9 +65,8 @@ Formelle Mitteilung:
 
 all_judgment_markers = {
     Language.DE: {
-        Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung', 'schuldig erklärt', 'rechtmässig'],
-        Judgment.PARTIAL_APPROVAL: ['teilweise gutgeheissen', 'teilweise gutzuheissen',
-                                    'In teilweiser Gutheissung'],
+        Judgment.APPROVAL: ['aufgehoben', 'aufzuheben', 'gutgeheissen', 'gutzuheissen', 'In Gutheissung'],
+        Judgment.PARTIAL_APPROVAL: ['teilweise gutgeheissen', 'teilweise gutzuheissen', 'In teilweiser Gutheissung', 'in teilweiser Gutheissung'],
         Judgment.DISMISSAL: ['abgewiesen', 'abzuweisen', 'erstinstanzliche Urteil wird bestätigt', 'freigesprochen'],
         Judgment.PARTIAL_DISMISSAL: ['abgewiesen, soweit darauf einzutreten ist',
                                      'abzuweisen, soweit darauf einzutreten ist',
@@ -78,8 +81,8 @@ all_judgment_markers = {
     },
     Language.FR: {
         Judgment.APPROVAL: ['admis', 'est annulé', 'Admet', 'admet'],
-        Judgment.PARTIAL_APPROVAL: ['Admet partiellement',
-                                    'partiellement admis',
+        Judgment.PARTIAL_APPROVAL: ['Admet partiellement', 'admet partiellement', 'partiellement admis',
+                                    'partiellement admis', 'admis partiellement'
                                     'admis dans la mesure où il est recevable',
                                     'admis dans la mesure où ils sont recevables'
                                     ],
@@ -92,12 +95,12 @@ all_judgment_markers = {
         Judgment.INADMISSIBLE: ['N\'entre pas en matière', 'irrecevable', 'n\'est pas entré',
                                 'pas pris en considération'],
         Judgment.WRITE_OFF: ['retrait', 'est radiée', 'sans objet', 'rayé', 'Raye'],
-        Judgment.UNIFICATION: ['no entries yet for unification'],
+        Judgment.UNIFICATION: ['sont jointes'],
     },
     Language.IT: {
         Judgment.APPROVAL: ['accolt',  # accolt o/i/a/e
                             'annullat'],  # annullat o/i/a/e
-        Judgment.PARTIAL_APPROVAL: ['Nella misura in cui è ammissibile, il ricorso è parzialmente accolto',
+        Judgment.PARTIAL_APPROVAL: ['Nella misura in cui è ammissibile', 'parzialmente accolto',
                                     'In parziale accoglimento del ricorso'],
         Judgment.DISMISSAL: ['respint',  # respint o/i/a/e
                              ],
@@ -130,139 +133,19 @@ def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
             message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
             raise ValueError(message)
 
+    if len(rulings) > MAX_CHAR_COUNT:
+        message = f"The {namespace['id']} ruling is {len(rulings)} characters long. In order to avoid false positives, it will be skipped."
+        raise ValueError(message)
+    
     # make sure we don't have any nasty unicode problems
     rulings = clean_text(rulings)
 
     judgments = get_judgments(rulings, namespace)
 
     judgments = verify_judgments(judgments, rulings, namespace)
-    
-    return judgments
-
-def ZH_Baurekurs(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = unnumbered_rulings(rulings, namespace)
-
-    judgments = verify_judgments(judgments, rulings, namespace)
-    
-    return judgments
-
-def BS_Omni(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = unnumbered_rulings(rulings, namespace)
-
-    judgments = verify_judgments(judgments, rulings, namespace)
-    
-    return judgments
-def LU_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = unnumbered_rulings(rulings, namespace)
-
-    judgments = verify_judgments(judgments, rulings, namespace)
-    
-    return judgments
-
-def JU_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = unnumbered_rulings(rulings, namespace)
-
-    judgments = verify_judgments(judgments, rulings, namespace)
-    
-    return judgments
-
-def GE_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = unnumbered_rulings(rulings, namespace)
-
-    judgments = verify_judgments(judgments, rulings, namespace)
-    
-    return judgments
-
-def CH_EDOEB(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
-    """
-    Extract judgment outcomes from the rulings
-    :param rulings:     the string containing the rulings
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the list of judgments
-    """
-
-    if namespace['language'] not in all_judgment_markers:
-        message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
-        raise ValueError(message)
-
-    # make sure we don't have any nasty unicode problems
-    rulings = clean_text(rulings)
-
-    judgments = unnumbered_rulings(rulings, namespace)
-
-    judgments = verify_judgments(judgments, rulings, namespace)
 
     return judgments
+
 
 
 def UR_Gerichte(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
@@ -340,16 +223,18 @@ def get_judgments(rulings: str, namespace: dict) -> set:
     :return:            the set of judgment outcomes
     """
     judgments = set()
-
     judgment_markers = prepare_judgment_markers(
         all_judgment_markers, namespace)
 
     pattern = rf"{1}\.(.+?)(?:{2}\.|$)"
     romanPattern = rf"{int_to_roman(1)}\.(.+?)(?:{int_to_roman(2)}\.|$)"
 
+
     if (re.search(pattern, rulings) or re.search(romanPattern, rulings)):
         judgments = numbered_rulings(
             judgments, rulings, namespace, judgment_markers)
+    else:
+        judgments = unnumbered_rulings(rulings, namespace)
     return judgments
 
 def verify_judgments(judgments, rulings, namespace):
