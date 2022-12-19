@@ -104,4 +104,4 @@ def occlusion_analysis():
                     get_flipped_column(occlusion, "explainability_label")[0]["id"].unique())}
 
         preprocessing.write_csv_from_list(f"{l}/qualitative/occlusion_analysis.csv", df_list)
-        preprocessing.write_json(Path(f"{l}/qualitative/occlusion_analysis.json"), json_dict)
+        preprocessing.write_json(f"{l}/qualitative/occlusion_analysis.json", json_dict)

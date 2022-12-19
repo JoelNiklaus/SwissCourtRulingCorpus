@@ -66,7 +66,7 @@ def annotation_analysis(lang: str, spans_df: pd.DataFrame, tokens_df: pd.DataFra
         label_df = preprocessing.get_label_df(lang, spans_df, tokens_df, label)
         for pers in PERSONS:
             label_list.append(preprocessing.get_annotator_df(label_df, lang, pers, version))
-        label_df = preprocessing.merge_triple(label_list, PERSONS, lang)
+        label_df = preprocessing.merge_triple_ann(label_list, PERSONS, lang)
         # Normalizes token dictionary
         label_df = preprocessing.get_normalize_tokens_dict(label_df)
         if lang == "de":
@@ -82,7 +82,6 @@ if __name__ == '__main__':
     Argument handling, dataset extraction.
     """
     assert len(sys.argv) == 2
-    qt.annotation_analysis()
     language = sys.argv[1]
     for ver in range(1, 5):
         df_1, df_2 = preprocessing.annotation_preprocessing([ANNOTATION_PATHS[str(ver)][0],

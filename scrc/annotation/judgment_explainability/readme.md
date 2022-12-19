@@ -99,12 +99,23 @@ with ``cd SwissCourtRulingCorpus/scrc/annotation/judgment_explainability/analysi
    from `scrc.annotation.judgment_explainability.analysis.utils.module as module`
    To `utils.module as module`.
 3. Create a new environment called "judgment-explainability" with ``conda env create -f env.yml``
-   3.Activate the "judgment-explainability" environment using ``conda activate judgment-explainability``
+   3.Activate the "judgment-explainability" environment using ``conda activate judgment_explainability``
 4. Place your annotation under directory ``legal_expert_annotation/language/`` using the ``scp`` command.
 5. Run the analysis using ``sbatch run_analysis_ubelix.sh``
    Note that if you want to use another file structure or naming convention the paths in the scripts have to adapted
    accordingly.
 
+
+## Thesis
+This work was part of my bachelor thesis "From Occlusion to Transparency". You can cite it as follows:
+```
+@misc{baumgartner2022occlusion,
+    title={From Occlusion to Transparency – Evaluating an Occlusion based Explainability Method for Legal Judgment Prediction in Switzerland using Legal
+Experts Annotations},
+    author={Nina Baumgartner},
+    year={2022}
+}
+```
 ## Refrences
 
 Niklaus, J., Chalkidis, I., & St ̈urmer, M. (2021). Swiss-judgment-prediction: A multilingual legal judgment prediction

@@ -2,8 +2,8 @@ import ast
 import itertools
 import json
 import math
+import re
 import warnings
-from decimal import Decimal
 from pathlib import Path
 from random import randint
 
@@ -24,6 +24,10 @@ LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
 PERSONS = ["angela", "lynn", "thomas"]
 SESSIONS = ["angela", "lynn", "thomas", "gold_nina"]
 NAN_KEY = 10000
+IAA_LIST_WORDS = ["A1 and A2","A1 and A3","A2 and A3"]
+IAA_List = ["1_2", "1_3", "2_3"]
+SCORES_COLUMNS = ['overlap_maximum', 'overlap_minimum', 'jaccard_similarity', 'meteor_score', 'bleu_score', 'rouge1',
+                  'rouge2', 'rougeL', 'F1']
 
 
 def extract_dataset(filepath_a: str, filepath_b: str) -> dict:
@@ -110,15 +114,6 @@ def write_csv(filepath: str, df: pd.DataFrame):
     df.to_csv(filepath, index=True, index_label="index")
 
 
-def read_json(filepath: str) -> dict:
-    """
-    Reads json file and returns dict.
-    """
-    with open(filepath) as json_file:
-        data = json.load(json_file)
-        return data
-
-
 def write_csv_from_list(filepath: str, df_list: list):
     """
     Writes csv file from Dataframe list.
@@ -130,12 +125,55 @@ def write_csv_from_list(filepath: str, df_list: list):
             f.write("\n")
 
 
-def write_json(filepath: Path, dictionary: dict):
+def write_IAA_table(df_list: list, filename: str, labels):
+    scores_columns = ['overlap_maximum', 'overlap_minimum', 'jaccard_similarity', 'meteor_score', 'bleu_score',
+                      'rouge1','rouge2', 'rougeL', 'bert_score']
+
+    table_dict = {label: [] for label in labels}
+    table_list = []
+    i = 0
+    for df in df_list:
+        for label in labels:
+            mean = df[[f"{score}_{label.lower().replace(' ', '_')}" for score in scores_columns]].dropna().mean()
+            mean = mean.rename(
+                    index={f"{score}_{label.lower().replace(' ', '_')}": score for score in scores_columns}) \
+                    .reset_index().rename({"index": "IAA Score", 0: IAA_LIST_WORDS[i]}, axis=1)
+            table_dict[label].append(mean)
+        i += 1
+    for lst in table_dict.values():
+        table = pd.concat(lst, axis=1)
+        IAA_score = table["IAA Score"].iloc[:, :1]
+        table = table.loc[:, ~table.columns.duplicated()].copy()
+        table["IAA Score"] = IAA_score
+        table_list.append(table.reset_index())
+
+    write_csv_from_list(filename.format(""), table_list)
+    if len(table_list) == 3:
+        table = pd.concat(table_list)
+        table = table.groupby("IAA Score").mean().drop("index", axis=1).reset_index()
+        try:
+            table["Mean Score"] = table[IAA_LIST_WORDS].mean(axis=1)
+            write_csv(filename.format("_mean"), table.round(3))
+        except KeyError:
+            table["Mean Score"] = table[IAA_LIST_WORDS[2]].mean()
+            write_csv(filename.format("_mean"), table.round(3))
+
+
+def read_json(filepath: str) -> dict:
+    """
+    Reads json file and returns dict.
+    """
+    with open(filepath) as json_file:
+        data = json.load(json_file)
+        return data
+
+
+def write_json(filepath: str, dictionary: dict):
     """
     Writes a json from dict.
     """
     json_object = json.dumps(dictionary, indent=4)
-    with open(filepath, "w") as outfile:
+    with open(Path(filepath), "w") as outfile:
         outfile.write(json_object)
 
 
@@ -366,7 +404,7 @@ def get_annotator_df(tokens_df: pd.DataFrame, lang: str, annotator: str, version
     return annotator_df
 
 
-def merge_triple(df_list: list, person_suffixes: list, lang: str):
+def merge_triple_ann(df_list: list, person_suffixes: list, lang: str):
     """
     Merges first and second Dataframe using outer join.
     Formats column names using person_suffixes, fills Nan values with "Nan".
@@ -383,6 +421,12 @@ def merge_triple(df_list: list, person_suffixes: list, lang: str):
                  "tokens_id": f"tokens_id_{person_suffixes[i + 2]}",
                  "tokens_dict": f"tokens_dict_{person_suffixes[i + 2]}",
                  'tokens_ws_dict': f'tokens_ws_dict_{person_suffixes[i + 2]}'})
+
+
+def merge_triple(df_list, on, suffixes):
+    df = df_list[0].reset_index().merge(df_list[0].reset_index(),
+                                        on=on, suffixes=suffixes[:-1])
+    return df.merge(df_list[2].add_suffix(suffixes[-1]).reset_index(), on=on)
 
 
 def get_normalize_tokens_dict(df: pd.DataFrame) -> pd.DataFrame:
@@ -563,7 +607,7 @@ def calculate_explainability_score(df: pd.DataFrame):
     return occlusion_df
 
 
-def get_one_sided_effect_df(dataset_1: pd.DataFrame, dataset_2: pd.DataFrame,col,
+def get_one_sided_effect_df(dataset_1: pd.DataFrame, dataset_2: pd.DataFrame, col,
                             direction: str):
     """
     Gets mean of one sided explainability_score and confidence_direction.
@@ -575,12 +619,14 @@ def get_one_sided_effect_df(dataset_1: pd.DataFrame, dataset_2: pd.DataFrame,col
         .rename(columns={"norm_explainability_score": "mean_norm_explainability_score"})
     dataset_1["confidence_direction"] = dataset_1["confidence_direction"] * dataset_1["confidence_scaled"]
     ttest_df_1 = ttest(dataset_2[[col, f"confidence_direction_{direction}"]],
-                       dataset_2[[col, f"mean_confidence_direction_{direction}"]], "confidence_direction","lower_court",
+                       dataset_2[[col, f"mean_confidence_direction_{direction}"]], "confidence_direction",
+                       "lower_court",
                        0.05).drop(f"confidence_direction_{direction}", axis=1)
     ttest_df_2 = ttest(dataset_2[[col, f"norm_explainability_score_{direction}"]],
                        dataset_2[[col, f"mean_norm_explainability_score_{direction}"]],
-                       "mean_norm_explainability_score","lower_court", 0.05).drop(f"norm_explainability_score_{direction}",
-                                                               axis=1)
+                       "mean_norm_explainability_score", "lower_court", 0.05).drop(
+        f"norm_explainability_score_{direction}",
+        axis=1)
 
     dataset_1 = dataset_1.merge(ttest_df_1, on=col)
     return dataset_1.merge(ttest_df_2, on=col)
@@ -657,6 +703,113 @@ def ttest(sample_df: pd.DataFrame, mu_df, col_1, col_2, alpha):
         pvalue_list.append(result.pvalue)
     sample_df[f"tc_{col_1}"] = tc_list
     sample_df[f"pvalue_{col_1}"] = pvalue_list
-    sample_df[f"pvalue_{col_1}"] = sample_df[f"pvalue_{col_1}"].apply(Decimal)
+    sample_df[f"pvalue_{col_1}"] = sample_df[f"pvalue_{col_1}"]
     sample_df[f"significance_{col_1}"] = np.where(sample_df[f"pvalue_{col_1}"] < alpha, True, False)
     return sample_df
+
+
+def prepare_scores_IAA_Agreement_plots(lang: str, versions: list, filename:str, cols: list, labels:list, dict_keys: list) -> list:
+    IAA_df_list = []
+    for nr in versions:
+        label_df_dict = {iaa: [] for iaa in dict_keys}
+        for label in labels:
+            df = read_csv(filename.format(lang, label.lower().replace(' ', '_'), lang, nr), "index")
+            label_df_dict = filter_columns(df, cols, label_df_dict)
+        for df_list in label_df_dict.values():
+            if len(df_list) == 3:
+                IAA_df_list.append(merge_triple(df_list, "index",
+                                        suffixes=[f"_{label.lower().replace(' ', '_')}" for label in LABELS]))
+            if len(df_list) == 2:
+                IAA_df_list.append(df_list[0].merge(df_list[1], on="index",
+                                                              suffixes=[f"_{label.lower().replace(' ', '_')}" for label
+                                                                        in labels]))
+
+    return IAA_df_list
+
+
+def filter_columns(df: pd.DataFrame, cols: list, label_df_dict: dict):
+    if len(cols) == 4:
+        df = df[~((df[cols[1]] == "Nan") & (df[cols[2]] == "Nan") & (df[cols[3]] == "Nan"))]
+        for score in SCORES_COLUMNS:
+            df[score] = df[score].apply(lambda row: string_to_list(row))
+        df["jaccard_similarity"] = df.apply(lambda row: normalize_list_length(row["rouge1"],row["jaccard_similarity"]) , axis=1)
+        scores_df = df[SCORES_COLUMNS].explode(SCORES_COLUMNS).reset_index().rename({"F1": "bert_score"}, axis=1)
+        df = df[cols].reset_index().merge(scores_df, on="index")
+        df["IAA_between"] = add_ann_enumeration(df)
+        for iaa in IAA_List:
+            label_df_dict[iaa].append(df[df["IAA_between"] == iaa].drop("index", axis=1))  # Separate annotator combinations
+        return label_df_dict
+    else:
+        for score in SCORES_COLUMNS:
+            df[score] = df[score].apply(lambda row: remove_parenthesis(row))
+        df = df.reset_index().rename({"F1": "bert_score"}, axis=1)
+        df["IAA_between"] = "human_model"
+        label_df_dict["human_model"].append(df)
+        return label_df_dict
+
+
+def normalize_list_length(ref_lst, sample_lst):
+    if len(ref_lst) == 0:
+        return []
+    if len(ref_lst) == 1:
+        return [i for i in sample_lst if i != 0.0]
+    if len(ref_lst) == 3:
+        return sample_lst
+
+
+def add_ann_enumeration(df: pd.DataFrame) -> list:
+    i = 0
+    IAA_list = []
+    IAA_DICT = {2: "1_2", 1: "1_3", 0: "2_3"}
+    for index, row in df[['tokens_text_angela', 'tokens_text_lynn', 'tokens_text_thomas']].iterrows():
+        annotations = row.tolist()
+        if annotations.count("Nan") > 1:
+            IAA_list.append("no_IAA")
+        if annotations.count("Nan") == 1:
+            IAA_list.append(IAA_DICT[annotations.index("Nan")])
+        if annotations.count("Nan") == 0:
+            IAA_list.append(IAA_DICT[i])
+        i += 1
+        if i == 3:
+            i = 0
+    return IAA_list
+
+
+def remove_parenthesis(row: str):
+    if str(row).startswith("[S", 0):
+        return extract_number(row, '(?<=fmeasure\=)\d.\d*')[0]
+    if str(row).startswith("[t", 0):
+        return extract_number(row, '(?<=tensor\(\[)\d.\d*')[0]
+    if str(row).startswith("[", 0):
+        return ast.literal_eval(str(row))[0]
+    else:
+        return float(row)
+
+
+def string_to_list(row: str):
+    """
+    Returns list from string representation.
+    """
+    if str(row).startswith("[S", 0):
+        return extract_number(row, '(?<=fmeasure\=)\d.\d*')
+    if str(row).startswith("[t", 0):
+        return extract_number(row, '(?<=tensor\(\[)\d.\d*')
+    if str(row) == "nan":
+        return []
+    else:
+        return ast.literal_eval(str(row))
+
+
+def extract_number(row: str, exp: str):
+    lst_1 = []
+    lst_2 = []
+    row = row.strip('][')
+    entries = row.split('),')
+    for entry in entries:
+        lst_1.append(entry + ')')
+    for entry in lst_1:
+        score = re.search(exp, str(entry)).group()
+        lst_2.append(float(score))
+    return lst_2
+
+

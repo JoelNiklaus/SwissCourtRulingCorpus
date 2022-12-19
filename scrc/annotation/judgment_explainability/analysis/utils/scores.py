@@ -1,6 +1,4 @@
 import copy
-import copy
-from pathlib import Path
 
 import nltk
 import pandas as pd
@@ -25,17 +23,15 @@ def write_IAA_to_csv_annotations(df: pd.DataFrame, lang: str, label: str, versio
     """
     Calculate IAA_scores of preprocessed DataFrame.
     Writes DataFrame to csv
-    @ Todo implement occlusion
     """
     df = calculate_IAA_annotations(df, lang)
     preprocessing.write_csv(f"{lang}/{label.lower().replace(' ', '_')}_{lang}_{version}.csv", df)
 
 
-def write_IAA_to_csv_occlusion(df: pd.DataFrame, lang: str,filepath: str):
+def write_IAA_to_csv_occlusion(df: pd.DataFrame, lang: str, filepath: str):
     """
     Calculate IAA_scores of preprocessed DataFrame.
     Writes DataFrame to csv
-    @ Todo implement occlusion
     """
     df = calculate_IAA_occlusion(df, lang)
     preprocessing.write_csv(filepath, df)
@@ -60,20 +56,13 @@ def calculate_IAA_annotations(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     for score_df in score_df_list:
         df = df.merge(score_df, on=f'annotations_{lang}',
                       how='outer')
-    scores = ["overlap_maximum", "overlap_minimum", "jaccard_similarity", "jaccard_distance", "meteor_score",
-              "bleu_score"]
-    for agg in AGGREGATIONS:
-        for score in scores:
-            df = apply_aggregation(df, score, agg)
-
     return df
 
 
 def calculate_IAA_occlusion(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     """
-    @Todo Finish functionalities
+    @Todo
     """
-    print("Calculating scores...")
     df = df.reset_index()
     r, be, m, b = calculate_text_scores_occlusion(df, lang)
     score_df_list = [calculate_overlap_min_max_occlusion(df),

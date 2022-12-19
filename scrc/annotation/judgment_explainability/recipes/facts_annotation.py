@@ -19,10 +19,10 @@ Run with prodigy facts-annotation language -F ./judgment_explainability/recipes/
 )
 # function called by the @prodigy-recipe definition
 def facts_annotation(language: str):
-    # Load the spaCy model for tokenization.
-    nlp = spacy.load(f"{language}_core_news_sm")
-    stream = JSONL(f"./judgment_explainability/annotation_datasets/annotation_input_set_{language}.jsonl")
-    dataset = f"annotations_{language}"
+    nlp = spacy.load(f"{language}_core_news_sm")  # Load the spaCy model for tokenization.
+    stream = JSONL(
+        f"./judgment_explainability/annotation_datasets/annotation_input_set_{language}.jsonl")  # Input dataset
+    dataset = f"annotations_{language}"  # Outpu dataset
     port = PORTS[language]
 
     # Tokenize the incoming examples and add a "tokens" property to each example.

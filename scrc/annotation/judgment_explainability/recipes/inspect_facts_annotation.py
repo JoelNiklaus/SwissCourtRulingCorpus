@@ -13,7 +13,7 @@ Run with prodigy inspect-facts-annotation language annotator -F ./judgment_expla
 
 @prodigy.recipe(
     "inspect-facts-annotation",
-    language=("The language to use for the recipe. Type test for test mode", 'positional', None, str),
+    language=("The language to use for the recipe.", 'positional', None, str),
     annotator=("The annotator who marking the cases.", 'positional', None, str),
 )
 # function called by the @prodigy-recipe definition
