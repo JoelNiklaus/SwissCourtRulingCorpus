@@ -1,4 +1,3 @@
-import configparser
 import json
 import re
 from typing import List, Optional, Any
@@ -9,13 +8,10 @@ import pandas as pd
 import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
 from sqlalchemy.engine.base import Engine
-from sqlalchemy.sql.expression import insert
 
-from root import ROOT_DIR
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
-from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import clean_text, get_config
-from scrc.utils.sql_select_utils import join_decision_and_language_on_parameter, join_decision_on_parameter, join_tables_on_decision, where_decisionid_in_list, where_string_spider
+from scrc.utils.sql_select_utils import join_decision_on_parameter, where_decisionid_in_list, where_string_spider
 
 
 class Cleaner(AbstractExtractor):

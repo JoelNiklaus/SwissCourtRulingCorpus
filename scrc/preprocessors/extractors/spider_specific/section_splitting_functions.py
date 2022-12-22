@@ -1,21 +1,14 @@
-from logging import exception
 import unicodedata
 from typing import Optional, List, Dict, Union
-import sys
 
 import bs4
 import re
-
-from prometheus_client import Enum
-from sqlalchemy import false, true
 
 from scrc.enums.language import Language
 from scrc.enums.section import Section
 from scrc.utils.main_utils import clean_text
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_paragraphs_unified
-
-from scrc.preprocessors.extractors.spider_specific.judgment_extracting_functions import all_judgment_markers
 
 
 """
@@ -51,9 +44,7 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    divs = decision.find_all(
-        "div", class_="content")
-    paragraphs = get_paragraphs(divs)
+    paragraphs = get_paragraphs_unified(decision)
 
     return associate_sections(paragraphs, section_markers, namespace) """
 
@@ -148,10 +139,8 @@ def AR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
-    if isinstance(decision, str):
-        paragraphs = get_pdf_paragraphs(decision)
-    else:
-        paragraphs = get_paragraphs_unified(decision)
+
+    paragraphs = get_paragraphs_unified(decision)
 
     return associate_sections(paragraphs, section_markers, namespace)
 
@@ -177,7 +166,7 @@ def BE_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
     
-    paragraphs = get_pdf_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
 
     return associate_sections(paragraphs, section_markers, namespace)
 
@@ -300,9 +289,7 @@ def VD_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    divs = decision.find_all(
-        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
-    paragraphs = get_paragraphs(divs)
+    paragraphs = get_paragraphs_unified(decision)
 
     return associate_sections(paragraphs, section_markers, namespace)
 
@@ -414,7 +401,7 @@ def NW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    paragraphs = get_pdf_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -452,7 +439,7 @@ def BE_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    paragraphs = get_pdf_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -497,7 +484,7 @@ def GR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     all_section_markers = valid_namespace(namespace, all_section_markers)
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    paragraphs = get_pdf_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -524,9 +511,7 @@ def BS_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    divs = decision.find_all(
-        "div", class_=['WordSection1', 'Section1', 'WordSection2'])
-    paragraphs = get_paragraphs(divs)
+    paragraphs = get_paragraphs_unified(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 def VS_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
@@ -605,9 +590,7 @@ def SO_Omni(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    divs = decision.find_all(
-        "div", class_=['WordSection1'])
-    paragraphs = get_paragraphs(divs)
+    paragraphs = get_paragraphs_unified(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -655,10 +638,7 @@ def CH_BGer(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    divs = decision.find_all("div", class_="content")
-    # we expect maximally two divs with class content
-    assert len(divs) <= 2
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
 
     return associate_sections(paragraphs, section_markers, namespace)
 
@@ -729,61 +709,8 @@ def CH_BSTG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optiona
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    paragraphs = get_pdf_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
     return associate_sections(paragraphs, section_markers, namespace)
-
-
-
-
-def get_paragraphs(divs):
-    # """
-    # Get Paragraphs in the decision
-    # :param divs:
-    # :return:
-    # """
-    paragraphs = []
-    heading, paragraph = None, None
-    for div in divs:
-        for element in div:
-            if isinstance(element, bs4.element.Tag):
-                text = str(element.string)
-                # This is a hack to also get tags which contain other tags such as links to BGEs
-                if text.strip() == 'None':
-                    text = element.get_text()
-                # get numerated titles such as 1. or A.
-                if "." in text and len(text) < 5:
-                    heading = text  # set heading for the next paragraph
-                else:
-                    if heading is not None:  # if we have a heading
-                        paragraph = heading + " " + text  # add heading to text of the next paragraph
-                    else:
-                        paragraph = text
-                    heading = None  # reset heading
-                if paragraph is not None:
-                    paragraph = clean_text(paragraph)
-                if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-                    paragraphs.append(paragraph)
-        return paragraphs
-
-
-def get_pdf_paragraphs(soup: str) -> list:
-    """
-    Get the paragraphs of a decision
-    :param soup:    the string extracted of the pdf
-    :return:        a list of paragraphs
-    """
-
-    paragraphs = []
-    # remove spaces between two line breaks
-    soup = re.sub('\\n +\\n', '\\n\\n', soup)
-    # split the lines when there are two line breaks
-    lines = soup.split('\n\n')
-    for element in lines:
-        element = element.replace('  ', ' ')
-        paragraph = clean_text(element)
-        if paragraph not in ['', ' ', None]:  # discard empty paragraphs
-            paragraphs.append(paragraph)
-    return paragraphs
 
 
 def valid_namespace(namespace: dict, all_section_markers):
@@ -851,7 +778,6 @@ def OW_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
             Section.FOOTER: [r'^Rechtsmittelbelehrung']
         },
     }
- 
 
     custom_order = [Section.RULINGS, Section.FACTS, Section.CONSIDERATIONS]
     
@@ -1245,26 +1171,6 @@ def AR_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Opt
     return associate_sections(paragraphs, section_markers, namespace)
 
 
-def find_ruling(namespace, sections):
-    section_markers = prepare_section_markers(all_judgment_markers, namespace)
-    latestSection = Section.HEADER
-    index = -1
-    for section in Section:
-        if section is not Section.FOOTER:
-            if len(sections[section]) > 0:
-                latestSection = section
-    for idx, paragraph in enumerate(reversed(sections[latestSection])):
-        for key in section_markers:
-            marker = section_markers[key]
-            if re.search(marker, paragraph):
-                index = idx
-    sections[Section.RULINGS] = sections[latestSection][index:]
-    del sections[latestSection][index:]
-    return sections
-            
-    
-
-
 def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[
         Dict[Section, List[str]]]:
     """
@@ -1300,7 +1206,7 @@ def ZG_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
             lines[idx] = line
     decision = '\n'.join(map(str, lines))
 
-    paragraphs = get_pdf_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -1330,7 +1236,7 @@ def ZH_Baurekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Op
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    paragraphs = get_pdf_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -1363,7 +1269,7 @@ def ZH_Obergericht(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> 
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    paragraphs = get_pdf_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -1423,7 +1329,7 @@ def ZH_Steuerrekurs(decision: Union[bs4.BeautifulSoup, str], namespace: dict) ->
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    paragraphs = get_pdf_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -1467,45 +1373,7 @@ def ZH_Verwaltungsgericht(decision: Union[bs4.BeautifulSoup, str], namespace: di
 
     section_markers = prepare_section_markers(all_section_markers, namespace)
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup:    the decision parsed by bs4 
-        :return:        a list of paragraphs
-        """
-        # sometimes the div with the content is called WordSection1
-        divs = soup.find_all("div", class_="WordSection1")
-        # sometimes the div with the content is called Section1
-        if len(divs) == 0:
-            divs = soup.find_all("div", class_="Section1")
-        # we expect maximally two divs with class WordSection1
-        assert (len(divs) <= 2), "Found more than two divs with class WordSection1"
-        assert (len(divs) > 0), "Found no div, " + str(namespace['html_url'])
-
-        paragraphs = []
-        heading, paragraph = None, None
-        for element in divs[0]:
-            if isinstance(element, bs4.element.Tag):
-                text = str(element.string)
-                # This is a hack to also get tags which contain other tags such as links to BGEs
-                if text.strip() == 'None':
-                    text = element.get_text()
-                # get numerated titles such as 1. or A.
-                if "." in text and len(text) < 5:
-                    heading = text  # set heading for the next paragraph
-                else:
-                    if heading is not None:  # if we have a heading
-                        paragraph = heading + " " + text  # add heading to text of the next paragraph
-                    else:
-                        paragraph = text
-                    heading = None  # reset heading
-                # only clean and append non-empty paragraphs
-                if paragraph not in ['', ' ', None]:
-                    paragraph = clean_text(paragraph)
-                    paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
     return associate_sections(paragraphs, section_markers, namespace)
 
 
@@ -1650,24 +1518,6 @@ def CH_BPatG(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Option
         # remove the page numbers, they are not relevant for the decisions
         decision = re.sub(r'Seite \d', '', decision)
 
-    def get_paragraphs(soup):
-        """
-        Get Paragraphs in the decision
-        :param soup: the string extracted of the pdf
-        :return: a list of paragraphs
-        """
-        paragraphs = []
-        # remove spaces between two line breaks
-        soup = re.sub('\\n +\\n', '\\n\\n', soup)
-        # split the lines when there are two line breaks
-        lines = soup.split('\n\n')
-        for element in lines:
-            element = element.replace('  ', ' ')
-            paragraph = clean_text(element)
-            if paragraph not in ['', ' ', None]:
-                paragraphs.append(paragraph)
-        return paragraphs
-
-    paragraphs = get_paragraphs(decision)
+    paragraphs = get_paragraphs_unified(decision)
 
     return associate_sections(paragraphs, section_markers, namespace)

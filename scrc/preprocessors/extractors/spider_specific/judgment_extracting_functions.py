@@ -128,7 +128,7 @@ def XX_SPIDER(rulings: str, namespace: dict) -> Optional[List[Judgment]]:
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the list of judgments
     """
-    # This is an example spider. Just copy this method and adjust the method name and the code to add your new spider.
+    # The default spider will extract the judgment outcome for every court which do not have a specific function defined.
     if namespace['language'] not in all_judgment_markers:
             message = f"This function is only implemented for the languages {list(all_judgment_markers.keys())} so far."
             raise ValueError(message)
@@ -238,6 +238,7 @@ def get_judgments(rulings: str, namespace: dict) -> set:
     return judgments
 
 def verify_judgments(judgments, rulings, namespace):
+    """Verify the judgments and raise an error if the number of judgments is not 1."""
     if not judgments:
         message = f"Found no judgment for the rulings \"{rulings}\" in the case {namespace['html_url']}. Please check!"
         raise ValueError(message)
@@ -251,6 +252,7 @@ def verify_judgments(judgments, rulings, namespace):
     return judgments
 
 def unnumbered_rulings(rulings: str, namespace: dict):
+    """Returns the judgment outcome based on a unnumbered ruling structure."""
     judgments = set()
     judgment_markers = prepare_judgment_markers(
         all_judgment_markers, namespace)
@@ -271,6 +273,7 @@ def numbered_rulings(judgments: set, rulings: str, namespace: dict, judgment_mar
 
 
 def iterate_Judgments(ruling: str, judgments: set, judgment_markers: dict, numberedRuling: bool) -> set:
+    """Iterates over the judgments and returns the set of judgments. Considers the whole ruling text if numberedRuling is True, otherwise only the first instance of a judgment."""
     positions = []
     for judgment in Judgment:
         markers = judgment_markers[judgment]
@@ -287,6 +290,7 @@ def iterate_Judgments(ruling: str, judgments: set, judgment_markers: dict, numbe
     return judgments
 
 def getFirstInstance(positions: dict, judgments: set) -> set:
+    """Returns the first instance of a judgment."""
     firstInstance = positions[0]
     judgments = {firstInstance["judgment"]}
     for judgment in positions[1:]:

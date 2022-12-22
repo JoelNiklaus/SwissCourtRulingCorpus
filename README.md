@@ -1,5 +1,9 @@
 # SwissCourtRulingCorpus
 
+For an overview of the entire workflow of the SwissCourtRulingCorpus, refer to the file 
+[SwissCourtRulingCorpus workflow](workflow.md)
+
+
 ## Overview of process done in building this dataset
 
 For an overview of the process used to construct this dataset, please consult the file [scrc/main.py](scrc/main.py).
