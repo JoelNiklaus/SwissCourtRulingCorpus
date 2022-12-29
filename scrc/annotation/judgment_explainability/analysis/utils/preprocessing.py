@@ -125,7 +125,7 @@ def write_csv_from_list(filepath: str, df_list: list):
             f.write("\n")
 
 
-def write_IAA_table(df_list: list, filename: str, labels):
+def write_IAA_table_annotations(df_list: list, filename: str, labels):
     scores_columns = ['overlap_maximum', 'overlap_minimum', 'jaccard_similarity', 'meteor_score', 'bleu_score',
                       'rouge1','rouge2', 'rougeL', 'bert_score']
 
@@ -157,6 +157,40 @@ def write_IAA_table(df_list: list, filename: str, labels):
         except KeyError:
             table["Mean Score"] = table[IAA_LIST_WORDS[2]].mean()
             write_csv(filename.format("_mean"), table.round(3))
+
+
+def write_IAA_table_occlusion(df_list: list, filename: str, labels):
+    scores_columns = ['overlap_maximum', 'overlap_minimum', 'jaccard_similarity', 'meteor_score', 'bleu_score',
+                      'rouge1','rouge2', 'rougeL', 'bert_score']
+
+    table_dict = {i: {label: []  for label in labels} for i in range(1,5)}
+    table_list = []
+    i = 1
+    for df in df_list:
+        for label in labels:
+            mean = df[[f"{score}_{label.lower().replace(' ', '_')}" for score in scores_columns]].dropna().mean()
+            mean = mean.rename(
+                    index={f"{score}_{label.lower().replace(' ', '_')}": score for score in scores_columns}) \
+                    .reset_index().rename({"index": "IAA Score", 0: "human vs model"}, axis=1)
+            table_dict[i][label].append(mean)
+        i += 1
+
+    for dic in table_dict.values():
+        for lst in dic.values():
+            table_list.append(lst[0])
+
+    write_csv_from_list(filename.format(""), table_list)
+    table = pd.concat(table_list)
+    table = table.groupby("IAA Score").mean().reset_index()
+    table["Mean Score"] = table["human vs model"].mean()
+    write_csv(filename.format("_mean"), table.round(3))
+    exp_table_list = []
+    for i in range(0, len(table_list)-1, 2):
+        table = pd.concat([table_list[i], table_list[i+1]])
+        table = table.groupby("IAA Score").mean().reset_index()
+        table["Mean Score"] = table["human vs model"].mean()
+        exp_table_list.append(table)
+    write_csv_from_list(filename.format("_mean_exp"), exp_table_list)
 
 
 def read_json(filepath: str) -> dict:
@@ -497,7 +531,7 @@ def temp_scaling(df: pd.DataFrame) -> pd.DataFrame:
     """
     Replaces the judgment labels with int 0,1.
     Creates two NumPy 1-D and 2-D arrays.
-    Applies temperature scaling to the values and returns calibrated DataFra,e
+    Applies temperature scaling to the values and returns calibrated DataFrame
 
     Uses TemperatureScaling() from Kueppers et al.
     via https://github.com/EFS-OpenSource/calibration-framework#calibration-framework
@@ -658,9 +692,10 @@ def group_by_flipped(dataset: pd.DataFrame, col) -> pd.DataFrame:
     Returns Dataframe with proportional count of flipped and unflipped rows.
     """
     has_flipped_df = group_by_agg_column(dataset[dataset["has_flipped"] == True], col, {"has_flipped": "count"})
+    has_not_flipped_df = group_by_agg_column(dataset[dataset["has_flipped"] == False], col, {"has_flipped": "count"}).rename({"has_flipped":"has_not_flipped"}, axis=1)
     dataset = group_by_agg_column(dataset, col, {"id": "count"})
-    dataset = dataset.merge(has_flipped_df, on=col)
-    dataset["has_not_flipped"] = (dataset["id"] - dataset["has_flipped"]) / dataset["id"]
+    dataset = dataset.merge(has_flipped_df, on=col,how="outer").fillna(0).merge(has_not_flipped_df, on=col,how="outer").fillna(0)
+    dataset["has_not_flipped"] = dataset["has_not_flipped"]/ dataset["id"]
     dataset["has_flipped"] = dataset["has_flipped"] / dataset["id"]
     return dataset
 
@@ -748,7 +783,7 @@ def filter_columns(df: pd.DataFrame, cols: list, label_df_dict: dict):
         return label_df_dict
 
 
-def normalize_list_length(ref_lst, sample_lst):
+def normalize_list_length(ref_lst, sample_lst)-> list:
     if len(ref_lst) == 0:
         return []
     if len(ref_lst) == 1:

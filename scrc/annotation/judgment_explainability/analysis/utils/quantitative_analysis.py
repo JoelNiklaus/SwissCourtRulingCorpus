@@ -9,6 +9,7 @@ from scipy.stats import sem
 
 import scrc.annotation.judgment_explainability.analysis.utils.plots as plots
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
+from scrc.annotation.judgment_explainability.analysis.utils import scores
 
 COLORS = {"red": "#883955".lower(), "yellow": "#EFEA5A".lower(), "green": "#83E377".lower(), "blue": "#2C699A".lower(),
           "purple": "#54478C".lower(), "grey": "#737370".lower(),
@@ -74,8 +75,13 @@ def count_approved_dismissed(dataset: pd.DataFrame) -> (int, int):
     """
     Returns number approved cases and number of dismissed cases.
     """
-    return len(dataset[dataset["judgment"] == "approval"].groupby("id_csv")), \
+    try:
+        return len(dataset[dataset["judgment"] == "approval"].groupby("id_csv")), \
            len(dataset[dataset["judgment"] == "dismissal"].groupby("id_csv"))
+    except KeyError:
+        return len(dataset[dataset["prediction"] == 1]), \
+               len(dataset[dataset["prediction"] == 0])
+
 
 
 def apply_len_occlusion_chunks(dataset: pd.DataFrame) -> pd.DataFrame:
@@ -322,7 +328,7 @@ def get_count_dict_legal_area(conf_legal_area_dict):
     return legal_area_dict
 
 
-def split_oppose_support(dataset_1: pd.DataFrame, dataset_2: pd.DataFrame):
+def split_oppose_support_false(dataset_1: pd.DataFrame, dataset_2: pd.DataFrame):
     """
     @ Todo
     """
@@ -332,16 +338,31 @@ def split_oppose_support(dataset_1: pd.DataFrame, dataset_2: pd.DataFrame):
                                                              dataset_2["confidence_direction"] == -1]
     o_judgement, s_judgement = dataset_1[dataset_1["numeric_label"] == 1], dataset_1[
         dataset_1["numeric_label"] == -1]
-    o_judgement, s_judgement = o_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]], \
-                               s_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]]
+    o_judgement, s_judgement = o_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]].drop_duplicates(), \
+                               s_judgement[["id", "explainability_label", "numeric_label", "occluded_text"]].drop_duplicates()
 
     o_judgement, s_judgement = pd.merge(false_classification_pos, o_judgement, on="id",
-                                        suffixes=(f'_human', f'_model'),
+                                        suffixes=(f'_model', f'_human'),
                                         how="inner").drop_duplicates(), \
                                pd.merge(false_classification_neg, s_judgement, on="id",
-                                        suffixes=(f'_human', f'_model'),
+                                        suffixes=(f'_model', f'_human'),
                                         how="inner").drop_duplicates()
     return o_judgement, s_judgement
+
+
+def split_oppose_support_correct(dataset_2: pd.DataFrame):
+    """
+    @ Todo
+    """
+    correct_classification_pos, correct_classification_neg = dataset_2[
+                                                             dataset_2["confidence_direction"] == 1], \
+                                                         dataset_2[
+                                                             dataset_2["confidence_direction"] == -1]
+    rename_dict = {col: f"{col}_human" for col in ['explainability_label', 'occluded_text', 'numeric_label']}
+    rename_list = [f"{col}_model" for col in ['explainability_label', 'occluded_text', 'numeric_label']]
+    correct_classification_pos[rename_list] = correct_classification_pos[['explainability_label', 'occluded_text', 'numeric_label']]
+    correct_classification_neg[rename_list] = correct_classification_neg[['explainability_label', 'occluded_text', 'numeric_label']]
+    return correct_classification_pos.rename(rename_dict, axis=1), correct_classification_neg.rename(rename_dict, axis=1)
 
 
 def apply_occ_ttest(baseline_df: pd.DataFrame, occlusion_df: pd.DataFrame, direction: str) -> pd.DataFrame:
@@ -472,20 +493,20 @@ def annotation_analysis():
                       title="BERTScore/METEOR Score Score of Annotations",
                       filepath="plots/ann_be_me.png", legendpath="plots/ann_o_be_me_legend_{}.png",
                       annotation='Agreement between {}', colors=colors)
-    preprocessing.write_IAA_table(preprocessing.prepare_scores_IAA_Agreement_plots("de", [1, 2], "{}/{}_{}_{}.csv",
-                                                                                   ['annotations_de',
+    preprocessing.write_IAA_table_annotations(preprocessing.prepare_scores_IAA_Agreement_plots("de", [1, 2], "{}/{}_{}_{}.csv",
+                                                                                               ['annotations_de',
                                                                                     'tokens_text_angela',
                                                                                     'tokens_text_lynn',
                                                                                     'tokens_text_thomas'], LABELS,
-                                                                                   IAA_List)[:-3],
-                                  "tables/ann_IAA{}_1.csv", LABELS)
-    preprocessing.write_IAA_table(preprocessing.prepare_scores_IAA_Agreement_plots("de", [1, 2], "{}/{}_{}_{}.csv",
-                                                                                   ['annotations_de',
+                                                                                               IAA_List)[:-3],
+                                  "tables/ann_IAA_1{}.csv", LABELS)
+    preprocessing.write_IAA_table_annotations(preprocessing.prepare_scores_IAA_Agreement_plots("de", [1, 2], "{}/{}_{}_{}.csv",
+                                                                                               ['annotations_de',
                                                                                     'tokens_text_angela',
                                                                                     'tokens_text_lynn',
                                                                                     'tokens_text_thomas'], LABELS,
-                                                                                   IAA_List)[3:],
-                                  "tables/ann_IAA{}_2.csv", LABELS)
+                                                                                               IAA_List)[3:],
+                                  "tables/ann_IAA_2{}.csv", LABELS)
 
 
 def lower_court_analysis():
@@ -506,7 +527,15 @@ def lower_court_analysis():
                             "number_of_full_lower_courts": count_lower_court(baseline_df)[0],
                             "full_lower_court_list": list(baseline_df["lower_court_long"].unique()),
                             "mean_tokens_full_lower_court": count_lower_court(baseline_df)[1],
-                            "number_of_has_flipped_lc(T/F/Total)": list(count_has_flipped(lower_court_df))}
+                            "number_of_has_flipped_lc(T/F/Total)": list(count_has_flipped(lower_court_df)),
+                            "number_of_approved_prediction_baseline": count_approved_dismissed(baseline_df)[0] / len(
+                               baseline_df),
+                            "number_of_dismissed_prediction_baseline": count_approved_dismissed(baseline_df)[1] / len(
+                                baseline_df),
+                            "number_of_approved_prediction": count_approved_dismissed(lower_court_df)[0] / len(lower_court_df),
+                            "number_of_dismissed_prediction": count_approved_dismissed(lower_court_df)[1] / len(lower_court_df),
+
+                            }
         preprocessing.write_json(f"{l}/quantitative/lower_court_analysis_{l}.json", lower_court_dict)
 
         # Lower court has flipped distribution plots
@@ -535,22 +564,17 @@ def lower_court_analysis():
         lower_court_df_dict[f"{l}_mu"] = prepare_ttest_df(baseline_df, lower_court_df, "lower_court")
 
     # Lower court effect plots
-    plots.create_effect_plot(lower_court_df_dict, cols=["lower_court", "confidence_direction"],
-                             label_texts=["Directional Scaled Confidence", "Lower Court"],
-                             legend_texts=["Positive Influence", "Significant Positive Influence", "Negative Influence",
-                                           "Significant Negative Influence"],
-                             xlim=[-0.5, 0.5],
-                             title=f"Effect of Lower Courts on the Prediction Confidence (with Significance)",
-                             filepath='plots/lc_effect_{}.png'
-                             )
-
     plots.create_effect_plot(lower_court_df_dict,
                              cols=["lower_court", "mean_norm_explainability_score"],
                              label_texts=["Explainability Score", "Lower Court"],
-                             legend_texts=["Exp_Score > 0", "Exp_Score >> 0", "Exp_Score < 0", "Exp_Score << 0"],
-                             xlim=[-0.05, 0.05],
+                             legend_texts=["Prediction 0: Exp_Score > 0","Prediction 1: Exp_Score > 0",
+                                           "Prediction 0: Exp_Score >> 0", "Prediction 1: Exp_Score >> 0",
+                                           "Prediction 0: Exp_Score < 0", "Prediction 1: Exp_Score < 0",
+                                           "Prediction 0: Exp_Score << 0", "Prediction 1: Exp_Score << 0"],
+                             xlim=[-0.09, 0.09],
                              title=f"Mean Explainability Scores in both directions (with Significance)",
                              filepath='plots/lc_effect_mean_{}.png')
+
 
 
 def occlusion_analysis():
@@ -560,8 +584,10 @@ def occlusion_analysis():
     """
     flipped_df_dict = {nr: [] for nr in NUMBER_OF_EXP}
     scatter_plot_dict = {l: {'c_o': [], 'c_s': [], 'f_o': [], 'f_s': [], 'o': [], 's': []} for l in LANGUAGES}
+
     multilingual_mean_length_dict = {}
     for nr in NUMBER_OF_EXP:
+        prediction_dict = {l: {} for l in LANGUAGES}
         multilingual_mean_length_dict[nr] = []
         for l in LANGUAGES:
             occlusion_df = preprocessing.read_csv(OCCLUSION_PATHS["analysis"][1].format(l, nr, l), "index")
@@ -588,16 +614,25 @@ def occlusion_analysis():
                               "mean number of sentences": get_number_of_sentences(occlusion_df),
                               "number of correct classification": score_1.to_dict(),
                               "number of incorrect_classification": score_0.to_dict()}
+            prediction_dict[l] = {"number_of_approved_prediction_baseline": count_approved_dismissed(baseline_df)[0] / len(
+                                  baseline_df),
+                              "number_of_dismissed_prediction_baseline": count_approved_dismissed(baseline_df)[1] / len(
+                                  baseline_df),
+                              "number_of_approved_prediction": count_approved_dismissed(occlusion_df)[0] / len(
+                                  occlusion_df),
+                              "number_of_dismissed_prediction": count_approved_dismissed(occlusion_df)[1] / len(
+                                 occlusion_df)}
             preprocessing.write_json(f"{l}/quantitative/occlusion_analysis_{l}_{nr}.json", occlusion_dict)
 
-            o_judgement_f, s_judgement_f = split_oppose_support(occlusion_df, false_classification)
-            o_judgement_c, s_judgement_c = split_oppose_support(occlusion_df, correct_classification)
+            o_judgement_f, s_judgement_f = split_oppose_support_false(occlusion_df, false_classification)
+            o_judgement_c, s_judgement_c = split_oppose_support_correct(correct_classification)
             # IAA scores calculation
             # Keep this commented except if running on Ubelix
-            """scores.write_IAA_to_csv_occlusion(s_judgement_f, l, f"{l}/occ_supports_judgment_{l}_{nr}.csv")
-            scores.write_IAA_to_csv_occlusion(o_judgement_f, l, f"{l}/occ_opposes_judgment_{l}_{nr}.csv")"""
+            scores.write_IAA_to_csv_occlusion(s_judgement_f, l, f"{l}/occ_supports_judgment_{l}_{nr}.csv")
+            scores.write_IAA_to_csv_occlusion(o_judgement_f, l, f"{l}/occ_opposes_judgment_{l}_{nr}.csv")
             preprocessing.write_csv(f"{l}/c_occ_opposes_judgment_{l}_{nr}.csv", o_judgement_c)
             preprocessing.write_csv(f"{l}/c_occ_supports_judgment_{l}_{nr}.csv", s_judgement_c)
+
 
             # Occlusion effect plots preparation
             o_judgement_f, s_judgement_f = apply_occ_ttest(baseline_df, o_judgement_f, "pos"), \
@@ -605,6 +640,7 @@ def occlusion_analysis():
             o_judgement_c, s_judgement_c = apply_occ_ttest(baseline_df, o_judgement_c, "pos"), \
                                            apply_occ_ttest(baseline_df, s_judgement_c, "neg")
 
+            s_judgement_f["confidence_scaled"], s_judgement_c["confidence_scaled"] = s_judgement_f["confidence_scaled"]*-1, s_judgement_c["confidence_scaled"]*-1
             scatter_plot_dict[l]['c_o'].append(o_judgement_c)
             scatter_plot_dict[l]['c_s'].append(s_judgement_c)
             scatter_plot_dict[l]['f_o'].append(o_judgement_f)
@@ -614,7 +650,9 @@ def occlusion_analysis():
                                        occlusion_df[occlusion_df["numeric_label_human"] == 1]
             scatter_plot_dict[l]["s"].append(s_judgement)
             scatter_plot_dict[l]["o"].append(o_judgement)
-
+        # Prediction table
+        prediction_df = pd.DataFrame.from_dict(prediction_dict).T
+        preprocessing.write_csv(f"tables/prediction_distribution_{nr}.csv", prediction_df)
     # Scatter plot
     plots.preprocessing_scatter_plot(scatter_plot_dict)
     # Occlusion flipped plots
@@ -623,29 +661,15 @@ def occlusion_analysis():
     plots.create_multilingual_occlusion_plot(multilingual_mean_length_dict)
     colors = [[COLORS["dark green"], COLORS["dark blue"]], [COLORS["green"], COLORS["blue"]]]
     for l in LANGUAGES:
-        plots.violin_plot(2, 2, preprocessing.prepare_scores_IAA_Agreement_plots(l, NUMBER_OF_EXP,
-                                                                                 "{}/occlusion/occ_{}_{}_{}.csv", [],
-                                                                                 LABELS[1:], ["human_model"]),
-                          [i for i in range(0, 4)],
-                          [
-                              [f"overlap_minimum_{label.lower().replace(' ', '_')}" for label in LABELS[1:]],
-                              [f"rougeL_{label.lower().replace(' ', '_')}" for label in LABELS[1:]],
-                           ],
-                          legend_texts=["Overlap Minimum", "ROUGEL"],
-                          title="Overlap Minimum/ROUGEL between Human and Model",
-                          filepath=f"plots/occ_o_min_rL_{l}.png", legendpath="plots/occ_o_min_rL_legend_{}.png",
-                          annotation="Occlusion with {} Sentences", colors=colors)
-        plots.violin_plot(2, 2, preprocessing.prepare_scores_IAA_Agreement_plots(l, NUMBER_OF_EXP,
-                                                                                 "{}/occlusion/occ_{}_{}_{}.csv", [],
-                                                                                 LABELS[1:], ["human_model"]),
+        IAA_df_list = preprocessing.prepare_scores_IAA_Agreement_plots(l, NUMBER_OF_EXP,
+                                                                       "{}/occlusion/occ_{}_{}_{}.csv", [],
+                                                                       LABELS[1:], ["human_model"])
+        plots.violin_plot(2, 2, IAA_df_list,
                           [str(i) for i in range(0, 4)],
                           [[f"bert_score_{label.lower().replace(' ', '_')}" for label in LABELS[1:]],
-                           [f"meteor_score_{label.lower().replace(' ', '_')}" for label in LABELS[1:]]],
-                          legend_texts=["BERTScore", "METEOR Score"],
-                          title="BERTScore/METEOR Score between Human and Model",
-                          filepath=f"plots/occ_be_me_{l}.png", legendpath="plots/occ_o_be_me_legend_{}.png",
-                          annotation="Occlusion with {} Sentences", colors=colors)
-        preprocessing.write_IAA_table(
-            preprocessing.prepare_scores_IAA_Agreement_plots(l, NUMBER_OF_EXP, "{}/occlusion/occ_{}_{}_{}.csv", [],
-                                                             LABELS[1:], ["human_model"]), f"tables/occ_IAA_{l}.csv",
-            LABELS[1:])
+                           []],
+                          legend_texts=["BERTScore"],
+                          title="BERTScore Score between Human and Model",
+                          filepath=f"plots/occ_be_{l}.png", legendpath="plots/occ_o_be_legend_{}.png",
+                          annotation="Occlusion with {} Sentences", colors=colors[:-1])
+        preprocessing.write_IAA_table_occlusion(IAA_df_list, f"tables/occ_IAA_{l}{{}}.csv",LABELS[1:])

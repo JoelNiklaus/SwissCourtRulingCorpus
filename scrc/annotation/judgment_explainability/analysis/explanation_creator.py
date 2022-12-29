@@ -7,6 +7,9 @@ from scrc.annotation.judgment_explainability.analysis.utils import plots
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
 LANGUAGES = ["de", "fr", "it"]
 NUMBER_OF_EXP = [1, 2, 3, 4]
+COLUMNS = ['id', 'prediction', 'year', 'label', 'confidence_direction', 'norm_explainability_score', 'correct_direction',
+       'explainability_label_model',
+       'occluded_text_model']
 
 
 def apply_label_agg_1(row_1, row_2, label):
@@ -27,8 +30,9 @@ def model_agg(label_df: pd.DataFrame, col, label: str, label_agg: str):
     ex_score = label_df[["index", f"id_{label.lower().replace(' ', '_')}", col,
                          f"bert_score_{label.lower().replace(' ', '_')}"]].groupby(
         f"id_{label.lower().replace(' ', '_')}") \
-        .agg({"index": list, col: list, f"bert_score_{label.lower().replace(' ', '_')}": "mean"})
+        .agg({"index": list, col: list, f"bert_score_{label.lower().replace(' ', '_')}":list})
     ex_score["index"] = ex_score.apply(lambda row: apply_label_agg_1(row["index"], row[col], label_agg), axis=1)
+    ex_score[f"bert_score_{label.lower().replace(' ', '_')}"] = ex_score.apply(lambda row: apply_label_agg_1(row[f"bert_score_{label.lower().replace(' ', '_')}"], row[col], label_agg), axis=1)
     ex_score["score"] = ex_score.apply(
         lambda row: apply_label_agg_2(row[col], label_agg), axis=1)
     return ex_score[["index", "score", f"bert_score_{label.lower().replace(' ', '_')}"]]
@@ -59,18 +63,21 @@ def produce_model_human_explanation(label_df: pd.DataFrame, col, label: str, lab
 
 
 def join_df(df_1, df_2):
-    tex_score_1, text_score_2 = df_1[[f"occluded_text_model_{LABELS[1].lower().replace(' ', '_')}", "score"]], \
-                                df_2[[f"occluded_text_model_{LABELS[2].lower().replace(' ', '_')}", "score"]],
+    text_score_1, text_score_2 = df_1[[f"id_{LABELS[1].lower().replace(' ', '_')}",f"occluded_text_model_{LABELS[1].lower().replace(' ', '_')}", "score"]], \
+                                df_2[[f"id_{LABELS[2].lower().replace(' ', '_')}",f"occluded_text_model_{LABELS[2].lower().replace(' ', '_')}", "score"]],
+    text_score_1, text_score_2 = text_score_1.rename({f"id_{LABELS[1].lower().replace(' ', '_')}":"id", "score": f"score_{LABELS[1].lower().replace(' ', '_')}"}, axis=1),\
+                                 text_score_2.rename({f"id_{LABELS[2].lower().replace(' ', '_')}":"id", "score": f"score_{LABELS[2].lower().replace(' ', '_')}"}, axis=1)
     df_1.columns, df_2.columns = df_1.columns.str.replace(f"_{LABELS[1].lower().replace(' ', '_')}", ""), \
                                  df_2.columns.str.replace(f"_{LABELS[2].lower().replace(' ', '_')}", "")
-    df = pd.concat([df_1, df_2])
-    df[f"occluded_text_model_{LABELS[1].lower().replace(' ', '_')}"] = tex_score_1[
-        f"occluded_text_model_{LABELS[1].lower().replace(' ', '_')}"]
-    df[f"occluded_text_model_{LABELS[2].lower().replace(' ', '_')}"] = text_score_2[
-        f"occluded_text_model_{LABELS[2].lower().replace(' ', '_')}"]
-    df["score"] = (tex_score_1["score"] + text_score_2["score"]).fillna(1)
+    try:
+        df = pd.concat([df_1, df_2]).drop(["occluded_text_model", "score", "bert_score"], axis=1).drop_duplicates()
+    except KeyError:
+        df = pd.concat([df_1, df_2]).drop(["occluded_text_model", "score"], axis=1).drop_duplicates()
+
+    df = df.merge(text_score_1, on="id", how="outer").merge(text_score_2, on="id", how="outer").drop(["index"], axis=1).drop_duplicates()
+    df["score"] = (df[f"score_{LABELS[1].lower().replace(' ', '_')}"].fillna(0) + df[f"score_{LABELS[2].lower().replace(' ', '_')}"].fillna(0))
     df["mean_score"] = df["score"] / 2
-    return df.drop(["index", "occluded_text_model"], axis=1).reset_index()
+    return df.sort_values(by="id").reset_index()
 
 
 def hist_preprocessing(df_list):
@@ -105,19 +112,18 @@ def produce_explanation():
         label_df_human_list = []
         for df_1, df_2 in zip(df_list_1, df_list_2):
             for label in LABELS[1:]:
-                correct_df = df_2[df_2["explainability_label_human"] == label].drop(["index"], axis=1).add_suffix(
-                    f"_{label.lower().replace(' ', '_')}").reset_index()
-                label_df = pd.concat(
-                    [df_1[["index", f"bert_score_{label.lower().replace(' ', '_')}"] + list(correct_df.columns)[1:]],
-                     correct_df], ignore_index=True).drop(["index"], axis=1).reset_index().fillna(1)
+                correct_df = df_2[df_2["explainability_label_model"] == label].drop(["index"], axis=1)
+                correct_df = correct_df[COLUMNS].add_suffix(f"_{label.lower().replace(' ', '_')}").reset_index()
+                incorrect_df = df_1[["index", f"bert_score_{label.lower().replace(' ', '_')}"] + list(correct_df.columns)[1:]]
+                label_df = pd.concat([incorrect_df,correct_df], ignore_index=True).drop(["index"], axis=1).reset_index().fillna(1)
                 model_df = produce_model_human_explanation(label_df,
                                                            f"norm_explainability_score_{label.lower().replace(' ', '_')}",
                                                            label, label, "model")
                 model_df["score"] = model_df[f"bert_score_{label.lower().replace(' ', '_')}"].fillna(1)
                 label_df_model_list.append(model_df)
-                label_df_human_list.append(
-                    produce_model_human_explanation(label_df, f"bert_score_{label.lower().replace(' ', '_')}", label,
-                                                    LABELS[2], "human"))
+                human_df = produce_model_human_explanation(label_df, f"bert_score_{label.lower().replace(' ', '_')}", label,
+                                                    LABELS[2], "human")
+                label_df_human_list.append(human_df)
 
         model_list = [join_df(label_df_model_list[0], label_df_model_list[1]),
                       join_df(label_df_model_list[2], label_df_model_list[3]),
@@ -132,7 +138,7 @@ def produce_explanation():
 
         plots.explanation_histogram(hist_preprocessing(model_list), hist_preprocessing(human_list),f"../plots/occ_explanation_hist_{l}.png")
         preprocessing.write_csv_from_list(f"../tables/model_explanation_{l}.csv", model_list)
-        preprocessing.write_csv_from_list(f"../tables/human_explanation_{l}.csv", model_list)
+        preprocessing.write_csv_from_list(f"../tables/human_explanation_{l}.csv", human_list)
         json_dict = {"model": {nr: "" for nr in range(1, 5)},
                      "human": {nr: "" for nr in range(1, 5)}}
         i = 1
