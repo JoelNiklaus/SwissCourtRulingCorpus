@@ -74,3 +74,40 @@ Sometimes ``pip install`` says that the requirement is already satisfied. If the
 try ``python -m pip install ...``.
 
 Dask does not work with csv files containing new lines inside fields because it cannot process csv chunks
+
+## useful DB queries
+
+Amount of approvals for a specific court:
+```bash
+SELECT count(*) FROM judgment
+            LEFT JOIN judgment_map ON judgment_map.judgment_id = judgment.judgment_id
+            LEFT JOIN decision ON decision.decision_id = judgment_map.decision_id
+            LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id
+            LEFT JOIN spider ON spider.spider_id = chamber.spider_id
+            WHERE spider.name = 'BS_Omni'
+            AND judgment.judgment_id = 1
+```
+### The following two queries are integrated within the judgment_pattern_extractor module. Check out the modules readme to execute them automatically
+
+
+Amount of total judgment outcomes for a specific court (decisions with 2 or more judgments counted once):
+```bash
+SELECT count(DISTINCT d.decision_id) FROM decision d 
+    LEFT JOIN chamber c ON c.chamber_id = d.chamber_id 
+    LEFT JOIN spider sp ON sp.spider_id = c.spider_id 
+    LEFT JOIN judgment_map j ON j.decision_id = d.decision_id 
+    WHERE judgment_id IS NOT NULL 
+    AND sp.name = 'CH_BGer' 
+```
+
+Amount of sections of section_type 6 (rulings) found for a specific court (change last line's number to desired section_type):
+```bash
+SELECT count(*) FROM decision d
+    LEFT JOIN section s ON d.decision_id = s.decision_id
+    LEFT JOIN section_type t ON t.section_type_id = s.section_type_id
+    LEFT JOIN chamber c ON c.chamber_id = d.chamber_id
+    LEFT JOIN spider sp ON sp.spider_id = c.spider_id
+    WHERE sp.name = 'CH_BGer'
+    AND section_text != ''
+    AND s.section_type_id = 6
+        ```
