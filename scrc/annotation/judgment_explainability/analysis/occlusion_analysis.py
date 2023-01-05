@@ -3,6 +3,11 @@ import sys
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 import scrc.annotation.judgment_explainability.analysis.utils.quantitative_analysis as qt
 
+"""
+This script prepares the results from the occlusion for the analysis.
+Starts the quantitative analysis via qt.occlusion_analysis().
+"""
+
 LANGUAGES = ["de", "fr", "it"]
 PERSONS = ["angela", "lynn", "thomas"]
 LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
@@ -31,4 +36,3 @@ if __name__ == '__main__':
         preprocessing.occlusion_preprocessing(language, occlusion, f"occlusion_{nr}_{language}")
 
     qt.occlusion_analysis()
-    # ql.occlusion_analysis()

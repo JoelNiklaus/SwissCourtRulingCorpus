@@ -1,16 +1,13 @@
 import sys
-from pathlib import Path
-
 import pandas as pd
 
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
-import scrc.annotation.judgment_explainability.analysis.utils.qualitative_analysis as ql
 import scrc.annotation.judgment_explainability.analysis.utils.quantitative_analysis as qt
 import scrc.annotation.judgment_explainability.analysis.utils.scores as scores
 
 """
 This script prepares the annotations for the analysis.
-Starts the IAA-score quantitative analysis, qualitative analysis workflow.
+Starts the quantitative analysis via qt.annotation_analysis().
 """
 
 LANGUAGES = ["de", "fr", "it"]
@@ -92,4 +89,3 @@ if __name__ == '__main__':
         else:
             annotation_analysis(language, df_1, df_2, str(ver))
     qt.annotation_analysis()
-    ql.annotation_analysis()

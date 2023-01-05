@@ -15,8 +15,10 @@ judgment_explainability/occlusion/lower_court_test_sets/
 judgment_explainability/occlusion/lower_court_predictions/
 judgment_explainability/occlusion/occlusion_test_sets/
 judgment_explainability/occlusion/occlusion_predictions/
+judgment_explainability/occlusion/csv_to_jsnol.py
 judgment_explainability/occlusion/*.zip
 prodigy_dataset_creation/dataset_scrc
 prodigy_dataset_creation/sjp
+
 
 

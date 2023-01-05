@@ -3,6 +3,10 @@ import sys
 import scrc.annotation.judgment_explainability.analysis.utils.preprocessing as preprocessing
 import scrc.annotation.judgment_explainability.analysis.utils.quantitative_analysis as qt
 
+"""
+This script prepares the results from the lower court insertion for the analysis.
+Starts the quantitative analysis via qt.lower_court_analysis().
+"""
 LANGUAGES = ["de", "fr", "it"]
 OCCLUSION_PATHS = {"test_sets": ("../occlusion/lower_court_test_sets/{}/lower_court_test_set_{}.csv",
                                  "../occlusion/occlusion_test_sets/{}/occlusion_test_set_{}_exp_{}.csv"),

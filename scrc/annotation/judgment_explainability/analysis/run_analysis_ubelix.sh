@@ -23,3 +23,4 @@ for VARIABLE_1 in de fr it;
       done;
 
 # run with: sbatch run_analysis.sh
+# Note that you may need to run the analysis individually or add more time
