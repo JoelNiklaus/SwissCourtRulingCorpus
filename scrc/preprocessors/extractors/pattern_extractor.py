@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Set, TYPE_CHECKING, Union
+from typing import List, Set, TYPE_CHECKING, Union
 from pathlib import Path
 import pandas as pd
 import sys
@@ -39,12 +39,8 @@ class PatternExtractor(AbstractExtractor):
         self.logger = get_logger(__name__)
         self.columns = ['keyword', 'totalcount', 'example']
         self.df = pd.DataFrame(columns=self.columns)
-        self.language = {}
-        self.currentLanguage = ''
-        self.total = 0
         self.counter = 0
         self.spider = ''
-        self.limit = 0
         self.dict = {}
         self.end = {}
         self.logger_info = {
@@ -66,18 +62,13 @@ class PatternExtractor(AbstractExtractor):
             return pdf_raw
         return None
 
-    # def get_database_selection_string(self, spider: str, lang: str) -> str:
-    #     """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
-    #     return f"spider='{spider}'"
 
     def add_columns(self, engine: Engine):
         return None
     
-    def init_dict(self):
-        self.dict = {Language.DE: {'count': 0, 'dict': {}}, Language.FR: {
-            'count': 0, 'dict': {}}, Language.IT: {'count': 0, 'dict': {}}, Language.EN: {'count': 0, 'dict': {}}, Language.UK: {'count': 0, 'dict': {}}}
 
     def start_progress(self, engine: Engine, spider: str, lang: str):
+        """Distinguishes between outputting coverage only and extracting patterns"""
         self.processed_amount = 0
         self.total_to_process = self.coverage_get_total(engine, spider, lang)
         if sys.argv[1] != "0":
@@ -101,12 +92,13 @@ class PatternExtractor(AbstractExtractor):
         data = self.get_required_data(series)
         paragraphs = self.call_processing_function(series["spider"], data, namespace)
         if paragraphs:    
-            self.analyze_structure(paragraphs, namespace)
+            self.iterate_paragraphs(paragraphs, namespace)
 
     def save_data_to_database(self, series: pd.DataFrame, engine: Engine):
         """Splits the data into their respective parts and saves them to the table"""
         
-    def get_coverage(self, spider):
+    def get_coverage(self, spider: str):
+        """Returns the coverage for a given spider"""
         with self.get_engine(self.db_scrc).connect() as conn:
             for lang_key in Language:
                 language_key = Language.get_id_value(lang_key.value)
@@ -124,11 +116,13 @@ class PatternExtractor(AbstractExtractor):
                                     self.logger.info(f'{section_key} is {coverage}%. Amount: {coverage_result[0]}')
     
     def start_spider_loop(self, spider_list: Set, engine: Engine):
+        """Loops over all spiders and calls the processing function for each spider"""
         for spider in spider_list:
             if len(sys.argv) > 1:
                 self.get_coverage(spider)
             else:
-                self.init_dict()
+                self.dict = {Language.DE: {'count': 0, 'dict': {}}, Language.FR: {
+                    'count': 0, 'dict': {}}, Language.IT: {'count': 0, 'dict': {}}, Language.EN: {'count': 0, 'dict': {}}, Language.UK: {'count': 0, 'dict': {}}}
                 self.process_one_spider(engine, spider)
             self.mark_as_processed(self.processed_file_path, spider)
 
@@ -157,17 +151,19 @@ class PatternExtractor(AbstractExtractor):
         self.create_dfs()
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
-    def analyze_structure(self, paragraphs: list, namespace: dict):
+    def iterate_paragraphs(self, paragraphs: List[str], namespace: dict):
+        """ Iterates over the paragraphs, removes duplicates and filters out short paragraphs before processing."""
         self.counter += 1
-        self.count_total_cases(namespace)
+        self.dict[namespace['language']]['count'] += 1
         noDuplicates = list(dict.fromkeys(paragraphs))
         for item in noDuplicates:
             if item is not None and (4 < len(item)):
-                self.check_existance(item, namespace)
+                self.add_to_dict(item, namespace)
         if self.counter % 500 == 0:
             self.logger.info(f"Pattern extractor: {self.spider}: {self.counter} processed")
 
     def create_dfs(self):
+        """Creates a dataframe for each language and drops the rows that are not needed."""
         for key in self.dict:
             if self.dict[key]['count'] > 0:
                 self.end[key] = pd.DataFrame.from_dict(
@@ -176,13 +172,13 @@ class PatternExtractor(AbstractExtractor):
                 self.assign_section(
                     self.end[key], {"language": key}, self.dict[key]['count'])
 
-    def count_total_cases(self, namespace: dict):
-        self.dict[namespace['language']]['count'] += 1
-
-    def check_existance(self, item: str, namespace):
-        item = re.sub('^=+', '', item)
+    def add_to_dict(self, item: str, namespace: dict):
+        """ 
+        Checks if the item already exists in the dictionary and if so, it increases the totalcount by 1. 
+        If not, it creates a new entry in the dictionary.
+        """
         url = namespace['html_url']
-        if url == '':
+        if not url:
             url = namespace['pdf_url']
         if item in self.dict[namespace['language']]['dict']:
             self.dict[namespace['language']]['dict'][item]['totalcount'] += 1
@@ -190,25 +186,51 @@ class PatternExtractor(AbstractExtractor):
             self.dict[namespace['language']]['dict'][item] = {
                 "totalcount": 1, "keyword": item, "url": url}
 
-    def merge_rows(self, indices, df: DataFrame):
-        for index in indices[1:]:
-            df.at[indices[0],
-                  'totalcount'] += df.at[index, 'totalcount']
-        df.drop(indices[1:], inplace=True)
-        df.reset_index(drop=True, inplace=True)
-
-    def find_matches(self, df: DataFrame, currentIdx: int, indexes: list, currentPattern):
-        if not (str(currentPattern) in df.columns):
-            df[str(currentPattern)] = 0
-        for index in indexes:
-            amount = df.at[index, 'totalcount']
-            df.at[currentIdx, 'totalcount'] += amount
-            df.at[currentIdx, str(currentPattern)] += amount
-            df.drop(index, inplace=True)
-        return df
-
     def assign_section(self, df: DataFrame, namespace, count):
-        all_section_markers = {
+        """Assigns the sections to the paragraphs."""
+        all_section_markers = self.get_predefined_section_markers()
+        section_markers = prepare_section_markers(
+            all_section_markers, namespace)
+        dfs = {}
+        for key in Section:
+            if key == Section.HEADER:
+                key = 'unknown'
+            dfs[key] = pd.DataFrame([], columns=df.columns)
+        df.reset_index(inplace=True)
+        if 'keyword' in df.columns:
+            for index, element in enumerate(df['keyword'].tolist()):
+                if index % 100 == 0:
+                    self.logger.info(f"Section assignment: {index} of {df['keyword'].size} processed")
+                foundAssigntment = False
+                for key in section_markers:
+                    if re.search(section_markers[key], element):
+                        if len(element) < 35:
+                            row = df.loc[index]
+                            row['coverage'] = row['totalcount'] / count * 100
+                            dfs[key] = dfs[key].append(
+                                row, ignore_index=True)
+                            foundAssigntment = True
+                if not foundAssigntment:
+                    row = df.loc[index]
+                    row['coverage'] = row['totalcount'] / count * 100
+                    dfs['unknown'] = dfs['unknown'].append(
+                        row, ignore_index=True)
+        self.df_to_csv(dfs, namespace['language'])
+
+    def df_to_csv(self, dfs: dict, lang: Language):
+        """Writes the dataframes to csv files."""
+        if lang != Language.EN:
+            with pd.ExcelWriter(self.get_path(self.spider, lang)) as writer:
+                for key in dfs:
+                    if key != Section.FULL_TEXT:
+                        if 'totalcount' in dfs[key].columns:
+                            dfs[key].sort_values(
+                                by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key),
+                                                                             index=False)
+
+    def get_predefined_section_markers(self) -> dict:
+        """Returns the predefined section markers for the different languages."""
+        return {
             Language.FR: {
                 Section.FACTS: [r'[F,f]ait', r'FAIT'],
                 Section.CONSIDERATIONS: [r'[C,c]onsidère', r'[C,c]onsidérant', r'droit', r'DROIT'],
@@ -247,56 +269,17 @@ class PatternExtractor(AbstractExtractor):
                 Section.FOOTER: []
             }
         }
-        section_markers = prepare_section_markers(
-            all_section_markers, namespace)
-        dfs = {}
-        for key in Section:
-            if key == Section.HEADER:
-                key = 'unknown'
-            dfs[key] = pd.DataFrame([], columns=df.columns)
-        df.reset_index(inplace=True)
-        if 'keyword' in df.columns:
-            for index, element in enumerate(df['keyword'].tolist()):
-                if index % 100 == 0:
-                    self.logger.info(self.get_progress_string(
-                        index, df['keyword'].size, "Section assignment: "))
-                foundAssigntment = False
-                for key in section_markers:
-                    if re.search(section_markers[key], element):
-                        if len(element) < 35:
-                            row = df.loc[index]
-                            row['coverage'] = row['totalcount'] / count * 100
-                            dfs[key] = dfs[key].append(
-                                row, ignore_index=True)
-                            foundAssigntment = True
-                if not foundAssigntment:
-                    row = df.loc[index]
-                    row['coverage'] = row['totalcount'] / count * 100
-                    dfs['unknown'] = dfs['unknown'].append(
-                        row, ignore_index=True)
-        self.df_to_csv(dfs, namespace['language'])
-
-    def get_progress_string(self, progress: int, total: int, name: str):
-        return f"{name}: {progress} of {total} processed"
-
-    def df_to_csv(self, dfs, lang):
-        if lang != Language.EN:
-            with pd.ExcelWriter(self.get_path(self.spider, lang)) as writer:
-                for key in dfs:
-                    if key != Section.FULL_TEXT:
-                        if 'totalcount' in dfs[key].columns:
-                            dfs[key].sort_values(
-                                by=['totalcount'], ascending=False).to_excel(writer, sheet_name=str(key),
-                                                                             index=False)
 
     def drop_rows(self, df: DataFrame):
+        """Drops rows with less than 5 occurences."""
         if 'totalcount' in df.columns:
             df.drop(
                 df[df.totalcount < 5].index, inplace=True)
             df.reset_index(drop=True, inplace=True)
         return df
 
-    def get_path(self, spider: str, lang):
+    def get_path(self, spider: str, lang: Language):
+        """Returns the path to the csv file."""
         filepath = Path(
             f'data/patterns/{spider}/{spider}_{lang}_section.xlsx')
         filepath.parent.mkdir(parents=True, exist_ok=True)
