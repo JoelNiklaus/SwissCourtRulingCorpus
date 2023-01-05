@@ -40,7 +40,7 @@ def annotation_analysis_gold(lang: str, spans_df: pd.DataFrame, tokens_df: pd.Da
     for label in LABELS_OCCLUSION:
         label_df = preprocessing.get_label_df(lang, spans_df, tokens_df, label)
 
-        annotator_df = preprocessing.get_annotator_df(label_df, lang, annotator="", version=version)
+        annotator_df = preprocessing.get_ann_df(label_df, lang, annotator="", version=version)
 
         label_df = label_df[
             [f'annotations_{lang}', 'text', 'facts_length', 'year', 'file_number', 'link', 'header',
@@ -65,7 +65,7 @@ def annotation_analysis(lang: str, spans_df: pd.DataFrame, tokens_df: pd.DataFra
         label_list = []
         label_df = preprocessing.get_label_df(lang, spans_df, tokens_df, label)
         for pers in PERSONS:
-            label_list.append(preprocessing.get_annotator_df(label_df, lang, pers, version))
+            label_list.append(preprocessing.get_ann_df(label_df, lang, pers, version))
         label_df = preprocessing.merge_triple_ann(label_list, PERSONS, lang)
         # Normalizes token dictionary
         label_df = preprocessing.get_normalize_tokens_dict(label_df)

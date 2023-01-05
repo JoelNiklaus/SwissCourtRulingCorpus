@@ -676,4 +676,4 @@ def occlusion_analysis():
                           title=f"BERTScore between Human and Model {l.upper()}",
                           filepath=f"plots/occ_be_{l}.png", legendpath="plots/occ_o_be_legend_{}.png",
                           annotation="Occlusion with {} Sentences", colors=colors[:-1])
-        preprocessing.write_IAA_table_occlusion(IAA_df_list, f"tables/occ_IAA_{l}{{}}.csv",LABELS[1:])
+        preprocessing.write_IAA_table_occ(IAA_df_list, f"tables/occ_IAA_{l}{{}}.csv", LABELS[1:])

@@ -144,9 +144,9 @@ def write_csv_from_list(filepath: str, df_list: list):
 
 def write_IAA_table_ann(df_list: list, filename: str, labels):
     """
-    Prepares IAA table for annotations.
-    Writes csv file from complete Dataframe list.
-    Writes csv file for mean IAA table.
+    Applies mean to each iaa score for each label.
+    Appends (via concat) different annotator combinations Dataframe and writes csv file from complete Dataframe list.
+    Writes csv file for mean (of all iaa score values) IAA table.
     """
     scores_columns = ['overlap_maximum', 'overlap_minimum', 'jaccard_similarity', 'meteor_score', 'bleu_score',
                       'rouge1', 'rouge2', 'rougeL', 'bert_score']
@@ -181,7 +181,12 @@ def write_IAA_table_ann(df_list: list, filename: str, labels):
             write_csv(filename.format("_mean"), table.round(3))
 
 
-def write_IAA_table_occlusion(df_list: list, filename: str, labels):
+def write_IAA_table_occ(df_list: list, filename: str, labels):
+    """
+    Applies mean to each iaa score for each label and experiment.
+    Writes csv file from complete Dataframe list.
+    Writes csv file for mean (of all iaa score values) IAA table.
+    """
     scores_columns = ['overlap_maximum', 'overlap_minimum', 'jaccard_similarity', 'meteor_score', 'bleu_score',
                       'rouge1', 'rouge2', 'rougeL', 'bert_score']
 
@@ -237,6 +242,9 @@ def get_baseline(dataset: pd.DataFrame) -> pd.DataFrame:
 
 
 def group_to_list(dataset: pd.DataFrame, col_1, col_2) -> pd.DataFrame:
+    """
+    Groups by column, applies list and returns Dataframe.
+    """
     return dataset.groupby(col_1)[col_2].apply(list).reset_index()
 
 
@@ -319,7 +327,11 @@ def join_to_dict(df: pd.DataFrame, col_1: str, col_2: str, new_col: str) -> pd.D
     return df
 
 
-def get_label_df(lang: str, spans_df: pd.DataFrame, tokens_df: pd.DataFrame, label: str):
+def get_label_df(lang: str, spans_df: pd.DataFrame, tokens_df: pd.DataFrame, label: str)-> pd.DataFrame:
+    """
+    Gets the text annotation for explainability label from dictionaries.
+    Returns Dataframe containing text for  explainability label.
+    """
     label_df = get_span_df(spans_df, tokens_df, label, lang)[0]
     # Getting the necessary dictionaries
     ws_df = get_white_space_dicts(label_df, "annotations_{}".format(lang))
@@ -356,7 +368,7 @@ def group_token_columns(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     return df
 
 
-def apply_functions_lower_court(df: pd.DataFrame) -> pd.DataFrame:
+def apply_functions_lc(df: pd.DataFrame) -> pd.DataFrame:
     """
     Applies normalize_string to ccluded_text.
     Gets original court for each row and inserts lower_court as occlusion
@@ -409,7 +421,7 @@ def get_combinations(val_list: list, length_subset: int) -> list:
     return combinations
 
 
-def get_annotator_df(tokens_df: pd.DataFrame, lang: str, annotator: str, version: str) -> pd.DataFrame:
+def get_ann_df(tokens_df: pd.DataFrame, lang: str, annotator: str, version: str) -> pd.DataFrame:
     """
     Copies entries from Dataframe from specific annotator.
     Groups tokens_text, tokens_id, tokens_dict from getone case together.
@@ -461,10 +473,14 @@ def merge_triple_ann(df_list: list, person_suffixes: list, lang: str):
                  'tokens_ws_dict': f'tokens_ws_dict_{person_suffixes[i + 2]}'})
 
 
-def merge_triple(df_list, on, suffixes):
+def merge_triple(df_list: list, col: str, suffixes: str):
+    """
+    Merges three Dataframes on column and adds suffixes.
+    Returns merged Dataframe.
+    """
     df = df_list[0].reset_index().merge(df_list[0].reset_index(),
-                                        on=on, suffixes=suffixes[:-1])
-    return df.merge(df_list[2].add_suffix(suffixes[-1]).reset_index(), on=on)
+                                        on=col, suffixes=suffixes[:-1])
+    return df.merge(df_list[2].add_suffix(suffixes[-1]).reset_index(), on=col)
 
 
 def get_normalize_tokens_dict(df: pd.DataFrame) -> pd.DataFrame:
@@ -537,7 +553,10 @@ def temp_scaling(df: pd.DataFrame) -> pd.DataFrame:
 
 def occlusion_preprocessing(lang: str, df: pd.DataFrame, filename: str):
     """
-    @todo
+    Calculates explainability score for each experiment, finds flipped cases.
+    Seprates df into predictions and sorts according to explainability_score.
+    Gets confidence direction.
+    Writes csv containing table of all the values.
     """
     df = df.set_index("index")
     df = calculate_explainability_score(df)
@@ -633,7 +652,8 @@ def get_one_sided_effect_df(dataset_1: pd.DataFrame, dataset_2: pd.DataFrame, co
                             direction: str):
     """
     Gets mean of one sided explainability_score and confidence_direction.
-    Returns Dataframe.
+    Apply T-Test to rows and merges Dataframes
+    Returns merged Dataframe.
     """
     dataset_1 = group_by_agg_column(dataset_1, col,
                                     agg_dict={"confidence_scaled": "mean", "confidence_direction": "mean",
@@ -676,8 +696,8 @@ def find_flipped_cases(df: pd.DataFrame):
 
 def group_by_flipped(dataset: pd.DataFrame, col) -> pd.DataFrame:
     """
-    Groups by col.
-    Returns Dataframe with proportional count of flipped and unflipped rows.
+    Groups by column.
+    Returns Dataframe with proportional count of flipped and un-flipped rows.
     """
     has_flipped_df = group_by_agg_column(dataset[dataset["has_flipped"] == True], col, {"has_flipped": "count"})
     has_not_flipped_df = group_by_agg_column(dataset[dataset["has_flipped"] == False], col,
@@ -706,7 +726,8 @@ def normalize_string(string: str) -> str:
 
 def normalize_df_length(df: pd.DataFrame, col: str, column_values: list):
     """
-    @todo
+    Appends missing rows to Dataframe normalizing its length.
+    Returns Dataframe containing missing row and other columns filled with fill_value.
     """
     for value in column_values:
         if value not in df[col].values:
@@ -718,7 +739,8 @@ def normalize_df_length(df: pd.DataFrame, col: str, column_values: list):
 
 def ttest(sample_df: pd.DataFrame, mu_df, col_1, col_2, alpha):
     """
-    @todo
+    Applies one sampled T-Test to a given column saves significant columns as Boolean.
+    Returns Dataframe containing T-Test results.
     """
     tc_list = []
     pvalue_list = []
@@ -736,26 +758,40 @@ def ttest(sample_df: pd.DataFrame, mu_df, col_1, col_2, alpha):
 
 def prepare_scores_IAA_Agreement_plots(lang: str, versions: list, filename: str, cols: list, labels: list,
                                        dict_keys: list) -> list:
-    IAA_df_list = []
+    """
+    Filters out irrelevant columns and gets iaa_df_dict.
+    Merges Dataframe according to explainability label
+    Returns list of merged Dataframes.
+    """
+    iaa_df_list = []
     for nr in versions:
-        label_df_dict = {iaa: [] for iaa in dict_keys}
+        iaa_df_dict = {iaa: [] for iaa in dict_keys}
         for label in labels:
             df = read_csv(filename.format(lang, label.lower().replace(' ', '_'), lang, nr), "index")
-            label_df_dict = filter_columns(df, cols, label_df_dict)
-        for df_list in label_df_dict.values():
+            iaa_df_dict = filter_columns(df, cols, iaa_df_dict)
+        for df_list in iaa_df_dict.values():
+            # Annotator IAA
             if len(df_list) == 3:
-                IAA_df_list.append(merge_triple(df_list, "index",
+                iaa_df_list.append(merge_triple(df_list, "index",
                                                 suffixes=[f"_{label.lower().replace(' ', '_')}" for label in LABELS]))
+            # Human vs model IAA
             if len(df_list) == 2:
-                IAA_df_list.append(df_list[0].merge(df_list[1], on="index",
+                iaa_df_list.append(df_list[0].merge(df_list[1], on="index",
                                                     suffixes=[f"_{label.lower().replace(' ', '_')}" for label
                                                               in labels]))
 
-    return IAA_df_list
+    return iaa_df_list
 
 
-def filter_columns(df: pd.DataFrame, cols: list, label_df_dict: dict):
+def filter_columns(df: pd.DataFrame, cols: list, label_df_dict: dict) -> dict:
+    """
+    Filters out Nan columns (no annotations), creates lists from string representations and
+    applies normalization to jaccard_similarity list.
+    Explodes IAA scores columns and adds enumeration to annotators names.
+    Returns dict of form {annotator_combination: Dataframe}.
+    """
     if len(cols) == 4:
+        # Annotator IAA
         df = df[~((df[cols[1]] == "Nan") & (df[cols[2]] == "Nan") & (df[cols[3]] == "Nan"))]
         for score in SCORES_COLUMNS:
             df[score] = df[score].apply(lambda row: string_to_list(row))
@@ -769,6 +805,7 @@ def filter_columns(df: pd.DataFrame, cols: list, label_df_dict: dict):
                 df[df["IAA_between"] == iaa].drop("index", axis=1))  # Separate annotator combinations
         return label_df_dict
     else:
+        # Human vs model IAA
         for score in SCORES_COLUMNS:
             df[score] = df[score].apply(lambda row: remove_parenthesis(row))
         df = df.reset_index().rename({"F1": "bert_score"}, axis=1)
@@ -780,7 +817,7 @@ def filter_columns(df: pd.DataFrame, cols: list, label_df_dict: dict):
 def normalize_list_length(ref_lst, sample_lst) -> list:
     """
     Normalizes list length for jaccard_similiarity.
-    Returns normlized list.
+    Returns normalized list.
     """
     if len(ref_lst) == 0:
         return []

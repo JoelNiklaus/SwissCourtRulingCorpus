@@ -124,19 +124,6 @@ def flatten_axis(axs):
         ax.label_outer()
 
 
-def append_missing_rows(df_long: pd.DataFrame, df_short: pd.DataFrame, col_x: str) -> pd.DataFrame:
-    """
-    Appends missing lower_court rows to Dataframe.
-    Returns Dataframe containing missing lower courts and other columns filled with 0.
-    """
-    for value in list(df_long[col_x].values):
-        if value not in df_short.values:
-            col = {column: 0 for column in df_short.columns}
-            col[col_x] = value
-            df_short = df_short.append(col, ignore_index=True)
-    return df_short.sort_values("lower_court")
-
-
 def get_df_slices(df_list: list) -> list:
     """
     Splits Dataframe according to predictions and significance.
@@ -187,21 +174,22 @@ def lc_flipped_bar_plot(lang: str, distribution_df_list: list, col_x: str, col_y
     export_legend(legend_2, f"plots/lc_legend_{lang}.png")
 
 
-def ax_brah_0(ax, ind, df_log: pd.DataFrame, df: pd.DataFrame, col_y: str, col_x: str, sign: bool, color):
+def ax_brah_0(ax, ind, df_long: pd.DataFrame, df: pd.DataFrame, col_y: str, col_x: str, sign: bool, color):
     """
     Creates horizontal bars for significant columns
     """
     ax.barh((ind * 1.5) - 0.25,
-            append_missing_rows(df_log, df[df[f"significance_{col_y}"] == sign], col_x)[col_y],
+            preprocessing.normalize_df_length(df[df[f"significance_{col_y}"] == sign], col_x,
+                                              list(df_long[col_x].values))[col_y],
             color=color, height=0.5)
 
 
-def ax_brah_1(ax, ind, df_log: pd.DataFrame,df: pd.DataFrame, col_y: str, col_x: str, sign: bool, color):
+def ax_brah_1(ax, ind, df_long: pd.DataFrame, df: pd.DataFrame, col_y: str, col_x: str, sign: bool, color):
     """
     Creates horizontal bars for not significant columns.
     """
     ax.barh((ind * 1.5) + 0.25,
-            append_missing_rows(df_log, df[df[f"significance_{col_y}"] == sign], col_x)[col_y],
+            preprocessing.normalize_df_length(df[df[f"significance_{col_y}"] == sign], col_x, list(df_long[col_x].values))[col_y],
             color=color, hatch="//", edgecolor="black", height=0.5)
 
 

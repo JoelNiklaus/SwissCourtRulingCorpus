@@ -243,7 +243,7 @@ def create_lower_court_experiment(filename: str, lang: str):
         lower_court_df[lower_court_df["explainability_label"] == LABELS_OCCLUSION[0]]["occluded_text"])
     normalized_lower_court_list = list(set(normalize_white_spaces(lower_court_list)))
     lower_court_df["lower_court"] = [normalized_lower_court_list] * len(lower_court_df)
-    lower_court_df = preprocessing.apply_functions_lower_court(lower_court_df.explode("lower_court"))
+    lower_court_df = preprocessing.apply_functions_lc(lower_court_df.explode("lower_court"))
 
     original_court_df = assign_original_court(lower_court_df)
     baseline_df = get_lower_court_baseline(lower_court_df, original_court_df)
