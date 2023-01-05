@@ -1,9 +1,8 @@
 from __future__ import annotations
 from ast import Set
 from pathlib import Path
-import re
 import sys
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, List
 from nltk.tokenize import sent_tokenize
 from scrc.utils.main_utils import clean_text, int_to_roman
 
@@ -63,6 +62,7 @@ class JudgmentExtractor(AbstractExtractor):
         return f"spider='{spider}' AND rulings IS NOT NULL AND rulings <> ''"
     
     def get_coverage(self, spider: str):
+        """Prints the coverage of the judgment extraction for a given spider in the terminal."""
         ruling_id = Section.RULINGS.value
         with self.get_engine(self.db_scrc).connect() as conn:
             total_judgments = conn.execute(get_total_judgments(spider, ruling_id)).fetchone()
@@ -74,16 +74,18 @@ class JudgmentExtractor(AbstractExtractor):
 
         
     def start_spider_loop(self, spider_list: Set, engine: Engine):
+        """Loops over all spiders and calls the process_one_spider function for each spider."""
         for spider in spider_list:
             if len(sys.argv) > 1:
                 self.get_coverage(spider)
                 self.mark_as_processed(self.processed_file_path, spider)
             else:
-                self.init_dict()
+                self.dict = {Language.DE: {}, Language.FR: {}, Language.IT: {}, Language.EN: {}, Language.UK: {}}
                 self.process_one_spider(engine, spider)
                 self.mark_as_processed(self.processed_file_path, spider)
             
     def drop_rows(self, df: DataFrame):
+        """Drops rows with less than 4 totalcount"""
         if 'totalcount' in df.columns:
             df.drop(
                 df[df.totalcount < 4].index, inplace=True)
@@ -92,6 +94,7 @@ class JudgmentExtractor(AbstractExtractor):
 
         
     def process_one_spider(self, engine: Engine, spider: str):
+        """Processes one spider"""
         self.logger.info(self.logger_info["start_spider"] + " " + spider)
         dfs = self.select_df(self.get_engine(self.db_scrc), spider)  # Get the data needed for the extraction
         for idx, df in enumerate(dfs):  
@@ -120,6 +123,7 @@ class JudgmentExtractor(AbstractExtractor):
               
     
     def df_to_csv(self, spider, assigned_lists):
+        """Saves the extracted judgments patterns to a csv file"""
         for language in assigned_lists:
             with pd.ExcelWriter(self.get_path(spider, language)) as writer:
                 for key in assigned_lists[language]:
@@ -128,11 +132,13 @@ class JudgmentExtractor(AbstractExtractor):
                     df.to_excel(writer, sheet_name=str(key),index=False)
                 
     def get_path(self, spider: str, lang):
+        """Returns the path to the csv file"""
         filepath = Path(f'data/judgment_patterns/{spider}/{spider}_{lang}_judg.xlsx')
         filepath.parent.mkdir(parents=True, exist_ok=True)
         return filepath
             
     def sort_dict(self):
+        """ Sorts the dictionary by totalcount """
         final_dict = {}
         for key in self.dict:
             if bool(self.dict[key]):
@@ -140,11 +146,12 @@ class JudgmentExtractor(AbstractExtractor):
                 dict_list.sort(key = lambda x:x[1]['totalcount'], reverse = True)
                 final_dict[key] = dict_list
         return final_dict
-    
-    def init_dict(self):
-        self.dict = {Language.DE: {}, Language.FR: {}, Language.IT: {}, Language.EN: {}, Language.UK: {}}
-    
-    def add_combinations(self, sentence, url, namespace):
+        
+    def add_combinations(self, sentence: List[str], url: str, namespace: dict):
+        """
+        Processes a sentence by creating n-grams and adding information about them
+        to a dictionary.
+        """
         for i in range(1, 10):
             gram_list = self.create_ngrams(i, sentence)
             for gram in gram_list:
@@ -153,11 +160,13 @@ class JudgmentExtractor(AbstractExtractor):
                 else:
                     self.dict[namespace['language']][gram] = {'totalcount': 1, 'url': url}
             
-    def create_ngrams(self, n, sentence):
+    def create_ngrams(self, n: int, sentence: str):
+        """Creates n-grams from a sentence."""
         n_gram = ngrams(sentence, n)
         return [gram for gram in n_gram]
     
-    def sentencize(self, data, namespace):
+    def sentencize(self, data: str, namespace: dict):
+        """Splits the text into sentences and calls the function to create n-grams."""
         data = self.numbered_ruling(data)
         url = namespace['html_url']
         if url == '':
@@ -166,7 +175,11 @@ class JudgmentExtractor(AbstractExtractor):
         for sentence in sentence_list:
             self.add_combinations(sentence.split(), url, namespace)
       
-    def numbered_ruling(self, data):
+    def numbered_ruling(self, data: str):
+        """
+        Processes a string of text to extract a numbered ruling, if present.
+        Returns the extracted ruling or the original text if no numbered structure is found.
+        """
         ruling = clean_text(data)
         result = search_rulings(ruling, str(1), str(2))
         if not result:
@@ -193,6 +206,7 @@ class JudgmentExtractor(AbstractExtractor):
         """Do nothing"""
         
     def assign_section(self):
+        """Assigns the n-grams to the correct section"""
         sorted_lists = self.sort_dict()
         assigned_dict = {}
         for key in sorted_lists:

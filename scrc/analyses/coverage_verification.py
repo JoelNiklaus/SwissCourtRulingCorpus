@@ -1,4 +1,6 @@
 
+from typing import List
+from uuid import UUID
 from scrc.enums.section import Section
 from enum import Enum
 from pathlib import Path
@@ -40,6 +42,7 @@ class CoverageVerification(AbstractPreprocessor):
 
     
     def start(self):
+        """Starts the coverage verification. """
         spider_list, message = self.compute_remaining_spiders(self.processed_file_path)
         self.logger.info(message)
         engine = self.get_engine(self.db_scrc)
@@ -51,7 +54,8 @@ class CoverageVerification(AbstractPreprocessor):
             self.logger.info(self.logger_info['finished'])
         
                 
-    def write_document(self, spider, conn: Connection):
+    def write_document(self, spider: str, conn: Connection):
+        """Writes the document to the data/verification folder."""
         document = Document()
         decision_list = []
         for x in range(0, 50):  
@@ -60,7 +64,8 @@ class CoverageVerification(AbstractPreprocessor):
         document.save(self.get_path(spider))
  
         
-    def write_to_doc(self, document, result, x):
+    def write_to_doc(self, document: Document, result: dict, x: int):
+        """Writes the sections of the decision to the document. If the script is run with an argument, only the ruling outcome is written."""
         sections = result['wrapper']['sections']
         document.add_paragraph(f"{str(result['wrapper']['id'])}: {x + 1}")
         if len(sys.argv) > 1:
@@ -78,8 +83,9 @@ class CoverageVerification(AbstractPreprocessor):
                     p = document.add_paragraph()
                     r = p.add_run(result['ruling']).bold = True 
          
-    def get_valid_decision(self, conn: Connection, spider, decision_list):
-        MAX_LOOPS = 10000
+    def get_valid_decision(self, conn: Connection, spider: str, decision_list: List[UUID]):
+        """Returns a valid decision that has not been used before and has a ruling outcome."""
+        MAX_LOOPS = 2000
         index = 0
         invalid_decision = True
         while invalid_decision:
@@ -101,6 +107,7 @@ class CoverageVerification(AbstractPreprocessor):
           
             
     def get_sections(self, result: str, conn: Connection,):
+        """Returns the sections of the decision."""
         section_dict = {'sections': {}, 'id': result[0]}
         result = conn.execute(self.section_query(result[0]))
         for res in result:
@@ -113,18 +120,21 @@ class CoverageVerification(AbstractPreprocessor):
         
     
     def ruling_outcome_query(self, decision_id: str):
+        """Returns the ruling outcome of a decision."""
         return (f"SELECT * FROM judgment "
                 f"INNER JOIN judgment_map ON judgment.judgment_id = judgment_map.judgment_id "
                 f"INNER JOIN decision ON judgment_map.decision_id = decision.decision_id "
                 f"WHERE decision.decision_id = '{decision_id}'")
 
-    def section_query(self, decision_id):
+    def section_query(self, decision_id: str):
+        """Returns all sections of a decision except for the full text and topic sections."""
         return (f"SELECT * FROM section "
                 f"WHERE section.decision_id = '{decision_id}' "
                 f"AND section.section_type_id != {Section.FULL_TEXT.value} "
                 f"AND section.section_type_id != {Section.TOPIC.value} ")
         
     def random_decision_query(self, spider: str):
+        """Returns a random decision for a given spider from the database."""
         return (f"SELECT * FROM decision "
                 f"INNER JOIN chamber ON decision.chamber_id = chamber.chamber_id "
                 f"INNER JOIN spider ON chamber.spider_id = spider.spider_id "

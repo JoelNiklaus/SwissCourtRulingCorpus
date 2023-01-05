@@ -50,6 +50,7 @@ def save_to_path(content, path, overwrite=False):
 
 
 def get_paragraphs_unified(decision):
+    """Get the paragraphs of a decision. Distinguishes between pdf and html automatically."""
     if isinstance(decision, str):
         return get_pdf_paragraphs(decision)
     elif decision:
