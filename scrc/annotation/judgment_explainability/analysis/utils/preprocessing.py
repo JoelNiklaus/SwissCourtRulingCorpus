@@ -15,7 +15,7 @@ from scipy.stats import stats
 warnings.filterwarnings("ignore")
 
 """
-This is a collection of helper functions used by the diffrent components of the analysis, 
+This is a collection of helper functions used by the different components of the analysis, 
 experiment_creator and prodigy_dataset_creator.
 """
 
@@ -24,7 +24,7 @@ LABELS = ["Lower court", "Supports judgment", "Opposes judgment"]
 PERSONS = ["angela", "lynn", "thomas"]
 SESSIONS = ["angela", "lynn", "thomas", "gold_nina"]
 NAN_KEY = 10000
-IAA_LIST_WORDS = ["A1 and A2","A1 and A3","A2 and A3"]
+IAA_LIST_WORDS = ["A1 and A2", "A1 and A3", "A2 and A3"]
 IAA_List = ["1_2", "1_3", "2_3"]
 SCORES_COLUMNS = ['overlap_maximum', 'overlap_minimum', 'jaccard_similarity', 'meteor_score', 'bleu_score', 'rouge1',
                   'rouge2', 'rougeL', 'F1']
@@ -93,7 +93,24 @@ def write_jsonl(filename: str, data: list):
         for entry in data:
             json.dump(entry, outfile)
             outfile.write('\n')
-    print("Successfully saved file " + filename)
+
+
+def read_json(filepath: str) -> dict:
+    """
+    Reads json file and returns dict.
+    """
+    with open(filepath) as json_file:
+        data = json.load(json_file)
+        return data
+
+
+def write_json(filepath: str, dictionary: dict):
+    """
+    Writes a json from dict.
+    """
+    json_object = json.dumps(dictionary, indent=4)
+    with open(Path(filepath), "w") as outfile:
+        outfile.write(json_object)
 
 
 def read_csv(filepath: str, index: str) -> pd.DataFrame:
@@ -125,9 +142,14 @@ def write_csv_from_list(filepath: str, df_list: list):
             f.write("\n")
 
 
-def write_IAA_table_annotations(df_list: list, filename: str, labels):
+def write_IAA_table_ann(df_list: list, filename: str, labels):
+    """
+    Prepares IAA table for annotations.
+    Writes csv file from complete Dataframe list.
+    Writes csv file for mean IAA table.
+    """
     scores_columns = ['overlap_maximum', 'overlap_minimum', 'jaccard_similarity', 'meteor_score', 'bleu_score',
-                      'rouge1','rouge2', 'rougeL', 'bert_score']
+                      'rouge1', 'rouge2', 'rougeL', 'bert_score']
 
     table_dict = {label: [] for label in labels}
     table_list = []
@@ -136,8 +158,8 @@ def write_IAA_table_annotations(df_list: list, filename: str, labels):
         for label in labels:
             mean = df[[f"{score}_{label.lower().replace(' ', '_')}" for score in scores_columns]].dropna().mean()
             mean = mean.rename(
-                    index={f"{score}_{label.lower().replace(' ', '_')}": score for score in scores_columns}) \
-                    .reset_index().rename({"index": "IAA Score", 0: IAA_LIST_WORDS[i]}, axis=1)
+                index={f"{score}_{label.lower().replace(' ', '_')}": score for score in scores_columns}) \
+                .reset_index().rename({"index": "IAA Score", 0: IAA_LIST_WORDS[i]}, axis=1)
             table_dict[label].append(mean)
         i += 1
     for lst in table_dict.values():
@@ -161,17 +183,17 @@ def write_IAA_table_annotations(df_list: list, filename: str, labels):
 
 def write_IAA_table_occlusion(df_list: list, filename: str, labels):
     scores_columns = ['overlap_maximum', 'overlap_minimum', 'jaccard_similarity', 'meteor_score', 'bleu_score',
-                      'rouge1','rouge2', 'rougeL', 'bert_score']
+                      'rouge1', 'rouge2', 'rougeL', 'bert_score']
 
-    table_dict = {i: {label: []  for label in labels} for i in range(1,5)}
+    table_dict = {i: {label: [] for label in labels} for i in range(1, 5)}
     table_list = []
     i = 1
     for df in df_list:
         for label in labels:
             mean = df[[f"{score}_{label.lower().replace(' ', '_')}" for score in scores_columns]].dropna().mean()
             mean = mean.rename(
-                    index={f"{score}_{label.lower().replace(' ', '_')}": score for score in scores_columns}) \
-                    .reset_index().rename({"index": "IAA Score", 0: "human vs model"}, axis=1)
+                index={f"{score}_{label.lower().replace(' ', '_')}": score for score in scores_columns}) \
+                .reset_index().rename({"index": "IAA Score", 0: "human vs model"}, axis=1)
             table_dict[i][label].append(mean)
         i += 1
 
@@ -185,30 +207,12 @@ def write_IAA_table_occlusion(df_list: list, filename: str, labels):
     table["Mean Score"] = table["human vs model"].mean()
     write_csv(filename.format("_mean"), table.round(3))
     exp_table_list = []
-    for i in range(0, len(table_list)-1, 2):
-        table = pd.concat([table_list[i], table_list[i+1]])
+    for i in range(0, len(table_list) - 1, 2):
+        table = pd.concat([table_list[i], table_list[i + 1]])
         table = table.groupby("IAA Score").mean().reset_index()
         table["Mean Score"] = table["human vs model"].mean()
         exp_table_list.append(table)
     write_csv_from_list(filename.format("_mean_exp"), exp_table_list)
-
-
-def read_json(filepath: str) -> dict:
-    """
-    Reads json file and returns dict.
-    """
-    with open(filepath) as json_file:
-        data = json.load(json_file)
-        return data
-
-
-def write_json(filepath: str, dictionary: dict):
-    """
-    Writes a json from dict.
-    """
-    json_object = json.dumps(dictionary, indent=4)
-    with open(Path(filepath), "w") as outfile:
-        outfile.write(json_object)
 
 
 def get_accepted_cases(dataset: pd.DataFrame) -> pd.DataFrame:
@@ -511,22 +515,6 @@ def normalize_person_tokens(df: pd.DataFrame, pers: str, lang: str) -> pd.DataFr
     return df
 
 
-def normalize_list_length(list_of_list: list, token_dict: dict) -> (list, list):
-    """
-    Appends "Nan" to normalize list length (make them same length).
-    Returns lists.
-    """
-    max_length = max(len(x) for x in list_of_list)
-    for lst in list_of_list:
-        index = list(list_of_list).index(lst)
-        if NAN_KEY in lst:
-            while len(lst) < max_length:
-                lst.append(token_dict["Nan"])
-            list_of_list[index] = lst
-
-    return list_of_list
-
-
 def temp_scaling(df: pd.DataFrame) -> pd.DataFrame:
     """
     Replaces the judgment labels with int 0,1.
@@ -692,10 +680,13 @@ def group_by_flipped(dataset: pd.DataFrame, col) -> pd.DataFrame:
     Returns Dataframe with proportional count of flipped and unflipped rows.
     """
     has_flipped_df = group_by_agg_column(dataset[dataset["has_flipped"] == True], col, {"has_flipped": "count"})
-    has_not_flipped_df = group_by_agg_column(dataset[dataset["has_flipped"] == False], col, {"has_flipped": "count"}).rename({"has_flipped":"has_not_flipped"}, axis=1)
+    has_not_flipped_df = group_by_agg_column(dataset[dataset["has_flipped"] == False], col,
+                                             {"has_flipped": "count"}).rename({"has_flipped": "has_not_flipped"},
+                                                                              axis=1)
     dataset = group_by_agg_column(dataset, col, {"id": "count"})
-    dataset = dataset.merge(has_flipped_df, on=col,how="outer").fillna(0).merge(has_not_flipped_df, on=col,how="outer").fillna(0)
-    dataset["has_not_flipped"] = dataset["has_not_flipped"]/ dataset["id"]
+    dataset = dataset.merge(has_flipped_df, on=col, how="outer").fillna(0).merge(has_not_flipped_df, on=col,
+                                                                                 how="outer").fillna(0)
+    dataset["has_not_flipped"] = dataset["has_not_flipped"] / dataset["id"]
     dataset["has_flipped"] = dataset["has_flipped"] / dataset["id"]
     return dataset
 
@@ -743,7 +734,8 @@ def ttest(sample_df: pd.DataFrame, mu_df, col_1, col_2, alpha):
     return sample_df
 
 
-def prepare_scores_IAA_Agreement_plots(lang: str, versions: list, filename:str, cols: list, labels:list, dict_keys: list) -> list:
+def prepare_scores_IAA_Agreement_plots(lang: str, versions: list, filename: str, cols: list, labels: list,
+                                       dict_keys: list) -> list:
     IAA_df_list = []
     for nr in versions:
         label_df_dict = {iaa: [] for iaa in dict_keys}
@@ -753,11 +745,11 @@ def prepare_scores_IAA_Agreement_plots(lang: str, versions: list, filename:str, 
         for df_list in label_df_dict.values():
             if len(df_list) == 3:
                 IAA_df_list.append(merge_triple(df_list, "index",
-                                        suffixes=[f"_{label.lower().replace(' ', '_')}" for label in LABELS]))
+                                                suffixes=[f"_{label.lower().replace(' ', '_')}" for label in LABELS]))
             if len(df_list) == 2:
                 IAA_df_list.append(df_list[0].merge(df_list[1], on="index",
-                                                              suffixes=[f"_{label.lower().replace(' ', '_')}" for label
-                                                                        in labels]))
+                                                    suffixes=[f"_{label.lower().replace(' ', '_')}" for label
+                                                              in labels]))
 
     return IAA_df_list
 
@@ -767,12 +759,14 @@ def filter_columns(df: pd.DataFrame, cols: list, label_df_dict: dict):
         df = df[~((df[cols[1]] == "Nan") & (df[cols[2]] == "Nan") & (df[cols[3]] == "Nan"))]
         for score in SCORES_COLUMNS:
             df[score] = df[score].apply(lambda row: string_to_list(row))
-        df["jaccard_similarity"] = df.apply(lambda row: normalize_list_length(row["rouge1"],row["jaccard_similarity"]) , axis=1)
+        df["jaccard_similarity"] = df.apply(lambda row: normalize_list_length(row["rouge1"], row["jaccard_similarity"]),
+                                            axis=1)
         scores_df = df[SCORES_COLUMNS].explode(SCORES_COLUMNS).reset_index().rename({"F1": "bert_score"}, axis=1)
         df = df[cols].reset_index().merge(scores_df, on="index")
         df["IAA_between"] = add_ann_enumeration(df)
         for iaa in IAA_List:
-            label_df_dict[iaa].append(df[df["IAA_between"] == iaa].drop("index", axis=1))  # Separate annotator combinations
+            label_df_dict[iaa].append(
+                df[df["IAA_between"] == iaa].drop("index", axis=1))  # Separate annotator combinations
         return label_df_dict
     else:
         for score in SCORES_COLUMNS:
@@ -783,7 +777,11 @@ def filter_columns(df: pd.DataFrame, cols: list, label_df_dict: dict):
         return label_df_dict
 
 
-def normalize_list_length(ref_lst, sample_lst)-> list:
+def normalize_list_length(ref_lst, sample_lst) -> list:
+    """
+    Normalizes list length for jaccard_similiarity.
+    Returns normlized list.
+    """
     if len(ref_lst) == 0:
         return []
     if len(ref_lst) == 1:
@@ -793,6 +791,10 @@ def normalize_list_length(ref_lst, sample_lst)-> list:
 
 
 def add_ann_enumeration(df: pd.DataFrame) -> list:
+    """
+    Swaps annotators name with enumeration of combinations.
+    Returns list of string combinations.
+    """
     i = 0
     IAA_list = []
     IAA_DICT = {2: "1_2", 1: "1_3", 0: "2_3"}
@@ -810,7 +812,10 @@ def add_ann_enumeration(df: pd.DataFrame) -> list:
     return IAA_list
 
 
-def remove_parenthesis(row: str):
+def remove_parenthesis(row: str) -> float:
+    """
+    Returns float from string list representation.
+    """
     if str(row).startswith("[S", 0):
         return extract_number(row, '(?<=fmeasure\=)\d.\d*')[0]
     if str(row).startswith("[t", 0):
@@ -821,7 +826,7 @@ def remove_parenthesis(row: str):
         return float(row)
 
 
-def string_to_list(row: str):
+def string_to_list(row: str) -> list:
     """
     Returns list from string representation.
     """
@@ -835,7 +840,10 @@ def string_to_list(row: str):
         return ast.literal_eval(str(row))
 
 
-def extract_number(row: str, exp: str):
+def extract_number(row: str, exp: str) -> list:
+    """
+    Returns list numbers from string representation.
+    """
     lst_1 = []
     lst_2 = []
     row = row.strip('][')
@@ -846,5 +854,3 @@ def extract_number(row: str, exp: str):
         score = re.search(exp, str(entry)).group()
         lst_2.append(float(score))
     return lst_2
-
-

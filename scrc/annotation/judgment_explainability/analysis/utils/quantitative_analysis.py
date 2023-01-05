@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore")
 
 """
 Contains functions for the quantitative analysis. Uses preprocessing.py and plots.py. 
-Is used by annotation_analysis and occlusion_analysis.
+Is used by annotation_analysis, lower_court and occlusion_analysis.
 """
 LANGUAGES = ["de", "fr", "it"]
 PERSONS = ["angela", "lynn", "thomas"]
@@ -443,31 +443,31 @@ def annotation_analysis():
                                            facts_count_df, legal_area_count_df])
         # Prepare plot tables
         pers_mean_df = pers_mean_df.drop(["label", "mean_token"], axis=1).fillna(0).groupby("annotator").sum()
-        plots.mean_plot_1(facts_count_df.drop(f"mean_legal_area").drop(f"mean_year", axis=1),
-                          labels=["Years", "Number of Tokens"],
-                          legend_texts=[la.replace("_", " ") for la in LEGAL_AREAS],
-                          ylim=[0, 600],
-                          title="Token over legal area and year Distribution",
-                          error_bars=pd.DataFrame(),
-                          mean_lines={},
-                          filepath=f"plots/ann_mean_tokens_year_legal_area_{l}.png")
+        plots.ann_distribution_plot(facts_count_df.drop(f"mean_legal_area").drop(f"mean_year", axis=1),
+                                    ax_labels=["Years", "Number of Tokens"],
+                                    legend_texts=[la.replace("_", " ") for la in LEGAL_AREAS],
+                                    ylim=[0, 600],
+                                    title="Token over legal area and year Distribution",
+                                    error_bars=pd.DataFrame(),
+                                    mean_lines={},
+                                    filepath=f"plots/ann_mean_tokens_year_legal_area_{l}.png")
 
         legend = [f"mean {label.lower()}" for label in LABELS_OCCLUSION[:-1]]
-        plots.mean_plot_1(pers_mean_df[[f"{label.lower().replace(' ', '_')}_mean_token" for label in LABELS]],
-                          labels=["Annotators", "Number of Tokens"],
-                          legend_texts=legend + [f"mean tokens {label.lower()}"
+        plots.ann_distribution_plot(pers_mean_df[[f"{label.lower().replace(' ', '_')}_mean_token" for label in LABELS]],
+                                    ax_labels=["Annotator", "Number of Tokens"],
+                                    legend_texts=legend + [f"mean tokens {label.lower()}"
                                                  for label in LABELS_OCCLUSION[:-1]],
-                          ylim=[0, 140],
-                          title="Token Distribution of Annotation Labels",
-                          error_bars=pers_mean_df[[f"{label.lower().replace(' ', '_')}_error" for label in LABELS]],
-                          mean_lines={f"mean_tokens_{label.lower().replace(' ', '_')}":
+                                    ylim=[0, 140],
+                                    title="Token Distribution of Annotation Labels",
+                                    error_bars=pers_mean_df[[f"{label.lower().replace(' ', '_')}_error" for label in LABELS]],
+                                    mean_lines={f"mean_tokens_{label.lower().replace(' ', '_')}":
                                           list(pers_mean_df[f"{label.lower().replace(' ', '_')}_mean"].values)[0]
                                       for label in LABELS},
-                          filepath=f"plots/ann_mean_tokens_exp_labels_{l}.png")
+                                    filepath=f"plots/ann_mean_tokens_exp_labels_{l}.png")
 
         multilingual_mean_df_list.append(label_mean_df.reset_index())
     # Mean token plot
-    plots.multilingual_annotation_plot(multilingual_mean_df_list)
+    plots.multilingual_ann_plot(multilingual_mean_df_list)
     # IAA extraction Sets
     colors = [[COLORS["purple"], COLORS["dark green"], COLORS["dark blue"]],
               [COLORS["light purple"], COLORS["green"], COLORS["blue"]]]
@@ -493,19 +493,19 @@ def annotation_analysis():
                       title="BERTScore/METEOR Score Score of Annotations",
                       filepath="plots/ann_be_me.png", legendpath="plots/ann_o_be_me_legend_{}.png",
                       annotation='Agreement between {}', colors=colors)
-    preprocessing.write_IAA_table_annotations(preprocessing.prepare_scores_IAA_Agreement_plots("de", [1, 2], "{}/{}_{}_{}.csv",
-                                                                                               ['annotations_de',
+    preprocessing.write_IAA_table_ann(preprocessing.prepare_scores_IAA_Agreement_plots("de", [1, 2], "{}/{}_{}_{}.csv",
+                                                                                       ['annotations_de',
                                                                                     'tokens_text_angela',
                                                                                     'tokens_text_lynn',
                                                                                     'tokens_text_thomas'], LABELS,
-                                                                                               IAA_List)[:-3],
+                                                                                       IAA_List)[:-3],
                                   "tables/ann_IAA_1{}.csv", LABELS)
-    preprocessing.write_IAA_table_annotations(preprocessing.prepare_scores_IAA_Agreement_plots("de", [1, 2], "{}/{}_{}_{}.csv",
-                                                                                               ['annotations_de',
+    preprocessing.write_IAA_table_ann(preprocessing.prepare_scores_IAA_Agreement_plots("de", [1, 2], "{}/{}_{}_{}.csv",
+                                                                                       ['annotations_de',
                                                                                     'tokens_text_angela',
                                                                                     'tokens_text_lynn',
                                                                                     'tokens_text_thomas'], LABELS,
-                                                                                               IAA_List)[3:],
+                                                                                       IAA_List)[3:],
                                   "tables/ann_IAA_2{}.csv", LABELS)
 
 
@@ -539,12 +539,12 @@ def lower_court_analysis():
         preprocessing.write_json(f"{l}/quantitative/lower_court_analysis_{l}.json", lower_court_dict)
 
         # Lower court has flipped distribution plots
-        plots.create_lc_group_by_flipped_plot(l, lower_court_df, ["lower_court", "has_not_flipped", "has_flipped"],
-                                              label_texts=["Lower Court", "Ratio of Experiments"],
-                                              legend_texts=[f"{lst[0]}flipped Prediction {lst[1]}" for lst in
+        plots.create_lc_flipped_plot(l, lower_court_df, ["lower_court", "has_not_flipped", "has_flipped"],
+                                     label_texts=["Lower Court", "Ratio of Experiments"],
+                                     legend_texts=[f"{lst[0]}flipped Prediction {lst[1]}" for lst in
                                                             [["not ", 0], ["", 0], ["not ", 1], ["", 1]]],
-                                              title=f"Distribution of flipped Experiments per Lower Court",
-                                              filepath=f'plots/lc_flipped_distribution_{l}.png')
+                                     title=f"Distribution of flipped Experiments per Lower Court",
+                                     filepath=f'plots/lc_flipped_distribution_{l}.png')
 
         # Lower court legal area distribution plots
         legal_area_distribution, legal_area_conf = get_lc_la_distribution(
@@ -552,8 +552,20 @@ def lower_court_analysis():
         distribution_df = get_lc_distribution(lower_court_df)
         preprocessing.write_csv(f"tables/lc_distribution_{l}.csv",
                                 distribution_df.reset_index())
+        # lower_court legal_area distribution plot
         legal_area_distribution[LEGAL_AREAS] = legal_area_distribution[LEGAL_AREAS].mul(distribution_df["count"], axis=0)
-        plots.create_lc_la_distribution_plot(l, legal_area_distribution.set_index("lower_court").T)
+        lc_la_df = legal_area_distribution.set_index("lower_court").T
+        plots.distribution_plot(len(lc_la_df.columns),
+                                lc_la_df.reindex(sorted(lc_la_df.columns), axis=1), rows=LEGAL_AREAS,
+                                ax_labels=["Lower Court", "Ratio of Experiments"],
+                                x_labels=[i + 1 for i in range(0, len(sorted(list(lc_la_df.columns))))],
+                                legend_texts=tuple([la.replace("_", " ") for la in LEGAL_AREAS]),
+                                ylim=[],
+                                errorbars=pd.DataFrame(),
+                                title=f"Lower Court distribution over Legal Area",
+                                filepath=f'plots/lc_distribution_la_{l}.png')
+
+
 
         # Lower court distribution table
 
@@ -564,17 +576,16 @@ def lower_court_analysis():
         lower_court_df_dict[f"{l}_mu"] = prepare_ttest_df(baseline_df, lower_court_df, "lower_court")
 
     # Lower court effect plots
-    plots.create_effect_plot(lower_court_df_dict,
-                             cols=["lower_court", "mean_norm_explainability_score"],
-                             label_texts=["Explainability Score", "Lower Court"],
-                             legend_texts=["Prediction 0: Exp_Score > 0","Prediction 1: Exp_Score > 0",
+    plots.create_lc_effect_plot(lower_court_df_dict,
+                                cols=["lower_court", "mean_norm_explainability_score"],
+                                label_texts=["Explainability Score", "Lower Court"],
+                                legend_texts=["Prediction 0: Exp_Score > 0","Prediction 1: Exp_Score > 0",
                                            "Prediction 0: Exp_Score >> 0", "Prediction 1: Exp_Score >> 0",
                                            "Prediction 0: Exp_Score < 0", "Prediction 1: Exp_Score < 0",
                                            "Prediction 0: Exp_Score << 0", "Prediction 1: Exp_Score << 0"],
-                             xlim=[-0.09, 0.09],
-                             title=f"Mean Explainability Scores in both directions (with Significance)",
-                             filepath='plots/lc_effect_mean_{}.png')
-
+                                xlim=[-0.09, 0.09],
+                                title="Mean Explainability Scores in both directions (with Significance) {}",
+                                filepath='plots/lc_effect_mean_{}.png')
 
 
 def occlusion_analysis():
@@ -582,7 +593,6 @@ def occlusion_analysis():
     @Todo Comment & clean up
     Very important note!!!!!!! Only cases from test set were accepted in occlusion!
     """
-    flipped_df_dict = {nr: [] for nr in NUMBER_OF_EXP}
     scatter_plot_dict = {l: {'c_o': [], 'c_s': [], 'f_o': [], 'f_s': [], 'o': [], 's': []} for l in LANGUAGES}
 
     multilingual_mean_length_dict = {}
@@ -593,9 +603,6 @@ def occlusion_analysis():
             occlusion_df = preprocessing.read_csv(OCCLUSION_PATHS["analysis"][1].format(l, nr, l), "index")
             baseline_df = preprocessing.get_baseline(occlusion_df)
             occlusion_df = preprocessing.remove_baseline(occlusion_df)
-
-            # Occlusion has flipped plots preparation
-            flipped_df_dict[nr].append(occlusion_df)
 
             # Append to multilingual lists
             multilingual_mean_length_dict[nr].append(get_occlusion_label_mean(occlusion_df)[1])
@@ -609,7 +616,6 @@ def occlusion_analysis():
 
             # Prepare json scores
             occlusion_dict = {"number of distinct cases": len(list(baseline_df["id"].values)),
-                              "number of has flipped(T/F/Total)": list(count_has_flipped(occlusion_df)),
                               "mean sentence length": get_occlusion_label_mean(occlusion_df)[0],
                               "mean number of sentences": get_number_of_sentences(occlusion_df),
                               "number of correct classification": score_1.to_dict(),
@@ -628,8 +634,8 @@ def occlusion_analysis():
             o_judgement_c, s_judgement_c = split_oppose_support_correct(correct_classification)
             # IAA scores calculation
             # Keep this commented except if running on Ubelix
-            scores.write_IAA_to_csv_occlusion(s_judgement_f, l, f"{l}/occ_supports_judgment_{l}_{nr}.csv")
-            scores.write_IAA_to_csv_occlusion(o_judgement_f, l, f"{l}/occ_opposes_judgment_{l}_{nr}.csv")
+            #scores.write_IAA_to_csv_occlusion(s_judgement_f, l, f"{l}/occ_supports_judgment_{l}_{nr}.csv")
+            #scores.write_IAA_to_csv_occlusion(o_judgement_f, l, f"{l}/occ_opposes_judgment_{l}_{nr}.csv")
             preprocessing.write_csv(f"{l}/c_occ_opposes_judgment_{l}_{nr}.csv", o_judgement_c)
             preprocessing.write_csv(f"{l}/c_occ_supports_judgment_{l}_{nr}.csv", s_judgement_c)
 
@@ -654,11 +660,9 @@ def occlusion_analysis():
         prediction_df = pd.DataFrame.from_dict(prediction_dict).T
         preprocessing.write_csv(f"tables/prediction_distribution_{nr}.csv", prediction_df)
     # Scatter plot
-    plots.preprocessing_scatter_plot(scatter_plot_dict)
-    # Occlusion flipped plots
-    plots.create_occ_group_by_flipped_plot(flipped_df_dict)
+    plots.create_occ_scatter_plot(scatter_plot_dict)
     # Occlusion mean token distribution
-    plots.create_multilingual_occlusion_plot(multilingual_mean_length_dict)
+    plots.create_multilingual_occ_plot(multilingual_mean_length_dict)
     colors = [[COLORS["dark green"], COLORS["dark blue"]], [COLORS["green"], COLORS["blue"]]]
     for l in LANGUAGES:
         IAA_df_list = preprocessing.prepare_scores_IAA_Agreement_plots(l, NUMBER_OF_EXP,
@@ -669,7 +673,7 @@ def occlusion_analysis():
                           [[f"bert_score_{label.lower().replace(' ', '_')}" for label in LABELS[1:]],
                            []],
                           legend_texts=["BERTScore"],
-                          title="BERTScore Score between Human and Model",
+                          title=f"BERTScore between Human and Model {l.upper()}",
                           filepath=f"plots/occ_be_{l}.png", legendpath="plots/occ_o_be_legend_{}.png",
                           annotation="Occlusion with {} Sentences", colors=colors[:-1])
         preprocessing.write_IAA_table_occlusion(IAA_df_list, f"tables/occ_IAA_{l}{{}}.csv",LABELS[1:])

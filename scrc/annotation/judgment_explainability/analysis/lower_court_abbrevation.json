@@ -25,7 +25,7 @@
     "du Tribunal cantonal du canton de Vaud": "VD_TC",
     "Tribunal cantonal du canton de Vaud": "VD_TC",
     "Tribunal f\u00e9d\u00e9ral": "CH_BGer",
-    "Tribunal administratif f\u00e9d\u00e9ral": "CH_BVGE",
+    "Tribunal administratif f\u00e9d\u00e9ral": "CH_BVGer",
     "Cour de droit public du Tribunal cantonal du canton de Neuch\u00e2tel": "NE_CPuTC",
     "Cour d'appel p\u00e9nale du Tribunal cantonal du canton de Vaud": "VD_CAPPe",
     "Cour d'appel civil du Tribunal cantonal fribourgeois": "FR_CAPCiv",
@@ -60,6 +60,6 @@
     "Corte dei reclami penali del Tribunale d'appello": "TI_CRPTA",
     "Camera di protezione del Tribunale d'appello del Cantone Ticino": "TI_CPTRAP",
     "Tribunale amministrativo del Cantone dei Grigioni": "GR_VG",
-    "Tribunale amministrativo federale": "CH_BVGE"
+    "Tribunale amministrativo federale": "CH_BVGer"
   }
 }

@@ -88,10 +88,10 @@ def calculate_text_scores_occlusion(df: pd.DataFrame, lang: str) -> (pd.DataFram
     bleu_list = []
     for value_list in df[["index", "occluded_text_model", "occluded_text_human"]].values:
         rouge_list = calculate_rouge_score(value_list[0], [(value_list[1], value_list[2])], rouge_list, lang)
-        bert_list = calculate_bert_score(value_list[0], [(value_list[1], value_list[2])], bert_list, lang)
-        meteor_list = calculate_meteor_score(value_list[0], [(value_list[1], value_list[2])], meteor_list, lang)
+        #bert_list = calculate_bert_score(value_list[0], [(value_list[1], value_list[2])], bert_list, lang)
+        meteor_list = calculate_meteor_score(value_list[0], [(word_tokenize(value_list[1]), word_tokenize(value_list[2]))], meteor_list, lang)
         bleu_list = calculate_bleu_score(value_list[0], [(value_list[1], value_list[2])], bleu_list, lang)
-    return pd.DataFrame.from_records(rouge_list), pd.DataFrame.from_records(bert_list), pd.DataFrame.from_records(
+    return pd.DataFrame.from_records(rouge_list), pd.DataFrame.from_records(bleu_list), pd.DataFrame.from_records(
         meteor_list), pd.DataFrame.from_records(bleu_list)
 
 
@@ -184,7 +184,7 @@ def calculate_jaccard_similarity_distance_annotation(df: pd.DataFrame, lang) -> 
         [f'annotations_{lang}', f"normalized_tokens_{PERSONS[0]}", f"normalized_tokens_{PERSONS[1]}",
          f"normalized_tokens_{PERSONS[2]}", 'normalized_tokens_dict']].values:
         jaccard = {f'annotations_{lang}': value_list[0], "jaccard_similarity": [], "jaccard_distance": []}
-        value_list[1:-1] = preprocessing.normalize_list_length(value_list[1:-1], value_list[-1])
+        value_list[1:-1] = normalize_list_length(value_list[1:-1], value_list[-1])
         combinations = preprocessing.get_combinations(value_list[1:-1], 2)
         for comb in combinations:
             set_1, set_2 = set(list(comb[0])), set(list(comb[1]))
@@ -210,7 +210,7 @@ def calculate_jaccard_similarity_distance_occlusion(df: pd.DataFrame) -> pd.Data
     for value_list in df.copy()[["index", "occluded_text_model", "occluded_text_human"]].values:
         jaccard = {"index": value_list[0], "jaccard_similarity": 0, "jaccard_distance": 0}
         tokens_model, tokens_human = word_tokenize(value_list[1]), word_tokenize(value_list[2])
-        tokens_normalized = preprocessing.normalize_list_length([tokens_model, tokens_human], {"Nan": "Nan"})
+        tokens_normalized = normalize_list_length([tokens_model, tokens_human],{"Nan": "Nan"})
         set_1, set_2 = set(list(tokens_normalized[0])), set(list(tokens_normalized[1]))
         # Find intersection of two sets
         nominator_1 = set_1.intersection(set_2)
@@ -223,6 +223,7 @@ def calculate_jaccard_similarity_distance_occlusion(df: pd.DataFrame) -> pd.Data
         jaccard["jaccard_distance"] = len(nominator_2) / len(denominator)
         jaccard_list.append(jaccard)
     return pd.DataFrame.from_records(jaccard_list)
+
 
 
 def calculate_rouge_score(i: int, text_combinations: list, rouge_list: list, lang: str) -> list:
@@ -358,3 +359,18 @@ def apply_aggregation(df: pd.DataFrame, column_name, aggregation: str):
     if aggregation == "min":
         df["{}_{}".format(aggregation, column_name)] = pd.DataFrame(df[column_name].values.tolist()).min(1)
     return df
+
+def normalize_list_length(list_of_list: list, token_dict: dict) -> (list, list):
+    """
+    Appends "Nan" to normalize list length (make them same length).
+    Returns lists.
+    """
+    max_length = max(len(x) for x in list_of_list)
+    for lst in list_of_list:
+        index = list(list_of_list).index(lst)
+        if NAN_KEY in lst:
+            while len(lst) < max_length:
+                lst.append(token_dict["Nan"])
+            list_of_list[index] = lst
+
+    return list_of_list
