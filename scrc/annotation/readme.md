@@ -36,7 +36,11 @@ The judgment explainability and the prediction task need their own dataset which
 For more information on how to run the task please consult the documentation in ``run.sh``.
 ### Judgment explainability
 
-Contains the `facts_annotation recipe` and `inspect-facts_annotation recipe`, which allows to annotate the facts of a ruling using a span_manual task.
+Contains the `facts_annotation recipe` and `inspect-facts_annotation recipe`, which allows to annotate the facts of a ruling 
+using a span_manual task. This sub-project also contains scripts two produce occlusion test sets 
+``judgment_explainability\occlusion``and tools to analyse the annotation and the results from the occlusion 
+experiments (``judgment_explainability\analysis``).
+
 
 ### Judgment prediction
 
