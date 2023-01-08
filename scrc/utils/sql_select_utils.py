@@ -11,6 +11,7 @@ from transformers.file_utils import add_code_sample_docstrings
 from scrc.enums.cantons import Canton
 from scrc.enums.chamber import Chamber
 import ast
+import re
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -472,6 +473,11 @@ def get_legal_area(chamber: int):
 
 
 def get_legal_area_bger(chamber_number):
+    temp = list(map(int, re.findall(r'\d+', chamber_number)))
+    if len(temp) > 0:
+        number = temp[0]
+    else:
+        return "other"
     switch = {
         1: 'public_law',
         2: 'public_law',
@@ -481,4 +487,4 @@ def get_legal_area_bger(chamber_number):
         8: 'social_law',
         9: 'social_law'
     }
-    return switch.get(chamber_number, "other")
+    return switch.get(number, "other")

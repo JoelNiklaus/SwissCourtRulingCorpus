@@ -10,6 +10,8 @@ from pathlib import Path
 import numpy as np
 import os
 
+from scrc.utils.sql_select_utils import get_legal_area_bger
+
 
 class ReportCreator:
     """
@@ -74,8 +76,7 @@ class ReportCreator:
             label_counts.to_csv(self.folder / f"{label_name}_distribution.csv", index_label='label')
 
             if order:
-                ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', x='label',
-                                                                                    rot=15, category_orders=order)
+                ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
             else:
                 ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
             ax.get_figure().savefig(self.folder / f"{label_name}_distribution.png", bbox_inches="tight")
@@ -248,14 +249,11 @@ class ReportCreator:
         self.plot_two_attributes(citations_amount_df, 'counter', 'number of decisions', 'citations', how='histogram')
 
     def report_references(self, df):
-        if not os.path.exists(self.folder / 'bge_references'):
-            pass
-        else:
-            plot_attributes = ['bge_chamber', 'legal_area', 'bger_chamber', 'year']
-            for attribute in plot_attributes:
-                self.plot_attribute(df, attribute, name='references')
-            self.plot_attribute_color(df, 'year', 'bge_chamber', 'references')
-            self.plot_attribute_color(df, 'year', 'legal_area', 'references')
+        plot_attributes = ['bge_chamber', 'legal_area', 'bger_chamber', 'year']
+        for attribute in plot_attributes:
+            self.plot_attribute(df, attribute, name='references')
+        self.plot_attribute_color(df, 'year', 'bge_chamber', 'references')
+        self.plot_attribute_color(df, 'year', 'legal_area', 'references')
 
     def report_references_not_found(self, not_found_list, label):
         """
@@ -270,17 +268,18 @@ class ReportCreator:
             for item in updated_list:
                 f.write(f"{item}\n")
         # report
-        df = pd.DataFrame({'chamber': [], 'year': []})
+        df = pd.DataFrame({'chamber': [], 'year': [], 'legal_area': []})
         for item in updated_list:
             chamber = item.split('_', 2)[0]
+            legal_area = get_legal_area_bger(chamber)
             # TODO get nice representation of chamber
             chamber = chamber[0]
             year = int(item.split('/', 2)[1])
-            s_row = pd.Series([chamber, year], index=df.columns)
+            s_row = pd.Series([chamber, year, legal_area], index=df.columns)
             df = df.append(s_row, ignore_index=True)
         df = df[df['year'] > 2000]
         df = df[df['year'] < 2030]
-        self.plot_attribute_color(df, 'year', 'chamber', 'references_not_found')
+        self.plot_attribute_color(df, 'year', 'legal_area', 'references_not_found')
 
     def test_correctness_of_labeling(self, not_found_list, references_df):
         """

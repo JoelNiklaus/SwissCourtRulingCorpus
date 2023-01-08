@@ -17,8 +17,9 @@ from scrc.utils.main_utils import get_config
 from scrc.utils.log_utils import get_logger
 from collections import Counter
 from scrc.utils.sql_select_utils import get_legal_area_bger
-import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
+# import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
 
+from datasets import load_dataset, ClassLabel
 
 from scrc.enums.split import Split
 
@@ -56,14 +57,14 @@ class CriticalityDatasetCreator(DatasetCreator):
     as bge or not.
     """
 
-    def __init__(self, config: dict, debug: bool = False):
+    def __init__(self, config: dict, debug: bool = True):
         super().__init__(config, debug)
         self.logger = get_logger(__name__)
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
-        self.available_bges = self.load_rulings()
-        self.references_df = self.extract_bge_references()
+        # self.available_bges = self.load_rulings()
+        # self.references_df = self.extract_bge_references()
         self.labels = ['bge_label', 'citation_label']
         self.count_all_cits = False
         self.first_year = 2001
@@ -146,8 +147,9 @@ class CriticalityDatasetCreator(DatasetCreator):
         citation_labels, _ = list(np.unique(np.hstack(df.citation_label), return_index=True))
         label_list = [bge_labels, citation_labels]
         self.logger.info("finished criticality")
-        dataset = datasets.Dataset.from_pandas(df)
-        return dataset, label_list
+        # dataset = datasets.Dataset.from_pandas(df)
+        # return dataset, label_list
+        return df, label_list
 
     def set_criticality_label(self, df, criticality_list, label):
         """
@@ -320,9 +322,113 @@ class CriticalityDatasetCreator(DatasetCreator):
             report_creator.plot_label_ordered(df[~match].rename(columns={'citation_label': 'label'}, inplace=False),
                                               'citation_label', order=order_dict)
 
+    def save_dataset(self, df, labels: list, folder: Path,
+                     split_type="date-stratified", sub_datasets=False, kaggle=False, save_reports=False):
+        """
+        creates all the files necessary for a kaggle dataset from a given df
+        :param df:     the huggingface dataset to save
+        :param labels:      list of all the labels
+        :param folder:      where to save the files
+        :param split_type:  "date-stratified", "random", or "all_train"
+        :param sub_datasets:whether or not to create the special sub dataset for testing of biases
+        :param kaggle:      whether or not to create the special kaggle dataset
+        :param save_reports:whether or not to compute and save reports
+        :return:
+        """
+        self.logger.info("Using save method specified in criticality_dataset_creator.")
+        # filter out examples with short feature cols dataset before saving it
+        for feature_col in self.get_feature_col_names():
+            match = df[f'{feature_col}_num_tokens_bert'] > self.minFeatureColLength
+            df.loc[~match, feature_col] = np.nan
+        a = len(df.index)
+        df = df.dropna(subset=self.get_feature_col_names(), how='all')
+        self.logger.info(f"There were {a - len(df.index)} cases dropped because all feature cols were too short.")
+        df = df.reset_index(drop=True)  # reindex to get nice indices
+
+        self.logger.info("start creating splits")
+        splits = self.create_splits(df, split_type)
+        self.save_huggingface_dataset(splits, folder)
+        self.save_splits(splits, labels, folder, save_reports=save_reports)
+
+        self.logger.info(f"Saved dataset files to {folder}")
+        return splits
+
+    def split_date_stratified(self, df, start_years: dict):
+        """
+        Splits the dataset into train, val and test based on the date
+        :param dataset:            the dataset to be split
+        :param start_years:   the years when to start each split
+        :return:
+        """
+        train = df[df.year.isin(range(start_years["train"], start_years["validation"]))]
+        val = df[df.year.isin(range(start_years["validation"], start_years["test"]))]
+        test = df[df.year.isin(range(start_years["test"], start_years["secret_test"]))]
+        secret_test = df[df.year.isin(range(start_years["secret_test"], self.current_year + 1))]
+        return train, val, test, secret_test
+
+    def save_huggingface_dataset(self, splits, folder):
+        """
+        save data as huggingface dataset with columns:
+        'id', 'date', 'year', 'language',
+        'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'legal_area',
+        'bge_label', 'citation_label', all feature cols
+        :param splits:      specifying splits of dataset
+        :param folder:      name of folder
+        """
+        huggingface_dir = self.create_dir(folder, 'huggingface')
+        self.logger.info(f"Generating huggingface dataset at {huggingface_dir}")
+
+        for split, dataset in splits.items():
+            cols_to_include = ['decision_id', 'language'] + self.metadata + self.labels + self.get_feature_col_names()
+            cols_to_remove = [col for col in dataset.columns if col not in cols_to_include]
+            dataset = dataset.drop(cols_to_remove, axis=1)
+            hf_file = f'{huggingface_dir}/{split}.jsonl'
+
+            self.logger.info(f"Saving {split} dataset at {hf_file}")
+            dataset.to_json(hf_file, orient='records', lines=True, force_ascii=False)
+
+            self.logger.info(f"Compressing {split} dataset at {hf_file}")
+            os.system(f'xz -zkf -T0 {hf_file}')  # -TO to use multithreading
+
+    def extract_bger_citations(self):
+        """
+                Extract data from bger_citations_found.txt
+                :return:        dataframe containing bger_citations and bge_file_numbers
+                """
+        # get dict of bge references with corresponding bge file name
+        bge_references_file_path: Path = self.get_dataset_folder() / "bger_citations_found.txt"
+        if not bge_references_file_path.exists():
+            raise Exception("bger citations need to be extracted first. Run bger_citations_extractor.")
+        df = pd.DataFrame({'bge_file_number_long': [], 'bge_file_number_short': [], 'bger_citation': [], 'year': [],
+                           'bge_chamber': [], 'bger_chamber': [], 'legal_area': []})
+        counter = 0
+        with bge_references_file_path.open("r") as f:
+            for line in f:
+                counter += 1
+                if counter%100 == 0:
+                    self.logger.info(counter)
+                try:
+                    (bge_file_number_long, bger_citation) = line.split(' ')
+                    bger_chamber = bger_citation.split('_', 2)[0]
+                    legal_area = get_legal_area_bger(bger_chamber)
+                    year = int(bge_file_number_long.split('-', 5)[1]) + 1874
+                    bge_chamber = bge_file_number_long.split('_', 5)[2]
+                    bge_file_number_short = bge_file_number_long.split('_')[3]
+                    s_row = pd.Series(
+                        [bge_file_number_long, bge_file_number_short, bger_citation, year, bge_chamber, bger_chamber,
+                         legal_area],
+                        index=df.columns)
+                    df = df.append(s_row, ignore_index=True)
+                except KeyError:
+                    pass
+        self.logger.info(
+            f"Citations_df: There are {len(df.index)} entries with {len(df.bge_file_number_long.unique())} unique bge_filenumbers and {len(df.bger_citation.unique())} unique bger_citations.")
+        return df
+
 
 if __name__ == '__main__':
     config = get_config()
     criticality_dataset_creator = CriticalityDatasetCreator(config)
-    criticality_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=True)
+    # criticality_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=True)
     # criticality_dataset_creator.create_debug_dataset()
+    df = criticality_dataset_creator.extract_bger_citations()
