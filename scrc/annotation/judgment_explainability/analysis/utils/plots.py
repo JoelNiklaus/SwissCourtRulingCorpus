@@ -189,7 +189,8 @@ def ax_brah_1(ax, ind, df_long: pd.DataFrame, df: pd.DataFrame, col_y: str, col_
     Creates horizontal bars for not significant columns.
     """
     ax.barh((ind * 1.5) + 0.25,
-            preprocessing.normalize_df_length(df[df[f"significance_{col_y}"] == sign], col_x, list(df_long[col_x].values))[col_y],
+            preprocessing.normalize_df_length(df[df[f"significance_{col_y}"] == sign], col_x,
+                                              list(df_long[col_x].values))[col_y],
             color=color, hatch="//", edgecolor="black", height=0.5)
 
 
@@ -209,11 +210,11 @@ def horizontal_bar_effect_plot(df_0_pos: pd.DataFrame, df_0_neg: pd.DataFrame, d
 
     for tup in [(df_0_pos, False, colors["green"][0]), (df_0_pos, True, colors["green"][1]),
                 (df_0_neg, False, colors["purple"][0]), (df_0_neg, True, colors["purple"][1])]:
-        ax_brah_0(ax, ind,df_0_pos ,tup[0], col_y, col_x, tup[1], tup[2])
+        ax_brah_0(ax, ind, df_0_pos, tup[0], col_y, col_x, tup[1], tup[2])
 
     for tup in [(df_1_pos, False, colors["green"][0]), (df_1_pos, True, colors["green"][1]),
                 (df_1_neg, False, colors["purple"][0]), (df_1_neg, True, colors["purple"][1])]:
-        ax_brah_1(ax, ind,df_0_pos, tup[0], col_y, col_x, tup[1], tup[2])
+        ax_brah_1(ax, ind, df_0_pos, tup[0], col_y, col_x, tup[1], tup[2])
 
     set_texts(ax, label_texts, labels, title, len(labels), "h", 0, 9)
 

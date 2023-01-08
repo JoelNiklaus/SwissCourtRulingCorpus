@@ -327,7 +327,7 @@ def join_to_dict(df: pd.DataFrame, col_1: str, col_2: str, new_col: str) -> pd.D
     return df
 
 
-def get_label_df(lang: str, spans_df: pd.DataFrame, tokens_df: pd.DataFrame, label: str)-> pd.DataFrame:
+def get_label_df(lang: str, spans_df: pd.DataFrame, tokens_df: pd.DataFrame, label: str) -> pd.DataFrame:
     """
     Gets the text annotation for explainability label from dictionaries.
     Returns Dataframe containing text for  explainability label.

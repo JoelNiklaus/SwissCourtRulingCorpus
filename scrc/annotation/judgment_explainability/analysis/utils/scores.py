@@ -121,7 +121,9 @@ def calculate_text_scores_occ(df: pd.DataFrame, lang: str) -> (pd.DataFrame, pd.
     for value_list in df[["index", "occluded_text_model", "occluded_text_human"]].values:
         rouge_list = calculate_rouge_score(value_list[0], [(value_list[1], value_list[2])], rouge_list, lang)
         bert_list = calculate_bert_score(value_list[0], [(value_list[1], value_list[2])], bert_list, lang)
-        meteor_list = calculate_meteor_score(value_list[0], [(word_tokenize(value_list[1]), word_tokenize(value_list[2]))], meteor_list, lang)
+        meteor_list = calculate_meteor_score(value_list[0],
+                                             [(word_tokenize(value_list[1]), word_tokenize(value_list[2]))],
+                                             meteor_list, lang)
         bleu_list = calculate_bleu_score(value_list[0], [(value_list[1], value_list[2])], bleu_list, lang)
     return pd.DataFrame.from_records(rouge_list), pd.DataFrame.from_records(bleu_list), pd.DataFrame.from_records(
         meteor_list), pd.DataFrame.from_records(bleu_list)
@@ -244,7 +246,7 @@ def calculate_jaccard_similarity_distance_occ(df: pd.DataFrame) -> pd.DataFrame:
     for value_list in df.copy()[["index", "occluded_text_model", "occluded_text_human"]].values:
         jaccard = {"index": value_list[0], "jaccard_similarity": 0, "jaccard_distance": 0}
         tokens_model, tokens_human = word_tokenize(value_list[1]), word_tokenize(value_list[2])
-        tokens_normalized = normalize_list_length([tokens_model, tokens_human],{"Nan": "Nan"})
+        tokens_normalized = normalize_list_length([tokens_model, tokens_human], {"Nan": "Nan"})
         set_1, set_2 = set(list(tokens_normalized[0])), set(list(tokens_normalized[1]))
         # Find intersection of two sets
         nominator_1 = set_1.intersection(set_2)
