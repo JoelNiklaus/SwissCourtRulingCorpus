@@ -21,7 +21,7 @@ project structure
 │       │   ├── guidelines (Contains pdfs and .tex of guidelines)
 │       │   ├── occlusion (Contains experiment_creator and experiment_creator script)
 │       │   └── recipes (Contains prodigy recipes)
-│       └── prodigy_dataset_creation (Contains the script to create the annotaion datasets)
+│       └── prodigy_dataset_creation (Contains the script to create the annotation datasets)
 │
 ...
 
