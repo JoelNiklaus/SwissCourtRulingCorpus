@@ -22,17 +22,6 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
         return get_pdf_paragraphs(decision)
     return get_paragraphs_unified(decision)
 
-def LU_Gerichte(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optional[Dict[Section, List[str]]]:
-    """
-    :param decision:    the decision parsed by bs4 or the string extracted of the pdf
-    :param namespace:   the namespace containing some metadata of the court decision
-    :return:            the sections dict (keys: section, values: list of paragraphs)
-    """
-    paragraphs = []
-    for string in decision.strings:
-        paragraphs.append(string)
-    return list(filter(clean_text, paragraphs))
-
 
 def get_pdf_paragraphs(soup: str) -> list:
     """

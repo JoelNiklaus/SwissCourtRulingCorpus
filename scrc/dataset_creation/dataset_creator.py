@@ -716,19 +716,20 @@ class DatasetCreator(AbstractPreprocessor):
                 # without the feature_cols, the dataset should fit into RAM
                 # Additionally, we don't want to save the long text columns to the csv files because it becomes unreadable
                 self.logger.info(f"Exporting metadata columns of dataset to pandas dataframe for easier plotting")
-                #TODO this code needs to be changed
+                # df = dataset.remove_columns(self.get_feature_col_names()).to_pandas()
+                # TODO this code needs to be changed
                 df = dataset
                 df = df.drop(self.get_feature_col_names(), axis=1)
-            if save_reports:
-                self.logger.info(f"Computing metadata reports")
-                self.save_report(folder, split, df)
+                if save_reports:
+                    self.logger.info(f"Computing metadata reports")
+                    self.save_report(folder, split, df)
 
-            if save_csvs:
-                if isinstance(save_csvs, list):
-                    if split not in save_csvs:
-                        continue  # Only save if the split is in the list
-                self.logger.info("Saving csv file")
-                df.to_csv(folder / f"{split}.csv", index_label='id', index=False)
+                if save_csvs:
+                    if isinstance(save_csvs, list):
+                        if split not in save_csvs:
+                            continue  # Only save if the split is in the list
+                    self.logger.info("Saving csv file")
+                    df.to_csv(folder / f"{split}.csv", index_label='id', index=False)
 
     def create_splits(self, dataset, split_type, include_all=False):
         # TODO is the .value of the Split enum really necessary? It probably also works without
