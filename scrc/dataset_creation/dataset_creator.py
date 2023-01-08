@@ -4,6 +4,7 @@ import math
 import os
 import sys
 import gc
+import time
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -156,7 +157,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.debug = debug
         self.seed = 42
-        self.minFeatureColLength = 10  # tokens
+        self.minFeatureColLength = 100  # characters
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
@@ -296,25 +297,33 @@ class DatasetCreator(AbstractPreprocessor):
         datasets_list = []
         label_concat = None
 
+        exception_courts = []
         for court_string in tqdm(court_list):
-            self.logger.info(f"Creating dataset for {court_string}")
-            dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
+            try:
+                self.logger.info(f"Creating dataset for {court_string}")
+                dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
+                self.logger.info("labels", labels)
 
-            if len(dataset) <= 1:
-                self.logger.info(f"Dataset for {court_string} could not be created")
-                not_created.append(court_string)
-            else:
-                if concatenate:  # save all of them together in the end
-                    datasets_list.append(dataset)
-                    # TODO maybe it would make more sense to take the union of all the labels
-                    label_concat = labels if label_concat is None else label_concat  # takes the first label
-                else:  # save each dataset separately
-                    save_path = self.create_dir(self.get_dataset_folder(), court_string)
-                    self.save_dataset(dataset, labels, save_path, self.split_type,
-                                      sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
-                created.append(court_string)
-            self.logger.info(f"Empty courts: {not_created}")
-            self.logger.info(f"Created courts: {created}")
+                if len(dataset) <= 1:
+                    self.logger.info(f"Dataset for {court_string} could not be created")
+                    not_created.append(court_string)
+                else:
+                    if concatenate:  # save all of them together in the end
+                        datasets_list.append(dataset)
+                        # TODO maybe it would make more sense to take the union of all the labels
+                        label_concat = labels if label_concat is None else label_concat  # takes the first label
+                    else:  # save each dataset separately
+                        save_path = self.create_dir(self.get_dataset_folder(), court_string)
+                        self.save_dataset(dataset, labels, save_path, self.split_type,
+                                          sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+                    created.append(court_string)
+                self.logger.info(f"Empty courts: {not_created}")
+                self.logger.info(f"Created courts: {created}")
+                self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts}")
+            except Exception as e:
+                exception_courts.append({court_string: e})
+                self.logger.error(f"Exception for {court_string}: {e}")
+                continue
 
         if concatenate:
             self.logger.info("Concatenating datasets")
@@ -337,6 +346,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.logger.info(f"{len(not_created)} courts not created (since it was empty): {not_created}")
         self.logger.info(f"{len(created)} courts created: {created}")
+        self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts}")
 
     def get_all_courts(self):
         try:
@@ -439,20 +449,19 @@ class DatasetCreator(AbstractPreprocessor):
         decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
 
         if data_to_load['section']:
-            df = self.load_section(decision_ids, df, engine, court_string)
+            df = self.load_section(df, engine, court_string)
         if data_to_load['file']:
             df = self.load_file(df, engine)
         if data_to_load['file_number']:
-            df = self.load_file_number(decision_ids, df, engine)
+            df = self.load_file_number(df, engine)
         if data_to_load['judgment']:
-            df = self.load_judgment(decision_ids, df, engine)
+            df = self.load_judgment(df, engine)
         if data_to_load['citation']:
             df = self.load_citation(decision_ids, df, engine)
         if data_to_load['lower_court']:
             df = self.load_lower_court(decision_ids, df, engine, court_string)
 
         df.drop_duplicates(subset=self.get_feature_col_names(), inplace=True)
-
         self.logger.info("Finished loading the data from the database")
         if use_cache:
             save_df_to_cache(df, cache_file)
@@ -465,11 +474,14 @@ class DatasetCreator(AbstractPreprocessor):
         where = f"d.decision_id IN {where_string_court('decision_id', court_string)}"
         return next(self.select(engine, table, columns, where, chunksize=self.get_chunksize()), pd.DataFrame())
 
-    def load_file_number(self, decision_ids, df, engine):
+    def load_file_number(self, df, engine):
+        decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
+
         self.logger.info('Loading File Number')
         table = f"{join_tables_on_decision(['file_number'])}"
         where = f"file_number.decision_id IN ({','.join(decision_ids)})"
-        file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()),
+        columns = 'file_number.decision_id, file_number'
+        file_number_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()),
                               pd.DataFrame())
         if file_number_df.empty:
             return df
@@ -481,16 +493,48 @@ class DatasetCreator(AbstractPreprocessor):
             file_number = file_number.replace(".", "_")
             return file_number
 
-        df['file_number'] = file_number_df['file_numbers'].map(get_one_file_number)
+        def extract_file_number(x):
+            # Split the string on ','
+            parts = x.split(',')
+            # Get the second part (the file number) and remove the quotes
+            file_number = parts[1].replace('"', '')
+            # replace {}() with ''
+            file_number = file_number.replace("{", "")
+            file_number = file_number.replace("}", "")
+            file_number = file_number.replace("(", "")
+            file_number = file_number.replace(")", "")
+            # Replace spaces with underscores
+            file_number = file_number.replace(' ', '_')
+            return file_number
+
+        file_number_df['file_number'] = file_number_df['file_number'].map(extract_file_number)
+        # cast every element in file_number_df['decision_id'] to string
+        file_number_df['decision_id'] = file_number_df['decision_id'].astype(str)
+        for index, row in file_number_df.iterrows():
+            df.loc[df['decision_id'] == row['decision_id'], 'file_number'] = row['file_number']
         return df
 
-    def load_section(self, decision_ids, df, engine, court_string):
+    def load_section(self, df, engine, court_string):
         # TODO this could probably be sped up if we just load the sections we need
         self.logger.info('Loading Section')
+
+        # add column 'sections' to df
+        df['sections'] = None
+
+        decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
         table = f"{join_tables_on_decision(['num_tokens'])}"
         where = f"section.decision_id IN ({','.join(decision_ids)})"
-        section_df = next(self.select(engine, table, "sections", where, None, self.get_chunksize()))
-        df['sections'] = section_df['sections']
+        section_df = next(self.select(engine, table, "sections, section.decision_id", where, None, self.get_chunksize()))
+
+        for index, row in tqdm(section_df.iterrows()):
+            decision_id = str(row['decision_id'])
+            # print if decision_id is in decision_ids
+            section = row['sections']
+            # Find the index of the row in df with the matching decision_id
+            df['decision_id'] = df['decision_id'].astype(str)
+            i = df.index[df['decision_id'] == decision_id].tolist()[0]
+            # Set the value of the 'sections' field at the index to the judgments
+            df.at[i, 'sections'] = section
 
         for feature_col in self.get_feature_col_names():
             df = self.expand_df(df, feature_col)
@@ -519,6 +563,7 @@ class DatasetCreator(AbstractPreprocessor):
         where = f"citation.decision_id IN ({','.join(decision_ids)})"
         citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()), pd.DataFrame())
         if not citations_df.empty:
+            assert len(citations_df) == len(df)
             df['citations'] = citations_df['citations'].astype(str)
         else:
             df['citations'] = ""
@@ -527,25 +572,45 @@ class DatasetCreator(AbstractPreprocessor):
     def load_file(self, df, engine):
         self.logger.info('Loading File')
         table = f"{join_tables_on_decision(['file'])}"
-        columns = 'file.file_name, file.html_url, file.pdf_url'
+        columns = 'file.file_name, file.html_url, file.pdf_url, file.file_id'
         file_ids = ["'" + str(x) + "'" for x in df['file_id'].tolist()]
         if len(file_ids) > 0:
             where = f"file.file_id IN ({','.join(file_ids)})"
             file_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
-            df['file_name'] = file_df['file_name']
-            df['html_url'] = file_df['html_url']
-            df['pdf_url'] = file_df['pdf_url']
+            assert len(file_df) == len(df)
+            # iterate through file_df and add file_name, html_url, pdf_url to df
+            for index, row in file_df.iterrows():
+                file_id = row['file_id']
+                file_name = row['file_name']
+                html_url = row['html_url']
+                pdf_url = row['pdf_url']
+                df.loc[df['file_id'] == file_id, 'file_name'] = file_name
+                df.loc[df['file_id'] == file_id, 'html_url'] = html_url
+                df.loc[df['file_id'] == file_id, 'pdf_url'] = pdf_url
         else:
             self.logger.info("file_ids empty")
         return df
 
-    def load_judgment(self, decision_ids, df, engine):
+    def load_judgment(self, df, engine):
         self.logger.info('Loading Judgments')
+        decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
+
         table = f"{join_tables_on_decision(['judgment'])}"
         where = f"judgment_map.decision_id IN ({','.join(decision_ids)})"
-        judgments_df = next(self.select(engine, table, "judgments", where, None, self.get_chunksize()), pd.DataFrame())
+        judgments_df = next(self.select(engine, table, "judgments, judgment_map.decision_id", where, None, self.get_chunksize()), pd.DataFrame())
+
         if not judgments_df.empty:
-            df['judgments'] = judgments_df['judgments'].astype(str)
+            # add empty column 'judgments' to df
+            df['judgments'] = ""
+
+            # iterate through judgments_df and add judgments to df
+            for index, row in judgments_df.iterrows():
+                decision_id = str(row['decision_id'])
+                judgments = row['judgments']
+                # Find the index of the row in df with the matching decision_id
+                i = df.index[df['decision_id'] == decision_id].tolist()[0]
+                # Set the value of the 'judgments' field at the index to the judgments
+                df.at[i, 'judgments'] = judgments
         else:
             df['judgments'] = ""
             self.logger.info("judgments_df is empty")
@@ -562,6 +627,7 @@ class DatasetCreator(AbstractPreprocessor):
         where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
         lower_court_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()), pd.DataFrame())
         if not lower_court_df.empty:
+            assert len(lower_court_df) == len(df)
             df['origin_file_number'] = lower_court_df['origin_file_number']
             df['origin_date'] = lower_court_df['origin_date']
             df['origin_chamber'] = lower_court_df['origin_chamber']
@@ -615,7 +681,8 @@ class DatasetCreator(AbstractPreprocessor):
             df = df.dropna(subset=['year'])  # make sure that each entry has an associated year
             df.year = df.year.astype(int)  # convert from float to nicer int
         df.decision_id = df.decision_id.astype(str)  # convert from uuid to str so it can be saved
-
+        #TODO this should not happen for criticality
+        df = df.loc[df['facts_num_tokens_bert'] > 100]  # remove entries with less than 100 tokens
         return df
 
     def save_dataset(self, dataset: datasets.Dataset, labels: list, folder: Path,
@@ -631,8 +698,10 @@ class DatasetCreator(AbstractPreprocessor):
         :param save_reports:whether or not to compute and save reports
         :return:
         """
-        # filter out examples with short feature cols dataset before saving it
-        dataset = dataset.filter(self.filter_by_length, fn_kwargs={"how": 'all'})
+        # clean df before saving it
+        #TODO check changes for criticality
+        # dataset = dataset.filter(self.filter_by_length, fn_kwargs={"how": 'all'})
+        dataset = self.clean_dataset(dataset)
         self.logger.info("start creating splits")
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
         self.save_huggingface_dataset(splits, folder)
@@ -657,6 +726,27 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"Saved dataset files to {folder}")
         return splits
 
+    def clean_dataset(self, dataset):
+        # replace empty strings with nan so that they can be removed
+        self.logger.info(f"start cleaning")
+        empty_rows = []
+
+        def get_empty_rows(row):
+            if row["num_tokens"] <= self.minFeatureColLength:
+                empty_rows.append(row['__index_level_0__'])
+
+        for feature_col in self.get_feature_col_names():
+            dataset = dataset.rename_column(f"{feature_col}_num_tokens_bert", "num_tokens")
+            dataset.map(get_empty_rows)
+            dataset = dataset.rename_column("num_tokens", f"{feature_col}_num_tokens_bert")
+
+        duplicates = [number for number in empty_rows if empty_rows.count(number) == len(self.get_feature_col_names())]
+        non_empty_rows = [i for i in range(len(dataset)) if i not in duplicates]
+        dataset = dataset.select(non_empty_rows)
+
+        self.logger.info(f"finished cleaning")
+        return dataset
+
     def filter_by_length(self, example, how='any'):
         """
         Removes examples that are too short
@@ -665,6 +755,7 @@ class DatasetCreator(AbstractPreprocessor):
          'any' means that at least one feature col must be long enough
         :return:
         """
+        #TODO compare this with clean_dataset
         keep_counter = 0
         for feature_col in self.get_feature_col_names():
             if example[f"{feature_col}_num_tokens_bert"] > self.minFeatureColLength:
@@ -673,6 +764,7 @@ class DatasetCreator(AbstractPreprocessor):
             return keep_counter == len(self.get_feature_col_names())  # keep if all feature cols are long enough
         elif how == 'any':
             return keep_counter > 0  # keep if at least one feature col is long enough
+
 
     def prepare_kaggle_splits(self, splits):
         self.logger.info("Saving the data in kaggle format")
@@ -716,20 +808,20 @@ class DatasetCreator(AbstractPreprocessor):
                 # without the feature_cols, the dataset should fit into RAM
                 # Additionally, we don't want to save the long text columns to the csv files because it becomes unreadable
                 self.logger.info(f"Exporting metadata columns of dataset to pandas dataframe for easier plotting")
-                # df = dataset.remove_columns(self.get_feature_col_names()).to_pandas()
+                df = dataset.remove_columns(self.get_feature_col_names()).to_pandas()
                 # TODO this code needs to be changed
-                df = dataset
-                df = df.drop(self.get_feature_col_names(), axis=1)
-                if save_reports:
-                    self.logger.info(f"Computing metadata reports")
-                    self.save_report(folder, split, df)
+                # df = dataset
+                # df = df.drop(self.get_feature_col_names(), axis=1)
+            if save_reports:
+                self.logger.info(f"Computing metadata reports")
+                self.save_report(folder, split, df)
 
-                if save_csvs:
-                    if isinstance(save_csvs, list):
-                        if split not in save_csvs:
-                            continue  # Only save if the split is in the list
-                    self.logger.info("Saving csv file")
-                    df.to_csv(folder / f"{split}.csv", index_label='id', index=False)
+            if save_csvs:
+                if isinstance(save_csvs, list):
+                    if split not in save_csvs:
+                        continue  # Only save if the split is in the list
+                self.logger.info("Saving csv file")
+                df.to_csv(folder / f"{split}.csv", index_label='id', index=False)
 
     def create_splits(self, dataset, split_type, include_all=False):
         # TODO is the .value of the Split enum really necessary? It probably also works without
