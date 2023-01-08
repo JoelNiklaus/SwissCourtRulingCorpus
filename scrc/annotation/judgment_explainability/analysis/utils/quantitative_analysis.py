@@ -83,7 +83,6 @@ def count_approved_dismissed(dataset: pd.DataFrame) -> (int, int):
                len(dataset[dataset["prediction"] == 0])
 
 
-
 def apply_len_occlusion_chunks(dataset: pd.DataFrame) -> pd.DataFrame:
     """
     Returns length of occluded text.

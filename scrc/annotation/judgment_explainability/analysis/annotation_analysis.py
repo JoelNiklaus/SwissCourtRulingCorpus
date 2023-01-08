@@ -67,7 +67,7 @@ def annotation_analysis(lang: str, spans_df: pd.DataFrame, tokens_df: pd.DataFra
         # Normalizes token dictionary
         label_df = preprocessing.get_normalize_tokens_dict(label_df)
         if lang == "de":
-            scores.write_IAA_to_csv_annotations(label_df, lang, label, version)
+            scores.write_IAA_to_csv_ann(label_df, lang, label, version)
         else:
             preprocessing.write_csv(
                 "{}/{}_{}.csv".format(lang, f"{label.lower().replace(' ', '_')}_{lang}", version),
