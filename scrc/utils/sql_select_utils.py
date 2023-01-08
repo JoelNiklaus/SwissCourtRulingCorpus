@@ -367,7 +367,7 @@ def where_decisionid_in_list(decision_ids):
 def convert_to_binary_judgments(df, with_partials=False, with_write_off=False, with_unification=False,
                                 with_inadmissible=False, make_single_label=True):
     def clean(judgments):
-        judgments = ast.literal_eval(judgments)
+        #judgments = ast.literal_eval(judgments)
         judgment_texts = [item['text'] for item in judgments]
         out = set()
         for judgment in judgments:

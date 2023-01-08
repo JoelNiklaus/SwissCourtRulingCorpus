@@ -10,6 +10,8 @@ from pathlib import Path
 import numpy as np
 import os
 
+from scrc.utils.log_utils import get_logger
+
 
 class ReportCreator:
     """
@@ -18,6 +20,7 @@ class ReportCreator:
 
     def __init__(self, base_folder, debug):
         self.folder: Path = base_folder
+        self.logger = get_logger(__name__)
         self.debug = debug
 
     def plot_attribute(self, df, attribute, name=""):
@@ -182,11 +185,14 @@ class ReportCreator:
         :param metadata:
         :param df:              the df containing the dataset
         """
-
         for attribute in metadata:
             for label in labels:
                 match = df[label] == 'non-critical'
-                self.plot_attribute(df[~match], attribute, name=str(label))
+                try:
+                    self.plot_attribute(df[~match], attribute, name=str(label))
+                except:
+                    self.logger.info(f'Could not plot {attribute} for {label}')
+                    continue
 
         for feature_col in feature_cols:
             tokens_dict: Dict[str, str] = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',

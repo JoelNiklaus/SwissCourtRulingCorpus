@@ -4,6 +4,7 @@ import math
 import os
 import sys
 import gc
+import time
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -296,25 +297,33 @@ class DatasetCreator(AbstractPreprocessor):
         datasets_list = []
         label_concat = None
 
+        exception_courts = []
         for court_string in tqdm(court_list):
-            self.logger.info(f"Creating dataset for {court_string}")
-            dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
+            try:
+                self.logger.info(f"Creating dataset for {court_string}")
+                dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
+                self.logger.info("labels", labels)
 
-            if len(dataset) <= 1:
-                self.logger.info(f"Dataset for {court_string} could not be created")
-                not_created.append(court_string)
-            else:
-                if concatenate:  # save all of them together in the end
-                    datasets_list.append(dataset)
-                    # TODO maybe it would make more sense to take the union of all the labels
-                    label_concat = labels if label_concat is None else label_concat  # takes the first label
-                else:  # save each dataset separately
-                    save_path = self.create_dir(self.get_dataset_folder(), court_string)
-                    self.save_dataset(dataset, labels, save_path, self.split_type,
-                                      sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
-                created.append(court_string)
-            self.logger.info(f"Empty courts: {not_created}")
-            self.logger.info(f"Created courts: {created}")
+                if len(dataset) <= 1:
+                    self.logger.info(f"Dataset for {court_string} could not be created")
+                    not_created.append(court_string)
+                else:
+                    if concatenate:  # save all of them together in the end
+                        datasets_list.append(dataset)
+                        # TODO maybe it would make more sense to take the union of all the labels
+                        label_concat = labels if label_concat is None else label_concat  # takes the first label
+                    else:  # save each dataset separately
+                        save_path = self.create_dir(self.get_dataset_folder(), court_string)
+                        self.save_dataset(dataset, labels, save_path, self.split_type,
+                                          sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+                    created.append(court_string)
+                self.logger.info(f"Empty courts: {not_created}")
+                self.logger.info(f"Created courts: {created}")
+                self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts}")
+            except Exception as e:
+                exception_courts.append({court_string: e})
+                self.logger.error(f"Exception for {court_string}: {e}")
+                continue
 
         if concatenate:
             self.logger.info("Concatenating datasets")
@@ -337,6 +346,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.logger.info(f"{len(not_created)} courts not created (since it was empty): {not_created}")
         self.logger.info(f"{len(created)} courts created: {created}")
+        self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts}")
 
     def get_all_courts(self):
         try:
@@ -439,23 +449,28 @@ class DatasetCreator(AbstractPreprocessor):
         decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
 
         if data_to_load['section']:
-            df = self.load_section(decision_ids, df, engine, court_string)
+            df = self.load_section(df, engine, court_string)
+
         if data_to_load['file']:
             df = self.load_file(df, engine)
+
         if data_to_load['file_number']:
-            df = self.load_file_number(decision_ids, df, engine)
+            df = self.load_file_number(df, engine)
+
         if data_to_load['judgment']:
-            df = self.load_judgment(decision_ids, df, engine)
+            df = self.load_judgment(df, engine)
+
         if data_to_load['citation']:
             df = self.load_citation(decision_ids, df, engine)
+
         if data_to_load['lower_court']:
             df = self.load_lower_court(decision_ids, df, engine, court_string)
 
         df.drop_duplicates(subset=self.get_feature_col_names(), inplace=True)
-
         self.logger.info("Finished loading the data from the database")
         if use_cache:
             save_df_to_cache(df, cache_file)
+
         return df
 
     def load_decision(self, court_string, engine):
@@ -465,11 +480,14 @@ class DatasetCreator(AbstractPreprocessor):
         where = f"d.decision_id IN {where_string_court('decision_id', court_string)}"
         return next(self.select(engine, table, columns, where, chunksize=self.get_chunksize()), pd.DataFrame())
 
-    def load_file_number(self, decision_ids, df, engine):
+    def load_file_number(self, df, engine):
+        decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
+
         self.logger.info('Loading File Number')
         table = f"{join_tables_on_decision(['file_number'])}"
         where = f"file_number.decision_id IN ({','.join(decision_ids)})"
-        file_number_df = next(self.select(engine, table, "file_numbers", where, None, self.get_chunksize()),
+        columns = 'file_number.decision_id, file_number'
+        file_number_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()),
                               pd.DataFrame())
         if file_number_df.empty:
             return df
@@ -481,16 +499,48 @@ class DatasetCreator(AbstractPreprocessor):
             file_number = file_number.replace(".", "_")
             return file_number
 
-        df['file_number'] = file_number_df['file_numbers'].map(get_one_file_number)
+        def extract_file_number(x):
+            # Split the string on ','
+            parts = x.split(',')
+            # Get the second part (the file number) and remove the quotes
+            file_number = parts[1].replace('"', '')
+            # replace {}() with ''
+            file_number = file_number.replace("{", "")
+            file_number = file_number.replace("}", "")
+            file_number = file_number.replace("(", "")
+            file_number = file_number.replace(")", "")
+            # Replace spaces with underscores
+            file_number = file_number.replace(' ', '_')
+            return file_number
+
+        file_number_df['file_number'] = file_number_df['file_number'].map(extract_file_number)
+        # cast every element in file_number_df['decision_id'] to string
+        file_number_df['decision_id'] = file_number_df['decision_id'].astype(str)
+        for index, row in file_number_df.iterrows():
+            df.loc[df['decision_id'] == row['decision_id'], 'file_number'] = row['file_number']
         return df
 
-    def load_section(self, decision_ids, df, engine, court_string):
+    def load_section(self, df, engine, court_string):
         # TODO this could probably be sped up if we just load the sections we need
         self.logger.info('Loading Section')
+
+        # add column 'sections' to df
+        df['sections'] = None
+
+        decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
         table = f"{join_tables_on_decision(['num_tokens'])}"
         where = f"section.decision_id IN ({','.join(decision_ids)})"
-        section_df = next(self.select(engine, table, "sections", where, None, self.get_chunksize()))
-        df['sections'] = section_df['sections']
+        section_df = next(self.select(engine, table, "sections, section.decision_id", where, None, self.get_chunksize()))
+
+        for index, row in tqdm(section_df.iterrows()):
+            decision_id = str(row['decision_id'])
+            # print if decision_id is in decision_ids
+            section = row['sections']
+            # Find the index of the row in df with the matching decision_id
+            df['decision_id'] = df['decision_id'].astype(str)
+            i = df.index[df['decision_id'] == decision_id].tolist()[0]
+            # Set the value of the 'sections' field at the index to the judgments
+            df.at[i, 'sections'] = section
 
         for feature_col in self.get_feature_col_names():
             df = self.expand_df(df, feature_col)
@@ -519,6 +569,7 @@ class DatasetCreator(AbstractPreprocessor):
         where = f"citation.decision_id IN ({','.join(decision_ids)})"
         citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()), pd.DataFrame())
         if not citations_df.empty:
+            assert len(citations_df) == len(df)
             df['citations'] = citations_df['citations'].astype(str)
         else:
             df['citations'] = ""
@@ -527,25 +578,45 @@ class DatasetCreator(AbstractPreprocessor):
     def load_file(self, df, engine):
         self.logger.info('Loading File')
         table = f"{join_tables_on_decision(['file'])}"
-        columns = 'file.file_name, file.html_url, file.pdf_url'
+        columns = 'file.file_name, file.html_url, file.pdf_url, file.file_id'
         file_ids = ["'" + str(x) + "'" for x in df['file_id'].tolist()]
         if len(file_ids) > 0:
             where = f"file.file_id IN ({','.join(file_ids)})"
             file_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
-            df['file_name'] = file_df['file_name']
-            df['html_url'] = file_df['html_url']
-            df['pdf_url'] = file_df['pdf_url']
+            assert len(file_df) == len(df)
+            # iterate through file_df and add file_name, html_url, pdf_url to df
+            for index, row in file_df.iterrows():
+                file_id = row['file_id']
+                file_name = row['file_name']
+                html_url = row['html_url']
+                pdf_url = row['pdf_url']
+                df.loc[df['file_id'] == file_id, 'file_name'] = file_name
+                df.loc[df['file_id'] == file_id, 'html_url'] = html_url
+                df.loc[df['file_id'] == file_id, 'pdf_url'] = pdf_url
         else:
             self.logger.info("file_ids empty")
         return df
 
-    def load_judgment(self, decision_ids, df, engine):
+    def load_judgment(self, df, engine):
         self.logger.info('Loading Judgments')
+        decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
+
         table = f"{join_tables_on_decision(['judgment'])}"
         where = f"judgment_map.decision_id IN ({','.join(decision_ids)})"
-        judgments_df = next(self.select(engine, table, "judgments", where, None, self.get_chunksize()), pd.DataFrame())
+        judgments_df = next(self.select(engine, table, "judgments, judgment_map.decision_id", where, None, self.get_chunksize()), pd.DataFrame())
+
         if not judgments_df.empty:
-            df['judgments'] = judgments_df['judgments'].astype(str)
+            # add empty column 'judgments' to df
+            df['judgments'] = ""
+
+            # iterate through judgments_df and add judgments to df
+            for index, row in judgments_df.iterrows():
+                decision_id = str(row['decision_id'])
+                judgments = row['judgments']
+                # Find the index of the row in df with the matching decision_id
+                i = df.index[df['decision_id'] == decision_id].tolist()[0]
+                # Set the value of the 'judgments' field at the index to the judgments
+                df.at[i, 'judgments'] = judgments
         else:
             df['judgments'] = ""
             self.logger.info("judgments_df is empty")
@@ -562,6 +633,7 @@ class DatasetCreator(AbstractPreprocessor):
         where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
         lower_court_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()), pd.DataFrame())
         if not lower_court_df.empty:
+            assert len(lower_court_df) == len(df)
             df['origin_file_number'] = lower_court_df['origin_file_number']
             df['origin_date'] = lower_court_df['origin_date']
             df['origin_chamber'] = lower_court_df['origin_chamber']
@@ -616,7 +688,7 @@ class DatasetCreator(AbstractPreprocessor):
             df.year = df.year.astype(int)  # convert from float to nicer int
         df.decision_id = df.decision_id.astype(str)  # convert from uuid to str so it can be saved
 
-        df = df.loc[df['facts_num_tokens_bert'] > 10]  # remove entries with less than 10 tokens
+        df = df.loc[df['facts_num_tokens_bert'] > 100]  # remove entries with less than 100 tokens
         return df
 
     def save_dataset(self, dataset: datasets.Dataset, labels: list, folder: Path,
@@ -662,6 +734,7 @@ class DatasetCreator(AbstractPreprocessor):
         # replace empty strings with nan so that they can be removed
         self.logger.info(f"start cleaning")
         empty_rows = []
+
         def get_empty_rows(row):
             if row["num_tokens"] <= self.minFeatureColLength:
                 empty_rows.append(row['__index_level_0__'])
