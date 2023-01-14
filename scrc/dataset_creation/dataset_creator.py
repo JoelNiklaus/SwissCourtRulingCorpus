@@ -17,6 +17,7 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 import datasets
 from datasets import concatenate_datasets
+from root import ROOT_DIR
 
 from scrc.dataset_creation.report_creator import ReportCreator
 from scrc.enums.cantons import Canton
@@ -164,7 +165,8 @@ class DatasetCreator(AbstractPreprocessor):
         self.start_years = {Split.TRAIN.value: 2002, Split.VALIDATION.value: 2016, Split.TEST.value: 2018}
         self.current_year = date.today().year
         self.metadata = ['year', 'legal_area', 'chamber', 'court', 'canton', 'region',
-                         'origin_chamber', 'origin_court', 'origin_canton', 'origin_region']
+                         'origin_chamber', 'origin_court', 'origin_canton', 'origin_region',
+                         'law_area', 'law_sub_area']
 
         def build_info_df(table_name, col_name):
             info_df = next(self.select(self.get_engine(self.db_scrc), table_name))
@@ -367,17 +369,12 @@ class DatasetCreator(AbstractPreprocessor):
         courts_done = os.listdir(str(self.datasets_subdir / self.dataset_name))
         self.logger.info(f"Already generated courts: {courts_done}")
 
-        courts_error = get_error_courts()  # all courts that couldn't be created
-        courts_empty = get_empty_courts()  # all courts that were empty
-
-        # court_string = court_string - (courts_done + courts_error + courts_issues)
+        # remove courts from list that are already generated
         court_list = []
         for court in court_list_tmp:
-            if court not in (courts_done + courts_error + courts_empty):
+            if court not in courts_done:
                 court_list.append(court)
 
-        # 114/183 not created
-        # 69/183 created
         return court_list
 
     def create_multiple_datasets(self, court_list=None, concatenate=False, overview=True, save_reports=True,
@@ -397,7 +394,7 @@ class DatasetCreator(AbstractPreprocessor):
         """
         save data as huggingface dataset with columns:
         'id', 'date', 'year', 'language',
-        'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'legal_area',
+        'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'law_area',
         'bge_label', 'citation_label', all feature cols
         :param splits:      specifying splits of dataset
         :param folder:      name of folder
@@ -447,7 +444,8 @@ class DatasetCreator(AbstractPreprocessor):
         decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
 
         if data_to_load['section']:
-            df = self.load_section(df, engine, court_string)
+            df = self.load_section(df, engine)
+
         if data_to_load['file']:
             df = self.load_file(df, engine)
         if data_to_load['file_number']:
@@ -458,6 +456,10 @@ class DatasetCreator(AbstractPreprocessor):
             df = self.load_citation(decision_ids, df, engine)
         if data_to_load['lower_court']:
             df = self.load_lower_court(decision_ids, df, engine, court_string)
+        if data_to_load['law_area']:
+            df = self.add_law_area(df)
+        if data_to_load['law_sub_area']:
+            df = self.add_law_sub_area(df)
 
         df.drop_duplicates(subset=self.get_feature_col_names(), inplace=True)
         self.logger.info("Finished loading the data from the database")
@@ -485,15 +487,13 @@ class DatasetCreator(AbstractPreprocessor):
             return df
 
         def extract_file_number(x):
+            """Extract the file number from the weird file number string"""
             # Split the string on ','
             parts = x.split(',')
             # Get the second part (the file number) and remove the quotes
             file_number = parts[1].replace('"', '')
             # replace {}() with ''
-            file_number = file_number.replace("{", "")
-            file_number = file_number.replace("}", "")
-            file_number = file_number.replace("(", "")
-            file_number = file_number.replace(")", "")
+            file_number = file_number.replace("{", "").replace("}", "").replace("(", "").replace(")", "")
             # Replace spaces with underscores
             file_number = file_number.replace(' ', '_')
             return file_number
@@ -504,7 +504,7 @@ class DatasetCreator(AbstractPreprocessor):
         df = pd.merge(df, file_number_df, left_on='decision_id', right_on='decision_id', how='left')
         return df
 
-    def load_section(self, df, engine, court_string):
+    def load_section(self, df, engine):
         # TODO this could probably be sped up if we just load the sections we need
         self.logger.info('Loading Section')
 
@@ -518,7 +518,6 @@ class DatasetCreator(AbstractPreprocessor):
 
         for index, row in tqdm(section_df.iterrows()):
             decision_id = str(row['decision_id'])
-            # print if decision_id is in decision_ids
             section = row['sections']
             # Find the index of the row in df with the matching decision_id
             df['decision_id'] = df['decision_id'].astype(str)
@@ -534,11 +533,6 @@ class DatasetCreator(AbstractPreprocessor):
         df['court'] = df.chamber.apply(get_court_from_chamber)  # court: first two parts of chamber_string
         df['canton'] = df.chamber.apply(get_canton_from_chamber)  # canton: first part of chamber_string
         df['region'] = df.canton.apply(get_region)
-
-        if court_string == "CH_BGer":
-            df['legal_area'] = df.chamber_id.apply(get_legal_area)
-        else:
-            df['legal_area'] = "n/a"
 
         # drop rows where all the feature cols are nan
         df.dropna(subset=self.get_feature_col_names(), how='all', inplace=True)
@@ -569,7 +563,7 @@ class DatasetCreator(AbstractPreprocessor):
             where = f"file.file_id IN ({','.join(file_ids)})"
             file_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()))
             assert len(file_df) == len(df)
-            # iterate through file_df and add file_name, html_url, pdf_url to df
+            # iterate through file_df and set the respective values in df
             for index, row in file_df.iterrows():
                 file_id = row['file_id']
                 file_name = row['file_name']
@@ -607,7 +601,7 @@ class DatasetCreator(AbstractPreprocessor):
             self.logger.info("judgments_df is empty")
         return df
 
-    def load_lower_court(self, decision_ids, df, engine, court_string):
+    def load_lower_court(self, decision_ids, df, engine):
         self.logger.info('Loading Lower Court')
         table = f"{join_tables_on_decision(['lower_court'])}"
         columns = ("lower_court.decision_id as decision_id,"
@@ -623,6 +617,33 @@ class DatasetCreator(AbstractPreprocessor):
             lower_court_df['decision_id'] = lower_court_df['decision_id'].astype(str)
             df['decision_id'] = df['decision_id'].astype(str)
             df = pd.merge(df, lower_court_df, left_on='decision_id', right_on='decision_id', how='left')
+        return df
+
+    @staticmethod
+    def add_law_area(df):
+        """ Make law area label using the chamber name """
+        # load law area labels
+        with open(os.path.join(ROOT_DIR, 'legal_info/chamber_to_area.json'), 'r') as f:
+            chamber_to_area_dict = json.load(f)
+        # add law area labels
+        df['law_area'] = df['chamber'].map(chamber_to_area_dict)
+        return df
+
+    @staticmethod
+    def add_law_sub_area(df):
+        """ Make law sub area label using the chamber name """
+        # load law area labels
+        with open(os.path.join(ROOT_DIR, 'legal_info/chamber_to_sub_area.json'), 'r') as f:
+            chamber_to_sub_area_dict = json.load(f)
+
+        def chamber_to_sub_area(chamber):
+            if chamber in chamber_to_sub_area_dict:
+                return chamber_to_sub_area_dict[chamber]
+            else:
+                return np.nan
+
+        # add law area labels
+        df['law_sub_area'] = df['chamber'].map(chamber_to_sub_area)
         return df
 
     @staticmethod
@@ -659,8 +680,9 @@ class DatasetCreator(AbstractPreprocessor):
         if self.split_type == "date-stratified":
             df = df.dropna(subset=['year'])  # make sure that each entry has an associated year
             df.year = df.year.astype(int)  # convert from float to nicer int
-        df.decision_id = df.decision_id.astype(str)  # convert from uuid to str so it can be saved
-        df = df.loc[df['facts_num_tokens_bert'] > 100]  # remove entries with less than 100 tokens
+
+        df = df.loc[df['facts_num_tokens_bert'] > 50]  # remove entries with less than 50 tokens
+
         return df
 
     def save_dataset(self, dataset: datasets.Dataset, labels: list, folder: Path,

@@ -192,7 +192,7 @@ class ReportCreator:
                 try:
                     self.plot_attribute(df[~match], attribute, name=str(label))
                 except:
-                    self.logger.info(f'Could not plot {attribute} for {label}')
+                    self.logger.info(f'Could not plot {attribute} for {label}. (Ignore if this is {attribute} dataset)')
                     continue
 
         for feature_col in feature_cols:
@@ -227,7 +227,7 @@ class ReportCreator:
         self.plot_two_attributes(df, 'year', 'counter', 'all')
         self.bin_plot_attribute(df, 'counter', 'bge_chamber', 0, 300, 10)
         self.bin_plot_attribute(df, 'counter', 'bger_chamber', 0, 300, 10)
-        self.bin_plot_attribute(df, 'counter', 'legal_area', 0, 300, 10)
+        self.bin_plot_attribute(df, 'counter', 'law_area', 0, 300, 10)
 
         my_dictionary_1 = dict.fromkeys(list(range(0, 301, 10)))
         my_dictionary_2 = dict.fromkeys(list(range(0, 51, 1)))
@@ -255,11 +255,11 @@ class ReportCreator:
         self.plot_two_attributes(citations_amount_df, 'counter', 'number of decisions', 'citations', how='histogram')
 
     def report_references(self, df):
-        plot_attributes = ['bge_chamber', 'legal_area', 'bger_chamber', 'year']
+        plot_attributes = ['bge_chamber', 'law_area', 'bger_chamber', 'year']
         for attribute in plot_attributes:
             self.plot_attribute(df, attribute, name='references')
         self.plot_attribute_color(df, 'year', 'bge_chamber', 'references')
-        self.plot_attribute_color(df, 'year', 'legal_area', 'references')
+        self.plot_attribute_color(df, 'year', 'law_area', 'references')
 
     def report_references_not_found(self, not_found_list, label):
         """
