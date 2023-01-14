@@ -455,7 +455,7 @@ class DatasetCreator(AbstractPreprocessor):
         if data_to_load['citation']:
             df = self.load_citation(decision_ids, df, engine)
         if data_to_load['lower_court']:
-            df = self.load_lower_court(decision_ids, df, engine, court_string)
+            df = self.load_lower_court(decision_ids, df, engine)
         if data_to_load['law_area']:
             df = self.add_law_area(df)
         if data_to_load['law_sub_area']:
@@ -613,7 +613,6 @@ class DatasetCreator(AbstractPreprocessor):
         where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
         lower_court_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()), pd.DataFrame())
         if not lower_court_df.empty:
-            # TODO Visu: have these changes affected your code?
             lower_court_df['decision_id'] = lower_court_df['decision_id'].astype(str)
             df['decision_id'] = df['decision_id'].astype(str)
             df = pd.merge(df, lower_court_df, left_on='decision_id', right_on='decision_id', how='left')

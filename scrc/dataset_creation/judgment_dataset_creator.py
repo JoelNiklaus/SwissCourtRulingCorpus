@@ -37,7 +37,7 @@ class JudgmentDatasetCreator(DatasetCreator):
     def prepare_dataset(self, save_reports, court_string):
         data_to_load = {
             "section": True, "file": True, "file_number": True,
-            "judgment": True, "citation": False, "lower_court": False,
+            "judgment": True, "citation": False, "lower_court": True,
             "law_area": True, "law_sub_area": True
         }
         df = self.get_df(self.get_engine(self.db_scrc), data_to_load, court_string=court_string, use_cache=False)
