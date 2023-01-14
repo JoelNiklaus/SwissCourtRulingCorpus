@@ -31,11 +31,14 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.labels = ['label']
         self.start_years = {Split.TRAIN.value: 1970, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
                             Split.SECRET_TEST.value: 2023}
+        self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
+                         'law_area', 'law_sub_area']
 
     def prepare_dataset(self, save_reports, court_string):
         data_to_load = {
             "section": True, "file": True, "file_number": True,
-            "judgment": True, "citation": False, "lower_court": False
+            "judgment": True, "citation": False, "lower_court": False,
+            "law_area": True, "law_sub_area": True
         }
         df = self.get_df(self.get_engine(self.db_scrc), data_to_load, court_string=court_string, use_cache=False)
         if df.empty:
@@ -59,5 +62,5 @@ class JudgmentDatasetCreator(DatasetCreator):
 if __name__ == '__main__':
     config = get_config()
 
-    judgment_dataset_creator = JudgmentDatasetCreator(config, debug=True)
-    judgment_dataset_creator.create_multiple_datasets(["BE_VB"], concatenate=False, overview=True, save_reports=True)
+    judgment_dataset_creator = JudgmentDatasetCreator(config, debug=False)
+    judgment_dataset_creator.create_multiple_datasets(concatenate=False, overview=True, save_reports=True)

@@ -3,13 +3,9 @@ from scrc.enums.section import Section
 from scrc.utils.log_utils import get_logger
 import numpy as np
 import datasets
-import os
-from root import ROOT_DIR
-import json
 
 from scrc.dataset_creation.report_creator import ReportCreator
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import convert_to_binary_judgments
 from scrc.enums.split import Split
 
 
@@ -26,41 +22,36 @@ class LawAreaDatasetCreator(DatasetCreator):
         self.dataset_name = "law_area_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
 
-        self.with_partials = False
-        self.with_write_off = False
-        self.with_unification = False
-        self.with_inadmissible = False
-        self.make_single_label = True
+        self.only_sub_areas = False
+
         self.labels = ['label']
         self.start_years = {Split.TRAIN.value: 1970, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
                             Split.SECRET_TEST.value: 2023}
+        if self.only_sub_areas:
+            self.dataset_name = "law_sub_area_prediction"
+        self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
+                         'law_area', 'law_sub_area']
 
-    def add_law_area_labels(self, df):
-        # load law area labels
-        with open(os.path.join(ROOT_DIR, 'legal_info/chamber_to_area.json'), 'r') as f:
-            chamber_to_area = json.load(f)
-        # add law area labels
-        df['law_area'] = df['chamber'].map(chamber_to_area)
-        return df
 
     def prepare_dataset(self, save_reports, court_string):
         data_to_load = {
             "section": True, "file": True, "file_number": True,
-            "judgment": False, "citation": False, "lower_court": False
+            "judgment": False, "citation": False, "lower_court": False,
+            "law_area": True, "law_sub_area": True
         }
         df = self.get_df(self.get_engine(self.db_scrc), data_to_load, court_string=court_string, use_cache=False)
         if df.empty:
             self.logger.warning("No data found")
             return datasets.Dataset.from_pandas(df), []
-        df = self.add_law_area_labels(df)
+
         df = df.dropna(subset=['law_area'])  # drop empty labels introduced by cleaning before
-        df = df.rename(columns={"law_area": "label"})  # normalize column names
-        # drop col "legal_area"
-        df = df.drop(columns=['legal_area'])
-        # make law_area to the 9th column
-        cols = df.columns.tolist()
-        cols = cols[:8] + cols[-1:] + cols[8:-1]
-        df = df[cols]
+
+        if self.only_sub_areas:
+            df = df.dropna(subset=['law_sub_area'])
+            df = df.rename(columns={'law_sub_area': 'label'})
+        else:
+            df = df.rename(columns={"law_area": "label"})  # normalize column names
+
         try:
             labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         except ValueError:
@@ -75,4 +66,4 @@ if __name__ == '__main__':
     config = get_config()
 
     judgment_dataset_creator = LawAreaDatasetCreator(config, debug=False)
-    judgment_dataset_creator.create_multiple_datasets(["CH_BGer"], concatenate=False, overview=True, save_reports=True)
+    judgment_dataset_creator.create_multiple_datasets(concatenate=False, overview=True, save_reports=True)

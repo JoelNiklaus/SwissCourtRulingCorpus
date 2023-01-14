@@ -108,7 +108,8 @@ class CriticalityDatasetCreator(DatasetCreator):
         """
         data_to_load = {
             "section": True, "file": True, "file_number": True,
-            "judgment": False, "citation": True, "lower_court": True
+            "judgment": False, "citation": True, "lower_court": True,
+            "law_area": True, "law_sub_area": True
         }
         df = self.get_df(self.get_engine(self.db_scrc), data_to_load)
         a = len(df['file_number'].unique())
