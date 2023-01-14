@@ -64,14 +64,12 @@ class BgerCitationsExtractor(AbstractExtractor):
         for _, row in df.iterrows():
             # only add new content to textfile not overwriting
             if 'bger_citations' in row and row['bger_citations'] != 'no citations found':
-                bger_citations = str(row['bger_citations'])
-                bger_citations = bger_citations.split("-")
-                for item in bger_citations:
-                    if item != "":
-                        bge_file_name = str(row['file_name'])
-                        with processed_file_path.open("a") as f:
-                            f.write(f"{bge_file_name} {item}\n")
-
+                bger_citations = row['bger_citations']
+                if bger_citations != "" and bger_citations != []:
+                    text = " ".join([str(row['file_name']), "-".join(bger_citations)])
+                    text = text.replace("\n", "")
+                    with processed_file_path.open("a") as f:
+                        f.write(f"{text}\n")
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing.

@@ -161,8 +161,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
-        self.start_years = {Split.TRAIN.value: 2002, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
-                            Split.SECRET_TEST.value: 2020}
+        self.start_years = {Split.TRAIN.value: 2002, Split.VALIDATION.value: 2016, Split.TEST.value: 2018}
         self.current_year = date.today().year
         self.metadata = ['year', 'legal_area', 'chamber', 'court', 'canton', 'region',
                          'origin_chamber', 'origin_court', 'origin_canton', 'origin_region']
@@ -207,7 +206,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"BGE: There are {len(decision_df.index)} in db (also old or not referenced included).")
         return set(decision_df.text.tolist())
 
-    def get_citation(self, citations_as_string, type):
+    def get_citation(self, citations, type):
         """
         extract for each bger all ruling citations
         :param citations_as_string:         citations how they were found in text of bger
@@ -219,7 +218,7 @@ class DatasetCreator(AbstractPreprocessor):
             self.logger.info("Processed another 10'000 citations")
         cits = []
         try:
-            citations = ast.literal_eval(citations_as_string)  # parse dict string to dict again
+            # citations = ast.literal_eval(citations_as_string)  # parse dict string to dict again
             for citation in citations:
                 try:
                     cit = citation['text']
@@ -302,7 +301,6 @@ class DatasetCreator(AbstractPreprocessor):
             try:
                 self.logger.info(f"Creating dataset for {court_string}")
                 dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
-                self.logger.info("labels", labels)
 
                 if len(dataset) <= 1:
                     self.logger.info(f"Dataset for {court_string} could not be created")
@@ -486,13 +484,6 @@ class DatasetCreator(AbstractPreprocessor):
         if file_number_df.empty:
             return df
 
-        # we get a list of file_numbers but only want one, all entries are the same but different syntax
-        def get_one_file_number(column_data):
-            file_number = str(next(iter(column_data or []), None))
-            file_number = file_number.replace(" ", "_")
-            file_number = file_number.replace(".", "_")
-            return file_number
-
         def extract_file_number(x):
             # Split the string on ','
             parts = x.split(',')
@@ -510,8 +501,7 @@ class DatasetCreator(AbstractPreprocessor):
         file_number_df['file_number'] = file_number_df['file_number'].map(extract_file_number)
         # cast every element in file_number_df['decision_id'] to string
         file_number_df['decision_id'] = file_number_df['decision_id'].astype(str)
-        for index, row in file_number_df.iterrows():
-            df.loc[df['decision_id'] == row['decision_id'], 'file_number'] = row['file_number']
+        df = pd.merge(df, file_number_df, left_on='decision_id', right_on='decision_id', how='left')
         return df
 
     def load_section(self, df, engine, court_string):
@@ -561,10 +551,11 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info('Loading Citation')
         table = f"{join_tables_on_decision(['citation'])}"
         where = f"citation.decision_id IN ({','.join(decision_ids)})"
-        citations_df = next(self.select(engine, table, "citations", where, None, self.get_chunksize()), pd.DataFrame())
+        citations_df = next(self.select(engine, table, "citation.decision_id as decision_id, citations", where, None, self.get_chunksize()), pd.DataFrame())
         if not citations_df.empty:
-            assert len(citations_df) == len(df)
-            df['citations'] = citations_df['citations'].astype(str)
+            citations_df['decision_id'] = citations_df['decision_id'].astype(str)
+            df['decision_id'] = df['decision_id'].astype(str)
+            df = pd.merge(df, citations_df, left_on='decision_id', right_on='decision_id', how='left')
         else:
             df['citations'] = ""
         return df
@@ -619,7 +610,8 @@ class DatasetCreator(AbstractPreprocessor):
     def load_lower_court(self, decision_ids, df, engine, court_string):
         self.logger.info('Loading Lower Court')
         table = f"{join_tables_on_decision(['lower_court'])}"
-        columns = ("lower_court.date as origin_date,"
+        columns = ("lower_court.decision_id as decision_id,"
+                   "lower_court.date as origin_date,"
                    "lower_court.court_id as origin_court, "
                    "lower_court.canton_id as origin_canton, "
                    "lower_court.chamber_id as origin_chamber, "
@@ -627,23 +619,10 @@ class DatasetCreator(AbstractPreprocessor):
         where = f"lower_court.decision_id IN ({','.join(decision_ids)})"
         lower_court_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()), pd.DataFrame())
         if not lower_court_df.empty:
-            assert len(lower_court_df) == len(df)
-            df['origin_file_number'] = lower_court_df['origin_file_number']
-            df['origin_date'] = lower_court_df['origin_date']
-            df['origin_chamber'] = lower_court_df['origin_chamber']
-            df['origin_court'] = lower_court_df['origin_court']
-            df['origin_canton'] = lower_court_df['origin_canton']
-
-        if court_string == 'CH_BGer':
-            df['origin_chamber'] = df.origin_chamber.apply(self.get_string_value, args=[self.chamber_dict])
-            df['origin_court'] = df.origin_chamber.apply(get_court_from_chamber)
-            df['origin_canton'] = df.origin_chamber.apply(get_canton_from_chamber)
-            df['origin_region'] = df.origin_canton.apply(get_region)
-        else:
-            df['origin_chamber'] = np.nan
-            df['origin_court'] = np.nan
-            df['origin_canton'] = np.nan
-            df['origin_region'] = np.nan
+            # TODO Visu: have these changes affected your code?
+            lower_court_df['decision_id'] = lower_court_df['decision_id'].astype(str)
+            df['decision_id'] = df['decision_id'].astype(str)
+            df = pd.merge(df, lower_court_df, left_on='decision_id', right_on='decision_id', how='left')
         return df
 
     @staticmethod
@@ -681,7 +660,6 @@ class DatasetCreator(AbstractPreprocessor):
             df = df.dropna(subset=['year'])  # make sure that each entry has an associated year
             df.year = df.year.astype(int)  # convert from float to nicer int
         df.decision_id = df.decision_id.astype(str)  # convert from uuid to str so it can be saved
-        #TODO this should not happen for criticality
         df = df.loc[df['facts_num_tokens_bert'] > 100]  # remove entries with less than 100 tokens
         return df
 
@@ -699,8 +677,6 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         # clean df before saving it
-        #TODO check changes for criticality
-        # dataset = dataset.filter(self.filter_by_length, fn_kwargs={"how": 'all'})
         dataset = self.clean_dataset(dataset)
         self.logger.info("start creating splits")
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
@@ -747,25 +723,6 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"finished cleaning")
         return dataset
 
-    def filter_by_length(self, example, how='any'):
-        """
-        Removes examples that are too short
-        :param example:    the example to check
-        :param how:         how to check for length. 'all' means that all feature cols must be long enough,
-         'any' means that at least one feature col must be long enough
-        :return:
-        """
-        #TODO compare this with clean_dataset
-        keep_counter = 0
-        for feature_col in self.get_feature_col_names():
-            if example[f"{feature_col}_num_tokens_bert"] > self.minFeatureColLength:
-                keep_counter += 1
-        if how == 'all':
-            return keep_counter == len(self.get_feature_col_names())  # keep if all feature cols are long enough
-        elif how == 'any':
-            return keep_counter > 0  # keep if at least one feature col is long enough
-
-
     def prepare_kaggle_splits(self, splits):
         self.logger.info("Saving the data in kaggle format")
         # deepcopy splits, so we don't mess with the original dict
@@ -809,9 +766,6 @@ class DatasetCreator(AbstractPreprocessor):
                 # Additionally, we don't want to save the long text columns to the csv files because it becomes unreadable
                 self.logger.info(f"Exporting metadata columns of dataset to pandas dataframe for easier plotting")
                 df = dataset.remove_columns(self.get_feature_col_names()).to_pandas()
-                # TODO this code needs to be changed
-                # df = dataset
-                # df = df.drop(self.get_feature_col_names(), axis=1)
             if save_reports:
                 self.logger.info(f"Computing metadata reports")
                 self.save_report(folder, split, df)
@@ -830,9 +784,8 @@ class DatasetCreator(AbstractPreprocessor):
             train, val, test = self.split_random(dataset)
             splits = {Split.TRAIN.value: train, Split.VALIDATION.value: val, Split.TEST.value: test}
         elif split_type == "date-stratified":
-            train, val, test, secret_test = self.split_date_stratified(dataset, self.start_years)
-            splits = {Split.TRAIN.value: train, Split.VALIDATION.value: val, Split.TEST.value: test,
-                      Split.SECRET_TEST.value: secret_test}
+            train, val, test = self.split_date_stratified(dataset, self.start_years)
+            splits = {Split.TRAIN.value: train, Split.VALIDATION.value: val, Split.TEST.value: test}
         elif split_type == "all_train":
             splits = {Split.TRAIN.value: dataset}  # no split at all
         else:
@@ -963,17 +916,13 @@ class DatasetCreator(AbstractPreprocessor):
         :param start_years:   the years when to start each split
         :return:
         """
-        # TODO revise this for datasets including cantonal data and include year 2021
         train = dataset.filter(
             lambda x: x["year"] in range(start_years[Split.TRAIN.value], start_years[Split.VALIDATION.value]))
         val = dataset.filter(
             lambda x: x["year"] in range(start_years[Split.VALIDATION.value], start_years[Split.TEST.value]))
         test = dataset.filter(
-            lambda x: x["year"] in range(start_years[Split.TEST.value], start_years[Split.SECRET_TEST.value]))
-        secret_test = dataset.filter(
-            lambda x: x["year"] in range(start_years[Split.SECRET_TEST.value], self.current_year + 1))
-
-        return train, val, test, secret_test
+            lambda x: x["year"] in range(start_years[Split.TEST.value], self.current_year + 1))
+        return train, val, test
 
     def split_random(self, dataset):
         """
