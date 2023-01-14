@@ -11,6 +11,7 @@ from transformers.file_utils import add_code_sample_docstrings
 from scrc.enums.cantons import Canton
 from scrc.enums.chamber import Chamber
 import ast
+import re
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -37,41 +38,34 @@ def coverage_query(spider: str, section_type: int, language: int):
             f"AND section_text != '{{}}'"
             f"AND section_text != '' ")
 
-
-def get_total_decisions(spider: str, language: int):
-    return (f"SELECT count(*) FROM decision "
-            f"LEFT JOIN language ON decision.language_id = language.language_id "
-            f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
-            f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
-            f"WHERE spider.name = '{spider}' "
-            f"AND language.language_id = {language} ")
-
-
-def get_judgment_query(spider, ruling_id):
-    return (f"SELECT count(*) FROM section s "
-            f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
-            f"LEFT JOIN judgment_map j "
-            f"ON j.decision_id = decision.decision_id "
-            f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
-            f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
-            f"WHERE spider.name = '{spider}' "
-            f"AND section_text != '{{}}' "
-            f"AND section_text != '' "
-            f"AND s.section_type_id = {ruling_id} "
-            f"AND j.judgment_id IS NOT NULL")
+def get_total_decisions(spider: str, filter_by_language = False, language = 0):
+    query = (f"SELECT count(*) FROM decision "
+        f"LEFT JOIN language ON decision.language_id = language.language_id "
+        f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
+        f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
+        f"WHERE spider.name = '{spider}' ")
+    if filter_by_language:
+        query += f"AND language.language_id = {language} "
+    return query
+    
+def get_judgment_query(spider):
+    return (f"SELECT count(DISTINCT d.decision_id) FROM decision d "
+            f"LEFT JOIN chamber c ON c.chamber_id = d.chamber_id "
+            f"LEFT JOIN spider sp ON sp.spider_id = c.spider_id "
+            f"LEFT JOIN judgment_map j ON j.decision_id = d.decision_id "
+            f"WHERE judgment_id IS NOT NULL "
+            f"AND sp.name = '{spider}' ")
 
 
 def get_total_judgments(spider, ruling_id):
-    return (f"SELECT count(*) FROM section s "
-            f"LEFT JOIN decision ON decision.decision_id = s.decision_id "
-            f"LEFT JOIN judgment_map j "
-            f"ON j.decision_id = decision.decision_id "
-            f"LEFT JOIN chamber ON chamber.chamber_id = decision.chamber_id "
-            f"LEFT JOIN spider ON spider.spider_id = chamber.spider_id "
-            f"WHERE spider.name = '{spider}' "
-            f"AND section_text != '{{}}' "
-            f"AND section_text != '' "
-            f"AND s.section_type_id = {ruling_id} ")
+    return (f"SELECT count(*) FROM decision d "
+        f"LEFT JOIN section s ON d.decision_id = s.decision_id "
+        f"LEFT JOIN section_type t ON t.section_type_id = s.section_type_id "
+        f"LEFT JOIN chamber c ON c.chamber_id = d.chamber_id "
+        f"LEFT JOIN spider sp ON sp.spider_id = c.spider_id "
+        f"WHERE sp.name = '{spider}' "
+        f"AND section_text != '' "
+        f"AND s.section_type_id = {ruling_id} ")
 
 
 def join_decision_on_parameter(decision_field: str, target_table_and_field: str) -> str:
@@ -472,6 +466,11 @@ def get_legal_area(chamber: int):
 
 
 def get_legal_area_bger(chamber_number):
+    temp = list(map(int, re.findall(r'\d+', chamber_number)))
+    if len(temp) > 0:
+        number = temp[0]
+    else:
+        return "other"
     switch = {
         1: 'public_law',
         2: 'public_law',
@@ -481,4 +480,4 @@ def get_legal_area_bger(chamber_number):
         8: 'social_law',
         9: 'social_law'
     }
-    return switch.get(chamber_number, "other")
+    return switch.get(number, "other")

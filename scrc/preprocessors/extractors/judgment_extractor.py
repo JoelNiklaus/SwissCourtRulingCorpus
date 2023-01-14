@@ -13,7 +13,6 @@ from scrc.enums.section import Section
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
-from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, get_judgment_query, get_total_judgments, join_decision_and_language_on_parameter, \
@@ -47,10 +46,11 @@ class JudgmentExtractor(AbstractExtractor):
         return f"spider='{spider}' AND rulings IS NOT NULL AND rulings <> ''"
     
     def get_coverage(self, spider: str):
+        """Returns the coverage of the judgments for the given spider"""
         ruling_id = Section.RULINGS.value
         with self.get_engine(self.db_scrc).connect() as conn:
             total_judgments = conn.execute(get_total_judgments(spider, ruling_id)).fetchone()
-            coverage_result = conn.execute(get_judgment_query(spider, ruling_id)).fetchone()
+            coverage_result = conn.execute(get_judgment_query(spider)).fetchone()
             coverage =  round(coverage_result[0] / total_judgments[0]  * 100, 2)
             self.logger.info(f"{spider}: Found judgment outcome for {coverage}% of the rulings")
 

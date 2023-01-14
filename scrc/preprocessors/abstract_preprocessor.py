@@ -113,8 +113,7 @@ class AbstractPreprocessor:
 
     def load_functions(self, config, type):
         """loads the cleaning functions used for html files"""
-        function_file = self.spider_specific_dir / \
-                        config['files'][type]  # mainly used for html courts
+        function_file = self.spider_specific_dir / config['files'][type]  # mainly used for html courts
         spec = importlib.util.spec_from_file_location(type, function_file)
         functions = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(functions)

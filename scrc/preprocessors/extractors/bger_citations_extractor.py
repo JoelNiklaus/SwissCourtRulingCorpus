@@ -13,14 +13,14 @@ if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
 
 
-class BgeReferenceExtractor(AbstractExtractor):
+class BgerCitationsExtractor(AbstractExtractor):
     """
     Extracts the reference to a bger from bge header section. This is part of the criticality prediction task.
     """
 
     def __init__(self, config: dict):
-        super().__init__(config, function_name='bge_reference_extracting_functions', col_name='bge_reference')
-        self.processed_file_path = self.progress_dir / "bge_reference_extracted.txt"
+        super().__init__(config, function_name='bger_citations_extracting_functions', col_name='bger_citations')
+        self.processed_file_path = self.progress_dir / "bger_citations_extracted.txt"
         self.logger_info = {
             'start': 'Started extracting the bge references',
             'finished': 'Finished extracting the bge references',
@@ -52,13 +52,7 @@ class BgeReferenceExtractor(AbstractExtractor):
     def select_df(self, engine: str, spider: str) -> str:
         """Returns the `where` clause of the select statement for the entries to be processed by extractor"""
         only_given_decision_ids_string = f" AND {where_decisionid_in_list(self.decision_ids)}" if self.decision_ids is not None else ""
-        """return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}",
-                           f"decision_id, iso_code as language, html_raw, pdf_raw, file_name, 'date', 'extract(year from date) as year', '{spider}' as spider",
-                           where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}",
-                           chunksize=self.chunksize)
-        """
-        #TODO add file_name
-        return self.select(engine, f"section {join_decision_and_language_on_parameter('decision_id', 'section.decision_id')} {join_file_on_decision()}", f"section.decision_id, section_text, file_name, '{spider}' as spider, iso_code as language, html_url", where=f"section.section_type_id = 2 AND section.decision_id IN {where_string_spider('decision_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
+        return self.select(engine, f"section {join_decision_and_language_on_parameter('decision_id', 'section.decision_id')} {join_file_on_decision()}", f"section.decision_id, section_text, file_name, '{spider}' as spider, iso_code as language, html_url", where=f"section.section_type_id = 1 AND section.decision_id IN {where_string_spider('decision_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
         """Instead of saving data into database, references get written into a text file"""
@@ -66,23 +60,16 @@ class BgeReferenceExtractor(AbstractExtractor):
         path = self.data_dir / 'datasets' / 'criticality_prediction'
         if not path.exists():
             self.create_dir(self.data_dir / 'datasets', 'criticality_prediction')
-        processed_file_path = path / "bge_references_found.txt"
-        not_processed_file_path = path / "bge_not_extracted.txt"
+        processed_file_path = path / "bger_citations_found.txt"
         for _, row in df.iterrows():
             # only add new content to textfile not overwriting
-            if 'bge_reference' in row and row['bge_reference'] != 'no reference found':
-                bge_references = str(row['bge_reference'])
-                bge_references = bge_references.split("-")
-                for item in bge_references:
-                    if item != "":
-                        bge_file_name = str(row['file_name'])
-                        with processed_file_path.open("a") as f:
-                            f.write(f"{bge_file_name} {item}\n")
-
-            else:
-                with not_processed_file_path.open("a") as f:
-                    file_name = str(row['file_name'])
-                    f.write(f"{file_name}\n")
+            if 'bger_citations' in row and row['bger_citations'] != 'no citations found':
+                bger_citations = row['bger_citations']
+                if bger_citations != "" and bger_citations != []:
+                    text = " ".join([str(row['file_name']), "-".join(bger_citations)])
+                    text = text.replace("\n", "")
+                    with processed_file_path.open("a") as f:
+                        f.write(f"{text}\n")
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing.
@@ -96,7 +83,7 @@ class BgeReferenceExtractor(AbstractExtractor):
 
 if __name__ == '__main__':
     config = get_config()
-    bge_reference_extractor = BgeReferenceExtractor(config)
+    bger_citations_extractor = BgerCitationsExtractor(config)
     # delete bge_reference_found.txt file before letting it run.
     # remove CH_BGE from processed spiders
-    bge_reference_extractor.start()
+    bger_citations_extractor.start()
