@@ -28,7 +28,7 @@ class ReportCreator:
     def plot_attribute(self, df, attribute, name=""):
         """
         Plots the distribution of the attribute of the decisions in the given dataframe
-        :param df:              the dataframe containing the legal areas
+        :param df:              the dataframe containing the law areas
         :param self.folder:          specifies where to save
         :param attribute:       the attribute to barplot
         :param name:            name of the plot
@@ -88,7 +88,7 @@ class ReportCreator:
     def plot_attribute_color(self, df, attribute, color_attribute, name):
         """
                Plots the distribution of the attribute of the decisions in the given dataframe
-               :param df:              the dataframe containing the legal areas
+               :param df:              the dataframe containing the law areas
                :param attribute:       the attribute to barplot
                :param color_attribute:
                :param name:
@@ -162,7 +162,7 @@ class ReportCreator:
     def bin_plot_attribute(self, df, attribute, color_attribute, bin_start, bin_end, bin_steps):
         """
         Plots the distribution of the attribute of the decisions in the given dataframe
-        :param df:              the dataframe containing the legal areas
+        :param df:              the dataframe containing the law areas
         :param attribute:       the attribute to barplot
         :param color_attribute: attribute which is used to color the graph
         :param bin_start:
