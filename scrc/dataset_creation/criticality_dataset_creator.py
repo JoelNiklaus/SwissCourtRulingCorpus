@@ -51,18 +51,18 @@ class CriticalityDatasetCreator(DatasetCreator):
     as bge or not.
     """
 
-    def __init__(self, config: dict, debug: bool = True):
+    def __init__(self, config: dict, debug: bool = False):
         super().__init__(config, debug)
         self.logger = get_logger(__name__)
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS, Section.RULINGS]
         self.available_bges = self.load_rulings()
-        # self.references_df = self.extract_bge_references()
+        self.references_df = self.extract_bge_references()
         self.labels = ['bge_label', 'citation_label']
         self.count_all_cits = False
         self.start_years[Split.TRAIN.value] = 2002
-        self.additional_reports = False
+        self.additional_reports = True
 
     def extract_bge_references(self):
         """
