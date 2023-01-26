@@ -58,12 +58,10 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.dataset_name = "criticality_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS, Section.RULINGS]
         self.available_bges = self.load_rulings()
-        self.references_df = self.extract_bge_references()
+        # self.references_df = self.extract_bge_references()
         self.labels = ['bge_label', 'citation_label']
         self.count_all_cits = False
-        self.first_year = 2001
-        self.start_years = {Split.TRAIN.value: 2002, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
-                            Split.SECRET_TEST.value: 2020}
+        self.start_years[Split.TRAIN.value] = 2002
         self.additional_reports = False
 
     def extract_bge_references(self):
@@ -244,10 +242,10 @@ class CriticalityDatasetCreator(DatasetCreator):
         def apply_weight(row):
             if math.isnan(row['counter']):
                 return 0
-            weight = row['year'] - self.first_year
+            weight = row['year'] - (self.start_years[Split.TRAIN]-1)
             if weight < 0:
                 weight = 0
-            return row['counter'] * weight / (self.current_year - self.first_year)
+            return row['counter'] * weight / (self.current_year - (self.start_years[Split.TRAIN]-1))
         citation_count_df['counter'] = citation_count_df.apply(apply_weight, axis=1)
 
         return citation_count_df

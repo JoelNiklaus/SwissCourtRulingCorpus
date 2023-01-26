@@ -25,8 +25,7 @@ class LawAreaDatasetCreator(DatasetCreator):
         self.only_sub_areas = False
 
         self.labels = ['label']
-        self.start_years = {Split.TRAIN.value: 1970, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
-                            Split.SECRET_TEST.value: 2023}
+        self.start_years[Split.TRAIN.value] = 1970
         if self.only_sub_areas:
             self.dataset_name = "law_sub_area_prediction"
         self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
