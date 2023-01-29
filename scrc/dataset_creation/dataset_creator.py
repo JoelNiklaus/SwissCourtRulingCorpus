@@ -237,7 +237,7 @@ class DatasetCreator(AbstractPreprocessor):
                     self.logger.info(f"Citation has invalid syntax: {citation}")
                     continue
         except ValueError as ve:
-            self.logger.info(f"Citations could not be extracted to dict: {citations_as_string}")
+            self.logger.info(f"Citations could not be extracted to dict: {citation}")
         if cits:  # only return something if we actually have citations
             return cits
 
@@ -461,6 +461,7 @@ class DatasetCreator(AbstractPreprocessor):
         if data_to_load['law_sub_area']:
             df = self.add_law_sub_area(df)
 
+        # TODO sometimes this causes errors
         df.drop_duplicates(subset=self.get_feature_col_names(), inplace=True)
         self.logger.info("Finished loading the data from the database")
         if use_cache:
@@ -527,6 +528,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         for feature_col in self.get_feature_col_names():
             df = self.expand_df(df, feature_col)
+
         df.drop(columns=['sections'], inplace=True)
 
         df['chamber'] = df.chamber_id.apply(self.get_string_value, args=[self.chamber_dict])  # chamber

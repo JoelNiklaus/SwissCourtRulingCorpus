@@ -17,7 +17,7 @@ from scrc.enums.split import Split
 """
 Dataset to be created:
 - contains supreme court cases  
-- cols = year, legal_area, origin_region, origin_canton, considerations, facts, language, citation_label, bge_label
+- cols = year, law_area, origin_region, origin_canton, considerations, facts, language, citation_label, bge_label
 - only cases where feature_col =(facts, considerations) text has good length
 - Dataset Split description:
     - train 2002-2015
@@ -76,16 +76,16 @@ class CriticalityDatasetCreator(DatasetCreator):
         if not bge_references_file_path.exists():
             raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
         df = pd.DataFrame({'bge_file_number_long': [], 'bge_file_number_short': [], 'bger_reference': [], 'year': [],
-                           'bge_chamber': [], 'bger_chamber': [], 'legal_area': []})
+                           'bge_chamber': [], 'bger_chamber': [], 'law_area': []})
         with bge_references_file_path.open("r") as f:
             for line in f:
                 (bge_file_number_long, bger_reference) = line.split()
                 bger_chamber = bger_reference.split('_', 2)[0]
-                legal_area = get_legal_area_bger(bger_chamber)
+                law_area = get_legal_area_bger(bger_chamber)
                 year = int(bge_file_number_long.split('-', 5)[1]) + 1874
                 bge_chamber = bge_file_number_long.split('_', 5)[2]
                 bge_file_number_short = bge_file_number_long.split('_')[3]
-                s_row = pd.Series([bge_file_number_long, bge_file_number_short, bger_reference, year, bge_chamber, bger_chamber, legal_area],
+                s_row = pd.Series([bge_file_number_long, bge_file_number_short, bger_reference, year, bge_chamber, bger_chamber, law_area],
                                   index=df.columns)
                 df = df.append(s_row, ignore_index=True)
         self.logger.info(
@@ -242,10 +242,10 @@ class CriticalityDatasetCreator(DatasetCreator):
         def apply_weight(row):
             if math.isnan(row['counter']):
                 return 0
-            weight = row['year'] - (self.start_years[Split.TRAIN]-1)
+            weight = row['year'] - (self.start_years[Split.TRAIN.value]-1)
             if weight < 0:
                 weight = 0
-            return row['counter'] * weight / (self.current_year - (self.start_years[Split.TRAIN]-1))
+            return row['counter'] * weight / (self.current_year - (self.start_years[Split.TRAIN.value]-1))
         citation_count_df['counter'] = citation_count_df.apply(apply_weight, axis=1)
 
         return citation_count_df
@@ -279,7 +279,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         :param folder:          folder to save data
         :param df:              the df containing the dataset
         """
-        for attribute in ['legal_area', 'language']:
+        for attribute in ['law_area', 'language']:
             report_creator.plot_attribute(df[df['bge_label'] == 'critical'], attribute, name='bge')
 
         report_creator.plot_label_ordered(df.rename(columns={'bge_label': 'label'}, inplace=False), 'bge_label')
@@ -318,7 +318,7 @@ class CriticalityDatasetCreator(DatasetCreator):
                 counter += 1
                 if counter % 100 == 0:
                     self.logger.info(counter)
-                if len(line.split(' ')) > 1:
+                if len(line.split(' ')) == 2:
                     (file_number_long, bger_citations) = line.split(' ')
                     citations = bger_citations.split('-')
                     file_number_short = file_number_long.split('_')[3]
