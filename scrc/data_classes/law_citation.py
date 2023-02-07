@@ -8,38 +8,40 @@ law_util = LawUtilSingleton()
 
 
 class LawCitation(Citation):
+    cit_as_found: str  # how the citations was found in text
     article: str  # not an int because it can also be sth like 7a
     paragraph: int = None  # optional
     numeral: int = None  # optional
     law: Law
-
     # compare first by law, then by article, then by paragraph and finally by numeral
     comparison_attributes = attrgetter("law", "article", "paragraph", "numeral")
 
-    def __init__(self, citation_str, language, law_abbrs):
+    def __init__(self, citation_str, law_abbrs):
         """ 
             law_abbrs may contain data that is not properly cleaned and start with a space. Therefore
             it is necessary to strip the fields you want to extract.
         """
-        
-        self.language = language
-        if language == "de":
+        self.cit_as_found = citation_str
+        if citation_str.startswith("Art") or 'Abs' in citation_str or 'Ziff' in citation_str:
             self.article_str = "Art."
             self.paragraph_str = "Abs."
             self.numeral_str = "Ziff."
-        elif language == "fr":
+        else:
             self.article_str = "art."
             self.paragraph_str = "al."
-            self.numeral_str = "n."
-        elif language == "it":
-            self.article_str = "art."
-            self.paragraph_str = "al."
-            self.numeral_str = "cpv."
+            if 'n.' in citation_str:
+                self.numeral_str = 'n.'
+            if 'cpv.' in citation_str:
+                self.numeral_str = 'cpv.'
+
         # sometimes there is a difference between § and the article_str, but we disregard it for simplicity
         citation_str = citation_str.replace("§", self.article_str)
-        # quick hacky fix
+
+        # insert dot after art if not there yeat
         if citation_str.startswith(self.article_str[:-1]) and citation_str[3] != ".":
             citation_str = citation_str[:3] + "." + citation_str[3:]  # insert the dot
+
+        # make sure citation starts with art.
         if not citation_str.lower().startswith(self.article_str.lower()):
             raise ValueError(f"The Citation String ({citation_str}) does not start with {self.article_str}.")
 
@@ -52,16 +54,13 @@ class LawCitation(Citation):
         self.article = parts[1]  # should be the second part after "Art."
         abbreviation = parts[-1]  # should be the last part
 
-        law = law_abbrs[(law_abbrs.abbreviation.str.strip() == abbreviation) & (law_abbrs.language.str.strip() == language)]
+        law = law_abbrs[(law_abbrs.abbreviation.str.strip() == abbreviation)]  # cannot differ French and Italian
         if len(law.index) == 0:
-            # only actually include citations that we can find in our corpus
+            # only include citations that we can find in our corpus
             raise ValueError(f"The abbreviation ({abbreviation}) cannot be found.")
-        assert len(law.index) == 1
-        sr_number = law.iloc[0].sr_number
-        abbreviations = law_abbrs[law_abbrs.sr_number.str.strip() == sr_number]
-        abbreviations = abbreviations[["language", "abbreviation"]].set_index("language").to_dict()['abbreviation']
+        sr_number = law.iloc[0].sr_number  # sr_number is for all languages the same
 
-        self.law = Law(sr_number, abbreviations)
+        self.law = Law(sr_number, law_abbrs)
         # TODO we could extend this to also extract optional paragraphs or numerals
 
     def __str__(self):

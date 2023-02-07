@@ -205,7 +205,7 @@ class DatasetCreator(AbstractPreprocessor):
             self.select(self.get_engine(self.db_scrc), table_string, 'd.*, file_number.text', where_string,
                         chunksize=self.get_chunksize()))
         self.logger.info(f"BGE: There are {len(decision_df.index)} in db (also old or not referenced included).")
-        return set(decision_df.text.tolist())
+        return decision_df
 
     def get_citation(self, citations, type):
         """
@@ -236,9 +236,9 @@ class DatasetCreator(AbstractPreprocessor):
                     self.logger.info(f"Citation has invalid syntax: {citation}")
                     continue
         except ValueError as ve:
-            self.logger.info(f"Citations could not be extracted to dict: {citation}")
+            self.logger.info(f"Citations could not be extracted to dict: {citations}")
         if cits:  # only return something if we actually have citations
-            return cits
+            return np.array(cits)
 
     def get_file_number(self, citation):
         """

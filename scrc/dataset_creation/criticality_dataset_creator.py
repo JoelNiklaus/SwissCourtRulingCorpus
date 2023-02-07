@@ -57,7 +57,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS, Section.RULINGS]
-        self.available_bges = self.load_rulings()
+        self.available_bges = set(self.load_rulings().text.tolist())
         self.references_df = self.extract_bge_references()
         self.labels = ['bge_label', 'citation_label']
         self.count_all_cits = False
