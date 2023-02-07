@@ -35,36 +35,36 @@ def XX_SPIDER(decision: Union[bs4.BeautifulSoup, str], namespace: dict) -> Optio
     pass
 
 
-def CH_BGE(soup: Any, namespace: dict) -> Optional[str]:
+# def CH_BGE(soup: Any, namespace: dict) -> Optional[str]:
     """
     :param soup:        the soup parsed by bs4
     :param namespace:   the namespace containing some metadata of the court decision
     :return:            the string of found reference, 'no reference found' if no reference was extracted
     """
 
-    # Add pattern "and" when two numbers are referenced
+def CH_BGE(header: str, namespace: dict) -> Optional[str]:
+
+    # Add pattern "unt" or "et" or "/" when multiple numbers are referenced
     pattern = '(\d\D?_\d{1,4}/\d{4}|\d\D?\.\d{1,4}/\d{4}|\d\D?\s\d{1,4}/\d{4}|[BIPK]\s\d{1,3}/\d{2}[^\d])'
     pattern_one = re.compile(pattern)
     pattern_two = re.compile(f"{pattern}(\s/\s|\sund\s|\set\s){pattern}")
     pattern_three = re.compile(f"{pattern}(\s/\s|\sund\s|\set\s){pattern}(\s/\s|\sund\s|\set\s){pattern}")
 
     # find text of first occurrence of pattern_one
-    paragraph = soup.find(string=re.compile(pattern_one))
-    if paragraph:
-        # TODO make sure found pragraph is before Regeste
-        references = re.findall(pattern_one, paragraph)
-        # check for triple or double references
-        bge_references_triple = re.search(pattern_three, paragraph)
-        bge_references_double = re.search(pattern_two, paragraph)
+    # paragraph = soup.find(string=re.compile(pattern_one))
+    found_refs = re.findall(re.compile(pattern_one), header)
+    if found_refs:
+        amount = len(found_refs)
+        bge_references_triple = re.search(pattern_three, header)
+        bge_references_double = re.search(pattern_two, header)
         # catch wrong extracted references with counting matches and compare what is expected
-        amount = 1
         if bge_references_triple:
             amount = 3
         elif bge_references_double:
             amount = 2
-        if int(amount) != len(references):
-            print(f"Got wrong number of references. amount : {amount}, reference: {references}")
+        if amount != len(found_refs):
+            print(f"Got wrong number of references. amount : {amount}, reference: {found_refs}")
             return 'no reference found'
-        return convert_found_to_reference(references)
+        return convert_found_to_reference(found_refs)
     else:
         return 'no reference found'

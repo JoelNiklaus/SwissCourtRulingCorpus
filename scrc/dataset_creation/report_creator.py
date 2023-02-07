@@ -10,6 +10,10 @@ from pathlib import Path
 import numpy as np
 import os
 
+from scrc.utils.log_utils import get_logger
+
+from scrc.utils.sql_select_utils import get_legal_area_bger
+
 
 class ReportCreator:
     """
@@ -18,12 +22,13 @@ class ReportCreator:
 
     def __init__(self, base_folder, debug):
         self.folder: Path = base_folder
+        self.logger = get_logger(__name__)
         self.debug = debug
 
     def plot_attribute(self, df, attribute, name=""):
         """
         Plots the distribution of the attribute of the decisions in the given dataframe
-        :param df:              the dataframe containing the legal areas
+        :param df:              the dataframe containing the law areas
         :param self.folder:          specifies where to save
         :param attribute:       the attribute to barplot
         :param name:            name of the plot
@@ -74,8 +79,7 @@ class ReportCreator:
             label_counts.to_csv(self.folder / f"{label_name}_distribution.csv", index_label='label')
 
             if order:
-                ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', x='label',
-                                                                                    rot=15, category_orders=order)
+                ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
             else:
                 ax = label_counts[~label_counts.index.str.contains("all")].plot.bar(y='num_occurrences', rot=15)
             ax.get_figure().savefig(self.folder / f"{label_name}_distribution.png", bbox_inches="tight")
@@ -84,7 +88,7 @@ class ReportCreator:
     def plot_attribute_color(self, df, attribute, color_attribute, name):
         """
                Plots the distribution of the attribute of the decisions in the given dataframe
-               :param df:              the dataframe containing the legal areas
+               :param df:              the dataframe containing the law areas
                :param attribute:       the attribute to barplot
                :param color_attribute:
                :param name:
@@ -102,7 +106,10 @@ class ReportCreator:
         :return:
         """
         # compute median input length
-        input_length_distribution = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
+        input_length_distribution = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']].describe().round(0)
+        if len(df.index) == 1:
+            input_length_distribution = input_length_distribution.fillna(df.mean())
+        input_length_distribution = input_length_distribution.astype(int)
         input_length_distribution.to_csv(self.folder / f'{feature_col}_input_length_distribution.csv',
                                          index_label='measure')
 
@@ -158,7 +165,7 @@ class ReportCreator:
     def bin_plot_attribute(self, df, attribute, color_attribute, bin_start, bin_end, bin_steps):
         """
         Plots the distribution of the attribute of the decisions in the given dataframe
-        :param df:              the dataframe containing the legal areas
+        :param df:              the dataframe containing the law areas
         :param attribute:       the attribute to barplot
         :param color_attribute: attribute which is used to color the graph
         :param bin_start:
@@ -182,17 +189,31 @@ class ReportCreator:
         :param metadata:
         :param df:              the df containing the dataset
         """
-
         for attribute in metadata:
-            for label in labels:
-                match = df[label] == 'non-critical'
-                self.plot_attribute(df[~match], attribute, name=str(label))
+            if labels:
+                for label in labels:
+                    match = df[label] == 'non-critical'
+                    try:
+                        self.plot_attribute(df[~match], attribute, name=str(label))
+                    except:
+                        self.logger.info(f'Could not plot {attribute} for {label}. (Ignore if this is {attribute} dataset)')
+                        continue
+            else:
+                self.plot_attribute(df, attribute, name='all')
+
+        if 'origin_facts' in df.columns:
+            feature_cols.extend(['origin_facts', 'origin_considerations'])
+            for feature_col in feature_cols:
+                df[feature_col] = df[feature_col].replace('', np.nan)
+                # drop all rows with NaN in these columns
+                df = df.dropna(subset=[feature_col])
 
         for feature_col in feature_cols:
             tokens_dict: Dict[str, str] = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',
                     f'{feature_col}_num_tokens_spacy': 'num_tokens_spacy'}
             try:
-                self.plot_input_length(df.rename(columns=tokens_dict), feature_col)
+                if len(df) > 0:
+                    self.plot_input_length(df.rename(columns=tokens_dict), feature_col)
             except np.linalg.LinAlgError as err:
                 if 'singular matrix' in str(err):
                     print("Singular matrix error in plot_input_length")
@@ -220,7 +241,7 @@ class ReportCreator:
         self.plot_two_attributes(df, 'year', 'counter', 'all')
         self.bin_plot_attribute(df, 'counter', 'bge_chamber', 0, 300, 10)
         self.bin_plot_attribute(df, 'counter', 'bger_chamber', 0, 300, 10)
-        self.bin_plot_attribute(df, 'counter', 'legal_area', 0, 300, 10)
+        self.bin_plot_attribute(df, 'counter', 'law_area', 0, 300, 10)
 
         my_dictionary_1 = dict.fromkeys(list(range(0, 301, 10)))
         my_dictionary_2 = dict.fromkeys(list(range(0, 51, 1)))
@@ -248,14 +269,11 @@ class ReportCreator:
         self.plot_two_attributes(citations_amount_df, 'counter', 'number of decisions', 'citations', how='histogram')
 
     def report_references(self, df):
-        if not os.path.exists(self.folder / 'bge_references'):
-            pass
-        else:
-            plot_attributes = ['bge_chamber', 'legal_area', 'bger_chamber', 'year']
-            for attribute in plot_attributes:
-                self.plot_attribute(df, attribute, name='references')
-            self.plot_attribute_color(df, 'year', 'bge_chamber', 'references')
-            self.plot_attribute_color(df, 'year', 'legal_area', 'references')
+        plot_attributes = ['bge_chamber', 'law_area', 'bger_chamber', 'year']
+        for attribute in plot_attributes:
+            self.plot_attribute(df, attribute, name='references')
+        self.plot_attribute_color(df, 'year', 'bge_chamber', 'references')
+        self.plot_attribute_color(df, 'year', 'law_area', 'references')
 
     def report_references_not_found(self, not_found_list, label):
         """
@@ -270,17 +288,18 @@ class ReportCreator:
             for item in updated_list:
                 f.write(f"{item}\n")
         # report
-        df = pd.DataFrame({'chamber': [], 'year': []})
+        df = pd.DataFrame({'chamber': [], 'year': [], 'legal_area': []})
         for item in updated_list:
             chamber = item.split('_', 2)[0]
+            legal_area = get_legal_area_bger(chamber)
             # TODO get nice representation of chamber
             chamber = chamber[0]
             year = int(item.split('/', 2)[1])
-            s_row = pd.Series([chamber, year], index=df.columns)
+            s_row = pd.Series([chamber, year, legal_area], index=df.columns)
             df = df.append(s_row, ignore_index=True)
         df = df[df['year'] > 2000]
         df = df[df['year'] < 2030]
-        self.plot_attribute_color(df, 'year', 'chamber', 'references_not_found')
+        self.plot_attribute_color(df, 'year', 'legal_area', 'references_not_found')
 
     def test_correctness_of_labeling(self, not_found_list, references_df):
         """

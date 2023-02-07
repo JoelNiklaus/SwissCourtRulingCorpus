@@ -6,13 +6,12 @@ import datasets
 
 from scrc.dataset_creation.report_creator import ReportCreator
 from scrc.utils.main_utils import get_config
-from scrc.utils.sql_select_utils import convert_to_binary_judgments
 from scrc.enums.split import Split
 
 
-class JudgmentDatasetCreator(DatasetCreator):
+class LawAreaDatasetCreator(DatasetCreator):
     """
-    Creates a dataset with the facts or considerations as input and the judgments as labels
+    Creates a dataset with the facts or considerations as input and the law areas as labels
     """
 
     def __init__(self, config: dict, debug: bool = True):
@@ -20,33 +19,40 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.logger = get_logger(__name__)
 
         self.split_type = "date-stratified"
-        self.dataset_name = "judgment_prediction"
-        self.feature_cols = [Section.FACTS]
+        self.dataset_name = "law_area_prediction"
+        self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
 
-        self.with_partials = False
-        self.with_write_off = False
-        self.with_unification = False
-        self.with_inadmissible = False
-        self.make_single_label = True
+        self.only_sub_areas = False
+
         self.labels = ['label']
+        self.start_years[Split.TRAIN.value] = 1970
+        if self.only_sub_areas:
+            self.dataset_name = "law_sub_area_prediction"
         self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
-                         'law_area', 'law_sub_area', 'considerations']
+                         'law_area', 'law_sub_area']
+
 
     def prepare_dataset(self, save_reports, court_string):
         data_to_load = {
             "section": True, "file": True, "file_number": True,
-            "judgment": True, "citation": False, "lower_court": True,
+            "judgment": False, "citation": False, "lower_court": False,
             "law_area": True, "law_sub_area": True
         }
         df = self.get_df(self.get_engine(self.db_scrc), data_to_load, court_string=court_string, use_cache=False)
         if df.empty:
             self.logger.warning("No data found")
             return datasets.Dataset.from_pandas(df), []
-        df = df.dropna(subset=['judgments'])
-        df = convert_to_binary_judgments(df, self.with_partials, self.with_write_off, self.with_unification,
-                                         self.with_inadmissible, self.make_single_label)
-        df = df.dropna(subset=['judgments'])  # drop empty labels introduced by cleaning before
-        df = df.rename(columns={"judgments": "label"})  # normalize column names
+
+        df = df.dropna(subset=['law_area'])  # drop empty labels introduced by cleaning before
+
+        if self.only_sub_areas:
+            # replace "nan" with np.nan
+            df['law_sub_area'] = df['law_sub_area'].replace("nan", np.nan)
+            df = df.dropna(subset=['law_sub_area'])
+            df = df.rename(columns={'law_sub_area': 'label'})
+        else:
+            df = df.rename(columns={"law_area": "label"})  # normalize column names
+
         try:
             labels, _ = list(np.unique(np.hstack(df.label), return_index=True))
         except ValueError:
@@ -60,5 +66,5 @@ class JudgmentDatasetCreator(DatasetCreator):
 if __name__ == '__main__':
     config = get_config()
 
-    judgment_dataset_creator = JudgmentDatasetCreator(config, debug=False)
+    judgment_dataset_creator = LawAreaDatasetCreator(config, debug=False)
     judgment_dataset_creator.create_multiple_datasets(concatenate=True, overview=True, save_reports=True)

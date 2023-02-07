@@ -377,8 +377,9 @@
               "fr": "Droit pénal accessoire",
               "it": "Diritto penale accessorio"
             }
+          }
           },
-          "2": {
+        "2": {
             "de": "Strafprozessrecht",
             "fr": "Droit de procédure pénale",
             "it": "Diritto di processuale penale",
@@ -390,7 +391,6 @@
               }
             }
           }
-        }
       }
     },
     "4": {
