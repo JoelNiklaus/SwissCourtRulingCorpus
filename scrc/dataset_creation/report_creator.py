@@ -106,7 +106,10 @@ class ReportCreator:
         :return:
         """
         # compute median input length
-        input_length_distribution = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']].describe().round(0).astype(int)
+        input_length_distribution = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']].describe().round(0)
+        if len(df.index) == 1:
+            input_length_distribution = input_length_distribution.fillna(df.mean())
+        input_length_distribution = input_length_distribution.astype(int)
         input_length_distribution.to_csv(self.folder / f'{feature_col}_input_length_distribution.csv',
                                          index_label='measure')
 
@@ -187,19 +190,30 @@ class ReportCreator:
         :param df:              the df containing the dataset
         """
         for attribute in metadata:
-            for label in labels:
-                match = df[label] == 'non-critical'
-                try:
-                    self.plot_attribute(df[~match], attribute, name=str(label))
-                except:
-                    self.logger.info(f'Could not plot {attribute} for {label}. (Ignore if this is {attribute} dataset)')
-                    continue
+            if labels:
+                for label in labels:
+                    match = df[label] == 'non-critical'
+                    try:
+                        self.plot_attribute(df[~match], attribute, name=str(label))
+                    except:
+                        self.logger.info(f'Could not plot {attribute} for {label}. (Ignore if this is {attribute} dataset)')
+                        continue
+            else:
+                self.plot_attribute(df, attribute, name='all')
+
+        if 'origin_facts' in df.columns:
+            feature_cols.extend(['origin_facts', 'origin_considerations'])
+            for feature_col in feature_cols:
+                df[feature_col] = df[feature_col].replace('', np.nan)
+                # drop all rows with NaN in these columns
+                df = df.dropna(subset=[feature_col])
 
         for feature_col in feature_cols:
             tokens_dict: Dict[str, str] = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',
                     f'{feature_col}_num_tokens_spacy': 'num_tokens_spacy'}
             try:
-                self.plot_input_length(df.rename(columns=tokens_dict), feature_col)
+                if len(df) > 0:
+                    self.plot_input_length(df.rename(columns=tokens_dict), feature_col)
             except np.linalg.LinAlgError as err:
                 if 'singular matrix' in str(err):
                     print("Singular matrix error in plot_input_length")

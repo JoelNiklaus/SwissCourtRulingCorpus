@@ -21,7 +21,7 @@ class JudgmentDatasetCreator(DatasetCreator):
 
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
-        self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
+        self.feature_cols = [Section.FACTS]
 
         self.with_partials = False
         self.with_write_off = False
@@ -32,7 +32,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.start_years = {Split.TRAIN.value: 1970, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
                             Split.SECRET_TEST.value: 2023}
         self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
-                         'law_area', 'law_sub_area']
+                         'law_area', 'law_sub_area', 'considerations']
 
     def prepare_dataset(self, save_reports, court_string):
         data_to_load = {
@@ -63,4 +63,4 @@ if __name__ == '__main__':
     config = get_config()
 
     judgment_dataset_creator = JudgmentDatasetCreator(config, debug=False)
-    judgment_dataset_creator.create_multiple_datasets(concatenate=False, overview=True, save_reports=True)
+    judgment_dataset_creator.create_multiple_datasets(concatenate=True, overview=True, save_reports=True)
