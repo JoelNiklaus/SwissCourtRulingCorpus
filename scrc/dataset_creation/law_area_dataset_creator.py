@@ -46,6 +46,8 @@ class LawAreaDatasetCreator(DatasetCreator):
         df = df.dropna(subset=['law_area'])  # drop empty labels introduced by cleaning before
 
         if self.only_sub_areas:
+            # replace "nan" with np.nan
+            df['law_sub_area'] = df['law_sub_area'].replace("nan", np.nan)
             df = df.dropna(subset=['law_sub_area'])
             df = df.rename(columns={'law_sub_area': 'label'})
         else:
@@ -65,4 +67,4 @@ if __name__ == '__main__':
     config = get_config()
 
     judgment_dataset_creator = LawAreaDatasetCreator(config, debug=False)
-    judgment_dataset_creator.create_multiple_datasets(concatenate=False, overview=True, save_reports=True)
+    judgment_dataset_creator.create_multiple_datasets(concatenate=True, overview=True, save_reports=True)

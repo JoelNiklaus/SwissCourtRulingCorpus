@@ -158,7 +158,6 @@ class DatasetCreator(AbstractPreprocessor):
 
         self.debug = debug
         self.seed = 42
-        self.minFeatureColLength = 100  # characters
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
@@ -298,7 +297,7 @@ class DatasetCreator(AbstractPreprocessor):
         datasets_list = []
         label_concat = None
 
-        exception_courts = []
+        exception_courts = {}
         for court_string in tqdm(court_list):
             try:
                 self.logger.info(f"Creating dataset for {court_string}")
@@ -319,9 +318,9 @@ class DatasetCreator(AbstractPreprocessor):
                     created.append(court_string)
                 self.logger.info(f"Empty courts: {not_created}")
                 self.logger.info(f"Created courts: {created}")
-                self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts}")
+                self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts.keys()}")
             except Exception as e:
-                exception_courts.append({court_string: e})
+                exception_courts[court_string] = e
                 self.logger.error(f"Exception for {court_string}: {e}")
                 continue
 
@@ -342,11 +341,11 @@ class DatasetCreator(AbstractPreprocessor):
                 version += 1
             export_path = Path(f"{self.get_dataset_folder()}/v{version}")
 
-            self.save_dataset(dataset, labels, export_path, "all_train", kaggle=kaggle, save_reports=save_reports)
+            self.save_dataset(dataset, labels, export_path, self.split_type, kaggle=kaggle, save_reports=save_reports)
 
         self.logger.info(f"{len(not_created)} courts not created (since it was empty): {not_created}")
         self.logger.info(f"{len(created)} courts created: {created}")
-        self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts}")
+        self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts.keys()}")
 
     def get_all_courts(self):
         try:
@@ -357,7 +356,7 @@ class DatasetCreator(AbstractPreprocessor):
             court_names = court_names_backup
         return court_names
 
-    def get_court_list(self):
+    def get_court_list(self, concatenate):
         """
         get_court_list returns all courts that can be generated without any problems based on the current state of knowledge
         :return: list of str objects of court names. e.g. ["CH_BGer", "BL_OG"]
@@ -365,9 +364,12 @@ class DatasetCreator(AbstractPreprocessor):
 
         court_list_tmp = self.get_all_courts()  # get names of all courts
 
-        # taking all folder names from /data/datasets as a list to know which courts are already generated
-        courts_done = os.listdir(str(self.datasets_subdir / self.dataset_name))
-        self.logger.info(f"Already generated courts: {courts_done}")
+        if not concatenate:
+            # taking all folder names from /data/datasets as a list to know which courts are already generated
+            courts_done = os.listdir(str(self.datasets_subdir / self.dataset_name))
+            self.logger.info(f"Already generated courts: {courts_done}")
+        else:
+            courts_done = []
 
         # remove courts from list that are already generated
         court_list = []
@@ -385,7 +387,7 @@ class DatasetCreator(AbstractPreprocessor):
         :param overview:      if True, creates overview of all generated datasets and exports them in a csv file
         """
         if court_list is None:
-            court_list = self.get_court_list()
+            court_list = self.get_court_list(concatenate=concatenate)
         self.create_dataset(court_list, concatenate=concatenate, sub_datasets=sub_datasets, save_reports=save_reports)
         if overview:
             self.create_overview()
@@ -403,7 +405,8 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"Generating huggingface dataset at {huggingface_dir}")
 
         for split, dataset in splits.items():
-            cols_to_include = ['decision_id', 'language'] + self.metadata + self.labels + self.get_feature_col_names()
+            cols_to_include = ['decision_id', 'language'] + self.metadata + self.labels + self.get_feature_col_names() \
+                              + ['origin_facts', 'origin_considerations']
             cols_to_remove = [col for col in dataset.column_names if col not in cols_to_include]
             dataset = dataset.remove_columns(cols_to_remove)
             hf_file = f'{huggingface_dir}/{split}.jsonl'
@@ -461,7 +464,6 @@ class DatasetCreator(AbstractPreprocessor):
         if data_to_load['law_sub_area']:
             df = self.add_law_sub_area(df)
 
-        # TODO sometimes this causes errors
         df.drop_duplicates(subset=self.get_feature_col_names(), inplace=True)
         self.logger.info("Finished loading the data from the database")
         if use_cache:
@@ -505,39 +507,39 @@ class DatasetCreator(AbstractPreprocessor):
         df = pd.merge(df, file_number_df, left_on='decision_id', right_on='decision_id', how='left')
         return df
 
-    def load_section(self, df, engine):
+    def load_section(self, df, engine, decision_id_col_name='decision_id', origin=False):
         # TODO this could probably be sped up if we just load the sections we need
         self.logger.info('Loading Section')
 
         # add column 'sections' to df
         df['sections'] = None
 
-        decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
+        decision_ids = ["'" + str(x) + "'" for x in df[decision_id_col_name].tolist() if x is not None and str(x) != 'nan']
         table = f"{join_tables_on_decision(['num_tokens'])}"
         where = f"section.decision_id IN ({','.join(decision_ids)})"
-        section_df = next(self.select(engine, table, "sections, section.decision_id", where, None, self.get_chunksize()))
+        section_df = next(self.select(engine, table, "sections, section.decision_id", where, None, self.get_chunksize()), pd.DataFrame())
 
         for index, row in tqdm(section_df.iterrows()):
             decision_id = str(row['decision_id'])
             section = row['sections']
             # Find the index of the row in df with the matching decision_id
-            df['decision_id'] = df['decision_id'].astype(str)
-            i = df.index[df['decision_id'] == decision_id].tolist()[0]
+            df[decision_id_col_name] = df[decision_id_col_name].astype(str)
+            i = df.index[df[decision_id_col_name] == decision_id].tolist()[0]
             # Set the value of the 'sections' field at the index to the judgments
             df.at[i, 'sections'] = section
 
         for feature_col in self.get_feature_col_names():
-            df = self.expand_df(df, feature_col)
-
+            df = self.expand_df(df, feature_col, origin)
         df.drop(columns=['sections'], inplace=True)
 
-        df['chamber'] = df.chamber_id.apply(self.get_string_value, args=[self.chamber_dict])  # chamber
-        df['court'] = df.chamber.apply(get_court_from_chamber)  # court: first two parts of chamber_string
-        df['canton'] = df.chamber.apply(get_canton_from_chamber)  # canton: first part of chamber_string
-        df['region'] = df.canton.apply(get_region)
+        if not origin:
+            df['chamber'] = df.chamber_id.apply(self.get_string_value, args=[self.chamber_dict])  # chamber
+            df['court'] = df.chamber.apply(get_court_from_chamber)  # court: first two parts of chamber_string
+            df['canton'] = df.chamber.apply(get_canton_from_chamber)  # canton: first part of chamber_string
+            df['region'] = df.canton.apply(get_region)
 
-        # drop rows where all the feature cols are nan
-        df.dropna(subset=self.get_feature_col_names(), how='all', inplace=True)
+            # drop rows where all the feature cols are nan
+            df.dropna(subset=self.get_feature_col_names(), how='all', inplace=True)
         return df
 
     def get_feature_col_names(self):
@@ -618,8 +620,37 @@ class DatasetCreator(AbstractPreprocessor):
             lower_court_df['decision_id'] = lower_court_df['decision_id'].astype(str)
             df['decision_id'] = df['decision_id'].astype(str)
             df = pd.merge(df, lower_court_df, left_on='decision_id', right_on='decision_id', how='left')
+
+            # load origin_decision_id, origin_facts and origin_considerations
+            df = self.load_lower_court_description(df, engine)
         return df
 
+    def load_lower_court_description(self, df, engine):
+        origin_file_numbers = ["'" + str(x) + "'" for x in df['origin_file_number'].tolist() if x is not None and str(x) != 'nan']
+        if len(origin_file_numbers) == 0:
+            return df
+
+        # loading decision_id's of these origin_file_numbers
+        table = f"public.file_number"
+        columns = "text, decision_id as origin_decision_id"
+        where = f"text IN ({','.join(origin_file_numbers)})"
+        origin_decision_ids_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()), pd.DataFrame())
+
+        if origin_decision_ids_df.empty:
+            self.logger.info("origin_decision_ids_df is empty")
+            return df
+
+        # iterate through origin_decision_ids_df and add origin_decision_id to df
+        for index, row in origin_decision_ids_df.iterrows():
+            origin_file_number = row['text']
+            origin_decision_id = row['origin_decision_id']
+            # Find the index of the row in df with the matching origin_file_number
+            i = df.index[df['origin_file_number'] == origin_file_number].tolist()[0]
+            # Set the value of the 'origin_decision_id' field at the index to the origin_decision_id
+            df.at[i, 'origin_decision_id'] = origin_decision_id
+
+        df = self.load_section(df, engine, 'origin_decision_id', origin=True)
+        return df
     @staticmethod
     def add_law_area(df):
         """ Make law area label using the chamber name """
@@ -645,6 +676,8 @@ class DatasetCreator(AbstractPreprocessor):
 
         # add law area labels
         df['law_sub_area'] = df['chamber'].map(chamber_to_sub_area)
+        # make sure that the law_sub_area is a string
+        df['law_sub_area'] = df['law_sub_area'].astype(str)
         return df
 
     @staticmethod
@@ -654,35 +687,40 @@ class DatasetCreator(AbstractPreprocessor):
         else:
             return np.nan
 
-    def expand_df(self, df, feature_col):
+    def expand_df(self, df, feature_col, origin):
         """
         remove not usable values from dataframe, add num_tokens for each feature_col
         :param df:      dataframe containing all the data
         :param feature_col:  specifying column (=feature_col) which is cleaned
+        :param origin:  specifying if the feature_col is from the origin (e.g. origin_facts)
         :return:        dataframe
         """
 
+        if origin:
+            feature_col_name = 'origin_' + feature_col
+        else:
+            feature_col_name = feature_col
+
         # replace empty and whitespace strings with nan so that they can be removed
         def filter_column(row, section_attr):
-            if not isinstance(row, str) and not isinstance(row, list): return np.nan
+            if not isinstance(row, str) and not isinstance(row, list):
+                return np.nan
             if isinstance(row, str):
                 row = ast.literal_eval(row)  # convert string to list of dicts
             for section in row:
                 if section['name'] == feature_col:
                     return section[section_attr]
 
-        df[feature_col] = df['sections'].apply(filter_column, section_attr='section_text')
+        df[feature_col_name] = df['sections'].apply(filter_column, section_attr='section_text')
 
-        df[f"{feature_col}_num_tokens_bert"] = df['sections'].apply(filter_column, section_attr='num_tokens_bert')
-        df[f"{feature_col}_num_tokens_spacy"] = df['sections'].apply(filter_column, section_attr='num_tokens_spacy')
-        df[f"{feature_col}_num_tokens_bert"] = df[f"{feature_col}_num_tokens_bert"].fillna(value=0).astype(int)
-        df[f"{feature_col}_num_tokens_spacy"] = df[f"{feature_col}_num_tokens_spacy"].fillna(value=0).astype(int)
+        df[f"{feature_col_name}_num_tokens_bert"] = df['sections'].apply(filter_column, section_attr='num_tokens_bert')
+        df[f"{feature_col_name}_num_tokens_bert"] = df[f"{feature_col_name}_num_tokens_bert"].fillna(value=0).astype(int)
+        df[f"{feature_col_name}_num_tokens_spacy"] = df['sections'].apply(filter_column, section_attr='num_tokens_spacy')
+        df[f"{feature_col_name}_num_tokens_spacy"] = df[f"{feature_col_name}_num_tokens_spacy"].fillna(value=0).astype(int)
 
         if self.split_type == "date-stratified":
             df = df.dropna(subset=['year'])  # make sure that each entry has an associated year
             df.year = df.year.astype(int)  # convert from float to nicer int
-
-        df = df.loc[df['facts_num_tokens_bert'] > 50]  # remove entries with less than 50 tokens
 
         return df
 
@@ -728,22 +766,9 @@ class DatasetCreator(AbstractPreprocessor):
     def clean_dataset(self, dataset):
         # replace empty strings with nan so that they can be removed
         self.logger.info(f"start cleaning")
-        empty_rows = []
-
-        def get_empty_rows(row):
-            if row["num_tokens"] <= self.minFeatureColLength:
-                empty_rows.append(row['__index_level_0__'])
-
         for feature_col in self.get_feature_col_names():
-            dataset = dataset.rename_column(f"{feature_col}_num_tokens_bert", "num_tokens")
-            dataset.map(get_empty_rows)
-            dataset = dataset.rename_column("num_tokens", f"{feature_col}_num_tokens_bert")
+            dataset = self.filter_by_num_tokens(dataset, feature_col)
 
-        duplicates = [number for number in empty_rows if empty_rows.count(number) == len(self.get_feature_col_names())]
-        non_empty_rows = [i for i in range(len(dataset)) if i not in duplicates]
-        dataset = dataset.select(non_empty_rows)
-
-        self.logger.info(f"finished cleaning")
         return dataset
 
     def prepare_kaggle_splits(self, splits):
@@ -1017,3 +1042,33 @@ class DatasetCreator(AbstractPreprocessor):
             writer.writeheader()
             writer.writerows(courts_data)
         self.logger.info(f"Overview created and exported to: {os.path.join(export_path, export_name)}")
+
+
+    # function which takes col name as input and filters df/dataset by number of token
+    def filter_by_num_tokens(self, data_structure, col_name):
+        """
+        :function:              filters df / dataset by the number of tokens in the column 'col_name'
+        :param data_structure:  pandas dataframe or huggingface dataset
+        :param col_name:        name of the column to filter by (e.g. "origin_facts")
+        :return:                filtered df / dataset
+        """
+        def get_cutoff(col_name):
+            if col_name == 'facts' or col_name == 'origin_facts':
+                return 200
+            elif col_name == 'considerations' or col_name == 'origin_considerations':
+                return 500
+            elif col_name == 'rulings':
+                return 100
+            else:
+                raise ValueError(f"{col_name} not implmemented: col_name must be 'rulings', 'facts', 'origin_facts', "
+                                 f"'considerations' or 'origin_considerations'")
+
+        # check if data_structure is a dataframe or a dataset
+        if isinstance(data_structure, pd.DataFrame):
+            data_structure = data_structure.loc[data_structure[col_name + '_num_tokens_bert'] > get_cutoff(col_name)]
+        elif isinstance(data_structure, datasets.Dataset):
+            data_structure = data_structure.filter(lambda x: len(x[col_name]) > get_cutoff(col_name))
+        else:
+            raise ValueError("data_structure must be a dataframe or a dataset")
+
+        return data_structure
