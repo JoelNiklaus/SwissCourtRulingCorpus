@@ -22,13 +22,13 @@ class BgerCitationsExtractor(AbstractExtractor):
         super().__init__(config, function_name='bger_citations_extracting_functions', col_name='bger_citations')
         self.processed_file_path = self.progress_dir / "bger_citations_extracted.txt"
         self.logger_info = {
-            'start': 'Started extracting the bge references',
-            'finished': 'Finished extracting the bge references',
-            'start_spider': 'Started extracting the bge references for spider',
-            'finish_spider': 'Finished extracting the bge references for spider',
-            'saving': 'Saving chunk of bge references',
-            'processing_one': 'Extracting the bge references from',
-            'no_functions': 'Not extracting the bge references'
+            'start': 'Started extracting the bger citations',
+            'finished': 'Finished extracting the bger citations',
+            'start_spider': 'Started extracting the bger citations for spider',
+            'finish_spider': 'Finished extracting the bger citations for spider',
+            'saving': 'Saving chunk of bger citations',
+            'processing_one': 'Extracting the bger citations from',
+            'no_functions': 'Not extracting the bger citations'
         }
 
     def get_database_selection_string(self, spider: str, lang: str) -> str:

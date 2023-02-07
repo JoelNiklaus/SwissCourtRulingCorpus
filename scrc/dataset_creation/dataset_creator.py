@@ -161,7 +161,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
-        self.start_years = {Split.TRAIN.value: 2002, Split.VALIDATION.value: 2016, Split.TEST.value: 2018, Split.SECRET_TEST.value: 2023}
+        self.start_years = {Split.TRAIN.value: 1900, Split.VALIDATION.value: 2016, Split.TEST.value: 2018, Split.SECRET_TEST.value: 2023}
         self.current_year = date.today().year
         self.metadata = ['year', 'legal_area', 'chamber', 'court', 'canton', 'region',
                          'origin_chamber', 'origin_court', 'origin_canton', 'origin_region',

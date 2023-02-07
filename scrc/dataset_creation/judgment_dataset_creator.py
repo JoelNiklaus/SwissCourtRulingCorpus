@@ -29,8 +29,6 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.with_inadmissible = False
         self.make_single_label = True
         self.labels = ['label']
-        self.start_years = {Split.TRAIN.value: 1970, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
-                            Split.SECRET_TEST.value: 2023}
         self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
                          'law_area', 'law_sub_area', 'considerations']
 
