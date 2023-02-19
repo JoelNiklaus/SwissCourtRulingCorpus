@@ -41,8 +41,8 @@ class CourtViewDatasetCreator(DatasetCreator):
             self.dataset_name = "court_view_generation_L2"
 
             if 'origin_facts' in df.columns:
-                df = self.filter_by_num_tokens(df, 'origin_facts')
-                df = self.filter_by_num_tokens(df, 'origin_considerations')
+                df = self.filter_by_num_tokens(df, 'origin_facts', court_string)
+                df = self.filter_by_num_tokens(df, 'origin_considerations', court_string)
             else:
                 self.logger.warning("Only_with_origin is set to True, but origin_facts is not in the dataframe")
                 # make df empty

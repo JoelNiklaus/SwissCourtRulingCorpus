@@ -30,7 +30,7 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.make_single_label = True
         self.labels = ['label']
         self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
-                         'law_area', 'law_sub_area', 'considerations']
+                         'law_area', 'law_sub_area']
 
     def prepare_dataset(self, save_reports, court_string):
         data_to_load = {

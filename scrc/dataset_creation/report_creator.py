@@ -202,23 +202,26 @@ class ReportCreator:
                 self.plot_attribute(df, attribute, name='all')
 
         if 'origin_facts' in df.columns:
-            feature_cols.extend(['origin_facts', 'origin_considerations'])
-            for feature_col in feature_cols:
+            feature_cols.append('origin_facts')
+        if 'origin_considerations' in df.columns:
+            feature_cols.append('origin_considerations')
+
+        for feature_col in feature_cols:
+            if feature_col in ['origin_facts', 'origin_considerations']:
                 df[feature_col] = df[feature_col].replace('', np.nan)
                 # drop all rows with NaN in these columns
                 df = df.dropna(subset=[feature_col])
 
-        for feature_col in feature_cols:
             tokens_dict: Dict[str, str] = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',
                     f'{feature_col}_num_tokens_spacy': 'num_tokens_spacy'}
             try:
                 if len(df) > 0:
                     self.plot_input_length(df.rename(columns=tokens_dict), feature_col)
             except np.linalg.LinAlgError as err:
-                if 'singular matrix' in str(err):
-                    print("Singular matrix error in plot_input_length")
-                else:
+                if 'singular matrix' not in str(err):
                     raise err
+                print("Singular matrix error in plot_input_length")
+
 
     def report_citations_count(self, df, name):
         """
