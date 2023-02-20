@@ -185,6 +185,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
         self.feature_cols = [Section.FULL_TEXT]  # to be overridden
+        self.filter_cols = []  # to be overridden
         self.labels = []  # to be overridden
         self.available_bges = []  # to be overridden
 
@@ -576,6 +577,9 @@ class DatasetCreator(AbstractPreprocessor):
     def get_feature_col_names(self):
         return [feature_col.name.lower() for feature_col in self.feature_cols]
 
+    def get_filter_col_names(self):
+        return [filter_col.name.lower() for filter_col in self.filter_cols]
+
     def load_citation(self, decision_ids, df, engine):
         self.logger.info('Loading Citation')
         table = f"{join_tables_on_decision(['citation'])}"
@@ -797,7 +801,7 @@ class DatasetCreator(AbstractPreprocessor):
     def clean_dataset(self, dataset):
         # replace empty strings with nan so that they can be removed
         self.logger.info(f"start cleaning")
-        dataset = self.filter_by_num_tokens(dataset, col_names=self.get_feature_col_names(), conjuctive=self.delete_row_only_if_all_feature_cols_below_cutoff)
+        dataset = self.filter_by_num_tokens(dataset, col_names=self.get_filter_col_names(), conjuctive=self.delete_row_only_if_all_feature_cols_below_cutoff)
 
         return dataset
 

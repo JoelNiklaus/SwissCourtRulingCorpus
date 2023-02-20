@@ -20,6 +20,7 @@ class CourtViewDatasetCreator(DatasetCreator):
 
         self.split_type = "date-stratified"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
+        self.filter_cols = [Section.FACTS, Section.CONSIDERATIONS]
         self.only_with_origin = False
         if self.only_with_origin:
             self.dataset_name = "court_view_generation_L2"

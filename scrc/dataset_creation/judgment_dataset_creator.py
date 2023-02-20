@@ -21,7 +21,8 @@ class JudgmentDatasetCreator(DatasetCreator):
 
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
-        self.feature_cols = [Section.FACTS]
+        self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
+        self.filter_cols = [Section.FACTS]
 
         self.with_partials = False
         self.with_write_off = False

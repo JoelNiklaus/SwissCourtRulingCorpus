@@ -20,7 +20,8 @@ class LawAreaDatasetCreator(DatasetCreator):
 
         self.split_type = "date-stratified"
         self.dataset_name = "law_area_prediction"
-        self.feature_cols = [Section.FACTS]
+        self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
+        self.filter_cols = [Section.FACTS]
 
         self.only_sub_areas = False
 
