@@ -3,6 +3,7 @@ import math
 import pandas as pd
 import numpy as np
 import datasets
+from multiprocessing import Pool
 
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from pathlib import Path
@@ -229,7 +230,16 @@ class CriticalityDatasetCreator(DatasetCreator):
         """
         df.dropna(subset=['citations'], inplace=True)
 
-        df['ruling_citation'] = df.citations.apply(self.get_citation, type='ruling')
+        def parallelize_dataframe(df, func, n_cores=10):
+            df_split = np.array_split(df, n_cores)
+            pool = Pool(n_cores)
+            df = pd.concat(pool.map(func, df_split))
+            pool.close()
+            pool.join()
+            return df
+
+        df = parallelize_dataframe(df, self.parallelize_process_citations)
+
         df.dropna(subset=['ruling_citation'], inplace=True)
 
         citation_frequencies_df = self.build_tf_matrix(df)
@@ -249,6 +259,10 @@ class CriticalityDatasetCreator(DatasetCreator):
         citation_count_df['counter'] = citation_count_df.apply(apply_weight, axis=1)
 
         return citation_count_df
+
+    def parallelize_process_citations(self, df):
+        df['ruling_citation'] = df.citations.apply(self.get_citation, type='ruling')
+        return df
 
     def build_tf_matrix(self, df):
         # count citations only once within one case

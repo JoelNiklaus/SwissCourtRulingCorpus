@@ -751,7 +751,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info("start creating splits")
         splits = self.create_splits(splits, split_type, include_all=save_reports)
         self.save_huggingface_dataset(splits, folder)
-        # self.save_splits(splits, labels, folder, save_reports=save_reports)
+        self.save_splits(splits, labels, folder, save_reports=save_reports)
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
