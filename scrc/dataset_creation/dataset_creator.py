@@ -168,6 +168,7 @@ class DatasetCreator(AbstractPreprocessor):
                          'origin_chamber', 'origin_court', 'origin_canton', 'origin_region',
                          'law_area', 'law_sub_area']
         self.num_cores = 16
+        self.delete_row_only_if_all_feature_cols_below_cutoff = False
 
         def build_info_df(table_name, col_name):
             info_df = next(self.select(self.get_engine(self.db_scrc), table_name))
@@ -443,8 +444,9 @@ class DatasetCreator(AbstractPreprocessor):
             self.logger.info(f"Saving {split} dataset at {hf_file}")
             dataset.to_json(hf_file, orient='records', lines=True, force_ascii=False)
 
-            self.logger.info(f"Compressing {split} dataset at {hf_file}")
-            os.system(f'xz -zkf -T0 {hf_file}')  # -TO to use multithreading
+            if not self.debug:  # don't compress if debug to save time
+                self.logger.info(f"Compressing {split} dataset at {hf_file}")
+                os.system(f'xz -zkf -T0 {hf_file}')  # -TO to use multithreading
 
     def get_df(self, engine, data_to_load: dict, court_string="CH_BGer", use_cache=True, overwrite_cache=False):
         """
@@ -795,8 +797,7 @@ class DatasetCreator(AbstractPreprocessor):
     def clean_dataset(self, dataset):
         # replace empty strings with nan so that they can be removed
         self.logger.info(f"start cleaning")
-        for feature_col in self.get_feature_col_names():
-            dataset = self.filter_by_num_tokens(dataset, feature_col)
+        dataset = self.filter_by_num_tokens(dataset, col_names=self.get_feature_col_names(), conjuctive=self.delete_row_only_if_all_feature_cols_below_cutoff)
 
         return dataset
 
@@ -1074,13 +1075,19 @@ class DatasetCreator(AbstractPreprocessor):
 
 
     # function which takes col name as input and filters df/dataset by number of token
-    def filter_by_num_tokens(self, data_structure, col_name, court=None):
+    def filter_by_num_tokens(self, data_structure, col_names, court=None, conjuctive=False):
         """
         :function:              filters df / dataset by the number of tokens in the column 'col_name'
         :param data_structure:  pandas dataframe or huggingface dataset
         :param col_name:        name of the column to filter by (e.g. "origin_facts")
+        :param conjuctive:      if True, deletes only rows where all columns have less than the cutoff
         :return:                filtered df / dataset
         """
+        if len(col_names) > 1:
+            if conjuctive:
+                self.logger.info("Deleting only rows where all columns have less than the cutoff")
+            else:
+                self.logger.info("Deleting rows where any column has less than the cutoff")
         # TODO: save the cutoffs in a json file and load them from there
         facts_cutoff = {
             "VD_TC": 310,
@@ -1125,14 +1132,30 @@ class DatasetCreator(AbstractPreprocessor):
                 raise ValueError(f"{col_name} not implmemented: col_name must be 'rulings', 'facts', 'origin_facts', "
                                  f"'considerations' or 'origin_considerations'")
 
-        self.logger.info(f"filtering {col_name} by num_tokens")
+        def is_above_cutoff(x):
+            if conjuctive:  # returns True if any column is above the cutoff
+                for col_name in col_names:
+                    if x[col_name + '_num_tokens_bert'] >= get_cutoff(col_name, x['court']):
+                        return True
+                return False
+            else: # returns False if any column is below the cutoff
+                for col_name in col_names:
+                    if x[col_name + '_num_tokens_bert'] < get_cutoff(col_name, x['court']):
+                        return False
+                return True
+
         # check if data_structure is a dataframe or a dataset
         if isinstance(data_structure, pd.DataFrame):
+            if len(col_names) > 1:
+                raise NotImplementedError("If data_structure is a dataframe, only one column can be filtered")
+            col_name = col_names[0]
+            self.logger.info(f"filtering {col_name} by num_tokens")
             if court is None:
                 raise ValueError("If data_structure is a dataframe, court must be given")
             data_structure = data_structure.loc[data_structure[col_name + '_num_tokens_bert'] >= get_cutoff(col_name, court)]
         elif isinstance(data_structure, datasets.Dataset):
-            data_structure = data_structure.filter(lambda x: x[col_name + '_num_tokens_bert'] >= get_cutoff(col_name, x['court']))
+            self.logger.info(f"filtering {','.join(col_names)} by num_tokens")
+            data_structure = data_structure.filter(is_above_cutoff)
         else:
             raise ValueError("data_structure must be a dataframe or a dataset")
 

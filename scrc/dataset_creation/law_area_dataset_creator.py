@@ -30,6 +30,7 @@ class LawAreaDatasetCreator(DatasetCreator):
             self.dataset_name = "law_sub_area_prediction"
         self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
                          'law_area', 'law_sub_area']
+        self.delete_row_only_if_all_feature_cols_below_cutoff = False
 
 
     def prepare_dataset(self, save_reports, court_string):

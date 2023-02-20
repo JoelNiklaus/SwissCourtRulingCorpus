@@ -19,14 +19,18 @@ class CourtViewDatasetCreator(DatasetCreator):
         self.logger = get_logger(__name__)
 
         self.split_type = "date-stratified"
-        self.dataset_name = "court_view_generation"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
         self.only_with_origin = False
+        if self.only_with_origin:
+            self.dataset_name = "court_view_generation_L2"
+        else:
+            self.dataset_name = "court_view_generation"
 
         self.labels = []
         self.start_years = {Split.TRAIN.value: 1970, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
                             Split.SECRET_TEST.value: 2023}
         self.metadata = ['year', 'chamber', 'court', 'canton', 'region', 'law_area']
+        self.delete_row_only_if_all_feature_cols_below_cutoff = False
 
 
     def prepare_dataset(self, save_reports, court_string):
@@ -38,11 +42,9 @@ class CourtViewDatasetCreator(DatasetCreator):
         df = self.get_df(self.get_engine(self.db_scrc), data_to_load, court_string=court_string, use_cache=False)
 
         if self.only_with_origin:
-            self.dataset_name = "court_view_generation_L2"
-
             if 'origin_facts' in df.columns:
-                df = self.filter_by_num_tokens(df, 'origin_facts', court_string)
-                df = self.filter_by_num_tokens(df, 'origin_considerations', court_string)
+                df = self.filter_by_num_tokens(df, ['origin_facts'], court_string)
+                df = self.filter_by_num_tokens(df, ['origin_considerations'], court_string)
             else:
                 self.logger.warning("Only_with_origin is set to True, but origin_facts is not in the dataframe")
                 # make df empty
