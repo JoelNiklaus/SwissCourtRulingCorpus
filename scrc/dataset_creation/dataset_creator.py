@@ -167,6 +167,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.metadata = ['year', 'legal_area', 'chamber', 'court', 'canton', 'region',
                          'origin_chamber', 'origin_court', 'origin_canton', 'origin_region',
                          'law_area', 'law_sub_area']
+        self.num_cores = 16
 
         def build_info_df(table_name, col_name):
             info_df = next(self.select(self.get_engine(self.db_scrc), table_name))
@@ -294,48 +295,32 @@ class DatasetCreator(AbstractPreprocessor):
         # TODO in the future: maybe save text as list of paragraphs
         # TODO make sure that the same data is saved to kaggle, csv and huggingface format!
 
-        not_created, created = [], []
         datasets_list = []
-        label_concat = None
 
-        exception_courts = {}
-        for court_string in tqdm(court_list):
-            try:
-                self.logger.info(f"Creating dataset for {court_string}")
-                dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
+        with Pool(processes=self.num_cores) as pool:
+            results = [pool.apply_async(self.create_single_dataset, (court_string, concatenate, datasets_list, kaggle, save_reports,
+                                                                     sub_datasets)) for court_string in court_list]
+            datasets = [result.get()[0] for result in results if result.get()[0] is not None]
+            labels = [result.get()[1] for result in results if result.get()[1] is not None][0]
+            state_tuples = [result.get()[2] for result in results if result.get()] # tuple, e.g. (court_name, state)
 
-                if len(dataset) <= 1:
-                    self.logger.info(f"Dataset for {court_string} could not be created")
-                    not_created.append(court_string)
-                else:
-                    if concatenate:  # save all of them together in the end
-                        datasets_list.append(dataset)
-                        # TODO maybe it would make more sense to take the union of all the labels
-                        label_concat = labels if label_concat is None else label_concat  # takes the first label
-                    else:  # save each dataset separately
-                        save_path = self.create_dir(self.get_dataset_folder(), court_string)
-                        self.save_dataset(dataset, labels, save_path, self.split_type,
-                                          sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
-                        # todo think about including reports here, seperate from saving dataset
-                    created.append(court_string)
-                self.logger.info(f"Empty courts: {not_created}")
-                self.logger.info(f"Created courts: {created}")
-                self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts.keys()}")
-            except Exception as e:
-                exception_courts[court_string] = e
-                self.logger.error(f"Exception for {court_string}: {e}")
-                continue
+        # group state tuples by state and log them
+        state_dict = {}
+        for state_tuple in state_tuples:
+            if state_tuple[1] not in state_dict:
+                state_dict[state_tuple[1]] = []
+            state_dict[state_tuple[1]].append(state_tuple[0])
+        for state in state_dict:
+            self.logger.info(f"{state}: {state_dict[state]}")
 
         if concatenate:
             self.logger.info("Concatenating datasets")
-            dataset = concatenate_datasets(datasets_list)
+            dataset = concatenate_datasets(datasets)
 
             # TODO: investigate if this is really necessary
             print_memory_usage([dataset, datasets_list])
             del datasets_list
             gc.collect()
-
-            labels = label_concat
 
             # check if export folder already exists and increment the name index if it does
             version = 1
@@ -345,9 +330,31 @@ class DatasetCreator(AbstractPreprocessor):
 
             self.save_dataset(dataset, labels, export_path, self.split_type, kaggle=kaggle, save_reports=save_reports)
 
-        self.logger.info(f"{len(not_created)} courts not created (since it was empty): {not_created}")
-        self.logger.info(f"{len(created)} courts created: {created}")
-        self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts.keys()}")
+
+    def create_single_dataset(self, court_string, concatenate, datasets_list, kaggle, save_reports, sub_datasets):
+        """
+        Creates a dataset for a single court.
+        :return: dataset, labels
+        """
+        try:
+            self.logger.info(f"Creating dataset for {court_string}")
+            dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
+
+            if len(dataset) <= 1:
+                self.logger.info(f"Dataset for {court_string} could not be created")
+                return None, None, (court_string, "empty")
+            else:
+                if concatenate:  # save all of them together in the end
+                    datasets_list.append(dataset)
+                else:  # save each dataset separately
+                    save_path = self.create_dir(self.get_dataset_folder(), court_string)
+                    self.save_dataset(dataset, labels, save_path, self.split_type,
+                                      sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+                    self.logger.info(f"Dataset for {court_string} created")
+            return dataset, labels, (court_string, "created")
+        except Exception as e:
+            self.logger.error(f"Exception for {court_string}: {e}")
+            return None, None, (court_string, "exception")
 
     def get_all_courts(self):
         try:
@@ -388,11 +395,31 @@ class DatasetCreator(AbstractPreprocessor):
         :param concatenate:   if True, all courts datasets are concatenated into one file
         :param overview:      if True, creates overview of all generated datasets and exports them in a csv file
         """
+        def sort_by_size(court_list):
+            """
+            Sets the biggest courts first to save time when multiprocessing
+            :param court_list: list of court names
+            :return: sorted list of court names
+            """
+            biggest = ["CH_BGer", "VD_TC", "CH_BVGE", "GE_CJ", "ZH_SVG", "TI_TRAC", "TI_TCAS", "BE_VG", "FR_TC",
+                       "ZH_VG", "SG_KGN", "SG_VSG", "CH_BSTG", "TI_TCA"]
+            sorted_list = []
+            for court in biggest:
+                if court in court_list:
+                    sorted_list.append(court)
+            for court in court_list:
+                if court not in biggest:
+                    sorted_list.append(court)
+            return sorted_list
+
+        start_time = time.time()
         if court_list is None:
             court_list = self.get_court_list(concatenate=concatenate)
+        court_list = sort_by_size(court_list)
         self.create_dataset(court_list, concatenate=concatenate, sub_datasets=sub_datasets, save_reports=save_reports)
         if overview:
             self.create_overview()
+        self.logger.info(f"Time elapsed: {time.strftime('%H:%M:%S', time.gmtime(time.time() - start_time))}")
 
     def save_huggingface_dataset(self, splits, folder):
         """
@@ -977,7 +1004,7 @@ class DatasetCreator(AbstractPreprocessor):
         val = dataset.filter(
             lambda x: x["year"] in range(start_years[Split.VALIDATION.value], start_years[Split.TEST.value]))
         test = dataset.filter(
-            lambda x: x["year"] in range(start_years[Split.TEST.value], self.current_year + 1))
+            lambda x: x["year"] in range(start_years[Split.TEST.value], self.current_year))
         return train, val, test
 
     def split_random(self, dataset):
@@ -993,13 +1020,14 @@ class DatasetCreator(AbstractPreprocessor):
         # gather everything into a single DatasetDict
         return train_testvalid[Split.TRAIN.value], test_valid[Split.TRAIN.value], test_valid[Split.TEST.value]
 
-    def create_overview(self, path=None, export_path=None, export_name="overview", include_all=False):
+    def create_overview(self, path=None, export_path=None, export_name="overview", include_all=False, parallel=True):
         """
         :function:              creates an overview of the dataset
         :param path:            path to the court dataset folders
         :param export_name:     name of the exported file without extension
         :param export_path:     path to the folder where the file should be exported
         :param include_all:     if True, all courts are included in the overview otherwise only the created courts
+        :param parallel:        if True, the overview is created in parallel processing
         """
         if path is None:
             path = self.get_dataset_folder()
@@ -1017,18 +1045,17 @@ class DatasetCreator(AbstractPreprocessor):
         #   stores the overview in a list of dicts
         courts_data = []
 
-        # store the number of rows of each file in a dict for each court
-        for court in tqdm(courts_av):
-            court_data = {"name": court}
-            for key in [split.value for split in Split]:  # ["all", "val", "test", "train", "secret_test"]
-                try:
-                    with open(os.path.join(path, court, f"{key}.csv"), "r") as f:
-                        reader = csv.reader(f)
-                        court_data[key] = len(list(reader)) - 1  # -1 because of header
-                except FileNotFoundError:
-                    court_data[key] = -2
-            court_data['created'] = True
-            courts_data.append(court_data)
+        if parallel:
+            self.logger.info("Creating overview in parallel")
+            with Pool(processes=self.num_cores) as pool:
+                results = [pool.apply_async(get_court_len, (court, path)) for court in tqdm(courts_av)]
+                for result in results:
+                    courts_data.append(result.get())
+        else:
+            self.logger.info("Creating overview sequentially")
+            for court in tqdm(courts_av):
+                court_data = get_court_len(court, path)
+                courts_data.append(court_data)
 
         # add courts that are not in the folder
         if include_all:
@@ -1053,30 +1080,85 @@ class DatasetCreator(AbstractPreprocessor):
 
 
     # function which takes col name as input and filters df/dataset by number of token
-    def filter_by_num_tokens(self, data_structure, col_name):
+    def filter_by_num_tokens(self, data_structure, col_name, court=None):
         """
         :function:              filters df / dataset by the number of tokens in the column 'col_name'
         :param data_structure:  pandas dataframe or huggingface dataset
         :param col_name:        name of the column to filter by (e.g. "origin_facts")
         :return:                filtered df / dataset
         """
-        def get_cutoff(col_name):
+        # TODO: save the cutoffs in a json file and load them from there
+        facts_cutoff = {
+            "VD_TC": 310,
+            "CH_BGer": 250,
+            "SO_VSG": 200,
+            "ZH_OG": 300,
+            "TI_TRAC": 120,
+            "TI_PP": 140,
+            "GE_CJ": 170,
+            "SO_OG": 300,
+            "SO_VG": 150,
+            "ZH_KSG": 150,
+            "BS_APG": 170,
+            "CH_BVGE": 140,
+            "GL_VG": 150,
+            "BL_KG": 500
+        }
+        considerations_cutoff = {
+            "VD_TC": 50,
+            "TI_TRAC": 200,
+            "CH_BGer": 150,
+            "CH_BVGE": 200,
+            "GE_CJ": 50,
+            "GR_KG": 150,
+            "TI_TCAS": 150,
+            "TI_TE": 150,
+            "TI_TRAP": 150,
+            "FR_TC": 100,
+            "TI_TCA": 150,
+            "TI_PP": 150,
+            "JU_TC": 150
+        }
+
+        def get_cutoff(col_name, court):
             if col_name == 'facts' or col_name == 'origin_facts':
-                return 200
+                return facts_cutoff.get(court, 200) # default cutoff is 200
             elif col_name == 'considerations' or col_name == 'origin_considerations':
-                return 500
+                return considerations_cutoff.get(court, 500) # default cutoff is 500
             elif col_name == 'rulings':
-                return 100
+                return 100  # default cutoff is 100
             else:
                 raise ValueError(f"{col_name} not implmemented: col_name must be 'rulings', 'facts', 'origin_facts', "
                                  f"'considerations' or 'origin_considerations'")
 
+        self.logger.info(f"filtering {col_name} by num_tokens")
         # check if data_structure is a dataframe or a dataset
         if isinstance(data_structure, pd.DataFrame):
-            data_structure = data_structure.loc[data_structure[col_name + '_num_tokens_bert'] > get_cutoff(col_name)]
+            if court is None:
+                raise ValueError("If data_structure is a dataframe, court must be given")
+            data_structure = data_structure.loc[data_structure[col_name + '_num_tokens_bert'] >= get_cutoff(col_name, court)]
         elif isinstance(data_structure, datasets.Dataset):
-            data_structure = data_structure.filter(lambda x: len(x[col_name]) > get_cutoff(col_name))
+            data_structure = data_structure.filter(lambda x: x[col_name + '_num_tokens_bert'] >= get_cutoff(col_name, x['court']))
         else:
             raise ValueError("data_structure must be a dataframe or a dataset")
 
         return data_structure
+
+def get_court_len(court, path):
+    """
+    :function:   part of the create_overview function: Gets the number of samples for each split of a court
+    :param court:   name of the court
+    :param path:    path to the dataset folder
+    :return:        dict with the number of samples for each split of a court
+    """
+
+    court_data = {"name": court}
+    for key in [split.value for split in Split]:  # ["all", "val", "test", "train", "secret_test"]
+        try:
+            with open(os.path.join(path, court, f"{key}.csv"), "r") as f:
+                reader = csv.reader(f)
+                court_data[key] = len(list(reader)) - 1  # -1 because of header
+        except FileNotFoundError:
+            court_data[key] = -2
+    court_data['created'] = True
+    return court_data
