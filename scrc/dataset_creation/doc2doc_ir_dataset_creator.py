@@ -3,7 +3,9 @@ from collections import Counter
 import datasets
 from datasets import load_dataset
 from datasets import load_dataset_builder
-
+import json
+import multiprocessing
+from multiprocessing import Pool
 from bs4 import BeautifulSoup
 
 from sklearn.feature_extraction.text import TfidfTransformer
@@ -19,6 +21,7 @@ import pandas as pd
 from pandarallel import pandarallel
 
 from scrc.utils.main_utils import get_config, string_contains_one_of_list
+
 
 """
 BGE volumes
@@ -100,14 +103,14 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
     # - from facts of a case get other cases
     # - from law article get cases that cite this article ==> starting with newest case (lawyer can follow back)
 
-    def __init__(self, config: dict, debug: bool = True):
+    def __init__(self, config: dict, debug: bool = False):
         super().__init__(config, debug)
         self.logger = get_logger(__name__)
 
         self.split_type = "date-stratified"
         self.dataset_name = "doc2doc_ir"
-        self.feature_cols = [Section.FACTS, Section.FULL_TEXT, Section.CONSIDERATIONS, Section.RULINGS]
-        self.labels = ['rulings', 'laws']
+        self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS, Section.RULINGS]
+        self.labels = ['laws', 'cited_rulings']
 
         self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
 
@@ -174,22 +177,37 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
             "judgment": False, "citation": True, "lower_court": True,
             "law_area": True, "law_sub_area": True
         }
-        df = self.get_df(self.get_engine(self.db_scrc), data_to_load)
 
+        df = self.get_df(self.get_engine(self.db_scrc), data_to_load)
         df.dropna(subset=['citations'], inplace=True)
-        df = self.process_citation(df)
+
+        # df = self.process_citation(df)
+
+        def parallelize_dataframe(df, func, n_cores=10):
+            df_split = np.array_split(df, n_cores)
+            pool = Pool(n_cores)
+            df = pd.concat(pool.map(func, df_split))
+            pool.close()
+            pool.join()
+            return df
+
+        df = parallelize_dataframe(df, self.process_citation_1)
+        df = parallelize_dataframe(df, self.process_citation_2)
 
         df = df.apply(self.mask_citations, axis="columns")
+
+        # df = self.do_some_fancy_stuff(df, cit_type)
+
+        df.drop(['laws_citations', 'rulings_citations'], axis=1, inplace=True)
 
         # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
 
         rulings_labels, _ = list(np.unique(np.hstack(self.ruling_df.text), return_index=True))
         laws_labels, _ = list(np.unique(np.hstack(self.available_laws), return_index=True))
         label_list = [laws_labels, rulings_labels]
-
-        df['laws'] = df.laws.astype(str) # dataset cannot handle ojject law_citation
         dataset = datasets.Dataset.from_pandas(df)
         return dataset, label_list
+
 
     def mask_citations(self, row, law_mask_token="<ref-law>", ruling_mask_token="<ref-ruling>"):
         """
@@ -197,44 +215,68 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         but it should only use the context
         """
         citations = row['citations']
-        try:
-            for feature_col in self.get_feature_col_names():
-                text = row[feature_col]
+        for feature_col in self.get_feature_col_names():
+            text = row[feature_col]
+            if text is not None and isinstance(text, str) and text != []:
                 for citation in citations:
-                    citation_type = citation['name']
                     if citation['name'] == 'ruling':
                         text = text.replace(citation['text'], ruling_mask_token)
-                    if citation['name'] == 'law':
+                    elif citation['name'] == 'law':
                         text = str(text).replace(citation['text'], law_mask_token)
-                    row[feature_col] = text
-        except ValueError as ve:
-            self.logger.info(f"Citations could not be masked: {citations}")
+            row[feature_col] = text
         return row
 
-    def process_citation(self, df):
+    def process_citation_1(self, df):
+        # creating processes for each of the functions
         self.logger.info(f"Processing the citations.")
         # get an array of the rulings file_number that were cited
-        df['rulings'] = df.citations.apply(self.get_citation, type='ruling')
-        df.reset_index()
+        df['rulings_citations'] = df.citations.apply(self.get_citation, type='ruling')
         # get the law article for each law citation
-        df['laws'] = df.citations.apply(self.get_citation, type='law')
-        # now find for each bge file_number the decision_id
-        # TODO check if that is possible for all
-        df.dropna(subset=['laws', 'rulings'], inplace=True)
-
-        df['rulings'] = df.rulings.apply(self.create_ruling_cit_dict)
-
-        # df = self.do_some_fancy_stuff(df, cit_type)
+        df['laws_citations'] = df.citations.apply(self.get_citation, type='law')
         return df
 
-    def create_ruling_cit_dict(self, case):
-        cits = []
-        for bge_file_name in case:
+    def process_citation_2(self, df):
+        # now find for each bge file_number the decision_id
+        self.logger.info("getting bge decision Ids")
+        df['cited_rulings'] = df.rulings_citations.apply(self.get_decision_ids_of_bges)
+        # find uuids for cited laws in all languages
+        self.logger.info("getting law uuids")
+        df['laws'] = df.laws_citations.apply(self.get_uuid_of_laws)
+        return df
+
+    def get_uuid_of_laws(self, law_cits):
+        self.counter = self.counter + 1
+        if int(self.counter) % 10000 == 0:
+            self.logger.info("Processed another 10'000 citations")
+        if law_cits is None:
+            return []
+        uuids = []
+        for item in law_cits:
+            sr_number = item['law']
+            laws = self.law_abbrs[(self.law_abbrs.sr_number.str.strip() == sr_number)]  # cannot differ French and Italian
+            if len(laws.index) == 0:
+                # only include citations that we can find in our corpus
+                raise ValueError(f"The sr_number ({sr_number}) cannot be found.")
+            abbreviations = []
+            uuids = []
+            for index, row in laws.iterrows():
+                abbreviations.append(row.abbreviation)
+                uuids.append(row.uuid)
+        return uuids
+
+    def get_decision_ids_of_bges(self, bge_cits):
+        self.counter = self.counter + 1
+        if int(self.counter) % 10000 == 0:
+            self.logger.info("Processed another 10'000 citations")
+        if bge_cits is None or bge_cits == []:
+            return []
+        ids = []
+        for bge_file_name in bge_cits:
             # find decision_id in ruling_df
             decision_id = self.find_decision_id_for_ruling(bge_file_name)
             if decision_id is not None:
-                cits.append({'decision_id': decision_id, 'file_name': bge_file_name})
-        return cits
+                ids.append(decision_id)
+        return ids
 
     def find_decision_id_for_ruling(self, bge_file_name):
         match = self.ruling_df['text'] == str(bge_file_name)
@@ -243,8 +285,9 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         return None
 
     def get_law_citation(self, citations_text):
-        # create array of citations
-        return {'text': citations_text, 'law': LawCitation(citations_text, self.law_abbrs)}
+        # create law for citations
+        law = LawCitation(citations_text, self.law_abbrs)
+        return {'text': citations_text, 'law': law.sr_number}
 
     def do_some_fancy_stuff(self, df, cit_type):
         self.logger.info(f"Building the term-frequency matrix.")
@@ -315,6 +358,20 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         """
         # TODO add Ronja's criticality score
         return tf_idf_score
+
+    def get_df_from_json(self):
+        file_path = self.get_dataset_folder() / "df.jsonl"
+        with open(file_path, "r") as json_file:
+            json_list = list(json_file)
+        a_list = []
+        for json_str in json_list:
+            result = json.loads(json_str)
+            a_list.append(result)
+            assert isinstance(result, dict)
+        df = pd.DataFrame.from_records(a_list)
+        self.logger.info(len(df))
+        self.logger.info(df.columns)
+        return df
 
 
 if __name__ == '__main__':

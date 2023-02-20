@@ -6,6 +6,7 @@ import sys
 import gc
 import time
 from collections import Counter
+import multiprocessing
 from datetime import date
 from pathlib import Path
 from typing import Union
@@ -18,7 +19,7 @@ import matplotlib.pyplot as plt
 import datasets
 from datasets import concatenate_datasets
 from root import ROOT_DIR
-
+from multiprocessing import Pool
 from scrc.dataset_creation.report_creator import ReportCreator
 from scrc.enums.cantons import Canton
 from scrc.data_classes.ruling_citation import RulingCitation
@@ -238,7 +239,7 @@ class DatasetCreator(AbstractPreprocessor):
         except ValueError as ve:
             self.logger.info(f"Citations could not be extracted to dict: {citations}")
         if cits:  # only return something if we actually have citations
-            return np.array(cits)
+            return cits
 
     def get_file_number(self, citation):
         """
@@ -315,6 +316,7 @@ class DatasetCreator(AbstractPreprocessor):
                         save_path = self.create_dir(self.get_dataset_folder(), court_string)
                         self.save_dataset(dataset, labels, save_path, self.split_type,
                                           sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+                        # todo think about including reports here, seperate from saving dataset
                     created.append(court_string)
                 self.logger.info(f"Empty courts: {not_created}")
                 self.logger.info(f"Created courts: {created}")
@@ -410,12 +412,19 @@ class DatasetCreator(AbstractPreprocessor):
             cols_to_remove = [col for col in dataset.column_names if col not in cols_to_include]
             dataset = dataset.remove_columns(cols_to_remove)
             hf_file = f'{huggingface_dir}/{split}.jsonl'
-
             self.logger.info(f"Saving {split} dataset at {hf_file}")
-            dataset.to_json(hf_file, orient='records', lines=True, force_ascii=False)
+            # using pool and an extra processor to make sure we get rid of chunk data, which causes problems
+            with Pool(1) as pool:
+                pool.map(self.save_dataset_as_json, [[dataset, hf_file]])
+            pool.close()
 
-            self.logger.info(f"Compressing {split} dataset at {hf_file}")
-            os.system(f'xz -zkf -T0 {hf_file}')  # -TO to use multithreading
+
+    def save_dataset_as_json(self, tupel):
+        dataset = tupel[0]
+        hf_file = tupel[1]
+        dataset.to_json(hf_file, orient='records', lines=True, force_ascii=False)
+        self.logger.info(f"Compressing dataset")
+        os.system(f'xz -zkf -T0 {hf_file}')  # -TO to use multithreading
 
     def get_df(self, engine, data_to_load: dict, court_string="CH_BGer", use_cache=True, overwrite_cache=False):
         """
@@ -738,11 +747,11 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         # clean df before saving it
-        dataset = self.clean_dataset(dataset)
+        splits = self.clean_dataset(dataset)
         self.logger.info("start creating splits")
-        splits = self.create_splits(dataset, split_type, include_all=save_reports)
+        splits = self.create_splits(splits, split_type, include_all=save_reports)
         self.save_huggingface_dataset(splits, folder)
-        self.save_splits(splits, labels, folder, save_reports=save_reports)
+        # self.save_splits(splits, labels, folder, save_reports=save_reports)
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
@@ -761,7 +770,6 @@ class DatasetCreator(AbstractPreprocessor):
             self.save_splits(kaggle_splits, labels, kaggle_dir, save_reports=save_reports)
 
         self.logger.info(f"Saved dataset files to {folder}")
-        return splits
 
     def clean_dataset(self, dataset):
         # replace empty strings with nan so that they can be removed

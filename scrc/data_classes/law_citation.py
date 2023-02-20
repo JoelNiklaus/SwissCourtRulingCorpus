@@ -12,7 +12,9 @@ class LawCitation(Citation):
     article: str  # not an int because it can also be sth like 7a
     paragraph: int = None  # optional
     numeral: int = None  # optional
-    law: Law
+    # todo change
+    sr_number: str
+    # law: Law
     # compare first by law, then by article, then by paragraph and finally by numeral
     comparison_attributes = attrgetter("law", "article", "paragraph", "numeral")
 
@@ -37,7 +39,7 @@ class LawCitation(Citation):
         # sometimes there is a difference between § and the article_str, but we disregard it for simplicity
         citation_str = citation_str.replace("§", self.article_str)
 
-        # insert dot after art if not there yeat
+        # insert dot after art if not there yet
         if citation_str.startswith(self.article_str[:-1]) and citation_str[3] != ".":
             citation_str = citation_str[:3] + "." + citation_str[3:]  # insert the dot
 
@@ -59,8 +61,8 @@ class LawCitation(Citation):
             # only include citations that we can find in our corpus
             raise ValueError(f"The abbreviation ({abbreviation}) cannot be found.")
         sr_number = law.iloc[0].sr_number  # sr_number is for all languages the same
-
-        self.law = Law(sr_number, law_abbrs)
+        self.sr_number = sr_number
+        # self.law = Law(sr_number, law_abbrs)
         # TODO we could extend this to also extract optional paragraphs or numerals
 
     def __str__(self):
@@ -69,7 +71,7 @@ class LawCitation(Citation):
             str_repr += f" {self.paragraph_str} {self.paragraph}"
         if self.numeral:
             str_repr += f" {self.numeral_str} {self.numeral}"
-        str_repr += f" {self.law}"
+        str_repr += f" {self.sr_number}"
         return str_repr
 
     def __lt__(self, other):

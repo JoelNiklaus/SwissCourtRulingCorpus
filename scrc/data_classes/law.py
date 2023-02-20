@@ -13,7 +13,7 @@ class Law:
         laws = law_abbrs[(law_abbrs.sr_number.str.strip() == sr_number)]  # cannot differ French and Italian
         if len(laws.index) == 0:
             # only include citations that we can find in our corpus
-            raise ValueError(f"The abbreviation ({sr_number}) cannot be found.")
+            raise ValueError(f"The sr_number ({sr_number}) cannot be found.")
         self.abbreviations = []
         self.uuids = []
         for index, row in laws.iterrows():
@@ -25,7 +25,7 @@ class Law:
         self.__str__()
 
     def __str__(self):
-        return f"{'/'.join(self.abbreviations.values())} (SR: {self.sr_number})"
+        return f"{'/'.join(self.abbreviations)} (SR: {self.sr_number})"
 
     def __lt__(self, other):
         return self.sr_number < other.sr_number
