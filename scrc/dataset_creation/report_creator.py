@@ -9,6 +9,7 @@ from collections import Counter
 from pathlib import Path
 import numpy as np
 import os
+import datasets
 
 from scrc.utils.log_utils import get_logger
 
@@ -25,7 +26,7 @@ class ReportCreator:
         self.logger = get_logger(__name__)
         self.debug = debug
 
-    def plot_attribute(self, df, attribute, name=""):
+    def plot_attribute(self, dataset, attribute, name=""):
         """
         Plots the distribution of the attribute of the decisions in the given dataframe
         :param df:              the dataframe containing the law areas
@@ -34,14 +35,17 @@ class ReportCreator:
         :param name:            name of the plot
         :return:
         """
-        if not df.empty:
-            attribute_df = df[attribute].value_counts().to_frame()
-            total = len(df.index)
-            # we deleted the ones where we did not find any attribute: also mention them in this table
-            uncategorized = total - attribute_df[attribute].sum()
+        if isinstance(dataset, pd.DataFrame):
+            attribute_df = dataset[attribute].value_counts().to_frame()
+            total = len(dataset.index)
             attribute_df = attribute_df.reset_index(level=0)
             attribute_df = attribute_df.rename(columns={'index': attribute, attribute: 'number of decisions'})
+        else:
+            attribute_df = self.create_df(dataset, attribute)
+            total = len(dataset)
+        if not attribute_df.empty:
             attribute_df['number of decisions'] = attribute_df['number of decisions'].astype(int)
+            uncategorized = total - attribute_df['number of decisions'].sum()
             attribute_df.sort_values(by=[attribute], inplace=True)
             if uncategorized != 0:
                 attribute_df.loc[len(attribute_df.index)] = ['uncategorized', uncategorized]
@@ -54,8 +58,6 @@ class ReportCreator:
                 attribute_df = attribute_df[~attribute_df[attribute].astype(str).str.contains('en')]
                 attribute_df = attribute_df[~attribute_df[attribute].astype(str).str.contains('--')]
             attribute_df = attribute_df[~attribute_df[attribute].astype(str).str.contains('all')]
-
-            # TODO order attributes?
 
             fig = px.bar(attribute_df, x=attribute, y="number of decisions",
                          title=f'{name} {attribute}')
@@ -101,7 +103,7 @@ class ReportCreator:
     def plot_input_length(self, df, feature_col):
         """
         Plots the input length of the decisions in the given dataframe
-        :param df:              the dataframe containing the decision texts
+        :param dataset:         the dataset containing the decision texts
         :param feature_col:     specifies feature_col
         :return:
         """
@@ -183,45 +185,44 @@ class ReportCreator:
         fig = px.histogram(df, x=attribute, nbins=bin_amount, color=color_attribute)
         fig.write_image(self.folder / f'{attribute}_bins_{color_attribute}.png')
 
-    def report_general(self, metadata, feature_cols, labels, df):
+    def report_general(self, metadata, feature_cols, labels, dataset):
         """
         Saves statistics and reports about bge_label and citation_label. Specific for criticality_dataset_creator
         :param metadata:
         :param df:              the df containing the dataset
         """
+        print(dataset.column_names)
         for attribute in metadata:
             if labels:
                 for label in labels:
-                    match = df[label] == 'non-critical'
+                    tmp_dataset = dataset.filter(lambda row: row[label].startswith("critical"))
                     try:
-                        self.plot_attribute(df[~match], attribute, name=str(label))
+                        self.plot_attribute(tmp_dataset, attribute, name=str(label))
                     except:
                         self.logger.info(f'Could not plot {attribute} for {label}. (Ignore if this is {attribute} dataset)')
                         continue
+                self.plot_attribute(dataset, attribute, name='all')
             else:
-                self.plot_attribute(df, attribute, name='all')
+                self.plot_attribute(dataset, attribute, name='all')
 
-        if 'origin_facts' in df.columns:
+        if 'origin_facts' in dataset.column_names:
             feature_cols.append('origin_facts')
-        if 'origin_considerations' in df.columns:
+        if 'origin_considerations' in dataset.column_names:
             feature_cols.append('origin_considerations')
 
         for feature_col in feature_cols:
-            if feature_col in ['origin_facts', 'origin_considerations']:
-                df[feature_col] = df[feature_col].replace('', np.nan)
-                # drop all rows with NaN in these columns
-                df = df.dropna(subset=[feature_col])
-
-            tokens_dict: Dict[str, str] = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',
-                    f'{feature_col}_num_tokens_spacy': 'num_tokens_spacy'}
             try:
-                if len(df) > 0:
-                    self.plot_input_length(df.rename(columns=tokens_dict), feature_col)
+                # remove row that are nan or unusable like ""
+                tmp_dataset = dataset.filter(lambda row: row[f'{feature_col}_num_tokens_bert'] > 1)
+                if len(tmp_dataset) > 0:
+                    tmp_dataset = tmp_dataset.rename_column(f'{feature_col}_num_tokens_bert', 'num_tokens_bert')
+                    tmp_dataset = tmp_dataset.rename_column(f'{feature_col}_num_tokens_spacy', 'num_tokens_spacy')
+                    tmp_dataset = self.remove_columns(tmp_dataset, ['num_tokens_bert', 'num_tokens_spacy'])
+                    self.plot_input_length(tmp_dataset.toPandas(), feature_col)
             except np.linalg.LinAlgError as err:
                 if 'singular matrix' not in str(err):
                     raise err
                 print("Singular matrix error in plot_input_length")
-
 
     def report_citations_count(self, df, name):
         """
@@ -330,3 +331,34 @@ class ReportCreator:
         not_found_df = references_df[file_number_match]
         new_cases = not_found_df.loc[not_found_df['year'] > 2000]
         print(f"Not_found_list: there are {len(new_cases)} cases")
+
+    def create_df(self, dataset, attribute):
+        dataset = dataset.filter(lambda row: row[attribute] is not None and row[attribute] != '')
+        value_list = self.get_unique_values_dataset_column(dataset, attribute)
+        data = []
+        for value in value_list:
+            amount = len(dataset.filter(lambda row: row[attribute] == value))
+            data.append([value, amount])
+        return pd.DataFrame(data, columns=[attribute, 'number of decisions'])
+
+    def get_unique_values_dataset_column(self, dataset, column_name):
+        value_list = []
+        def get_column_value(row):
+             if row[column_name] not in value_list:
+                 value_list.append(row[column_name])
+        dataset.map(get_column_value)
+        return value_list
+
+    def remove_columns(self, ds, column_excepted):
+        columns = ds.column_names
+        for column in columns:
+            if column not in column_excepted:
+                ds = ds.remove(column)
+        return ds
+
+if __name__ == '__main__':
+    report_creator = ReportCreator("path", True)
+    data = {'col_1': [3, 2, 1, 0, 3, 4, 3, 2], 'col_2': ['ar', 'br', 'c', '', None, math.nan, 'c', 'a']}
+    dataset = datasets.Dataset.from_pandas(pd.DataFrame.from_dict(data))
+    df = report_creator.create_df(dataset, "col_2")
+    print("yuhuu we made it.")

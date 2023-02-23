@@ -5,8 +5,6 @@ import os
 import sys
 import gc
 import time
-from collections import Counter
-import multiprocessing
 from datetime import date
 from pathlib import Path
 from typing import Union
@@ -14,29 +12,22 @@ import ast
 from tqdm import tqdm
 import csv
 import seaborn as sns
-import plotly.express as px
-import matplotlib.pyplot as plt
 import datasets
 from datasets import concatenate_datasets
 from root import ROOT_DIR
 from multiprocessing import Pool
 from scrc.dataset_creation.report_creator import ReportCreator
-from scrc.enums.cantons import Canton
 from scrc.data_classes.ruling_citation import RulingCitation
-
 import numpy as np
 import pandas as pd
 from scrc.enums.section import Section
-
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
 from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache, get_canton_from_chamber, \
     get_court_from_chamber, print_memory_usage
-
 from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision, legal_areas, get_region, \
     where_string_spider, where_string_court
-
 from scrc.utils.court_names import court_names_backup, get_error_courts, get_empty_courts
 from scrc.enums.split import Split
 
@@ -164,8 +155,8 @@ class DatasetCreator(AbstractPreprocessor):
         self.counter = 0
         self.start_years = {Split.TRAIN.value: 1900, Split.VALIDATION.value: 2016, Split.TEST.value: 2018, Split.SECRET_TEST.value: 2023}
         self.current_year = date.today().year
-        self.metadata = ['year', 'legal_area', 'chamber', 'court', 'canton', 'region',
-                         'origin_chamber', 'origin_court', 'origin_canton', 'origin_region',
+        self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
+                         'origin_chamber', 'origin_court', 'origin_canton',
                          'law_area', 'law_sub_area']
         self.num_cores = 16
 
@@ -296,13 +287,16 @@ class DatasetCreator(AbstractPreprocessor):
         # TODO make sure that the same data is saved to kaggle, csv and huggingface format!
 
         datasets_list = []
-
-        with Pool(processes=self.num_cores) as pool:
-            results = [pool.apply_async(self.create_single_dataset, (court_string, concatenate, datasets_list, kaggle, save_reports,
+        if self.dataset_name == "doc2doc_ir" or self.dataset_name == "criticality_prediction":
+            dataset, labels, state_tuples = self.create_single_dataset(court_list[0], concatenate, datasets_list, kaggle, save_reports, sub_datasets)
+        else:
+            with Pool(processes=self.num_cores) as pool:
+                results = [pool.apply_async(self.create_single_dataset, (court_string, concatenate, datasets_list, kaggle, save_reports,
                                                                      sub_datasets)) for court_string in court_list]
-            datasets = [result.get()[0] for result in results if result.get()[0] is not None]
-            labels = [result.get()[1] for result in results if result.get()[1] is not None][0]
-            state_tuples = [result.get()[2] for result in results if result.get()] # tuple, e.g. (court_name, state)
+                datasets = [result.get()[0] for result in results if result.get()[0] is not None]
+                labels = [result.get()[1] for result in results if result.get()[1] is not None][0]
+                state_tuples = [result.get()[2] for result in results if result.get()] # tuple, e.g. (court_name, state)
+            pool.close()
 
         # group state tuples by state and log them
         state_dict = {}
@@ -330,6 +324,12 @@ class DatasetCreator(AbstractPreprocessor):
 
             self.save_dataset(dataset, labels, export_path, self.split_type, kaggle=kaggle, save_reports=save_reports)
 
+        else:
+            assert len(court_list) == 1 and (self.dataset_name == "doc2doc_ir" or self.dataset_name == "criticality_prediction")
+            court_string = court_list[0]
+            save_path = self.create_dir(self.get_dataset_folder(), court_string)
+            self.save_dataset(dataset, labels, save_path, self.split_type,
+                              sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
 
     def create_single_dataset(self, court_string, concatenate, datasets_list, kaggle, save_reports, sub_datasets):
         """
@@ -347,9 +347,6 @@ class DatasetCreator(AbstractPreprocessor):
                 if concatenate:  # save all of them together in the end
                     datasets_list.append(dataset)
                 else:  # save each dataset separately
-                    save_path = self.create_dir(self.get_dataset_folder(), court_string)
-                    self.save_dataset(dataset, labels, save_path, self.split_type,
-                                      sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
                     self.logger.info(f"Dataset for {court_string} created")
             return dataset, labels, (court_string, "created")
         except Exception as e:
@@ -425,7 +422,7 @@ class DatasetCreator(AbstractPreprocessor):
         """
         save data as huggingface dataset with columns:
         'id', 'date', 'year', 'language',
-        'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'law_area',
+         'origin_canton', 'origin_court', 'origin_chamber', 'law_area',
         'bge_label', 'citation_label', all feature cols
         :param splits:      specifying splits of dataset
         :param folder:      name of folder
@@ -433,22 +430,24 @@ class DatasetCreator(AbstractPreprocessor):
         huggingface_dir = self.create_dir(folder, 'huggingface')
         self.logger.info(f"Generating huggingface dataset at {huggingface_dir}")
 
-        for split, dataset in splits.items():
-            cols_to_include = ['decision_id', 'language'] + self.metadata + self.labels + self.get_feature_col_names() \
-                              + ['origin_facts', 'origin_considerations']
-            cols_to_remove = [col for col in dataset.column_names if col not in cols_to_include]
-            dataset = dataset.remove_columns(cols_to_remove)
-            hf_file = f'{huggingface_dir}/{split}.jsonl'
-            self.logger.info(f"Saving {split} dataset at {hf_file}")
-            # using pool and an extra processor to make sure we get rid of chunk data, which causes problems
-            with Pool(1) as pool:
-                pool.map(self.save_dataset_as_json, [[dataset, hf_file]])
+        def parallelize_saving(splits, func, n_cores=self.num_cores):
+            pool = Pool(n_cores)
+            pool.apply_async(func, (splits[Split.TRAIN.value], Split.TRAIN.value, huggingface_dir, folder))
+            pool.apply_async(func, (splits[Split.TEST.value], Split.TEST.value, huggingface_dir, folder))
+            pool.apply_async(func, (splits[Split.VALIDATION.value], Split.VALIDATION.value, huggingface_dir, folder))
             pool.close()
+            pool.join()
 
+        parallelize_saving(splits, self.save_huggingface_split)
 
-    def save_dataset_as_json(self, tupel):
-        dataset = tupel[0]
-        hf_file = tupel[1]
+    def save_huggingface_split(self, dataset, split: str, huggingface_dir, folder):
+        cols_to_include = ['decision_id', 'language'] + self.metadata + self.labels + self.get_feature_col_names() \
+                          + ['origin_facts', 'origin_considerations']
+        cols_to_remove = [col for col in dataset.column_names if col not in cols_to_include]
+        dataset = dataset.remove_columns(cols_to_remove)
+        hf_file = f'{huggingface_dir}/{split}.jsonl'
+        self.logger.info(f"Saving {split} dataset at {hf_file}")
+        # using pool and an extra processor to make sure we get rid of chunk data, which causes problems
         dataset.to_json(hf_file, orient='records', lines=True, force_ascii=False)
         self.logger.info(f"Compressing dataset")
         os.system(f'xz -zkf -T0 {hf_file}')  # -TO to use multithreading
@@ -774,11 +773,12 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         # clean df before saving it
-        splits = self.clean_dataset(dataset)
+        dataset = self.clean_dataset(dataset)
         self.logger.info("start creating splits")
-        splits = self.create_splits(splits, split_type, include_all=save_reports)
+        splits = self.create_splits(dataset, split_type, include_all=save_reports)
         self.save_huggingface_dataset(splits, folder)
-        self.save_splits(splits, labels, folder, save_reports=save_reports)
+        save_csv = self.dataset_name != "criticality_prediction" and self.dataset_name != "doc2doc_ir"
+        self.save_splits(splits, labels, folder, save_reports, [save_csv])
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
@@ -803,6 +803,8 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"start cleaning")
         for feature_col in self.get_feature_col_names():
             dataset = self.filter_by_num_tokens(dataset, feature_col)
+
+        dataset = dataset.remove_columns(['language_id', 'chamber_id', 'file_id', 'topic'])
 
         return dataset
 
@@ -844,14 +846,18 @@ class DatasetCreator(AbstractPreprocessor):
                 continue
             self.logger.info(f"Processing split {split}")
 
-            if save_reports or save_csvs:
+            if save_csvs:
                 # without the feature_cols, the dataset should fit into RAM
                 # Additionally, we don't want to save the long text columns to the csv files because it becomes unreadable
                 self.logger.info(f"Exporting metadata columns of dataset to pandas dataframe for easier plotting")
+                # TODO this line causes out of memory errors for large datasets like criticality or doc2doc
+                #  - set save_reports False for those datasets
                 df = dataset.remove_columns(self.get_feature_col_names()).to_pandas()
             if save_reports:
                 self.logger.info(f"Computing metadata reports")
-                self.save_report(folder, split, df)
+                with Pool(1) as pool:
+                    pool.apply(self.save_report, (folder, split, dataset))
+                pool.close()
 
             if save_csvs:
                 if isinstance(save_csvs, list):
@@ -944,7 +950,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         return sub_datasets_dict
 
-    def save_report(self, folder, split, df):
+    def save_report(self, folder, split, dataset):
         """
         Saves statistics about the dataset in the form of csv tables and png graphs.
         :param folder:  the base folder to save the report to
@@ -952,15 +958,16 @@ class DatasetCreator(AbstractPreprocessor):
         :param df:      the df containing the dataset
         :return:
         """
-
         self.logger.info(f"Saving report for split {split}")
         split_folder = self.create_dir(folder, f'reports/{split}')
         report_creator = ReportCreator(split_folder, self.debug)
-        report_creator.report_general(self.metadata, self.get_feature_col_names(), self.labels, df)
-        self.plot_custom(report_creator, df, split_folder)
+        report_creator.report_general(self.metadata, self.get_feature_col_names(), self.labels, dataset)
+        # TODO change all df to dataset to avoid memory problems
+        # self.plot_custom(report_creator, dataset, split_folder)
 
     @abc.abstractmethod
-    def plot_custom(self, report_creator, df, folder):
+    def plot_custom(self, report_creator, dataset, folder):
+        # TODO change df to dataset for all plot_custom
         """
         Implement custom plots for each dataset_creator in this method
         """
@@ -1051,6 +1058,7 @@ class DatasetCreator(AbstractPreprocessor):
                 results = [pool.apply_async(get_court_len, (court, path)) for court in tqdm(courts_av)]
                 for result in results:
                     courts_data.append(result.get())
+            pool.close()
         else:
             self.logger.info("Creating overview sequentially")
             for court in tqdm(courts_av):
@@ -1143,6 +1151,15 @@ class DatasetCreator(AbstractPreprocessor):
             raise ValueError("data_structure must be a dataframe or a dataset")
 
         return data_structure
+
+    def parallelize_dataframe(self, df, func, n_cores=10):
+        df_split = np.array_split(df, n_cores)
+        pool = Pool(n_cores)
+        tmp = pd.concat(pool.map(func, df_split))
+        pool.close()
+        pool.join()
+        return tmp
+
 
 def get_court_len(court, path):
     """

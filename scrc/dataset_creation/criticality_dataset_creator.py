@@ -3,7 +3,6 @@ import math
 import pandas as pd
 import numpy as np
 import datasets
-from multiprocessing import Pool
 
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from pathlib import Path
@@ -14,6 +13,14 @@ from scrc.utils.log_utils import get_logger
 from collections import Counter
 from scrc.utils.sql_select_utils import get_legal_area_bger
 from scrc.enums.split import Split
+
+"""
+Let it run:
+- run bge_reference_extractor (spider CH_BGE needs to be deleted in progress file)
+- run bger_citations_extractor (spider CH_BGE and CH_BGer need to be deleted in progress file)
+- ready to run criticality_prediction
+"""
+
 
 """
 Dataset to be created:
@@ -52,7 +59,7 @@ class CriticalityDatasetCreator(DatasetCreator):
     as bge or not.
     """
 
-    def __init__(self, config: dict, debug: bool = False):
+    def __init__(self, config: dict, debug: bool = True):
         super().__init__(config, debug)
         self.logger = get_logger(__name__)
         self.split_type = "date-stratified"
@@ -67,12 +74,10 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def extract_bge_references(self):
         """
-        Extract data from bge_refereces_found.txt
+        Extract data from bge_refereces_found.txt In order to do this bge_reference extractor must have run before.
         :return:        dataframe containing bger_references and bge_file_numbers
         """
         # TODO consider to write found reference into db instead of a file
-        #  this code would not be necessary then
-        # get dict of bge references with corresponding bge file name
         bge_references_file_path: Path = self.get_dataset_folder() / "bge_references_found.txt"
         if not bge_references_file_path.exists():
             raise Exception("bge references need to be extracted first. Run bge_reference_extractor.")
@@ -89,8 +94,10 @@ class CriticalityDatasetCreator(DatasetCreator):
                 s_row = pd.Series([bge_file_number_long, bge_file_number_short, bger_reference, year, bge_chamber, bger_chamber, law_area],
                                   index=df.columns)
                 df = df.append(s_row, ignore_index=True)
+        # Realize that decision_ids must be unique. But Filenames are not.
         self.logger.info(
-            f"References_df: There are {len(df.index)} entries with {len(df.bge_file_number_long.unique())} unique bge_filenumbers and {len(df.bger_reference.unique())} unique bger_references.")
+            f"References_df: There are {len(df.index)} entries with {len(df.bge_file_number_long.unique())} unique bge_filenames and {len(df.bger_reference.unique())} unique bger_references.")
+        # create some reports about the found references
         folder = self.create_dir(self.get_dataset_folder(), f'reports/references')
         report_creator = ReportCreator(folder, self.debug)
         report_creator.report_references(df)
@@ -98,11 +105,12 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def prepare_dataset(self, save_reports, court_string):
         """
-        get of all bger cases and set bge_label and citation_label
-        :param save_reports:    whether or not to compute and save reports
-        :param court_string:    specifies court
+        get of all bger cases and set criticality labels: bge_label and citation_label
+        :param save_reports:    whether or not to compute and save reports # TODO is False as default due to a bug
+        :param court_string:    specifies court, in this case it is CH_BGer
         :return:                dataframe and list of labels
         """
+        # We need file information to indentify found bge_references and citations to calculate amount of citations.
         data_to_load = {
             "section": True, "file": True, "file_number": True,
             "judgment": False, "citation": True, "lower_court": True,
@@ -120,11 +128,14 @@ class CriticalityDatasetCreator(DatasetCreator):
             self.check_correctness_bge(df, bge_list)
             # compare found references with bger citations
             bger_list = self.get_bger_citation_list()
-            df['bge_label_2'] = "non_critical"
-            df = self.set_critical_label(df, bger_list, 'bge_label_2')
-            not_found_list = [item for item in bger_list if item not in bge_list]
+            not_found_list = [item for item in bge_list if item not in bger_list]
+            folder = self.create_dir(self.get_dataset_folder(), f'reports')
+            path = folder / 'missing_bger_in_db.txt'
+            with path.open("a") as f:
+                for item in not_found_list:
+                    f.write(f"{item}\n")
 
-        # bge citation criticality
+        # citation criticality
         criticality_lists = self.get_citations_criticality_list(df.copy())
         df = self.set_multiple_labels(df, criticality_lists, 'citation_label')
 
@@ -136,7 +147,7 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def set_critical_label(self, df, criticality_list, label):
         """
-        Set label critical for cases in given list, else set label non-critical
+        Set label critical for cases in given citicality list, else set label non-critical
         :param df:                  dataframe of all bger cases
         :param criticality_list:    list of bger_file_numbers which will be labeled critical
         :param label:               name of label in df
@@ -150,6 +161,13 @@ class CriticalityDatasetCreator(DatasetCreator):
         return df
 
     def set_multiple_labels(self, df, critical_lists, label):
+        """
+        Create label with more than two classes
+        :param df:                  dataframe of all bger cases
+        :param criticality_lists:   list of lists of bger_file_numbers which will be labeled critical
+        :param label:               name of label in df
+        :return:                    labeled dataframe
+        """
         df_list = []
         i = 1
         for critical_list in critical_lists:
@@ -169,8 +187,8 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def get_bge_criticality_list(self):
         """
-        create list of all bger_references
-        :return:    return this list
+        create list of all bger_references found in bge
+        :return:    list of bger_file_numbers
         """
         self.logger.info(f"Processing labeling of bge_criticality")
         bge_ref_list = list(self.references_df['bger_reference'].unique())
@@ -179,7 +197,8 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def get_bger_citation_list(self):
         """
-
+        create list of all bger_references found in all bger with regex
+        :return:    list of bger_file_numbers
         """
         df = self.extract_bger_citations()
         citations_lists = df['citations']
@@ -189,30 +208,32 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def get_citations_criticality_list(self, df):
         """
-        create a list of bger_references which were cited a specified amount
+        create a list of lists of bger_references seperated depending how often they were cited
         :param df:                dataframe of all bger cases
         :return:                  list of lists of bger_references
         """
         self.logger.info(f"Processing labeling of citation_criticality")
-        citations_df = self.process_citations(df)
+        citations_df = self.process_data(df)
 
         folder = self.create_dir(self.get_dataset_folder(), f'reports/citations')
         report_creator = ReportCreator(folder, self.debug)
+
         # report number of citations
         if self.additional_reports:
             report_creator.report_citations_count(citations_df, 'all')
 
+        # separate cases into four classes using quartils of number of cits
         citations_scores = self.calculate_quartils(citations_df)
-        # apply for each row a function which returns True if citation amount is bigger than given number
+
         critical_lists = []
         for i in range(len(citations_scores)):
             # bigger and not equal to avoid cases which were cited 0 times
             critical_df = citations_df[citations_df['counter'] > citations_scores[i]]
-            # create list of unique bge file numbers
             critical_cases = list(critical_df['bger_reference'].unique())
             critical_lists.append(critical_cases)
             if self.additional_reports:
                 report_creator.report_citations_count(citations_df, str(i))
+        # the created lists are not disjunctive! cases with the highest citation_score are present in all lists
         return critical_lists
 
     def calculate_quartils(self, df):
@@ -224,23 +245,22 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def process_citations(self, df):
         """
-        Count for each bge amount of citations in bger
+        process citations parallelized
+        :param df:  dataframe of all bger cases
+        :return:    dataframe with additional column with processed citations
+        """
+        df.dropna(subset=['citations'], inplace=True)
+        df['ruling_citation'] = df.citations.apply(self.get_citation, type='ruling')
+        df.dropna(subset=['ruling_citation'], inplace=True)
+        return df
+
+    def process_data(self, df):
+        """
+        Process data in df to get new df containing cases and a count of how often a case was cited
         :param df:      dataframe of all bger cases
         :return:        dataframe containing columns 'bger_reference', 'bge_file_number' and 'count'
         """
-        df.dropna(subset=['citations'], inplace=True)
-
-        def parallelize_dataframe(df, func, n_cores=10):
-            df_split = np.array_split(df, n_cores)
-            pool = Pool(n_cores)
-            df = pd.concat(pool.map(func, df_split))
-            pool.close()
-            pool.join()
-            return df
-
-        df = parallelize_dataframe(df, self.parallelize_process_citations)
-
-        df.dropna(subset=['ruling_citation'], inplace=True)
+        df = self.parallelize_dataframe(df, self.process_citations)
 
         citation_frequencies_df = self.build_tf_matrix(df)
 
@@ -260,11 +280,10 @@ class CriticalityDatasetCreator(DatasetCreator):
 
         return citation_count_df
 
-    def parallelize_process_citations(self, df):
-        df['ruling_citation'] = df.citations.apply(self.get_citation, type='ruling')
-        return df
-
     def build_tf_matrix(self, df):
+        """
+        Count for all found citations how often a case was cited
+        """
         # count citations only once within one case
         df['ruling_citation'] = df['ruling_citation'].apply(lambda x: set(x))
 
@@ -307,6 +326,9 @@ class CriticalityDatasetCreator(DatasetCreator):
                                               'citation_label', order=order_dict)
 
     def check_correctness_bge(self, df, criticality_list):
+        """
+        to verify the correctness of our labels create some reports to compare bge_label with
+        """
         critical_bge_df = df[df['bge_label'] == 'critical']
         # Check which file numbers could not been found for bge criticality
         labeled_critical_list = list(critical_bge_df.file_number.unique())
@@ -318,9 +340,11 @@ class CriticalityDatasetCreator(DatasetCreator):
 
     def extract_bger_citations(self):
         """
-                Extract data from bger_citations_found.txt
-                :return:        dataframe containing bger_citations and bge_file_numbers
-                """
+        To verify correctness of bge_label extract data from bger_citations_found.txt which contains all references
+        found in all bger cases and not only in bge. This way we can make sure to have all bger_file_numbers, which
+        should exist in our db.
+        :return:        dataframe containing bger_citations and bge_file_numbers
+        """
         # get dict of bge references with corresponding bge file name
         bge_references_file_path: Path = self.get_dataset_folder() / "bger_citations_found.txt"
         if not bge_references_file_path.exists():

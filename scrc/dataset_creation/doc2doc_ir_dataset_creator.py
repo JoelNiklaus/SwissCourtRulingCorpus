@@ -1,18 +1,13 @@
 import itertools
 from collections import Counter
 import datasets
-from datasets import load_dataset
-from datasets import load_dataset_builder
 import json
-import multiprocessing
-from multiprocessing import Pool
 from bs4 import BeautifulSoup
 
 from sklearn.feature_extraction.text import TfidfTransformer
 from tqdm import tqdm
 
 from scrc.data_classes.law_citation import LawCitation
-from scrc.data_classes.ruling_citation import RulingCitation
 from scrc.dataset_creation.dataset_creator import DatasetCreator
 from scrc.enums.section import Section
 from scrc.utils.log_utils import get_logger
@@ -20,7 +15,7 @@ import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
 
-from scrc.utils.main_utils import get_config, string_contains_one_of_list
+from scrc.utils.main_utils import get_config
 
 
 """
@@ -122,6 +117,9 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         tqdm.pandas()
 
     def load_law_articles(self):
+        """
+        Load all law articles and save them
+        """
         self.logger.info(f"Loading reference law articles")
         # todo find solution to load directly from huggingface
         # laws = load_dataset("rcds/swiss_legislation")
@@ -130,20 +128,17 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         laws = laws[laws.abbreviation.str.len() > 1]  # only keep the ones with an abbreviation
         laws.abbreviation = laws.abbreviation.str.strip()
         # TODO think about if we need to combine the laws in the different languages to one single law with representations in different languages
-        # law articles exist for german, french and italian but they do have different uuid but the same sr_number! (abbreviations not always the same)
+        #  law articles exist for german, french and italian but they do have different uuid but the same sr_number! (abbreviations not always the same)
         self.law_abbrs = laws[["language", "abbreviation", "sr_number", "uuid"]]
         self.available_laws = set(laws.abbreviation.unique().tolist())
         self.logger.info(f"Found {len(self.available_laws)} laws")
-        # This can take quite a long time
-        laws_path = self.get_dataset_folder() / "laws.jsonl"
-        #if not laws_path.exists():
-         #   self.logger.info("Extracting individual articles from laws")
-          #  articles = pd.concat([self.extract_article_info(row) for _, row in laws.iterrows()], ignore_index=True)
-           # articles.to_json(laws_path, orient="records", lines=True)
 
     @staticmethod
     def extract_article_info(law):
-        """Extracts the information for the individual articles from a given law"""
+        """
+        Extracts the information for the individual articles from a given law
+        :return:    a dataframe containing processed law articles
+        """
         arts = {"canton": [], "language": [], "sr_number": [], "abbreviation": [], "article": [], "short": [],
                 "title": [],
                 "link": [], "text": [], }
@@ -172,6 +167,12 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         return pd.DataFrame(arts)
 
     def prepare_dataset(self, save_reports, court_string):
+        """
+        get of all bger cases and set criticality labels: bge_label and citation_label
+        :param save_reports:    whether or not to compute and save reports # TODO is False as default due to a bug
+        :param court_string:    specifies court, in this case it is CH_BGer
+        :return:                dataframe and list of labels
+        """
         data_to_load = {
             "section": True, "file": True, "file_number": True,
             "judgment": False, "citation": True, "lower_court": True,
@@ -179,20 +180,13 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         }
 
         df = self.get_df(self.get_engine(self.db_scrc), data_to_load)
+
+        # get rid of all cases where no citations were found
         df.dropna(subset=['citations'], inplace=True)
 
-        # df = self.process_citation(df)
-
-        def parallelize_dataframe(df, func, n_cores=10):
-            df_split = np.array_split(df, n_cores)
-            pool = Pool(n_cores)
-            df = pd.concat(pool.map(func, df_split))
-            pool.close()
-            pool.join()
-            return df
-
-        df = parallelize_dataframe(df, self.process_citation_1)
-        df = parallelize_dataframe(df, self.process_citation_2)
+        # cut process into two pieces to make sure it is handled sequentially
+        df = self.parallelize_dataframe(df, self.process_citation_1)
+        df = self.parallelize_dataframe(df, self.process_citation_2)
 
         df = df.apply(self.mask_citations, axis="columns")
 
@@ -202,17 +196,17 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
 
         # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
 
-        rulings_labels, _ = list(np.unique(np.hstack(self.ruling_df.text), return_index=True))
-        laws_labels, _ = list(np.unique(np.hstack(self.available_laws), return_index=True))
+        rulings_labels, _ = list(np.unique(np.hstack(df.cited_rulings), return_index=True))
+        laws_labels, _ = list(np.unique(np.hstack(df.laws), return_index=True))
         label_list = [laws_labels, rulings_labels]
         dataset = datasets.Dataset.from_pandas(df)
         return dataset, label_list
 
-
     def mask_citations(self, row, law_mask_token="<ref-law>", ruling_mask_token="<ref-ruling>"):
         """
-        Mask citations so that they don't help in finding the right document,
-        but it should only use the context
+        Mask citations, so they don't help in finding the right document, it should only use the context
+        :param: row:    a row in the dataframe
+        :return:        row with masked citations for all feature_cols
         """
         citations = row['citations']
         for feature_col in self.get_feature_col_names():
@@ -227,7 +221,10 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         return row
 
     def process_citation_1(self, df):
-        # creating processes for each of the functions
+        """
+        First part of processing citations, extracts for each citation (ruling and law) the needed information
+        :param: df:     dataframe containing all bger
+        """
         self.logger.info(f"Processing the citations.")
         # get an array of the rulings file_number that were cited
         df['rulings_citations'] = df.citations.apply(self.get_citation, type='ruling')
@@ -236,15 +233,20 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         return df
 
     def process_citation_2(self, df):
-        # now find for each bge file_number the decision_id
-        self.logger.info("getting bge decision Ids")
+        """
+        Second part of processing citations, finds a unique representation for each law and ruling citations
+        :param: df:     dataframe containing all bger
+        """
+        # find for each bge file_number the decision_id
         df['cited_rulings'] = df.rulings_citations.apply(self.get_decision_ids_of_bges)
         # find uuids for cited laws in all languages
-        self.logger.info("getting law uuids")
         df['laws'] = df.laws_citations.apply(self.get_uuid_of_laws)
         return df
 
     def get_uuid_of_laws(self, law_cits):
+        """
+        Find for a given law its uuid. Each law is written in multiple languages, so we get multiple uuids per law.
+        """
         self.counter = self.counter + 1
         if int(self.counter) % 10000 == 0:
             self.logger.info("Processed another 10'000 citations")
@@ -265,6 +267,9 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         return uuids
 
     def get_decision_ids_of_bges(self, bge_cits):
+        """
+        Find decision_id for ruling_citation by given bge_file_number
+        """
         self.counter = self.counter + 1
         if int(self.counter) % 10000 == 0:
             self.logger.info("Processed another 10'000 citations")
@@ -279,13 +284,20 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         return ids
 
     def find_decision_id_for_ruling(self, bge_file_name):
+        """
+        This might not be possible for all citations because the citation does
+        sometimes cite a specific page instead of the beginning of the ruling, so bge_file_name in invalid
+        """
         match = self.ruling_df['text'] == str(bge_file_name)
         if len(self.ruling_df[match]) > 0:
             return self.ruling_df[match, 'decision_id'].iloc[:1]
         return None
 
     def get_law_citation(self, citations_text):
-        # create law for citations
+        """
+        create a law object for each given citation_text, to extract the needed information: sr_number
+        This number is unique for each law, so we can identify the needed article by the sr_number in a next step
+        """
         law = LawCitation(citations_text, self.law_abbrs)
         return {'text': citations_text, 'law': law.sr_number}
 
@@ -358,20 +370,6 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         """
         # TODO add Ronja's criticality score
         return tf_idf_score
-
-    def get_df_from_json(self):
-        file_path = self.get_dataset_folder() / "df.jsonl"
-        with open(file_path, "r") as json_file:
-            json_list = list(json_file)
-        a_list = []
-        for json_str in json_list:
-            result = json.loads(json_str)
-            a_list.append(result)
-            assert isinstance(result, dict)
-        df = pd.DataFrame.from_records(a_list)
-        self.logger.info(len(df))
-        self.logger.info(df.columns)
-        return df
 
 
 if __name__ == '__main__':
