@@ -59,7 +59,7 @@ class CriticalityDatasetCreator(DatasetCreator):
     as bge or not.
     """
 
-    def __init__(self, config: dict, debug: bool = True):
+    def __init__(self, config: dict, debug: bool = False):
         super().__init__(config, debug)
         self.logger = get_logger(__name__)
         self.split_type = "date-stratified"

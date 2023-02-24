@@ -217,8 +217,8 @@ class ReportCreator:
                 if len(tmp_dataset) > 0:
                     tmp_dataset = tmp_dataset.rename_column(f'{feature_col}_num_tokens_bert', 'num_tokens_bert')
                     tmp_dataset = tmp_dataset.rename_column(f'{feature_col}_num_tokens_spacy', 'num_tokens_spacy')
-                    tmp_dataset = self.remove_columns(tmp_dataset, ['num_tokens_bert', 'num_tokens_spacy'])
-                    self.plot_input_length(tmp_dataset.toPandas(), feature_col)
+                    tmp_dataset = self.get_rid_of_unused_cols(tmp_dataset, ["num_tokens_bert", "num_tokens_spacy"])
+                    self.plot_input_length(tmp_dataset.to_pandas(), feature_col)
             except np.linalg.LinAlgError as err:
                 if 'singular matrix' not in str(err):
                     raise err
@@ -349,12 +349,13 @@ class ReportCreator:
         dataset.map(get_column_value)
         return value_list
 
-    def remove_columns(self, ds, column_excepted):
-        columns = ds.column_names
-        for column in columns:
-            if column not in column_excepted:
-                ds = ds.remove(column)
+    def get_rid_of_unused_cols(self, ds, col_list):
+        cols = ds.column_names
+        for item in cols:
+            if item not in col_list:
+                ds.remove_columns(item)
         return ds
+
 
 if __name__ == '__main__':
     report_creator = ReportCreator("path", True)

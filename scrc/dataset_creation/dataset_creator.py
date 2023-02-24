@@ -778,7 +778,7 @@ class DatasetCreator(AbstractPreprocessor):
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
         self.save_huggingface_dataset(splits, folder)
         save_csv = self.dataset_name != "criticality_prediction" and self.dataset_name != "doc2doc_ir"
-        self.save_splits(splits, labels, folder, save_reports, [save_csv])
+        self.save_splits(splits, labels, folder, save_reports, save_csv)
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
@@ -856,7 +856,7 @@ class DatasetCreator(AbstractPreprocessor):
             if save_reports:
                 self.logger.info(f"Computing metadata reports")
                 with Pool(1) as pool:
-                    pool.apply(self.save_report, (folder, split, dataset))
+                    pool.apply_async(self.save_report, (folder, split, dataset))
                 pool.close()
 
             if save_csvs:
