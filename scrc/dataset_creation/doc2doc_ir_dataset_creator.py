@@ -101,14 +101,14 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
     def __init__(self, config: dict, debug: bool = False):
         super().__init__(config, debug)
         self.logger = get_logger(__name__)
-
         self.split_type = "date-stratified"
         self.dataset_name = "doc2doc_ir"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS, Section.RULINGS]
         self.labels = ['laws', 'cited_rulings']
-
         self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
-
+        self.metadata = ['year', 'chamber', 'region', 'origin_chamber', 'origin_court', 'origin_canton',
+                         'law_area', 'law_sub_area']
+        self.reports_folder = self.create_dir(self.get_dataset_folder(), f'CH_BGer/reports')
         self.ruling_df = self.load_rulings()
         self.available_bges = self.ruling_df.text.tolist()
         self.load_law_articles()
@@ -193,6 +193,8 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         # df = self.do_some_fancy_stuff(df, cit_type)
 
         df.drop(['laws_citations', 'rulings_citations'], axis=1, inplace=True)
+        df['laws'] = df['laws'].astype(str)
+        df['cited_rulings'] = df['cited_rulings'].astype(str)
 
         # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
 
@@ -288,9 +290,10 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         This might not be possible for all citations because the citation does
         sometimes cite a specific page instead of the beginning of the ruling, so bge_file_name in invalid
         """
+        bge_file_name = bge_file_name.replace('-', ' ')
         match = self.ruling_df['text'] == str(bge_file_name)
         if len(self.ruling_df[match]) > 0:
-            return self.ruling_df[match, 'decision_id'].iloc[:1]
+            return str(self.ruling_df[match].iloc[0].loc['decision_id'])
         return None
 
     def get_law_citation(self, citations_text):
@@ -375,4 +378,4 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
 if __name__ == '__main__':
     config = get_config()
     citation_dataset_creator = Doc2DocIRDatasetCreator(config)
-    citation_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=False)
+    citation_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=True)

@@ -65,12 +65,16 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.split_type = "date-stratified"
         self.dataset_name = "criticality_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS, Section.RULINGS]
+        self.reports_folder = self.create_dir(self.get_dataset_folder(), f'CH_BGer/reports')
         self.available_bges = set(self.load_rulings().text.tolist())
         self.references_df = self.extract_bge_references()
         self.labels = ['bge_label', 'citation_label']
         self.count_all_cits = False
         self.start_years[Split.TRAIN.value] = 2002
         self.additional_reports = True
+        self.metadata = ['year', 'chamber', 'region',
+                         'origin_chamber', 'origin_court', 'origin_canton',
+                         'law_area', 'law_sub_area']
 
     def extract_bge_references(self):
         """
@@ -98,7 +102,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.logger.info(
             f"References_df: There are {len(df.index)} entries with {len(df.bge_file_number_long.unique())} unique bge_filenames and {len(df.bger_reference.unique())} unique bger_references.")
         # create some reports about the found references
-        folder = self.create_dir(self.get_dataset_folder(), f'reports/references')
+        folder = self.create_dir(self.reports_folder, f'references')
         report_creator = ReportCreator(folder, self.debug)
         report_creator.report_references(df)
         return df
@@ -120,7 +124,7 @@ class CriticalityDatasetCreator(DatasetCreator):
 
         # bge criticality
         bge_list = self.get_bge_criticality_list()
-        df['bge_label'] = "non_critical"
+        df['bge_label'] = "non-critical"
         df = self.set_critical_label(df, bge_list, 'bge_label')
 
         # enable this to get some additional reports
@@ -129,8 +133,7 @@ class CriticalityDatasetCreator(DatasetCreator):
             # compare found references with bger citations
             bger_list = self.get_bger_citation_list()
             not_found_list = [item for item in bge_list if item not in bger_list]
-            folder = self.create_dir(self.get_dataset_folder(), f'reports')
-            path = folder / 'missing_bger_in_db.txt'
+            path = self.reports_folder / 'missing_bger_in_db.txt'
             with path.open("a") as f:
                 for item in not_found_list:
                     f.write(f"{item}\n")
@@ -215,7 +218,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.logger.info(f"Processing labeling of citation_criticality")
         citations_df = self.process_data(df)
 
-        folder = self.create_dir(self.get_dataset_folder(), f'reports/citations')
+        folder = self.create_dir(self.reports_folder, f'citations')
         report_creator = ReportCreator(folder, self.debug)
 
         # report number of citations
@@ -333,7 +336,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         # Check which file numbers could not been found for bge criticality
         labeled_critical_list = list(critical_bge_df.file_number.unique())
         not_found_list = [item for item in criticality_list if item not in labeled_critical_list]
-        folder = self.create_dir(self.get_dataset_folder(), f'reports')
+        folder = self.create_dir(self.reports_folder, f'checks')
         report_creator = ReportCreator(folder, self.debug)
         report_creator.report_references_not_found(not_found_list, 'bge_label')
         report_creator.test_correctness_of_labeling(not_found_list, self.references_df)
@@ -345,17 +348,14 @@ class CriticalityDatasetCreator(DatasetCreator):
         should exist in our db.
         :return:        dataframe containing bger_citations and bge_file_numbers
         """
+        self.logger.info("Extracting bger references")
         # get dict of bge references with corresponding bge file name
         bge_references_file_path: Path = self.get_dataset_folder() / "bger_citations_found.txt"
         if not bge_references_file_path.exists():
             raise Exception("bger citations need to be extracted first. Run bger_citations_extractor.")
         df = pd.DataFrame({'file_number_long': [], 'file_number_short': [], 'citations': []})
-        counter = 0
         with bge_references_file_path.open("r") as f:
             for line in f:
-                counter += 1
-                if counter % 100 == 0:
-                    self.logger.info(counter)
                 if len(line.split(' ')) == 2:
                     (file_number_long, bger_citations) = line.split(' ')
                     citations = bger_citations.split('-')
@@ -366,7 +366,6 @@ class CriticalityDatasetCreator(DatasetCreator):
                 else:
                     pass
         return df
-
 
 if __name__ == '__main__':
     config = get_config()

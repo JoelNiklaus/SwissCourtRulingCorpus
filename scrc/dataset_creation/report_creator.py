@@ -21,10 +21,11 @@ class ReportCreator:
     Creates all kind of plots for a given dataframe
     """
 
-    def __init__(self, base_folder, debug):
+    def __init__(self, base_folder, debug, disable_pandas=False):
         self.folder: Path = base_folder
         self.logger = get_logger(__name__)
         self.debug = debug
+        self.disable_pandas = disable_pandas
 
     def plot_attribute(self, dataset, attribute, name=""):
         """
@@ -191,7 +192,8 @@ class ReportCreator:
         :param metadata:
         :param df:              the df containing the dataset
         """
-        print(dataset.column_names)
+        if 'laws' in labels or 'cited_rulings' in labels:
+            labels = None
         for attribute in metadata:
             if labels:
                 for label in labels:
@@ -210,19 +212,21 @@ class ReportCreator:
         if 'origin_considerations' in dataset.column_names:
             feature_cols.append('origin_considerations')
 
-        for feature_col in feature_cols:
-            try:
-                # remove row that are nan or unusable like ""
-                tmp_dataset = dataset.filter(lambda row: row[f'{feature_col}_num_tokens_bert'] > 1)
-                if len(tmp_dataset) > 0:
-                    tmp_dataset = tmp_dataset.rename_column(f'{feature_col}_num_tokens_bert', 'num_tokens_bert')
-                    tmp_dataset = tmp_dataset.rename_column(f'{feature_col}_num_tokens_spacy', 'num_tokens_spacy')
-                    tmp_dataset = self.get_rid_of_unused_cols(tmp_dataset, ["num_tokens_bert", "num_tokens_spacy"])
-                    self.plot_input_length(tmp_dataset.to_pandas(), feature_col)
-            except np.linalg.LinAlgError as err:
-                if 'singular matrix' not in str(err):
-                    raise err
-                print("Singular matrix error in plot_input_length")
+        if not self.disable_pandas:
+            for feature_col in feature_cols:
+                try:
+                    # remove row that are nan or unusable like ""
+                    tmp_dataset = dataset.filter(lambda row: row[f'{feature_col}_num_tokens_bert'] > 1)
+                    if len(tmp_dataset) > 0:
+                        tmp_dataset = tmp_dataset.rename_column(f'{feature_col}_num_tokens_bert', 'num_tokens_bert')
+                        tmp_dataset = tmp_dataset.rename_column(f'{feature_col}_num_tokens_spacy', 'num_tokens_spacy')
+                        tmp_dataset = self.get_rid_of_unused_cols(tmp_dataset, ["num_tokens_bert", "num_tokens_spacy"])
+                        # todo find solution to use dataset instead of df
+                        # self.plot_input_length(tmp_dataset.to_pandas(), feature_col)
+                except np.linalg.LinAlgError as err:
+                    if 'singular matrix' not in str(err):
+                        raise err
+                    print("Singular matrix error in plot_input_length")
 
     def report_citations_count(self, df, name):
         """
@@ -355,11 +359,3 @@ class ReportCreator:
             if item not in col_list:
                 ds.remove_columns(item)
         return ds
-
-
-if __name__ == '__main__':
-    report_creator = ReportCreator("path", True)
-    data = {'col_1': [3, 2, 1, 0, 3, 4, 3, 2], 'col_2': ['ar', 'br', 'c', '', None, math.nan, 'c', 'a']}
-    dataset = datasets.Dataset.from_pandas(pd.DataFrame.from_dict(data))
-    df = report_creator.create_df(dataset, "col_2")
-    print("yuhuu we made it.")

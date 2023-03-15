@@ -179,6 +179,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.filter_cols = []  # to be overridden
         self.labels = []  # to be overridden
         self.available_bges = []  # to be overridden
+        self.reports_folder: Path = Path()
 
     @abc.abstractmethod
     def prepare_dataset(self, save_reports, court_string):
@@ -432,19 +433,22 @@ class DatasetCreator(AbstractPreprocessor):
         huggingface_dir = self.create_dir(folder, 'huggingface')
         self.logger.info(f"Generating huggingface dataset at {huggingface_dir}")
 
-        def parallelize_saving(splits, func, n_cores=self.num_cores):
+        def parallelize_saving(splits, func, split_value, n_cores=self.num_cores):
             pool = Pool(n_cores)
-            pool.apply_async(func, (splits[Split.TRAIN.value], Split.TRAIN.value, huggingface_dir, folder))
-            pool.apply_async(func, (splits[Split.TEST.value], Split.TEST.value, huggingface_dir, folder))
-            pool.apply_async(func, (splits[Split.VALIDATION.value], Split.VALIDATION.value, huggingface_dir, folder))
+            pool.apply_async(func, (splits[split_value], split_value, huggingface_dir, folder))
             pool.close()
             pool.join()
 
-        parallelize_saving(splits, self.save_huggingface_split)
+        parallelize_saving(splits, self.save_huggingface_split, Split.TEST.value)
+        parallelize_saving(splits, self.save_huggingface_split, Split.TRAIN.value)
+        parallelize_saving(splits, self.save_huggingface_split, Split.VALIDATION.value)
+
 
     def save_huggingface_split(self, dataset, split: str, huggingface_dir, folder):
-        cols_to_include = ['decision_id', 'language'] + self.metadata + self.labels + self.get_feature_col_names() \
-                          + ['origin_facts', 'origin_considerations']
+        cols_to_include = ['decision_id', 'language'] + self.metadata + self.labels + self.get_feature_col_names()
+        if not self.dataset_name == "doc2doc_ir":
+            for feature_col in self.feature_cols:
+                cols_to_include = cols_to_include + [f'origin_{feature_col}']
         cols_to_remove = [col for col in dataset.column_names if col not in cols_to_include]
         dataset = dataset.remove_columns(cols_to_remove)
         hf_file = f'{huggingface_dir}/{split}.jsonl'
@@ -691,6 +695,7 @@ class DatasetCreator(AbstractPreprocessor):
             df.at[i, 'origin_decision_id'] = origin_decision_id
 
         df = self.load_section(df, engine, 'origin_decision_id', origin=True)
+
         return df
     @staticmethod
     def add_law_area(df):
@@ -855,22 +860,17 @@ class DatasetCreator(AbstractPreprocessor):
             if save_csvs:
                 # without the feature_cols, the dataset should fit into RAM
                 # Additionally, we don't want to save the long text columns to the csv files because it becomes unreadable
-                self.logger.info(f"Exporting metadata columns of dataset to pandas dataframe for easier plotting")
                 # TODO this line causes out of memory errors for large datasets like criticality or doc2doc
                 #  - set save_reports False for those datasets
                 df = dataset.remove_columns(self.get_feature_col_names()).to_pandas()
-            if save_reports:
-                self.logger.info(f"Computing metadata reports")
-                with Pool(1) as pool:
-                    pool.apply_async(self.save_report, (folder, split, dataset))
-                pool.close()
-
-            if save_csvs:
                 if isinstance(save_csvs, list):
                     if split not in save_csvs:
                         continue  # Only save if the split is in the list
                 self.logger.info("Saving csv file")
                 df.to_csv(folder / f"{split}.csv", index_label='id', index=False)
+            if save_reports:
+                self.logger.info(f"Computing metadata reports")
+                self.save_report(folder, split, dataset)
 
     def create_splits(self, dataset, split_type, include_all=False):
         # TODO is the .value of the Split enum really necessary? It probably also works without
@@ -965,11 +965,12 @@ class DatasetCreator(AbstractPreprocessor):
         :return:
         """
         self.logger.info(f"Saving report for split {split}")
-        split_folder = self.create_dir(folder, f'reports/{split}')
-        report_creator = ReportCreator(split_folder, self.debug)
+        split_folder = self.create_dir(self.reports_folder, f'{split}')
+        disable_pandas = (self.dataset_name == "doc2doc_ir") or (self.dataset_name == "criticality_prediction")
+        report_creator = ReportCreator(split_folder, self.debug, disable_pandas)
         report_creator.report_general(self.metadata, self.get_feature_col_names(), self.labels, dataset)
-        # TODO change all df to dataset to avoid memory problems
-        # self.plot_custom(report_creator, dataset, split_folder)
+        if not disable_pandas:
+            self.plot_custom(report_creator, dataset, split_folder)
 
     @abc.abstractmethod
     def plot_custom(self, report_creator, dataset, folder):
@@ -1145,10 +1146,10 @@ class DatasetCreator(AbstractPreprocessor):
                 return facts_cutoff.get(court, 200) # default cutoff is 200
             elif col_name == 'considerations' or col_name == 'origin_considerations':
                 return considerations_cutoff.get(court, 500) # default cutoff is 500
-            elif col_name == 'rulings':
+            elif col_name == 'rulings' or col_name == 'origin_rulings':
                 return 100  # default cutoff is 100
             else:
-                raise ValueError(f"{col_name} not implmemented: col_name must be 'rulings', 'facts', 'origin_facts', "
+                raise ValueError(f"{col_name} not implmemented: col_name must be 'rulings', 'origin_rulings', 'facts', 'origin_facts', "
                                  f"'considerations' or 'origin_considerations'")
 
         def is_above_cutoff(x):
