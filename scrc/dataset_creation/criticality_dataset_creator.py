@@ -66,7 +66,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.dataset_name = "criticality_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS, Section.RULINGS]
         self.reports_folder = self.create_dir(self.get_dataset_folder(), f'CH_BGer/reports')
-        self.available_bges = set(self.load_rulings().text.tolist())
+        _, self.available_rulings_dict = self.load_rulings()
         self.references_df = self.extract_bge_references()
         self.labels = ['bge_label', 'citation_label']
         self.count_all_cits = False
@@ -104,7 +104,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         # create some reports about the found references
         folder = self.create_dir(self.reports_folder, f'references')
         report_creator = ReportCreator(folder, self.debug)
-        report_creator.report_references(df)
+        # report_creator.report_references(df)
         return df
 
     def prepare_dataset(self, save_reports, court_string):

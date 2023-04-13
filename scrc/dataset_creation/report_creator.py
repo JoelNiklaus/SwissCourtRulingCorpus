@@ -9,11 +9,62 @@ from collections import Counter
 from pathlib import Path
 import numpy as np
 import os
+import ast
+
 import datasets
 
 from scrc.utils.log_utils import get_logger
 
 from scrc.utils.sql_select_utils import get_legal_area_bger
+
+
+def plot_input_length(folder, df, feature_col, colname_1='num_tokens_spacy', colname_2='num_tokens_bert'):
+    """
+    Plots the input length of the decisions in the given dataframe
+    :param dataset:         the dataset containing the decision texts
+    :param feature_col:     specifies feature_col
+    :return:
+    """
+    # compute median input length
+    input_length_distribution = df.loc[:, [colname_1, colname_2]].describe().round(0)
+    if len(df.index) == 1:
+        input_length_distribution = input_length_distribution.fillna(df.mean())
+    input_length_distribution = input_length_distribution.astype(int)
+    input_length_distribution.to_csv(folder / f'{feature_col}_input_length_distribution.csv',
+                                     index_label='measure')
+
+    # bin outliers together at the cutoff point
+    cutoff = 4000
+    if colname_1 != 'num_tokens_spacy':
+        cutoff = 100
+    cut_df = df.loc[:, [colname_1, colname_2]]
+    cut_df[colname_1] = cut_df[colname_1].clip(upper=cutoff)
+    cut_df[colname_2] = cut_df[colname_2].clip(upper=cutoff)
+
+    hist_df = pd.concat([cut_df[colname_1], cut_df[colname_2]], keys=[colname_1, colname_2]).to_frame()
+    hist_df = hist_df.reset_index(level=0)
+    hist_df = hist_df.rename(columns={'level_0': 'tokenizer', 0: 'Number of tokens'})
+
+    plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer",
+                       bins=100, kde=True, fill=True, height=5, aspect=2.5, legend=False)
+    if colname_1 == 'num_tokens_spacy':
+        plot.set(xticks=list(range(0, 4500, 500)))
+    else:
+        plot.set(xticks=list(range(0, 110, 10)))
+    plt.ylabel('Number of court cases')
+    plt.legend(["BERT", "SpaCy"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
+    plot.savefig(folder / f'{feature_col}_input_length_distribution-histogram.png', bbox_inches="tight")
+    plt.close()
+
+    plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer", kind="ecdf", legend=False)
+    plt.ylabel('Number of court cases')
+    plt.legend(["BERT", "SPaCy"], loc='lower right', title='Tokenizer')
+    plot.savefig(folder / f'{feature_col}_input_length_distribution-cumulative.png', bbox_inches="tight")
+    plt.close()
+
+    plot = sns.displot(cut_df, x=colname_1, y=colname_2)
+    plot.savefig(folder / f'{feature_col}_input_length_distribution-bivariate.png', bbox_inches="tight")
+    plt.close()
 
 
 class ReportCreator:
@@ -62,7 +113,7 @@ class ReportCreator:
 
             fig = px.bar(attribute_df, x=attribute, y="number of decisions",
                          title=f'{name} {attribute}')
-            fig.write_image(self.folder / f'{name}_{attribute}_distribution-histogram.png')
+            # fig.write_image(self.folder / f'{name}_{attribute}_distribution-histogram.png')
             plt.close()
 
     def plot_label_ordered(self, df, label_name, order=dict()):
@@ -98,50 +149,7 @@ class ReportCreator:
                :return:
                """
         fig = px.histogram(df, x=attribute, color=color_attribute)
-        fig.write_image(self.folder / f'{name}_{attribute}_{color_attribute}_colored_histogram.png')
-        plt.close()
-
-    def plot_input_length(self, df, feature_col):
-        """
-        Plots the input length of the decisions in the given dataframe
-        :param dataset:         the dataset containing the decision texts
-        :param feature_col:     specifies feature_col
-        :return:
-        """
-        # compute median input length
-        input_length_distribution = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']].describe().round(0)
-        if len(df.index) == 1:
-            input_length_distribution = input_length_distribution.fillna(df.mean())
-        input_length_distribution = input_length_distribution.astype(int)
-        input_length_distribution.to_csv(self.folder / f'{feature_col}_input_length_distribution.csv',
-                                         index_label='measure')
-
-        # bin outliers together at the cutoff point
-        cutoff = 4000
-        cut_df = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']]
-        cut_df.num_tokens_spacy = cut_df.num_tokens_spacy.clip(upper=cutoff)
-        cut_df.num_tokens_bert = cut_df.num_tokens_bert.clip(upper=cutoff)
-
-        hist_df = pd.concat([cut_df.num_tokens_spacy, cut_df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
-        hist_df = hist_df.reset_index(level=0)
-        hist_df = hist_df.rename(columns={'level_0': 'tokenizer', 0: 'Number of tokens'})
-
-        plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer",
-                           bins=100, kde=True, fill=True, height=5, aspect=2.5, legend=False)
-        plot.set(xticks=list(range(0, 4500, 500)))
-        plt.ylabel('Number of court cases')
-        plt.legend(["BERT", "SpaCy"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
-        plot.savefig(self.folder / f'{feature_col}_input_length_distribution-histogram.png', bbox_inches="tight")
-        plt.close()
-
-        plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer", kind="ecdf", legend=False)
-        plt.ylabel('Number of court cases')
-        plt.legend(["BERT", "SPaCy"], loc='lower right', title='Tokenizer')
-        plot.savefig(self.folder / f'{feature_col}_input_length_distribution-cumulative.png', bbox_inches="tight")
-        plt.close()
-
-        plot = sns.displot(cut_df, x="num_tokens_spacy", y="num_tokens_bert")
-        plot.savefig(self.folder / f'{feature_col}_input_length_distribution-bivariate.png', bbox_inches="tight")
+        #fig.write_image(self.folder / f'{name}_{attribute}_{color_attribute}_colored_histogram.png')
         plt.close()
 
     def plot_two_attributes(self, df, x_attribute, y_attribute, name, how='scatter'):
@@ -162,7 +170,7 @@ class ReportCreator:
         else:
             fig = px.bar(df, x=x_attribute, y=y_attribute,
                          title=f'{name} {x_attribute} {y_attribute}')
-            fig.write_image(self.folder / f'{name}_{x_attribute}_on_{y_attribute}_plot.png')
+            #fig.write_image(self.folder / f'{name}_{x_attribute}_on_{y_attribute}_plot.png')
             plt.close()
 
     def bin_plot_attribute(self, df, attribute, color_attribute, bin_start, bin_end, bin_steps):
@@ -180,11 +188,11 @@ class ReportCreator:
         counts, bins = np.histogram(df[attribute], bins=range(bin_start, bin_end, bin_steps))
         bins = 0.5 * (bins[:-1] + bins[1:])
         fig = px.bar(x=bins, y=counts, labels={'x': attribute, 'y': 'number of cases'})
-        fig.write_image(self.folder / f'{attribute}_bins.png')
+        #fig.write_image(self.folder / f'{attribute}_bins.png')
 
         bin_amount = int(round((bin_end - bin_start) / bin_steps, 0))
         fig = px.histogram(df, x=attribute, nbins=bin_amount, color=color_attribute)
-        fig.write_image(self.folder / f'{attribute}_bins_{color_attribute}.png')
+        #fig.write_image(self.folder / f'{attribute}_bins_{color_attribute}.png')
 
     def report_general(self, metadata, feature_cols, labels, dataset):
         """
@@ -192,8 +200,10 @@ class ReportCreator:
         :param metadata:
         :param df:              the df containing the dataset
         """
-        if 'laws' in labels or 'cited_rulings' in labels:
+        if 'laws' in labels or 'bge_label' in labels:
+            metadata = ['year', 'chamber', 'law_area']
             labels = None
+
         for attribute in metadata:
             if labels:
                 for label in labels:
@@ -206,6 +216,10 @@ class ReportCreator:
                 self.plot_attribute(dataset, attribute, name='all')
             else:
                 self.plot_attribute(dataset, attribute, name='all')
+
+        if labels:
+            for label in labels:
+                self.plot_attribute(dataset, label, name=f"label_{label}")
 
         if 'origin_facts' in dataset.column_names:
             feature_cols.append('origin_facts')
@@ -359,3 +373,24 @@ class ReportCreator:
             if item not in col_list:
                 ds.remove_columns(item)
         return ds
+
+
+if __name__ == '__main__':
+
+    dataset_name = "criticality_dataset"
+
+    # create instance of reportcreator
+    path = f"data/datasets/{dataset_name}"
+    report_creator = ReportCreator(path, debug=True)
+
+    # load data
+    current_directory = os.getcwd()
+    data_path = f"{current_directory}/{path}/CH_BGer/huggingface"
+
+    df = pd.read_json(f"{data_path}/test.jsonl", orient='records', lines=True)
+    print(len(df.index))
+
+
+
+
+

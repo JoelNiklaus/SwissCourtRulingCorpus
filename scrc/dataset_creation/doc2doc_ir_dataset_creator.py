@@ -14,8 +14,11 @@ from scrc.utils.log_utils import get_logger
 import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
+from datasets import load_dataset
 
 from scrc.utils.main_utils import get_config
+from scrc.dataset_creation.report_creator import plot_input_length
+from scrc.dataset_creation.preprocess_doc2doc import create_corpus, create_queries, create_qrels
 
 
 """
@@ -88,7 +91,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
 
     """
 
-    # usefulness of law articles still unclear.
+    # usefulness of law articles still unclear. ALCP, OPB, VEP, LMV, SBG, LSV
     # Approach of Lawyers:
     # google
     # get law articles
@@ -109,8 +112,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         self.metadata = ['year', 'chamber', 'region', 'origin_chamber', 'origin_court', 'origin_canton',
                          'law_area', 'law_sub_area']
         self.reports_folder = self.create_dir(self.get_dataset_folder(), f'CH_BGer/reports')
-        self.ruling_df = self.load_rulings()
-        self.available_bges = self.ruling_df.text.tolist()
+        self.ruling_df, self.available_rulings_dict = self.load_rulings()
         self.load_law_articles()
 
         pandarallel.initialize(progress_bar=True)
@@ -121,50 +123,17 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         Load all law articles and save them
         """
         self.logger.info(f"Loading reference law articles")
-        # todo find solution to load directly from huggingface
-        # laws = load_dataset("rcds/swiss_legislation")
-        laws = pd.read_json(self.corpora_subdir / "lexfind.jsonl", lines=True)
-        laws = laws[laws.canton.str.contains("ch")]  # only federal laws so far
+        law_dataset = load_dataset('rcds/swiss_legislation', split='train')
+        law_dataset = law_dataset.filter(lambda row: row['canton'] == 'ch')
+        laws = pd.DataFrame(law_dataset)
         laws = laws[laws.abbreviation.str.len() > 1]  # only keep the ones with an abbreviation
         laws.abbreviation = laws.abbreviation.str.strip()
         # TODO think about if we need to combine the laws in the different languages to one single law with representations in different languages
         #  law articles exist for german, french and italian but they do have different uuid but the same sr_number! (abbreviations not always the same)
-        self.law_abbrs = laws[["language", "abbreviation", "sr_number", "uuid"]]
+        self.law_abbrs = laws[["language", "abbreviation", "sr_number", "uuid", 'pdf_content']]
         self.available_laws = set(laws.abbreviation.unique().tolist())
         self.logger.info(f"Found {len(self.available_laws)} laws")
-
-    @staticmethod
-    def extract_article_info(law):
-        """
-        Extracts the information for the individual articles from a given law
-        :return:    a dataframe containing processed law articles
-        """
-        arts = {"canton": [], "language": [], "sr_number": [], "abbreviation": [], "article": [], "short": [],
-                "title": [],
-                "link": [], "text": [], }
-        bs = BeautifulSoup(law.html_content, "html.parser")
-        for art in bs.find_all("article"):
-            arts["canton"].append(law.canton)
-            arts["language"].append(law.language)
-            arts["sr_number"].append(law.sr_number)
-            arts["abbreviation"].append(law.abbreviation)
-            arts["short"].append(law.short)
-            arts["title"].append(law.title)
-
-            article_number = art['id'].split("_")[1]
-            arts["article"].append(article_number)
-
-            link = art.find(fragment=f"#{art['id']}")
-            if link:
-                arts["link"].append(link['href'])
-            else:
-                arts["link"].append(None)
-            text = art.find("div", {"class": "collapseable"})
-            if text:
-                arts["text"].append(text.get_text())
-            else:
-                arts["text"].append(None)
-        return pd.DataFrame(arts)
+        print(self.available_laws)
 
     def prepare_dataset(self, save_reports, court_string):
         """
@@ -187,6 +156,9 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         # cut process into two pieces to make sure it is handled sequentially
         df = self.parallelize_dataframe(df, self.process_citation_1)
         df = self.parallelize_dataframe(df, self.process_citation_2)
+        self.logger.info("finnished processing df")
+
+        plot_input_length(self.reports_folder, df, '', colname_1='laws_count', colname_2='cited_rulings_count')
 
         df = df.apply(self.mask_citations, axis="columns")
 
@@ -197,6 +169,10 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         df['cited_rulings'] = df['cited_rulings'].astype(str)
 
         # TODO extract ruling citations from other decisions and test the extraction regexes on the CH_BGer
+
+        for feature_col in self.get_feature_col_names():
+            tmp_df = df.rename(columns={f'{feature_col}_num_tokens_bert': "num_tokens_bert", f'{feature_col}_num_tokens_spacy': "num_tokens_spacy"})
+            plot_input_length(self.reports_folder, tmp_df, feature_col)
 
         rulings_labels, _ = list(np.unique(np.hstack(df.cited_rulings), return_index=True))
         laws_labels, _ = list(np.unique(np.hstack(df.laws), return_index=True))
@@ -241,17 +217,23 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         """
         # find for each bge file_number the decision_id
         df['cited_rulings'] = df.rulings_citations.apply(self.get_decision_ids_of_bges)
+        df['cited_rulings_count'] = df['cited_rulings'].apply(lambda x: len(x))
+        self.logger.info(f"There were {self.counter} bge cits without actual bge.")
+        self.counter = 0
         # find uuids for cited laws in all languages
         df['laws'] = df.laws_citations.apply(self.get_uuid_of_laws)
+        df['laws_count'] = df['laws'].apply(lambda x: len(x))
+        match = df['cited_rulings_count'] == 0
+        print(f"There are {len(df[match].index)} cases without cited_rulings.")
+        match = df['laws_count'] == 0
+        print(f"There are {len(df[match].index)} cases without laws.")
+        self.logger.info(f"There were {self.counter} found laws in multiple languages.")
         return df
 
     def get_uuid_of_laws(self, law_cits):
         """
         Find for a given law its uuid. Each law is written in multiple languages, so we get multiple uuids per law.
         """
-        self.counter = self.counter + 1
-        if int(self.counter) % 10000 == 0:
-            self.logger.info("Processed another 10'000 citations")
         if law_cits is None:
             return []
         uuids = []
@@ -261,28 +243,25 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
             if len(laws.index) == 0:
                 # only include citations that we can find in our corpus
                 raise ValueError(f"The sr_number ({sr_number}) cannot be found.")
-            abbreviations = []
-            uuids = []
             for index, row in laws.iterrows():
-                abbreviations.append(row.abbreviation)
                 uuids.append(row.uuid)
+                self.counter = self.counter + 1
+        uuids = list(set(uuids))
         return uuids
 
     def get_decision_ids_of_bges(self, bge_cits):
         """
         Find decision_id for ruling_citation by given bge_file_number
         """
-        self.counter = self.counter + 1
-        if int(self.counter) % 10000 == 0:
-            self.logger.info("Processed another 10'000 citations")
         if bge_cits is None or bge_cits == []:
             return []
         ids = []
         for bge_file_name in bge_cits:
-            # find decision_id in ruling_df
-            decision_id = self.find_decision_id_for_ruling(bge_file_name)
-            if decision_id is not None:
-                ids.append(decision_id)
+            if bge_file_name is not None:
+                # find decision_id in ruling_df
+                decision_id = self.find_decision_id_for_ruling(bge_file_name)
+                if decision_id is not None:
+                    ids.append(decision_id)
         return ids
 
     def find_decision_id_for_ruling(self, bge_file_name):
@@ -290,9 +269,11 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         This might not be possible for all citations because the citation does
         sometimes cite a specific page instead of the beginning of the ruling, so bge_file_name in invalid
         """
-        bge_file_name = bge_file_name.replace('-', ' ')
-        match = self.ruling_df['text'] == str(bge_file_name)
+        bge_file_name = bge_file_name.replace('-', '_')
+        bge_file_name = bge_file_name.replace(' ', '_')
+        match = self.ruling_df['file_number'] == str(bge_file_name)
         if len(self.ruling_df[match]) > 0:
+            # todo add ruling to qrels dict
             return str(self.ruling_df[match].iloc[0].loc['decision_id'])
         return None
 

@@ -55,8 +55,13 @@ class LawCitation(Citation):
             raise ValueError(f"The Citation String ({citation_str}) consists of less than 3 parts.")
         self.article = parts[1]  # should be the second part after "Art."
         abbreviation = parts[-1]  # should be the last part
-
-        law = law_abbrs[(law_abbrs.abbreviation.str.strip() == abbreviation)]  # cannot differ French and Italian
+        def matchin(abbi):
+            abb = str(abbi).lower()
+            if abbreviation.lower() == abb:
+                return True
+            return False
+        match = law_abbrs.abbreviation.apply(matchin)
+        law = law_abbrs[match]  # cannot differ French and Italian
         if len(law.index) == 0:
             # only include citations that we can find in our corpus
             raise ValueError(f"The abbreviation ({abbreviation}) cannot be found.")

@@ -13,6 +13,7 @@ from tqdm import tqdm
 import csv
 import seaborn as sns
 import datasets
+import re
 from datasets import concatenate_datasets
 from root import ROOT_DIR
 from multiprocessing import Pool
@@ -30,6 +31,8 @@ from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision,
     where_string_spider, where_string_court
 from scrc.utils.court_names import court_names_backup, get_error_courts, get_empty_courts
 from scrc.enums.split import Split
+from datasets import load_dataset
+
 
 import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
 
@@ -178,7 +181,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.feature_cols = [Section.FULL_TEXT]  # to be overridden
         self.filter_cols = []  # to be overridden
         self.labels = []  # to be overridden
-        self.available_bges = []  # to be overridden
+        self.available_rulings_dict = {}  # to be overridden
         self.reports_folder: Path = Path()
 
     @abc.abstractmethod
@@ -195,13 +198,32 @@ class DatasetCreator(AbstractPreprocessor):
         """
         Load all bge cases and store in available_bges
         """
-        where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGE')}"
-        table_string = 'decision d LEFT JOIN file_number ON file_number.decision_id = d.decision_id'
-        decision_df = next(
-            self.select(self.get_engine(self.db_scrc), table_string, 'd.*, file_number.text', where_string,
-                        chunksize=self.get_chunksize()))
+        ruling_dataset = load_dataset('rcds/swiss_rulings', split='train')
+        decision_df = pd.DataFrame(ruling_dataset)
         self.logger.info(f"BGE: There are {len(decision_df.index)} in db (also old or not referenced included).")
-        return decision_df
+
+        available_rulings_dict = {}
+
+        def filter_rulings(row):
+            file_number = str(row['file_number'])
+            parts = file_number.split("_")
+            if len(parts) == 4:
+                year = int(parts[1])
+                volume = parts[2]
+                page = int(parts[3])
+                if year in available_rulings_dict:
+                    if volume in available_rulings_dict[year]:
+                        available_rulings_dict[year][volume].append(page)
+                    else:
+                        available_rulings_dict[year][volume] = [page]
+                else:
+                    available_rulings_dict[year] = {volume: [page]}
+                return True
+            return False
+        useful_cases = decision_df.apply(filter_rulings, axis='columns')
+        decision_df = decision_df[useful_cases]
+
+        return decision_df, available_rulings_dict
 
     def get_citation(self, citations, type):
         """
@@ -210,9 +232,6 @@ class DatasetCreator(AbstractPreprocessor):
         :param cit_type:
         :return:                            dataframe with additional column 'ruling_citation'
         """
-        self.counter = self.counter + 1
-        if int(self.counter) % 10000 == 0:
-            self.logger.info("Processed another 10'000 citations")
         cits = []
         try:
             # citations = ast.literal_eval(citations_as_string)  # parse dict string to dict again
@@ -225,11 +244,14 @@ class DatasetCreator(AbstractPreprocessor):
                         cited_file = self.get_file_number(cit)
                         cits.append(cited_file)
                     elif citation_type == "law" and type == 'law':
-                        tmp = self.get_law_citation(cit)
-                        if tmp is not None:
-                            cits.append(tmp)
+                        try:
+                            tmp = self.get_law_citation(cit)
+                            if tmp is not None:
+                                cits.append(tmp)
+                        except ValueError as ve:
+                            self.logger.info(f"Citation could not be found in laws: {citation}")
                 except ValueError as ve:
-                    self.logger.info(f"Citation has invalid syntax: {citation}")
+                    self.logger.info(f"Warning: Citation has invalid syntax: {citation}")
                     continue
         except ValueError as ve:
             self.logger.info(f"Citations could not be extracted to dict: {citations}")
@@ -242,27 +264,24 @@ class DatasetCreator(AbstractPreprocessor):
         :param citation:         citation as string as found in text
         :return:                 RulingCitation always in German
         """
-        # TODO scrape for all bge file number
         # handle citation always in German
         found_citation = RulingCitation(citation, 'de')
-        if str(found_citation) in self.available_bges:
-            return found_citation.cit_string()
-        else:
-            # find closest bge with smaller page_number
-            year = found_citation.year
-            volume = found_citation.volume
-            page_number = found_citation.page_number
-            new_page_number = -1
-            for match in self.available_bges:
-                if f"BGE {year} {volume}" in match:
-                    tmp = RulingCitation(match, 'de')
-                    if new_page_number < tmp.page_number <= page_number:
-                        new_page_number = tmp.page_number
-            # make sure new page number is not unrealistic far away.
-            if page_number - new_page_number < 20:
-                result = RulingCitation(f"{year} {volume} {new_page_number}", 'de')
-                return result.cit_string()
-            return found_citation.cit_string()
+        year = int(found_citation.year)
+        volume = str(found_citation.volume)  # problem if we get volume like IA because it could be stored as Ia
+        page_number = int(found_citation.page_number)
+        if year in list(self.available_rulings_dict.keys()):
+            if volume in list(self.available_rulings_dict[year].keys()):
+                if page_number in list(self.available_rulings_dict[year][volume]):
+                    return found_citation.cit_string()
+                else:
+                    new_page_number = -1
+                    for page in self.available_rulings_dict[year][volume]:
+                        if new_page_number < page <= page_number:
+                            new_page_number = page
+                    if (page_number - new_page_number) < 20 and new_page_number > 0:
+                        result = RulingCitation(f"{year} {volume} {new_page_number}", 'de')
+                        self.counter = self.counter + 1
+                        return result.cit_string()
 
     def get_law_citation(self, citations_text):
         """
@@ -1018,7 +1037,7 @@ class DatasetCreator(AbstractPreprocessor):
         val = dataset.filter(
             lambda x: x["year"] in range(start_years[Split.VALIDATION.value], start_years[Split.TEST.value]))
         test = dataset.filter(
-            lambda x: x["year"] in range(start_years[Split.TEST.value], self.current_year))
+            lambda x: x["year"] in range(start_years[Split.TEST.value], self.current_year+2))
         return train, val, test
 
     def split_random(self, dataset):
