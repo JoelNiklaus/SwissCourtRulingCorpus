@@ -17,6 +17,51 @@ from scrc.utils.log_utils import get_logger
 
 from scrc.utils.sql_select_utils import get_legal_area_bger
 
+def plot_cit_amounts(folder, df):
+    """
+    Plots the input length of the decisions in the given dataframe
+    :param dataset:         the dataset containing the decision texts
+    :param feature_col:     specifies feature_col
+    :return:
+    """
+    colname_1 = 'cited_rulings_count'
+    colname_2 = 'laws_count'
+    # compute median input length
+    input_length_distribution = df.loc[:, [colname_1, colname_2]].describe().round(0)
+    if len(df.index) == 1:
+        input_length_distribution = input_length_distribution.fillna(df.mean())
+    input_length_distribution = input_length_distribution.astype(int)
+    input_length_distribution.to_csv(folder / f'cit_amount_distribution.csv',
+                                     index_label='measure')
+
+    # bin outliers together at the cutoff point
+    cutoff = 40
+    cut_df = df.loc[:, [colname_1, colname_2]]
+    cut_df[colname_1] = cut_df[colname_1].clip(upper=cutoff)
+    cut_df[colname_2] = cut_df[colname_2].clip(upper=cutoff)
+
+    hist_df = pd.concat([cut_df[colname_1], cut_df[colname_2]], keys=[colname_1, colname_2]).to_frame()
+    hist_df = hist_df.reset_index(level=0)
+    hist_df = hist_df.rename(columns={'level_0': 'tokenizer', 0: 'Number of citations'})
+
+    plot = sns.displot(hist_df, x="Number of citations", hue="tokenizer",
+                       bins=100, kde=True, fill=True, height=5, aspect=1, legend=False)
+    plot.set(xticks=list(range(0, 50, 1)))
+    plt.ylabel('Number of court cases')
+    plt.legend(["Laws", "Rulings"], loc='upper right', title='Citations Amount', fontsize=16, title_fontsize=18)
+    plot.savefig(folder / f'cit_amount_distribution-histogram.png', bbox_inches="tight")
+    plt.close()
+
+    plot = sns.displot(hist_df, x="Number of citations", hue="tokenizer", kind="ecdf", legend=False)
+    plt.ylabel('Number of court cases')
+    plt.legend(["Laws", "Rulings"], loc='lower right', title='Citations Amount')
+    plot.savefig(folder / f'cit_amount_distribution-cumulative.png', bbox_inches="tight")
+    plt.close()
+
+    plot = sns.displot(cut_df, x=colname_1, y=colname_2)
+    plot.savefig(folder / f'cit_amount_distribution-bivariate.png', bbox_inches="tight")
+    plt.close()
+
 
 def plot_input_length(folder, df, feature_col, colname_1='num_tokens_spacy', colname_2='num_tokens_bert'):
     """
@@ -36,7 +81,7 @@ def plot_input_length(folder, df, feature_col, colname_1='num_tokens_spacy', col
     # bin outliers together at the cutoff point
     cutoff = 4000
     if colname_1 != 'num_tokens_spacy':
-        cutoff = 100
+        cutoff = 40
     cut_df = df.loc[:, [colname_1, colname_2]]
     cut_df[colname_1] = cut_df[colname_1].clip(upper=cutoff)
     cut_df[colname_2] = cut_df[colname_2].clip(upper=cutoff)
@@ -50,7 +95,7 @@ def plot_input_length(folder, df, feature_col, colname_1='num_tokens_spacy', col
     if colname_1 == 'num_tokens_spacy':
         plot.set(xticks=list(range(0, 4500, 500)))
     else:
-        plot.set(xticks=list(range(0, 110, 10)))
+        plot.set(xticks=list(range(0, 50, 1)))
     plt.ylabel('Number of court cases')
     plt.legend(["BERT", "SpaCy"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
     plot.savefig(folder / f'{feature_col}_input_length_distribution-histogram.png', bbox_inches="tight")
@@ -113,7 +158,7 @@ class ReportCreator:
 
             fig = px.bar(attribute_df, x=attribute, y="number of decisions",
                          title=f'{name} {attribute}')
-            # fig.write_image(self.folder / f'{name}_{attribute}_distribution-histogram.png')
+            fig.write_image(self.folder / f'{name}_{attribute}_distribution-histogram.png')
             plt.close()
 
     def plot_label_ordered(self, df, label_name, order=dict()):
@@ -149,7 +194,7 @@ class ReportCreator:
                :return:
                """
         fig = px.histogram(df, x=attribute, color=color_attribute)
-        #fig.write_image(self.folder / f'{name}_{attribute}_{color_attribute}_colored_histogram.png')
+        fig.write_image(self.folder / f'{name}_{attribute}_{color_attribute}_colored_histogram.png')
         plt.close()
 
     def plot_two_attributes(self, df, x_attribute, y_attribute, name, how='scatter'):
@@ -170,7 +215,7 @@ class ReportCreator:
         else:
             fig = px.bar(df, x=x_attribute, y=y_attribute,
                          title=f'{name} {x_attribute} {y_attribute}')
-            #fig.write_image(self.folder / f'{name}_{x_attribute}_on_{y_attribute}_plot.png')
+            fig.write_image(self.folder / f'{name}_{x_attribute}_on_{y_attribute}_plot.png')
             plt.close()
 
     def bin_plot_attribute(self, df, attribute, color_attribute, bin_start, bin_end, bin_steps):
@@ -188,11 +233,11 @@ class ReportCreator:
         counts, bins = np.histogram(df[attribute], bins=range(bin_start, bin_end, bin_steps))
         bins = 0.5 * (bins[:-1] + bins[1:])
         fig = px.bar(x=bins, y=counts, labels={'x': attribute, 'y': 'number of cases'})
-        #fig.write_image(self.folder / f'{attribute}_bins.png')
+        fig.write_image(self.folder / f'{attribute}_bins.png')
 
         bin_amount = int(round((bin_end - bin_start) / bin_steps, 0))
         fig = px.histogram(df, x=attribute, nbins=bin_amount, color=color_attribute)
-        #fig.write_image(self.folder / f'{attribute}_bins_{color_attribute}.png')
+        fig.write_image(self.folder / f'{attribute}_bins_{color_attribute}.png')
 
     def report_general(self, metadata, feature_cols, labels, dataset):
         """
@@ -253,6 +298,7 @@ class ReportCreator:
         self.plot_attribute(df, 'year', name=str(name))
         self.plot_attribute(df, 'bge_chamber', name=str(name))
         self.plot_attribute(df, 'bger_chamber', name=str(name))
+        self.plot_attribute(df, 'law_area', name=str(name))
 
         if name == 'all':
             self.report_citations_details(df)

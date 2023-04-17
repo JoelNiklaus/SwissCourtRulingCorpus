@@ -17,8 +17,7 @@ from pandarallel import pandarallel
 from datasets import load_dataset
 
 from scrc.utils.main_utils import get_config
-from scrc.dataset_creation.report_creator import plot_input_length
-from scrc.dataset_creation.preprocess_doc2doc import create_corpus, create_queries, create_qrels
+from scrc.dataset_creation.report_creator import plot_input_length, plot_cit_amounts
 
 
 """
@@ -110,7 +109,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         self.labels = ['laws', 'cited_rulings']
         self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
         self.metadata = ['year', 'chamber', 'region', 'origin_chamber', 'origin_court', 'origin_canton',
-                         'law_area', 'law_sub_area']
+                         'law_area']
         self.reports_folder = self.create_dir(self.get_dataset_folder(), f'CH_BGer/reports')
         self.ruling_df, self.available_rulings_dict = self.load_rulings()
         self.load_law_articles()
@@ -158,7 +157,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         df = self.parallelize_dataframe(df, self.process_citation_2)
         self.logger.info("finnished processing df")
 
-        plot_input_length(self.reports_folder, df, '', colname_1='laws_count', colname_2='cited_rulings_count')
+        plot_cit_amounts(self.reports_folder, df)
 
         df = df.apply(self.mask_citations, axis="columns")
 

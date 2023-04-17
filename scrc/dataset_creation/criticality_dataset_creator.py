@@ -13,6 +13,7 @@ from scrc.utils.log_utils import get_logger
 from collections import Counter
 from scrc.utils.sql_select_utils import get_legal_area_bger
 from scrc.enums.split import Split
+from scrc.dataset_creation.report_creator import plot_input_length
 
 """
 Let it run:
@@ -74,7 +75,7 @@ class CriticalityDatasetCreator(DatasetCreator):
         self.additional_reports = True
         self.metadata = ['year', 'chamber', 'region',
                          'origin_chamber', 'origin_court', 'origin_canton',
-                         'law_area', 'law_sub_area']
+                         'law_area']
 
     def extract_bge_references(self):
         """
@@ -122,14 +123,21 @@ class CriticalityDatasetCreator(DatasetCreator):
         }
         df = self.get_df(self.get_engine(self.db_scrc), data_to_load)
 
+        for feature_col in self.get_feature_col_names():
+            tmp_df = df.rename(columns={f'{feature_col}_num_tokens_bert': "num_tokens_bert",
+                                        f'{feature_col}_num_tokens_spacy': "num_tokens_spacy"})
+            plot_input_length(self.reports_folder, tmp_df, feature_col)
+
         # bge criticality
         bge_list = self.get_bge_criticality_list()
         df['bge_label'] = "non-critical"
         df = self.set_critical_label(df, bge_list, 'bge_label')
 
         # enable this to get some additional reports
+
         if self.additional_reports:
             self.check_correctness_bge(df, bge_list)
+            """
             # compare found references with bger citations
             bger_list = self.get_bger_citation_list()
             not_found_list = [item for item in bge_list if item not in bger_list]
@@ -137,6 +145,7 @@ class CriticalityDatasetCreator(DatasetCreator):
             with path.open("a") as f:
                 for item in not_found_list:
                     f.write(f"{item}\n")
+            """
 
         # citation criticality
         criticality_lists = self.get_citations_criticality_list(df.copy())
@@ -270,6 +279,14 @@ class CriticalityDatasetCreator(DatasetCreator):
         # merge so we have counter in our reference df
         citation_count_df = self.references_df.copy()
         citation_count_df = pd.merge(citation_count_df, citation_frequencies_df, left_on='bge_file_number_short', right_on='file_number', how='left')
+
+        # report citation count to be able to compare counts before and after weighting
+        if self.additional_reports:
+            citation_count_df.to_csv(self.reports_folder / f'citation_distribution_before_weighting.csv')
+            folder = self.create_dir(self.reports_folder, 'before_weighting')
+            report_creator = ReportCreator(folder, self.debug)
+            report_creator.plot_two_attributes(citation_count_df, 'year', 'counter', 'all')
+            report_creator.bin_plot_attribute(citation_count_df, 'counter', 'law_area', 0, 300, 10)
 
         # apply weight depending on year of cited case
         def apply_weight(row):

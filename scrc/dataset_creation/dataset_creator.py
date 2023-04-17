@@ -989,7 +989,8 @@ class DatasetCreator(AbstractPreprocessor):
         report_creator = ReportCreator(split_folder, self.debug, disable_pandas)
         report_creator.report_general(self.metadata, self.get_feature_col_names(), self.labels, dataset)
         if not disable_pandas:
-            self.plot_custom(report_creator, dataset, split_folder)
+            # self.plot_custom(report_creator, dataset, split_folder)
+            pass
 
     @abc.abstractmethod
     def plot_custom(self, report_creator, dataset, folder):
