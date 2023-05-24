@@ -198,7 +198,7 @@ class DatasetCreator(AbstractPreprocessor):
         """
         Load all bge cases and store in available_bges
         """
-        ruling_dataset = load_dataset('rcds/swiss_rulings', split='train')
+        ruling_dataset = load_dataset('rcds/swiss_leading_decisions', split='train')
         decision_df = pd.DataFrame(ruling_dataset)
         self.logger.info(f"BGE: There are {len(decision_df.index)} in db (also old or not referenced included).")
 
@@ -309,7 +309,7 @@ class DatasetCreator(AbstractPreprocessor):
         # TODO make sure that the same data is saved to kaggle, csv and huggingface format!
 
         datasets_list = []
-        if self.dataset_name == "doc2doc_ir" or self.dataset_name == "criticality_prediction":
+        if self.dataset_name == "doc2doc_ir" or self.dataset_name == "criticality_prediction" or self.dataset_name == "citation_extraction":
             dataset, labels, state_tuples = self.create_single_dataset(court_list[0], concatenate, datasets_list, kaggle, save_reports, sub_datasets)
         else:
             with Pool(processes=self.num_cores) as pool:
@@ -347,7 +347,7 @@ class DatasetCreator(AbstractPreprocessor):
             self.save_dataset(dataset, labels, export_path, self.split_type, kaggle=kaggle, save_reports=save_reports)
 
         else:
-            assert len(court_list) == 1 and (self.dataset_name == "doc2doc_ir" or self.dataset_name == "criticality_prediction")
+            assert len(court_list) == 1 and (self.dataset_name == "doc2doc_ir" or self.dataset_name == "criticality_prediction" or self.dataset_name == "citation_extraction")
             court_string = court_list[0]
             save_path = self.create_dir(self.get_dataset_folder(), court_string)
             self.save_dataset(dataset, labels, save_path, self.split_type,
@@ -373,6 +373,7 @@ class DatasetCreator(AbstractPreprocessor):
             return dataset, labels, (court_string, "created")
         except Exception as e:
             self.logger.error(f"Exception for {court_string}: {e}")
+            raise e
             return None, None, (court_string, "exception")
 
     def get_all_courts(self):
@@ -465,7 +466,7 @@ class DatasetCreator(AbstractPreprocessor):
 
     def save_huggingface_split(self, dataset, split: str, huggingface_dir, folder):
         cols_to_include = ['decision_id', 'language'] + self.metadata + self.labels + self.get_feature_col_names()
-        if not self.dataset_name == "doc2doc_ir":
+        if not self.dataset_name == "doc2doc_ir" or not self.dataset_name == "citation_extraction":
             for feature_col in self.feature_cols:
                 cols_to_include = cols_to_include + [f'origin_{feature_col}']
         cols_to_remove = [col for col in dataset.column_names if col not in cols_to_include]
@@ -509,7 +510,6 @@ class DatasetCreator(AbstractPreprocessor):
 
         if data_to_load['section']:
             df = self.load_section(df, engine)
-
         if data_to_load['file']:
             df = self.load_file(df, engine)
         if data_to_load['file_number']:
@@ -529,6 +529,9 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info("Finished loading the data from the database")
         if use_cache:
             save_df_to_cache(df, cache_file)
+
+        # log col names
+        self.logger.info(f"Columns: {df.columns.tolist()}")
         return df
 
     def load_decision(self, court_string, engine):
@@ -808,7 +811,7 @@ class DatasetCreator(AbstractPreprocessor):
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
         self.save_huggingface_dataset(splits, folder)
         save_csv = self.dataset_name != "criticality_prediction" and self.dataset_name != "doc2doc_ir"
-        self.save_splits(splits, labels, folder, save_reports, save_csv)
+        self.save_splits(splits, labels, folder, save_reports, False)
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
@@ -985,7 +988,7 @@ class DatasetCreator(AbstractPreprocessor):
         """
         self.logger.info(f"Saving report for split {split}")
         split_folder = self.create_dir(self.reports_folder, f'{split}')
-        disable_pandas = (self.dataset_name == "doc2doc_ir") or (self.dataset_name == "criticality_prediction")
+        disable_pandas = (self.dataset_name == "doc2doc_ir") or (self.dataset_name == "criticality_prediction") or (self.dataset_name == "citation_extraction")
         report_creator = ReportCreator(split_folder, self.debug, disable_pandas)
         report_creator.report_general(self.metadata, self.get_feature_col_names(), self.labels, dataset)
         if not disable_pandas:
@@ -1197,7 +1200,7 @@ class DatasetCreator(AbstractPreprocessor):
             self.logger.info(f"filtering {','.join(col_names)} by num_tokens")
             data_structure = data_structure.filter(is_above_cutoff)
         else:
-            raise ValueError("data_structure must be a dataframe or a dataset")
+            raise ValueError(f"data_structure must be a dataframe or a dataset. Got {type(data_structure)}")
 
         return data_structure
 
