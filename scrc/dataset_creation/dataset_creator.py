@@ -473,11 +473,14 @@ class DatasetCreator(AbstractPreprocessor):
         dataset = dataset.remove_columns(cols_to_remove)
         hf_file = f'{huggingface_dir}/{split}.jsonl'
         self.logger.info(f"Saving {split} dataset at {hf_file}")
+        self.logger.info(f"Lenght of {split} dataset: {len(dataset)}")
         # using pool and an extra processor to make sure we get rid of chunk data, which causes problems
         dataset.to_json(hf_file, orient='records', lines=True, force_ascii=False)
         if not self.debug:  # don't compress if debug to save time
             self.logger.info(f"Compressing {split} dataset at {hf_file}")
             os.system(f'xz -zkf -T0 {hf_file}')  # -TO to use multithreading
+        else:
+            self.logger.info(f"Skipping compression of {split} dataset at {hf_file}")
 
     def get_df(self, engine, data_to_load: dict, court_string="CH_BGer", use_cache=True, overwrite_cache=False):
         """

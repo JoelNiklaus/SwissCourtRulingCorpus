@@ -149,8 +149,6 @@ class CitationExtractionDatasetCreator(DatasetCreator):
         }
 
         df = self.get_df(self.get_engine(self.db_scrc), data_to_load, use_cache=False)
-        # print column names
-        print("col names", df.columns)
 
         # get rid of all cases where no citations were found
         df.dropna(subset=['citations'], inplace=True)
@@ -182,24 +180,8 @@ class CitationExtractionDatasetCreator(DatasetCreator):
         rulings_labels, _ = list(np.unique(np.hstack(df.cited_rulings), return_index=True))
         laws_labels, _ = list(np.unique(np.hstack(df.laws), return_index=True))
         label_list = [laws_labels, rulings_labels]
-        # print first "considerations" and "NER_labels" of first example
-        index = 2
-        print("considerations", df.considerations[index])
-        print("NER_labels", df.NER_labels[index])
-        cons = df.considerations[index]
-        ner = df.NER_labels[index]
-        # both are lists. iterate through that example's ner_labels and print the corresponding word in the considerations
-        for i, label in enumerate(ner):
-            if label != 'O':
-                print(cons[i], label)
-        # print length of considerations and NER_labels
-        print("len considerations", len(df.considerations[index]))
-        print("len NER_labels", len(df.NER_labels[index]))
-
 
         dataset = datasets.Dataset.from_pandas(df)
-        print("#"*100)
-        print("Prepare dataset: done")
         return dataset, label_list
 
     def mask_citations(self, row, law_mask_token="<ref-law>", ruling_mask_token="<ref-ruling>"):
@@ -381,15 +363,13 @@ class CitationExtractionDatasetCreator(DatasetCreator):
         """
         1. whitespace split the 'considerations' column to get a list of words
         2. create a new column 'NER_labels' with the same length as the 'considerations' column and initialize it with 'O'
-        3. iterate over the 'citations' column and find the index of the citation in the 'considerations' column
-        4. set the 'NER_labels' column at the index of the citation to 'B-CITATION'
-        5. set the 'NER_labels' column at the index of the citation + 1 to 'I-CITATION'
+        3. set the NER labels for the citations
         6. return the df
         :param df:
         :return:
         """
 
-        # split by whitespace but also sonderzeichen like .,;:() etc. as separate words
+        # split by whitespace and also special chars like .,;:() etc. as separate words
         df['considerations'] = df['considerations'].apply(lambda x: re.findall(r"[\w]+|[^\s\w]", x))
         df['NER_labels'] = df['considerations'].apply(lambda x: ['O'] * len(x))
         df['NER_labels'] = df.apply(lambda x: self.set_NER_labels(x['NER_labels'], x['citations'], x['considerations']), axis=1)
@@ -405,7 +385,6 @@ class CitationExtractionDatasetCreator(DatasetCreator):
                 begin_label, end_label = 'B-CITATION', 'I-CITATION'
             # split using same regex as in create_NER_labels
             citation_words = re.findall(r"[\w]+|[^\s\w]", citation['text'])
-            print("citation words", citation_words)
             for i in range(len(words)):
                 if words[i:i + len(citation_words)] == citation_words:
                     num_found += 1
@@ -413,11 +392,10 @@ class CitationExtractionDatasetCreator(DatasetCreator):
                     for j in range(i + 1, i + len(citation_words)):
                         if j < len(NER_labels):
                             NER_labels[j] = end_label
-        print(f'Found {num_found} citations of {len(citations)} citations.')
         return NER_labels
 
     def truncate_considerations(self, df):
-        # we will truncate considerations like this: split the considerations into paragraphs and only keep so many paragraphs that the total number of words is <= 215
+        # split the considerations into paragraphs and only keep so many paragraphs that the total number of words is <= 215
         for i, row in df.iterrows():
             paragraphs = row['considerations'].split('\n')
             num_words = 0
@@ -429,7 +407,6 @@ class CitationExtractionDatasetCreator(DatasetCreator):
                     truncated_paragraphs.append(paragraph)
                 else:
                     break
-            print("num words", num_words)
             df.at[i, 'considerations'] = '\n'.join(truncated_paragraphs)
         return df
 
@@ -437,6 +414,6 @@ class CitationExtractionDatasetCreator(DatasetCreator):
 if __name__ == '__main__':
     config = get_config()
     citation_extraction_dataset_creator = CitationExtractionDatasetCreator(config, debug=False)
-    citation_extraction_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=False)
+    citation_extraction_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=True)
 
     # python -m scrc.dataset_creation.citation_extraction_dataset_creator
