@@ -25,7 +25,7 @@ class RegesteDatasetCreator(DatasetCreator):
         self.debug_chunksize = 1000
 
     def split_BGE_text(self, example):
-        regeste_keyword = "Regeste"
+        regeste_keyword = "\nRegeste"
         facts_keyword = "\nSachverhalt"
         considerations_keyword = "\nErwägungen"
 
@@ -35,7 +35,9 @@ class RegesteDatasetCreator(DatasetCreator):
 
         if len(regeste_split) < 2:
             self.logger.warning(f"Could not split text for {example['file_name']}")
-            return None
+            example["regeste"] = None
+            example["text"] = None
+            return example
 
         # split into regeste and text
         facts_split = regeste_split[1].split(facts_keyword, 1)
@@ -49,7 +51,8 @@ class RegesteDatasetCreator(DatasetCreator):
 
         if text_based_on_facts_split is None and text_based_on_considerations_split is None:
             self.logger.warning(f"Could not split text for {example['file_name']}")
-            return None
+            example["regeste"] = None
+            example["text"] = None
         elif text_based_on_facts_split is None:  # if the text is empty, use the other text
             example["text"] = text_based_on_considerations_split
             example["regeste"] = regeste_based_on_considerations_split
