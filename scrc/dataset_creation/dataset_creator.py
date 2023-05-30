@@ -309,7 +309,8 @@ class DatasetCreator(AbstractPreprocessor):
         # TODO make sure that the same data is saved to kaggle, csv and huggingface format!
 
         datasets_list = []
-        if self.dataset_name == "doc2doc_ir" or self.dataset_name == "criticality_prediction" or self.dataset_name == "citation_extraction":
+        single_court_datasets = ["doc2doc_ir", "criticality_prediction", "citation_extraction", "regeste"]
+        if self.dataset_name in single_court_datasets:
             dataset, labels, state_tuples = self.create_single_dataset(court_list[0], concatenate, datasets_list, kaggle, save_reports, sub_datasets)
         else:
             with Pool(processes=self.num_cores) as pool:
@@ -347,7 +348,7 @@ class DatasetCreator(AbstractPreprocessor):
             self.save_dataset(dataset, labels, export_path, self.split_type, kaggle=kaggle, save_reports=save_reports)
 
         else:
-            assert len(court_list) == 1 and (self.dataset_name == "doc2doc_ir" or self.dataset_name == "criticality_prediction" or self.dataset_name == "citation_extraction")
+            assert len(court_list) == 1 and self.dataset_name in single_court_datasets
             court_string = court_list[0]
             save_path = self.create_dir(self.get_dataset_folder(), court_string)
             self.save_dataset(dataset, labels, save_path, self.split_type,
