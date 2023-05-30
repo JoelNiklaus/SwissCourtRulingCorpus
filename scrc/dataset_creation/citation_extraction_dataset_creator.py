@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
 from datasets import load_dataset
+import re
 
 from scrc.utils.main_utils import get_config
 from scrc.dataset_creation.report_creator import plot_input_length, plot_cit_amounts
@@ -63,7 +64,7 @@ Antwort: Ja
 # TODO add uuid to the dataset export for easy identification
 # TODO consider using haystack/FARM for IR experiments
 
-class Doc2DocIRDatasetCreator(DatasetCreator):
+class CitationExtractionDatasetCreator(DatasetCreator):
     """
     Creates a dataset for information retrieval with the citations serving as ground truth for relevance scores
     """
@@ -104,12 +105,12 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         super().__init__(config, debug)
         self.logger = get_logger(__name__)
         self.split_type = "date-stratified"
-        self.dataset_name = "doc2doc_ir"
-        self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS, Section.RULINGS]
-        self.labels = ['laws', 'cited_rulings']
+        self.dataset_name = "citation_extraction"
+        self.feature_cols = [Section.CONSIDERATIONS]
+        self.filter_cols = [Section.CONSIDERATIONS]
         self.num_ruling_citations = 1000  # the 1000 most common ruling citations will be included
         self.metadata = ['year', 'chamber', 'region', 'origin_chamber', 'origin_court', 'origin_canton',
-                         'law_area']
+                         'law_area', 'NER_labels']
         self.reports_folder = self.create_dir(self.get_dataset_folder(), f'CH_BGer/reports')
         self.ruling_df, self.available_rulings_dict = self.load_rulings()
         self.load_law_articles()
@@ -147,7 +148,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
             "law_area": True, "law_sub_area": True
         }
 
-        df = self.get_df(self.get_engine(self.db_scrc), data_to_load)
+        df = self.get_df(self.get_engine(self.db_scrc), data_to_load, use_cache=False)
 
         # get rid of all cases where no citations were found
         df.dropna(subset=['citations'], inplace=True)
@@ -159,7 +160,10 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
 
         plot_cit_amounts(self.reports_folder, df)
 
-        df = df.apply(self.mask_citations, axis="columns")
+        # df = df.apply(self.mask_citations, axis="columns")
+        df = self.truncate_considerations(df)
+
+        df = self.create_NER_labels(df)
 
         # df = self.do_some_fancy_stuff(df, cit_type)
 
@@ -176,6 +180,7 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         rulings_labels, _ = list(np.unique(np.hstack(df.cited_rulings), return_index=True))
         laws_labels, _ = list(np.unique(np.hstack(df.laws), return_index=True))
         label_list = [laws_labels, rulings_labels]
+
         dataset = datasets.Dataset.from_pandas(df)
         return dataset, label_list
 
@@ -354,8 +359,61 @@ class Doc2DocIRDatasetCreator(DatasetCreator):
         # TODO add Ronja's criticality score
         return tf_idf_score
 
+    def create_NER_labels(self, df):
+        """
+        1. whitespace split the 'considerations' column to get a list of words
+        2. create a new column 'NER_labels' with the same length as the 'considerations' column and initialize it with 'O'
+        3. set the NER labels for the citations
+        6. return the df
+        :param df:
+        :return:
+        """
+
+        # split by whitespace and also special chars like .,;:() etc. as separate words
+        df['considerations'] = df['considerations'].apply(lambda x: re.findall(r"[\w]+|[^\s\w]", x))
+        df['NER_labels'] = df['considerations'].apply(lambda x: ['O'] * len(x))
+        df['NER_labels'] = df.apply(lambda x: self.set_NER_labels(x['NER_labels'], x['citations'], x['considerations']), axis=1)
+        return df
+
+    def set_NER_labels(self, NER_labels, citations, considerations):
+        words = considerations
+        num_found = 0
+        for citation in citations:
+            if citation['name'] == 'law':
+                begin_label, end_label = 'B-LAW', 'I-LAW'
+            else:
+                begin_label, end_label = 'B-CITATION', 'I-CITATION'
+            # split using same regex as in create_NER_labels
+            citation_words = re.findall(r"[\w]+|[^\s\w]", citation['text'])
+            for i in range(len(words)):
+                if words[i:i + len(citation_words)] == citation_words:
+                    num_found += 1
+                    NER_labels[i] = begin_label
+                    for j in range(i + 1, i + len(citation_words)):
+                        if j < len(NER_labels):
+                            NER_labels[j] = end_label
+        return NER_labels
+
+    def truncate_considerations(self, df):
+        # split the considerations into paragraphs and only keep so many paragraphs that the total number of words is <= 215
+        for i, row in df.iterrows():
+            paragraphs = row['considerations'].split('\n')
+            num_words = 0
+            truncated_paragraphs = []
+            for paragraph in paragraphs:
+                words_in_paragraph = len(paragraph.split(' '))
+                if num_words + words_in_paragraph <= 215:
+                    num_words += words_in_paragraph
+                    truncated_paragraphs.append(paragraph)
+                else:
+                    break
+            df.at[i, 'considerations'] = '\n'.join(truncated_paragraphs)
+        return df
+
 
 if __name__ == '__main__':
     config = get_config()
-    citation_dataset_creator = Doc2DocIRDatasetCreator(config)
-    citation_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=True)
+    citation_extraction_dataset_creator = CitationExtractionDatasetCreator(config, debug=False)
+    citation_extraction_dataset_creator.create_dataset(sub_datasets=False, kaggle=False, save_reports=True)
+
+    # python -m scrc.dataset_creation.citation_extraction_dataset_creator

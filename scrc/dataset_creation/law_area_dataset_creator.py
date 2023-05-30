@@ -21,6 +21,7 @@ class LawAreaDatasetCreator(DatasetCreator):
         self.split_type = "date-stratified"
         self.dataset_name = "law_area_prediction"
         self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
+        self.filter_cols = [Section.FACTS]
 
         self.only_sub_areas = False
 
@@ -30,6 +31,7 @@ class LawAreaDatasetCreator(DatasetCreator):
             self.dataset_name = "law_sub_area_prediction"
         self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
                          'law_area', 'law_sub_area']
+        self.delete_row_only_if_all_feature_cols_below_cutoff = False
 
 
     def prepare_dataset(self, save_reports, court_string):

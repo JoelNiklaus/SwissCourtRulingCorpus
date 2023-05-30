@@ -9,10 +9,107 @@ from collections import Counter
 from pathlib import Path
 import numpy as np
 import os
+import ast
+
+import datasets
 
 from scrc.utils.log_utils import get_logger
 
 from scrc.utils.sql_select_utils import get_legal_area_bger
+
+def plot_cit_amounts(folder, df):
+    """
+    Plots the input length of the decisions in the given dataframe
+    :param dataset:         the dataset containing the decision texts
+    :param feature_col:     specifies feature_col
+    :return:
+    """
+    colname_1 = 'cited_rulings_count'
+    colname_2 = 'laws_count'
+    # compute median input length
+    input_length_distribution = df.loc[:, [colname_1, colname_2]].describe().round(0)
+    if len(df.index) == 1:
+        input_length_distribution = input_length_distribution.fillna(df.mean())
+    input_length_distribution = input_length_distribution.astype(int)
+    input_length_distribution.to_csv(folder / f'cit_amount_distribution.csv',
+                                     index_label='measure')
+
+    # bin outliers together at the cutoff point
+    cutoff = 40
+    cut_df = df.loc[:, [colname_1, colname_2]]
+    cut_df[colname_1] = cut_df[colname_1].clip(upper=cutoff)
+    cut_df[colname_2] = cut_df[colname_2].clip(upper=cutoff)
+
+    hist_df = pd.concat([cut_df[colname_1], cut_df[colname_2]], keys=[colname_1, colname_2]).to_frame()
+    hist_df = hist_df.reset_index(level=0)
+    hist_df = hist_df.rename(columns={'level_0': 'tokenizer', 0: 'Number of citations'})
+
+    plot = sns.displot(hist_df, x="Number of citations", hue="tokenizer",
+                       bins=100, kde=True, fill=True, height=5, aspect=1, legend=False)
+    plot.set(xticks=list(range(0, 50, 1)))
+    plt.ylabel('Number of court cases')
+    plt.legend(["Laws", "Rulings"], loc='upper right', title='Citations Amount', fontsize=16, title_fontsize=18)
+    plot.savefig(folder / f'cit_amount_distribution-histogram.png', bbox_inches="tight")
+    plt.close()
+
+    plot = sns.displot(hist_df, x="Number of citations", hue="tokenizer", kind="ecdf", legend=False)
+    plt.ylabel('Number of court cases')
+    plt.legend(["Laws", "Rulings"], loc='lower right', title='Citations Amount')
+    plot.savefig(folder / f'cit_amount_distribution-cumulative.png', bbox_inches="tight")
+    plt.close()
+
+    plot = sns.displot(cut_df, x=colname_1, y=colname_2)
+    plot.savefig(folder / f'cit_amount_distribution-bivariate.png', bbox_inches="tight")
+    plt.close()
+
+
+def plot_input_length(folder, df, feature_col, colname_1='num_tokens_spacy', colname_2='num_tokens_bert'):
+    """
+    Plots the input length of the decisions in the given dataframe
+    :param dataset:         the dataset containing the decision texts
+    :param feature_col:     specifies feature_col
+    :return:
+    """
+    # compute median input length
+    input_length_distribution = df.loc[:, [colname_1, colname_2]].describe().round(0)
+    if len(df.index) == 1:
+        input_length_distribution = input_length_distribution.fillna(df.mean())
+    input_length_distribution = input_length_distribution.astype(int)
+    input_length_distribution.to_csv(folder / f'{feature_col}_input_length_distribution.csv',
+                                     index_label='measure')
+
+    # bin outliers together at the cutoff point
+    cutoff = 4000
+    if colname_1 != 'num_tokens_spacy':
+        cutoff = 40
+    cut_df = df.loc[:, [colname_1, colname_2]]
+    cut_df[colname_1] = cut_df[colname_1].clip(upper=cutoff)
+    cut_df[colname_2] = cut_df[colname_2].clip(upper=cutoff)
+
+    hist_df = pd.concat([cut_df[colname_1], cut_df[colname_2]], keys=[colname_1, colname_2]).to_frame()
+    hist_df = hist_df.reset_index(level=0)
+    hist_df = hist_df.rename(columns={'level_0': 'tokenizer', 0: 'Number of tokens'})
+
+    plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer",
+                       bins=100, kde=True, fill=True, height=5, aspect=2.5, legend=False)
+    if colname_1 == 'num_tokens_spacy':
+        plot.set(xticks=list(range(0, 4500, 500)))
+    else:
+        plot.set(xticks=list(range(0, 50, 1)))
+    plt.ylabel('Number of court cases')
+    plt.legend(["BERT", "SpaCy"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
+    plot.savefig(folder / f'{feature_col}_input_length_distribution-histogram.png', bbox_inches="tight")
+    plt.close()
+
+    plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer", kind="ecdf", legend=False)
+    plt.ylabel('Number of court cases')
+    plt.legend(["BERT", "SPaCy"], loc='lower right', title='Tokenizer')
+    plot.savefig(folder / f'{feature_col}_input_length_distribution-cumulative.png', bbox_inches="tight")
+    plt.close()
+
+    plot = sns.displot(cut_df, x=colname_1, y=colname_2)
+    plot.savefig(folder / f'{feature_col}_input_length_distribution-bivariate.png', bbox_inches="tight")
+    plt.close()
 
 
 class ReportCreator:
@@ -20,12 +117,13 @@ class ReportCreator:
     Creates all kind of plots for a given dataframe
     """
 
-    def __init__(self, base_folder, debug):
+    def __init__(self, base_folder, debug, disable_pandas=False):
         self.folder: Path = base_folder
         self.logger = get_logger(__name__)
         self.debug = debug
+        self.disable_pandas = disable_pandas
 
-    def plot_attribute(self, df, attribute, name=""):
+    def plot_attribute(self, dataset, attribute, name=""):
         """
         Plots the distribution of the attribute of the decisions in the given dataframe
         :param df:              the dataframe containing the law areas
@@ -34,14 +132,17 @@ class ReportCreator:
         :param name:            name of the plot
         :return:
         """
-        if not df.empty:
-            attribute_df = df[attribute].value_counts().to_frame()
-            total = len(df.index)
-            # we deleted the ones where we did not find any attribute: also mention them in this table
-            uncategorized = total - attribute_df[attribute].sum()
+        if isinstance(dataset, pd.DataFrame):
+            attribute_df = dataset[attribute].value_counts().to_frame()
+            total = len(dataset.index)
             attribute_df = attribute_df.reset_index(level=0)
             attribute_df = attribute_df.rename(columns={'index': attribute, attribute: 'number of decisions'})
+        else:
+            attribute_df = self.create_df(dataset, attribute)
+            total = len(dataset)
+        if not attribute_df.empty:
             attribute_df['number of decisions'] = attribute_df['number of decisions'].astype(int)
+            uncategorized = total - attribute_df['number of decisions'].sum()
             attribute_df.sort_values(by=[attribute], inplace=True)
             if uncategorized != 0:
                 attribute_df.loc[len(attribute_df.index)] = ['uncategorized', uncategorized]
@@ -54,8 +155,6 @@ class ReportCreator:
                 attribute_df = attribute_df[~attribute_df[attribute].astype(str).str.contains('en')]
                 attribute_df = attribute_df[~attribute_df[attribute].astype(str).str.contains('--')]
             attribute_df = attribute_df[~attribute_df[attribute].astype(str).str.contains('all')]
-
-            # TODO order attributes?
 
             fig = px.bar(attribute_df, x=attribute, y="number of decisions",
                          title=f'{name} {attribute}')
@@ -96,49 +195,6 @@ class ReportCreator:
                """
         fig = px.histogram(df, x=attribute, color=color_attribute)
         fig.write_image(self.folder / f'{name}_{attribute}_{color_attribute}_colored_histogram.png')
-        plt.close()
-
-    def plot_input_length(self, df, feature_col):
-        """
-        Plots the input length of the decisions in the given dataframe
-        :param df:              the dataframe containing the decision texts
-        :param feature_col:     specifies feature_col
-        :return:
-        """
-        # compute median input length
-        input_length_distribution = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']].describe().round(0)
-        if len(df.index) == 1:
-            input_length_distribution = input_length_distribution.fillna(df.mean())
-        input_length_distribution = input_length_distribution.astype(int)
-        input_length_distribution.to_csv(self.folder / f'{feature_col}_input_length_distribution.csv',
-                                         index_label='measure')
-
-        # bin outliers together at the cutoff point
-        cutoff = 4000
-        cut_df = df.loc[:, ['num_tokens_spacy', 'num_tokens_bert']]
-        cut_df.num_tokens_spacy = cut_df.num_tokens_spacy.clip(upper=cutoff)
-        cut_df.num_tokens_bert = cut_df.num_tokens_bert.clip(upper=cutoff)
-
-        hist_df = pd.concat([cut_df.num_tokens_spacy, cut_df.num_tokens_bert], keys=['spacy', 'bert']).to_frame()
-        hist_df = hist_df.reset_index(level=0)
-        hist_df = hist_df.rename(columns={'level_0': 'tokenizer', 0: 'Number of tokens'})
-
-        plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer",
-                           bins=100, kde=True, fill=True, height=5, aspect=2.5, legend=False)
-        plot.set(xticks=list(range(0, 4500, 500)))
-        plt.ylabel('Number of court cases')
-        plt.legend(["BERT", "SpaCy"], loc='upper right', title='Tokenizer', fontsize=16, title_fontsize=18)
-        plot.savefig(self.folder / f'{feature_col}_input_length_distribution-histogram.png', bbox_inches="tight")
-        plt.close()
-
-        plot = sns.displot(hist_df, x="Number of tokens", hue="tokenizer", kind="ecdf", legend=False)
-        plt.ylabel('Number of court cases')
-        plt.legend(["BERT", "SPaCy"], loc='lower right', title='Tokenizer')
-        plot.savefig(self.folder / f'{feature_col}_input_length_distribution-cumulative.png', bbox_inches="tight")
-        plt.close()
-
-        plot = sns.displot(cut_df, x="num_tokens_spacy", y="num_tokens_bert")
-        plot.savefig(self.folder / f'{feature_col}_input_length_distribution-bivariate.png', bbox_inches="tight")
         plt.close()
 
     def plot_two_attributes(self, df, x_attribute, y_attribute, name, how='scatter'):
@@ -183,42 +239,53 @@ class ReportCreator:
         fig = px.histogram(df, x=attribute, nbins=bin_amount, color=color_attribute)
         fig.write_image(self.folder / f'{attribute}_bins_{color_attribute}.png')
 
-    def report_general(self, metadata, feature_cols, labels, df):
+    def report_general(self, metadata, feature_cols, labels, dataset):
         """
         Saves statistics and reports about bge_label and citation_label. Specific for criticality_dataset_creator
         :param metadata:
         :param df:              the df containing the dataset
         """
+        if 'laws' in labels or 'bge_label' in labels:
+            metadata = ['year', 'chamber', 'law_area']
+            labels = None
+
         for attribute in metadata:
             if labels:
                 for label in labels:
-                    match = df[label] == 'non-critical'
+                    tmp_dataset = dataset.filter(lambda row: row[label].startswith("critical"))
                     try:
-                        self.plot_attribute(df[~match], attribute, name=str(label))
+                        self.plot_attribute(tmp_dataset, attribute, name=str(label))
                     except:
                         self.logger.info(f'Could not plot {attribute} for {label}. (Ignore if this is {attribute} dataset)')
                         continue
+                self.plot_attribute(dataset, attribute, name='all')
             else:
-                self.plot_attribute(df, attribute, name='all')
+                self.plot_attribute(dataset, attribute, name='all')
 
-        if 'origin_facts' in df.columns:
-            feature_cols.extend(['origin_facts', 'origin_considerations'])
+        if labels:
+            for label in labels:
+                self.plot_attribute(dataset, label, name=f"label_{label}")
+
+        if 'origin_facts' in dataset.column_names:
+            feature_cols.append('origin_facts')
+        if 'origin_considerations' in dataset.column_names:
+            feature_cols.append('origin_considerations')
+
+        if not self.disable_pandas:
             for feature_col in feature_cols:
-                df[feature_col] = df[feature_col].replace('', np.nan)
-                # drop all rows with NaN in these columns
-                df = df.dropna(subset=[feature_col])
-
-        for feature_col in feature_cols:
-            tokens_dict: Dict[str, str] = {f'{feature_col}_num_tokens_bert': 'num_tokens_bert',
-                    f'{feature_col}_num_tokens_spacy': 'num_tokens_spacy'}
-            try:
-                if len(df) > 0:
-                    self.plot_input_length(df.rename(columns=tokens_dict), feature_col)
-            except np.linalg.LinAlgError as err:
-                if 'singular matrix' in str(err):
+                try:
+                    # remove row that are nan or unusable like ""
+                    tmp_dataset = dataset.filter(lambda row: row[f'{feature_col}_num_tokens_bert'] > 1)
+                    if len(tmp_dataset) > 0:
+                        tmp_dataset = tmp_dataset.rename_column(f'{feature_col}_num_tokens_bert', 'num_tokens_bert')
+                        tmp_dataset = tmp_dataset.rename_column(f'{feature_col}_num_tokens_spacy', 'num_tokens_spacy')
+                        tmp_dataset = self.get_rid_of_unused_cols(tmp_dataset, ["num_tokens_bert", "num_tokens_spacy"])
+                        # todo find solution to use dataset instead of df
+                        # self.plot_input_length(tmp_dataset.to_pandas(), feature_col)
+                except np.linalg.LinAlgError as err:
+                    if 'singular matrix' not in str(err):
+                        raise err
                     print("Singular matrix error in plot_input_length")
-                else:
-                    raise err
 
     def report_citations_count(self, df, name):
         """
@@ -231,6 +298,7 @@ class ReportCreator:
         self.plot_attribute(df, 'year', name=str(name))
         self.plot_attribute(df, 'bge_chamber', name=str(name))
         self.plot_attribute(df, 'bger_chamber', name=str(name))
+        self.plot_attribute(df, 'law_area', name=str(name))
 
         if name == 'all':
             self.report_citations_details(df)
@@ -327,3 +395,48 @@ class ReportCreator:
         not_found_df = references_df[file_number_match]
         new_cases = not_found_df.loc[not_found_df['year'] > 2000]
         print(f"Not_found_list: there are {len(new_cases)} cases")
+
+    def create_df(self, dataset, attribute):
+        dataset = dataset.filter(lambda row: row[attribute] is not None and row[attribute] != '')
+        value_list = self.get_unique_values_dataset_column(dataset, attribute)
+        data = []
+        for value in value_list:
+            amount = len(dataset.filter(lambda row: row[attribute] == value))
+            data.append([value, amount])
+        return pd.DataFrame(data, columns=[attribute, 'number of decisions'])
+
+    def get_unique_values_dataset_column(self, dataset, column_name):
+        value_list = []
+        def get_column_value(row):
+             if row[column_name] not in value_list:
+                 value_list.append(row[column_name])
+        dataset.map(get_column_value)
+        return value_list
+
+    def get_rid_of_unused_cols(self, ds, col_list):
+        cols = ds.column_names
+        for item in cols:
+            if item not in col_list:
+                ds.remove_columns(item)
+        return ds
+
+
+if __name__ == '__main__':
+
+    dataset_name = "criticality_dataset"
+
+    # create instance of reportcreator
+    path = f"data/datasets/{dataset_name}"
+    report_creator = ReportCreator(path, debug=True)
+
+    # load data
+    current_directory = os.getcwd()
+    data_path = f"{current_directory}/{path}/CH_BGer/huggingface"
+
+    df = pd.read_json(f"{data_path}/test.jsonl", orient='records', lines=True)
+    print(len(df.index))
+
+
+
+
+

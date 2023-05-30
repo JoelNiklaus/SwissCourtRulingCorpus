@@ -21,7 +21,8 @@ class JudgmentDatasetCreator(DatasetCreator):
 
         self.split_type = "date-stratified"
         self.dataset_name = "judgment_prediction"
-        self.feature_cols = [Section.FACTS]
+        self.feature_cols = [Section.FACTS, Section.CONSIDERATIONS]
+        self.filter_cols = [Section.FACTS]
 
         self.with_partials = False
         self.with_write_off = False
@@ -30,7 +31,8 @@ class JudgmentDatasetCreator(DatasetCreator):
         self.make_single_label = True
         self.labels = ['label']
         self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
-                         'law_area', 'law_sub_area', 'considerations']
+                         'law_area', 'law_sub_area']
+        self.delete_row_only_if_all_feature_cols_below_cutoff = False
 
     def prepare_dataset(self, save_reports, court_string):
         data_to_load = {

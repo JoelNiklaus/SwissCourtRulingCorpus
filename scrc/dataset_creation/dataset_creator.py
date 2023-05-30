@@ -5,7 +5,6 @@ import os
 import sys
 import gc
 import time
-from collections import Counter
 from datetime import date
 from pathlib import Path
 from typing import Union
@@ -13,31 +12,27 @@ import ast
 from tqdm import tqdm
 import csv
 import seaborn as sns
-import plotly.express as px
-import matplotlib.pyplot as plt
 import datasets
+import re
 from datasets import concatenate_datasets
 from root import ROOT_DIR
-
+from multiprocessing import Pool
 from scrc.dataset_creation.report_creator import ReportCreator
-from scrc.enums.cantons import Canton
 from scrc.data_classes.ruling_citation import RulingCitation
-
 import numpy as np
 import pandas as pd
 from scrc.enums.section import Section
-
 from scrc.preprocessors.abstract_preprocessor import AbstractPreprocessor
 from scrc.utils.log_utils import get_logger
 import json
 from scrc.utils.main_utils import retrieve_from_cache_if_exists, save_df_to_cache, get_canton_from_chamber, \
     get_court_from_chamber, print_memory_usage
-
 from scrc.utils.sql_select_utils import get_legal_area, join_tables_on_decision, legal_areas, get_region, \
     where_string_spider, where_string_court
-
 from scrc.utils.court_names import court_names_backup, get_error_courts, get_empty_courts
 from scrc.enums.split import Split
+from datasets import load_dataset
+
 
 import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
 
@@ -163,9 +158,11 @@ class DatasetCreator(AbstractPreprocessor):
         self.counter = 0
         self.start_years = {Split.TRAIN.value: 1900, Split.VALIDATION.value: 2016, Split.TEST.value: 2018, Split.SECRET_TEST.value: 2023}
         self.current_year = date.today().year
-        self.metadata = ['year', 'legal_area', 'chamber', 'court', 'canton', 'region',
-                         'origin_chamber', 'origin_court', 'origin_canton', 'origin_region',
+        self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
+                         'origin_chamber', 'origin_court', 'origin_canton',
                          'law_area', 'law_sub_area']
+        self.num_cores = 16
+        self.delete_row_only_if_all_feature_cols_below_cutoff = False
 
         def build_info_df(table_name, col_name):
             info_df = next(self.select(self.get_engine(self.db_scrc), table_name))
@@ -182,8 +179,10 @@ class DatasetCreator(AbstractPreprocessor):
         self.split_type = None  # to be overridden
         self.dataset_name = None  # to be overridden
         self.feature_cols = [Section.FULL_TEXT]  # to be overridden
+        self.filter_cols = []  # to be overridden
         self.labels = []  # to be overridden
-        self.available_bges = []  # to be overridden
+        self.available_rulings_dict = {}  # to be overridden
+        self.reports_folder: Path = Path()
 
     @abc.abstractmethod
     def prepare_dataset(self, save_reports, court_string):
@@ -199,13 +198,32 @@ class DatasetCreator(AbstractPreprocessor):
         """
         Load all bge cases and store in available_bges
         """
-        where_string = f"d.decision_id IN {where_string_spider('decision_id', 'CH_BGE')}"
-        table_string = 'decision d LEFT JOIN file_number ON file_number.decision_id = d.decision_id'
-        decision_df = next(
-            self.select(self.get_engine(self.db_scrc), table_string, 'd.*, file_number.text', where_string,
-                        chunksize=self.get_chunksize()))
+        ruling_dataset = load_dataset('rcds/swiss_leading_decisions', split='train')
+        decision_df = pd.DataFrame(ruling_dataset)
         self.logger.info(f"BGE: There are {len(decision_df.index)} in db (also old or not referenced included).")
-        return set(decision_df.text.tolist())
+
+        available_rulings_dict = {}
+
+        def filter_rulings(row):
+            file_number = str(row['file_number'])
+            parts = file_number.split("_")
+            if len(parts) == 4:
+                year = int(parts[1])
+                volume = parts[2]
+                page = int(parts[3])
+                if year in available_rulings_dict:
+                    if volume in available_rulings_dict[year]:
+                        available_rulings_dict[year][volume].append(page)
+                    else:
+                        available_rulings_dict[year][volume] = [page]
+                else:
+                    available_rulings_dict[year] = {volume: [page]}
+                return True
+            return False
+        useful_cases = decision_df.apply(filter_rulings, axis='columns')
+        decision_df = decision_df[useful_cases]
+
+        return decision_df, available_rulings_dict
 
     def get_citation(self, citations, type):
         """
@@ -214,9 +232,6 @@ class DatasetCreator(AbstractPreprocessor):
         :param cit_type:
         :return:                            dataframe with additional column 'ruling_citation'
         """
-        self.counter = self.counter + 1
-        if int(self.counter) % 10000 == 0:
-            self.logger.info("Processed another 10'000 citations")
         cits = []
         try:
             # citations = ast.literal_eval(citations_as_string)  # parse dict string to dict again
@@ -229,14 +244,17 @@ class DatasetCreator(AbstractPreprocessor):
                         cited_file = self.get_file_number(cit)
                         cits.append(cited_file)
                     elif citation_type == "law" and type == 'law':
-                        tmp = self.get_law_citation(cit)
-                        if tmp is not None:
-                            cits.append(tmp)
+                        try:
+                            tmp = self.get_law_citation(cit)
+                            if tmp is not None:
+                                cits.append(tmp)
+                        except ValueError as ve:
+                            self.logger.info(f"Citation could not be found in laws: {citation}")
                 except ValueError as ve:
-                    self.logger.info(f"Citation has invalid syntax: {citation}")
+                    self.logger.info(f"Warning: Citation has invalid syntax: {citation}")
                     continue
         except ValueError as ve:
-            self.logger.info(f"Citations could not be extracted to dict: {citations_as_string}")
+            self.logger.info(f"Citations could not be extracted to dict: {citations}")
         if cits:  # only return something if we actually have citations
             return cits
 
@@ -246,27 +264,24 @@ class DatasetCreator(AbstractPreprocessor):
         :param citation:         citation as string as found in text
         :return:                 RulingCitation always in German
         """
-        # TODO scrape for all bge file number
         # handle citation always in German
         found_citation = RulingCitation(citation, 'de')
-        if str(found_citation) in self.available_bges:
-            return found_citation.cit_string()
-        else:
-            # find closest bge with smaller page_number
-            year = found_citation.year
-            volume = found_citation.volume
-            page_number = found_citation.page_number
-            new_page_number = -1
-            for match in self.available_bges:
-                if f"BGE {year} {volume}" in match:
-                    tmp = RulingCitation(match, 'de')
-                    if new_page_number < tmp.page_number <= page_number:
-                        new_page_number = tmp.page_number
-            # make sure new page number is not unrealistic far away.
-            if page_number - new_page_number < 20:
-                result = RulingCitation(f"{year} {volume} {new_page_number}", 'de')
-                return result.cit_string()
-            return found_citation.cit_string()
+        year = int(found_citation.year)
+        volume = str(found_citation.volume)  # problem if we get volume like IA because it could be stored as Ia
+        page_number = int(found_citation.page_number)
+        if year in list(self.available_rulings_dict.keys()):
+            if volume in list(self.available_rulings_dict[year].keys()):
+                if page_number in list(self.available_rulings_dict[year][volume]):
+                    return found_citation.cit_string()
+                else:
+                    new_page_number = -1
+                    for page in self.available_rulings_dict[year][volume]:
+                        if new_page_number < page <= page_number:
+                            new_page_number = page
+                    if (page_number - new_page_number) < 20 and new_page_number > 0:
+                        result = RulingCitation(f"{year} {volume} {new_page_number}", 'de')
+                        self.counter = self.counter + 1
+                        return result.cit_string()
 
     def get_law_citation(self, citations_text):
         """
@@ -293,47 +308,35 @@ class DatasetCreator(AbstractPreprocessor):
         # TODO in the future: maybe save text as list of paragraphs
         # TODO make sure that the same data is saved to kaggle, csv and huggingface format!
 
-        not_created, created = [], []
         datasets_list = []
-        label_concat = None
+        if self.dataset_name == "doc2doc_ir" or self.dataset_name == "criticality_prediction" or self.dataset_name == "citation_extraction":
+            dataset, labels, state_tuples = self.create_single_dataset(court_list[0], concatenate, datasets_list, kaggle, save_reports, sub_datasets)
+        else:
+            with Pool(processes=self.num_cores) as pool:
+                results = [pool.apply_async(self.create_single_dataset, (court_string, concatenate, datasets_list, kaggle, save_reports,
+                                                                     sub_datasets)) for court_string in court_list]
+                datasets = [result.get()[0] for result in results if result.get()[0] is not None]
+                labels = [result.get()[1] for result in results if result.get()[1] is not None][0]
+                state_tuples = [result.get()[2] for result in results if result.get()] # tuple, e.g. (court_name, state)
+            pool.close()
 
-        exception_courts = {}
-        for court_string in tqdm(court_list):
-            try:
-                self.logger.info(f"Creating dataset for {court_string}")
-                dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
-
-                if len(dataset) <= 1:
-                    self.logger.info(f"Dataset for {court_string} could not be created")
-                    not_created.append(court_string)
-                else:
-                    if concatenate:  # save all of them together in the end
-                        datasets_list.append(dataset)
-                        # TODO maybe it would make more sense to take the union of all the labels
-                        label_concat = labels if label_concat is None else label_concat  # takes the first label
-                    else:  # save each dataset separately
-                        save_path = self.create_dir(self.get_dataset_folder(), court_string)
-                        self.save_dataset(dataset, labels, save_path, self.split_type,
-                                          sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
-                    created.append(court_string)
-                self.logger.info(f"Empty courts: {not_created}")
-                self.logger.info(f"Created courts: {created}")
-                self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts.keys()}")
-            except Exception as e:
-                exception_courts[court_string] = e
-                self.logger.error(f"Exception for {court_string}: {e}")
-                continue
+        # group state tuples by state and log them
+        state_dict = {}
+        for state_tuple in state_tuples:
+            if state_tuple[1] not in state_dict:
+                state_dict[state_tuple[1]] = []
+            state_dict[state_tuple[1]].append(state_tuple[0])
+        for state in state_dict:
+            self.logger.info(f"{state}: {state_dict[state]}")
 
         if concatenate:
             self.logger.info("Concatenating datasets")
-            dataset = concatenate_datasets(datasets_list)
+            dataset = concatenate_datasets(datasets)
 
             # TODO: investigate if this is really necessary
             print_memory_usage([dataset, datasets_list])
             del datasets_list
             gc.collect()
-
-            labels = label_concat
 
             # check if export folder already exists and increment the name index if it does
             version = 1
@@ -343,9 +346,35 @@ class DatasetCreator(AbstractPreprocessor):
 
             self.save_dataset(dataset, labels, export_path, self.split_type, kaggle=kaggle, save_reports=save_reports)
 
-        self.logger.info(f"{len(not_created)} courts not created (since it was empty): {not_created}")
-        self.logger.info(f"{len(created)} courts created: {created}")
-        self.logger.info(f"{len(exception_courts)} courts with exceptions: {exception_courts.keys()}")
+        else:
+            assert len(court_list) == 1 and (self.dataset_name == "doc2doc_ir" or self.dataset_name == "criticality_prediction" or self.dataset_name == "citation_extraction")
+            court_string = court_list[0]
+            save_path = self.create_dir(self.get_dataset_folder(), court_string)
+            self.save_dataset(dataset, labels, save_path, self.split_type,
+                              sub_datasets=sub_datasets, kaggle=kaggle, save_reports=save_reports)
+
+    def create_single_dataset(self, court_string, concatenate, datasets_list, kaggle, save_reports, sub_datasets):
+        """
+        Creates a dataset for a single court.
+        :return: dataset, labels
+        """
+        try:
+            self.logger.info(f"Creating dataset for {court_string}")
+            dataset, labels = self.prepare_dataset(save_reports, court_string=court_string)
+
+            if len(dataset) <= 1:
+                self.logger.info(f"Dataset for {court_string} could not be created")
+                return None, None, (court_string, "empty")
+            else:
+                if concatenate:  # save all of them together in the end
+                    datasets_list.append(dataset)
+                else:  # save each dataset separately
+                    self.logger.info(f"Dataset for {court_string} created")
+            return dataset, labels, (court_string, "created")
+        except Exception as e:
+            self.logger.error(f"Exception for {court_string}: {e}")
+            raise e
+            return None, None, (court_string, "exception")
 
     def get_all_courts(self):
         try:
@@ -386,17 +415,37 @@ class DatasetCreator(AbstractPreprocessor):
         :param concatenate:   if True, all courts datasets are concatenated into one file
         :param overview:      if True, creates overview of all generated datasets and exports them in a csv file
         """
+        def sort_by_size(court_list):
+            """
+            Sets the biggest courts first to save time when multiprocessing
+            :param court_list: list of court names
+            :return: sorted list of court names
+            """
+            biggest = ["CH_BGer", "VD_TC", "CH_BVGE", "GE_CJ", "ZH_SVG", "TI_TRAC", "TI_TCAS", "BE_VG", "FR_TC",
+                       "ZH_VG", "SG_KGN", "SG_VSG", "CH_BSTG", "TI_TCA"]
+            sorted_list = []
+            for court in biggest:
+                if court in court_list:
+                    sorted_list.append(court)
+            for court in court_list:
+                if court not in biggest:
+                    sorted_list.append(court)
+            return sorted_list
+
+        start_time = time.time()
         if court_list is None:
             court_list = self.get_court_list(concatenate=concatenate)
+        court_list = sort_by_size(court_list)
         self.create_dataset(court_list, concatenate=concatenate, sub_datasets=sub_datasets, save_reports=save_reports)
         if overview:
             self.create_overview()
+        self.logger.info(f"Time elapsed: {time.strftime('%H:%M:%S', time.gmtime(time.time() - start_time))}")
 
     def save_huggingface_dataset(self, splits, folder):
         """
         save data as huggingface dataset with columns:
         'id', 'date', 'year', 'language',
-        'origin_region', 'origin_canton', 'origin_court', 'origin_chamber', 'law_area',
+         'origin_canton', 'origin_court', 'origin_chamber', 'law_area',
         'bge_label', 'citation_label', all feature cols
         :param splits:      specifying splits of dataset
         :param folder:      name of folder
@@ -404,18 +453,34 @@ class DatasetCreator(AbstractPreprocessor):
         huggingface_dir = self.create_dir(folder, 'huggingface')
         self.logger.info(f"Generating huggingface dataset at {huggingface_dir}")
 
-        for split, dataset in splits.items():
-            cols_to_include = ['decision_id', 'language'] + self.metadata + self.labels + self.get_feature_col_names() \
-                              + ['origin_facts', 'origin_considerations']
-            cols_to_remove = [col for col in dataset.column_names if col not in cols_to_include]
-            dataset = dataset.remove_columns(cols_to_remove)
-            hf_file = f'{huggingface_dir}/{split}.jsonl'
+        def parallelize_saving(splits, func, split_value, n_cores=self.num_cores):
+            pool = Pool(n_cores)
+            pool.apply_async(func, (splits[split_value], split_value, huggingface_dir, folder))
+            pool.close()
+            pool.join()
 
-            self.logger.info(f"Saving {split} dataset at {hf_file}")
-            dataset.to_json(hf_file, orient='records', lines=True, force_ascii=False)
+        parallelize_saving(splits, self.save_huggingface_split, Split.TEST.value)
+        parallelize_saving(splits, self.save_huggingface_split, Split.TRAIN.value)
+        parallelize_saving(splits, self.save_huggingface_split, Split.VALIDATION.value)
 
+
+    def save_huggingface_split(self, dataset, split: str, huggingface_dir, folder):
+        cols_to_include = ['decision_id', 'language'] + self.metadata + self.labels + self.get_feature_col_names()
+        if not self.dataset_name == "doc2doc_ir" or not self.dataset_name == "citation_extraction":
+            for feature_col in self.feature_cols:
+                cols_to_include = cols_to_include + [f'origin_{feature_col}']
+        cols_to_remove = [col for col in dataset.column_names if col not in cols_to_include]
+        dataset = dataset.remove_columns(cols_to_remove)
+        hf_file = f'{huggingface_dir}/{split}.jsonl'
+        self.logger.info(f"Saving {split} dataset at {hf_file}")
+        self.logger.info(f"Lenght of {split} dataset: {len(dataset)}")
+        # using pool and an extra processor to make sure we get rid of chunk data, which causes problems
+        dataset.to_json(hf_file, orient='records', lines=True, force_ascii=False)
+        if not self.debug:  # don't compress if debug to save time
             self.logger.info(f"Compressing {split} dataset at {hf_file}")
             os.system(f'xz -zkf -T0 {hf_file}')  # -TO to use multithreading
+        else:
+            self.logger.info(f"Skipping compression of {split} dataset at {hf_file}")
 
     def get_df(self, engine, data_to_load: dict, court_string="CH_BGer", use_cache=True, overwrite_cache=False):
         """
@@ -448,7 +513,6 @@ class DatasetCreator(AbstractPreprocessor):
 
         if data_to_load['section']:
             df = self.load_section(df, engine)
-
         if data_to_load['file']:
             df = self.load_file(df, engine)
         if data_to_load['file_number']:
@@ -468,6 +532,9 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info("Finished loading the data from the database")
         if use_cache:
             save_df_to_cache(df, cache_file)
+
+        # log col names
+        self.logger.info(f"Columns: {df.columns.tolist()}")
         return df
 
     def load_decision(self, court_string, engine):
@@ -544,6 +611,9 @@ class DatasetCreator(AbstractPreprocessor):
 
     def get_feature_col_names(self):
         return [feature_col.name.lower() for feature_col in self.feature_cols]
+
+    def get_filter_col_names(self):
+        return [filter_col.name.lower() for filter_col in self.filter_cols]
 
     def load_citation(self, decision_ids, df, engine):
         self.logger.info('Loading Citation')
@@ -650,6 +720,7 @@ class DatasetCreator(AbstractPreprocessor):
             df.at[i, 'origin_decision_id'] = origin_decision_id
 
         df = self.load_section(df, engine, 'origin_decision_id', origin=True)
+
         return df
     @staticmethod
     def add_law_area(df):
@@ -742,7 +813,8 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info("start creating splits")
         splits = self.create_splits(dataset, split_type, include_all=save_reports)
         self.save_huggingface_dataset(splits, folder)
-        self.save_splits(splits, labels, folder, save_reports=save_reports)
+        save_csv = self.dataset_name != "criticality_prediction" and self.dataset_name != "doc2doc_ir"
+        self.save_splits(splits, labels, folder, save_reports, False)
 
         if sub_datasets:
             sub_datasets_dict = self.create_sub_datasets(splits, split_type)
@@ -766,8 +838,9 @@ class DatasetCreator(AbstractPreprocessor):
     def clean_dataset(self, dataset):
         # replace empty strings with nan so that they can be removed
         self.logger.info(f"start cleaning")
-        for feature_col in self.get_feature_col_names():
-            dataset = self.filter_by_num_tokens(dataset, feature_col)
+        dataset = self.filter_by_num_tokens(dataset, col_names=self.get_filter_col_names(), conjuctive=self.delete_row_only_if_all_feature_cols_below_cutoff)
+
+        dataset = dataset.remove_columns(['language_id', 'chamber_id', 'file_id', 'topic'])
 
         return dataset
 
@@ -809,21 +882,20 @@ class DatasetCreator(AbstractPreprocessor):
                 continue
             self.logger.info(f"Processing split {split}")
 
-            if save_reports or save_csvs:
+            if save_csvs:
                 # without the feature_cols, the dataset should fit into RAM
                 # Additionally, we don't want to save the long text columns to the csv files because it becomes unreadable
-                self.logger.info(f"Exporting metadata columns of dataset to pandas dataframe for easier plotting")
+                # TODO this line causes out of memory errors for large datasets like criticality or doc2doc
+                #  - set save_reports False for those datasets
                 df = dataset.remove_columns(self.get_feature_col_names()).to_pandas()
-            if save_reports:
-                self.logger.info(f"Computing metadata reports")
-                self.save_report(folder, split, df)
-
-            if save_csvs:
                 if isinstance(save_csvs, list):
                     if split not in save_csvs:
                         continue  # Only save if the split is in the list
                 self.logger.info("Saving csv file")
                 df.to_csv(folder / f"{split}.csv", index_label='id', index=False)
+            if save_reports:
+                self.logger.info(f"Computing metadata reports")
+                self.save_report(folder, split, dataset)
 
     def create_splits(self, dataset, split_type, include_all=False):
         # TODO is the .value of the Split enum really necessary? It probably also works without
@@ -909,7 +981,7 @@ class DatasetCreator(AbstractPreprocessor):
 
         return sub_datasets_dict
 
-    def save_report(self, folder, split, df):
+    def save_report(self, folder, split, dataset):
         """
         Saves statistics about the dataset in the form of csv tables and png graphs.
         :param folder:  the base folder to save the report to
@@ -917,15 +989,18 @@ class DatasetCreator(AbstractPreprocessor):
         :param df:      the df containing the dataset
         :return:
         """
-
         self.logger.info(f"Saving report for split {split}")
-        split_folder = self.create_dir(folder, f'reports/{split}')
-        report_creator = ReportCreator(split_folder, self.debug)
-        report_creator.report_general(self.metadata, self.get_feature_col_names(), self.labels, df)
-        self.plot_custom(report_creator, df, split_folder)
+        split_folder = self.create_dir(self.reports_folder, f'{split}')
+        disable_pandas = (self.dataset_name == "doc2doc_ir") or (self.dataset_name == "criticality_prediction") or (self.dataset_name == "citation_extraction")
+        report_creator = ReportCreator(split_folder, self.debug, disable_pandas)
+        report_creator.report_general(self.metadata, self.get_feature_col_names(), self.labels, dataset)
+        if not disable_pandas:
+            # self.plot_custom(report_creator, dataset, split_folder)
+            pass
 
     @abc.abstractmethod
-    def plot_custom(self, report_creator, df, folder):
+    def plot_custom(self, report_creator, dataset, folder):
+        # TODO change df to dataset for all plot_custom
         """
         Implement custom plots for each dataset_creator in this method
         """
@@ -969,7 +1044,7 @@ class DatasetCreator(AbstractPreprocessor):
         val = dataset.filter(
             lambda x: x["year"] in range(start_years[Split.VALIDATION.value], start_years[Split.TEST.value]))
         test = dataset.filter(
-            lambda x: x["year"] in range(start_years[Split.TEST.value], self.current_year + 1))
+            lambda x: x["year"] in range(start_years[Split.TEST.value], self.current_year+2))
         return train, val, test
 
     def split_random(self, dataset):
@@ -985,13 +1060,14 @@ class DatasetCreator(AbstractPreprocessor):
         # gather everything into a single DatasetDict
         return train_testvalid[Split.TRAIN.value], test_valid[Split.TRAIN.value], test_valid[Split.TEST.value]
 
-    def create_overview(self, path=None, export_path=None, export_name="overview", include_all=False):
+    def create_overview(self, path=None, export_path=None, export_name="overview", include_all=False, parallel=True):
         """
         :function:              creates an overview of the dataset
         :param path:            path to the court dataset folders
         :param export_name:     name of the exported file without extension
         :param export_path:     path to the folder where the file should be exported
         :param include_all:     if True, all courts are included in the overview otherwise only the created courts
+        :param parallel:        if True, the overview is created in parallel processing
         """
         if path is None:
             path = self.get_dataset_folder()
@@ -1009,18 +1085,18 @@ class DatasetCreator(AbstractPreprocessor):
         #   stores the overview in a list of dicts
         courts_data = []
 
-        # store the number of rows of each file in a dict for each court
-        for court in tqdm(courts_av):
-            court_data = {"name": court}
-            for key in [split.value for split in Split]:  # ["all", "val", "test", "train", "secret_test"]
-                try:
-                    with open(os.path.join(path, court, f"{key}.csv"), "r") as f:
-                        reader = csv.reader(f)
-                        court_data[key] = len(list(reader)) - 1  # -1 because of header
-                except FileNotFoundError:
-                    court_data[key] = -2
-            court_data['created'] = True
-            courts_data.append(court_data)
+        if parallel:
+            self.logger.info("Creating overview in parallel")
+            with Pool(processes=self.num_cores) as pool:
+                results = [pool.apply_async(get_court_len, (court, path)) for court in tqdm(courts_av)]
+                for result in results:
+                    courts_data.append(result.get())
+            pool.close()
+        else:
+            self.logger.info("Creating overview sequentially")
+            for court in tqdm(courts_av):
+                court_data = get_court_len(court, path)
+                courts_data.append(court_data)
 
         # add courts that are not in the folder
         if include_all:
@@ -1045,30 +1121,116 @@ class DatasetCreator(AbstractPreprocessor):
 
 
     # function which takes col name as input and filters df/dataset by number of token
-    def filter_by_num_tokens(self, data_structure, col_name):
+    def filter_by_num_tokens(self, data_structure, col_names, court=None, conjuctive=False):
         """
         :function:              filters df / dataset by the number of tokens in the column 'col_name'
         :param data_structure:  pandas dataframe or huggingface dataset
         :param col_name:        name of the column to filter by (e.g. "origin_facts")
+        :param conjuctive:      if True, deletes only rows where all columns have less than the cutoff
         :return:                filtered df / dataset
         """
-        def get_cutoff(col_name):
-            if col_name == 'facts' or col_name == 'origin_facts':
-                return 200
-            elif col_name == 'considerations' or col_name == 'origin_considerations':
-                return 500
-            elif col_name == 'rulings':
-                return 100
+        if len(col_names) > 1:
+            if conjuctive:
+                self.logger.info("Deleting only rows where all columns have less than the cutoff")
             else:
-                raise ValueError(f"{col_name} not implmemented: col_name must be 'rulings', 'facts', 'origin_facts', "
+                self.logger.info("Deleting rows where any column has less than the cutoff")
+        # TODO: save the cutoffs in a json file and load them from there
+        facts_cutoff = {
+            "VD_TC": 310,
+            "CH_BGer": 250,
+            "SO_VSG": 200,
+            "ZH_OG": 300,
+            "TI_TRAC": 120,
+            "TI_PP": 140,
+            "GE_CJ": 170,
+            "SO_OG": 300,
+            "SO_VG": 150,
+            "ZH_KSG": 150,
+            "BS_APG": 170,
+            "CH_BVGE": 140,
+            "GL_VG": 150,
+            "BL_KG": 500
+        }
+        considerations_cutoff = {
+            "VD_TC": 50,
+            "TI_TRAC": 200,
+            "CH_BGer": 150,
+            "CH_BVGE": 200,
+            "GE_CJ": 50,
+            "GR_KG": 150,
+            "TI_TCAS": 150,
+            "TI_TE": 150,
+            "TI_TRAP": 150,
+            "FR_TC": 100,
+            "TI_TCA": 150,
+            "TI_PP": 150,
+            "JU_TC": 150
+        }
+
+        def get_cutoff(col_name, court):
+            if col_name == 'facts' or col_name == 'origin_facts':
+                return facts_cutoff.get(court, 200) # default cutoff is 200
+            elif col_name == 'considerations' or col_name == 'origin_considerations':
+                return considerations_cutoff.get(court, 500) # default cutoff is 500
+            elif col_name == 'rulings' or col_name == 'origin_rulings':
+                return 100  # default cutoff is 100
+            else:
+                raise ValueError(f"{col_name} not implmemented: col_name must be 'rulings', 'origin_rulings', 'facts', 'origin_facts', "
                                  f"'considerations' or 'origin_considerations'")
+
+        def is_above_cutoff(x):
+            if conjuctive:  # returns True if any column is above the cutoff
+                for col_name in col_names:
+                    if x[col_name + '_num_tokens_bert'] >= get_cutoff(col_name, x['court']):
+                        return True
+                return False
+            else: # returns False if any column is below the cutoff
+                for col_name in col_names:
+                    if x[col_name + '_num_tokens_bert'] < get_cutoff(col_name, x['court']):
+                        return False
+                return True
 
         # check if data_structure is a dataframe or a dataset
         if isinstance(data_structure, pd.DataFrame):
-            data_structure = data_structure.loc[data_structure[col_name + '_num_tokens_bert'] > get_cutoff(col_name)]
+            if len(col_names) > 1:
+                raise NotImplementedError("If data_structure is a dataframe, only one column can be filtered")
+            col_name = col_names[0]
+            self.logger.info(f"filtering {col_name} by num_tokens")
+            if court is None:
+                raise ValueError("If data_structure is a dataframe, court must be given")
+            data_structure = data_structure.loc[data_structure[col_name + '_num_tokens_bert'] >= get_cutoff(col_name, court)]
         elif isinstance(data_structure, datasets.Dataset):
-            data_structure = data_structure.filter(lambda x: len(x[col_name]) > get_cutoff(col_name))
+            self.logger.info(f"filtering {','.join(col_names)} by num_tokens")
+            data_structure = data_structure.filter(is_above_cutoff)
         else:
-            raise ValueError("data_structure must be a dataframe or a dataset")
+            raise ValueError(f"data_structure must be a dataframe or a dataset. Got {type(data_structure)}")
 
         return data_structure
+
+    def parallelize_dataframe(self, df, func, n_cores=10):
+        df_split = np.array_split(df, n_cores)
+        pool = Pool(n_cores)
+        tmp = pd.concat(pool.map(func, df_split))
+        pool.close()
+        pool.join()
+        return tmp
+
+
+def get_court_len(court, path):
+    """
+    :function:   part of the create_overview function: Gets the number of samples for each split of a court
+    :param court:   name of the court
+    :param path:    path to the dataset folder
+    :return:        dict with the number of samples for each split of a court
+    """
+
+    court_data = {"name": court}
+    for key in [split.value for split in Split]:  # ["all", "val", "test", "train", "secret_test"]
+        try:
+            with open(os.path.join(path, court, f"{key}.csv"), "r") as f:
+                reader = csv.reader(f)
+                court_data[key] = len(list(reader)) - 1  # -1 because of header
+        except FileNotFoundError:
+            court_data[key] = -2
+    court_data['created'] = True
+    return court_data
