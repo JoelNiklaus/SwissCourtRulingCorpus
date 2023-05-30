@@ -33,6 +33,10 @@ class RegesteDatasetCreator(DatasetCreator):
         regeste_split = example["full_text"].split(regeste_keyword, 1)
         example["header"] = regeste_split[0]
 
+        if len(regeste_split) < 2:
+            self.logger.warning(f"Could not split text for {example['file']}")
+            return None
+
         # split into regeste and text
         facts_split = regeste_split[1].split(facts_keyword, 1)
         regeste_based_on_facts_split = regeste_keyword + facts_split[0]
@@ -76,6 +80,12 @@ class RegesteDatasetCreator(DatasetCreator):
         hf_dataset = datasets.Dataset.from_pandas(df)
 
         hf_dataset = hf_dataset.map(self.split_BGE_text, num_proc=4)
+        self.logger.info(f"Number of examples after split: {len(hf_dataset)}")
+        # filter out examples where either the regeste or the text is None
+        hf_dataset = hf_dataset.filter(lambda example: example is not None
+                                                       and example["regeste"] is not None
+                                                       and example["text"] is not None)
+        self.logger.info(f"Number of examples after filtering: {len(hf_dataset)}")
 
         # TODO try to get HTML and see if there more information is available allowing for cleaner splits
 
