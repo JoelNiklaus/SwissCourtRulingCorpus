@@ -34,7 +34,7 @@ class RegesteDatasetCreator(DatasetCreator):
         example["header"] = regeste_split[0]
 
         if len(regeste_split) < 2:
-            self.logger.warning(f"Could not split text for {example['file']}")
+            self.logger.warning(f"Could not split text for {example['file_name']}")
             return None
 
         # split into regeste and text
@@ -48,7 +48,7 @@ class RegesteDatasetCreator(DatasetCreator):
             considerations_split) > 1 else None
 
         if text_based_on_facts_split is None and text_based_on_considerations_split is None:
-            self.logger.warning(f"Could not split text for {example['file']}")
+            self.logger.warning(f"Could not split text for {example['file_name']}")
             return None
         elif text_based_on_facts_split is None:  # if the text is empty, use the other text
             example["text"] = text_based_on_considerations_split
