@@ -1,6 +1,7 @@
 FROM python:3.7
 
 COPY requirements.txt /app/
+COPY .env /app/
 WORKDIR /app
 
 RUN apt-get update && apt-get install vim -y
