@@ -33,7 +33,6 @@ from scrc.utils.court_names import court_names_backup, get_error_courts, get_emp
 from scrc.enums.split import Split
 from datasets import load_dataset
 
-
 import scrc.utils.monkey_patch  # IMPORTANT: DO NOT REMOVE: prevents memory leak with pandas
 
 csv.field_size_limit(sys.maxsize)
@@ -156,7 +155,8 @@ class DatasetCreator(AbstractPreprocessor):
         self.debug_chunksize = 100
         self.real_chunksize = 1_000_000
         self.counter = 0
-        self.start_years = {Split.TRAIN.value: 1900, Split.VALIDATION.value: 2016, Split.TEST.value: 2018, Split.SECRET_TEST.value: 2023}
+        self.start_years = {Split.TRAIN.value: 1900, Split.VALIDATION.value: 2016, Split.TEST.value: 2018,
+                            Split.SECRET_TEST.value: 2023}
         self.current_year = date.today().year
         self.metadata = ['year', 'chamber', 'court', 'canton', 'region',
                          'origin_chamber', 'origin_court', 'origin_canton',
@@ -220,6 +220,7 @@ class DatasetCreator(AbstractPreprocessor):
                     available_rulings_dict[year] = {volume: [page]}
                 return True
             return False
+
         useful_cases = decision_df.apply(filter_rulings, axis='columns')
         decision_df = decision_df[useful_cases]
 
@@ -311,14 +312,17 @@ class DatasetCreator(AbstractPreprocessor):
         datasets_list = []
         single_court_datasets = ["doc2doc_ir", "criticality_prediction", "citation_extraction", "regeste"]
         if self.dataset_name in single_court_datasets:
-            dataset, labels, state_tuples = self.create_single_dataset(court_list[0], concatenate, datasets_list, kaggle, save_reports, sub_datasets)
+            dataset, labels, state_tuples = self.create_single_dataset(court_list[0], concatenate, datasets_list,
+                                                                       kaggle, save_reports, sub_datasets)
         else:
             with Pool(processes=self.num_cores) as pool:
-                results = [pool.apply_async(self.create_single_dataset, (court_string, concatenate, datasets_list, kaggle, save_reports,
-                                                                     sub_datasets)) for court_string in court_list]
+                results = [pool.apply_async(self.create_single_dataset,
+                                            (court_string, concatenate, datasets_list, kaggle, save_reports,
+                                             sub_datasets)) for court_string in court_list]
                 datasets = [result.get()[0] for result in results if result.get()[0] is not None]
                 labels = [result.get()[1] for result in results if result.get()[1] is not None][0]
-                state_tuples = [result.get()[2] for result in results if result.get()] # tuple, e.g. (court_name, state)
+                state_tuples = [result.get()[2] for result in results if
+                                result.get()]  # tuple, e.g. (court_name, state)
             pool.close()
 
         # group state tuples by state and log them
@@ -416,6 +420,7 @@ class DatasetCreator(AbstractPreprocessor):
         :param concatenate:   if True, all courts datasets are concatenated into one file
         :param overview:      if True, creates overview of all generated datasets and exports them in a csv file
         """
+
         def sort_by_size(court_list):
             """
             Sets the biggest courts first to save time when multiprocessing
@@ -464,12 +469,13 @@ class DatasetCreator(AbstractPreprocessor):
         parallelize_saving(splits, self.save_huggingface_split, Split.TRAIN.value)
         parallelize_saving(splits, self.save_huggingface_split, Split.VALIDATION.value)
 
-
     def save_huggingface_split(self, dataset, split: str, huggingface_dir, folder):
         cols_to_include = ['decision_id', 'language'] + self.metadata + self.labels + self.get_feature_col_names()
         if not self.dataset_name == "doc2doc_ir" or not self.dataset_name == "citation_extraction":
             for feature_col in self.feature_cols:
                 cols_to_include = cols_to_include + [f'origin_{feature_col}']
+        if self.dataset_name == "regeste":
+            cols_to_include += ['header', 'regeste', 'text'] # we generate these columns there
         cols_to_remove = [col for col in dataset.column_names if col not in cols_to_include]
         dataset = dataset.remove_columns(cols_to_remove)
         hf_file = f'{huggingface_dir}/{split}.jsonl'
@@ -510,6 +516,7 @@ class DatasetCreator(AbstractPreprocessor):
             return df  # return right away so we don't run into errors
 
         df.rename(columns={'lang': 'language'}, inplace=True)
+
         decision_ids = ["'" + str(x) + "'" for x in df['decision_id'].tolist()]
 
         if data_to_load['section']:
@@ -582,10 +589,13 @@ class DatasetCreator(AbstractPreprocessor):
         # add column 'sections' to df
         df['sections'] = None
 
-        decision_ids = ["'" + str(x) + "'" for x in df[decision_id_col_name].tolist() if x is not None and str(x) != 'nan']
+        decision_ids = ["'" + str(x) + "'" for x in df[decision_id_col_name].tolist() if
+                        x is not None and str(x) != 'nan']
         table = f"{join_tables_on_decision(['num_tokens'])}"
         where = f"section.decision_id IN ({','.join(decision_ids)})"
-        section_df = next(self.select(engine, table, "sections, section.decision_id", where, None, self.get_chunksize()), pd.DataFrame())
+        section_df = next(
+            self.select(engine, table, "sections, section.decision_id", where, None, self.get_chunksize()),
+            pd.DataFrame())
 
         for index, row in tqdm(section_df.iterrows()):
             decision_id = str(row['decision_id'])
@@ -620,7 +630,8 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info('Loading Citation')
         table = f"{join_tables_on_decision(['citation'])}"
         where = f"citation.decision_id IN ({','.join(decision_ids)})"
-        citations_df = next(self.select(engine, table, "citation.decision_id as decision_id, citations", where, None, self.get_chunksize()), pd.DataFrame())
+        citations_df = next(self.select(engine, table, "citation.decision_id as decision_id, citations", where, None,
+                                        self.get_chunksize()), pd.DataFrame())
         if not citations_df.empty:
             citations_df['decision_id'] = citations_df['decision_id'].astype(str)
             df['decision_id'] = df['decision_id'].astype(str)
@@ -657,7 +668,9 @@ class DatasetCreator(AbstractPreprocessor):
 
         table = f"{join_tables_on_decision(['judgment'])}"
         where = f"judgment_map.decision_id IN ({','.join(decision_ids)})"
-        judgments_df = next(self.select(engine, table, "judgments, judgment_map.decision_id", where, None, self.get_chunksize()), pd.DataFrame())
+        judgments_df = next(
+            self.select(engine, table, "judgments, judgment_map.decision_id", where, None, self.get_chunksize()),
+            pd.DataFrame())
 
         if not judgments_df.empty:
             # add empty column 'judgments' to df
@@ -697,7 +710,8 @@ class DatasetCreator(AbstractPreprocessor):
         return df
 
     def load_lower_court_description(self, df, engine):
-        origin_file_numbers = ["'" + str(x) + "'" for x in df['origin_file_number'].tolist() if x is not None and str(x) != 'nan']
+        origin_file_numbers = ["'" + str(x) + "'" for x in df['origin_file_number'].tolist() if
+                               x is not None and str(x) != 'nan']
         if len(origin_file_numbers) == 0:
             return df
 
@@ -705,7 +719,8 @@ class DatasetCreator(AbstractPreprocessor):
         table = f"public.file_number"
         columns = "text, decision_id as origin_decision_id"
         where = f"text IN ({','.join(origin_file_numbers)})"
-        origin_decision_ids_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()), pd.DataFrame())
+        origin_decision_ids_df = next(self.select(engine, table, columns, where, None, self.get_chunksize()),
+                                      pd.DataFrame())
 
         if origin_decision_ids_df.empty:
             self.logger.info("origin_decision_ids_df is empty")
@@ -723,6 +738,7 @@ class DatasetCreator(AbstractPreprocessor):
         df = self.load_section(df, engine, 'origin_decision_id', origin=True)
 
         return df
+
     @staticmethod
     def add_law_area(df):
         """ Make law area label using the chamber name """
@@ -786,9 +802,12 @@ class DatasetCreator(AbstractPreprocessor):
         df[feature_col_name] = df['sections'].apply(filter_column, section_attr='section_text')
 
         df[f"{feature_col_name}_num_tokens_bert"] = df['sections'].apply(filter_column, section_attr='num_tokens_bert')
-        df[f"{feature_col_name}_num_tokens_bert"] = df[f"{feature_col_name}_num_tokens_bert"].fillna(value=0).astype(int)
-        df[f"{feature_col_name}_num_tokens_spacy"] = df['sections'].apply(filter_column, section_attr='num_tokens_spacy')
-        df[f"{feature_col_name}_num_tokens_spacy"] = df[f"{feature_col_name}_num_tokens_spacy"].fillna(value=0).astype(int)
+        df[f"{feature_col_name}_num_tokens_bert"] = df[f"{feature_col_name}_num_tokens_bert"].fillna(value=0).astype(
+            int)
+        df[f"{feature_col_name}_num_tokens_spacy"] = df['sections'].apply(filter_column,
+                                                                          section_attr='num_tokens_spacy')
+        df[f"{feature_col_name}_num_tokens_spacy"] = df[f"{feature_col_name}_num_tokens_spacy"].fillna(value=0).astype(
+            int)
 
         if self.split_type == "date-stratified":
             df = df.dropna(subset=['year'])  # make sure that each entry has an associated year
@@ -839,7 +858,8 @@ class DatasetCreator(AbstractPreprocessor):
     def clean_dataset(self, dataset):
         # replace empty strings with nan so that they can be removed
         self.logger.info(f"start cleaning")
-        dataset = self.filter_by_num_tokens(dataset, col_names=self.get_filter_col_names(), conjuctive=self.delete_row_only_if_all_feature_cols_below_cutoff)
+        dataset = self.filter_by_num_tokens(dataset, col_names=self.get_filter_col_names(),
+                                            conjuctive=self.delete_row_only_if_all_feature_cols_below_cutoff)
 
         dataset = dataset.remove_columns(['language_id', 'chamber_id', 'file_id', 'topic'])
 
@@ -992,7 +1012,8 @@ class DatasetCreator(AbstractPreprocessor):
         """
         self.logger.info(f"Saving report for split {split}")
         split_folder = self.create_dir(self.reports_folder, f'{split}')
-        disable_pandas = (self.dataset_name == "doc2doc_ir") or (self.dataset_name == "criticality_prediction") or (self.dataset_name == "citation_extraction")
+        disable_pandas = (self.dataset_name == "doc2doc_ir") or (self.dataset_name == "criticality_prediction") or (
+                    self.dataset_name == "citation_extraction")
         report_creator = ReportCreator(split_folder, self.debug, disable_pandas)
         report_creator.report_general(self.metadata, self.get_feature_col_names(), self.labels, dataset)
         if not disable_pandas:
@@ -1045,7 +1066,7 @@ class DatasetCreator(AbstractPreprocessor):
         val = dataset.filter(
             lambda x: x["year"] in range(start_years[Split.VALIDATION.value], start_years[Split.TEST.value]))
         test = dataset.filter(
-            lambda x: x["year"] in range(start_years[Split.TEST.value], self.current_year+2))
+            lambda x: x["year"] in range(start_years[Split.TEST.value], self.current_year + 2))
         return train, val, test
 
     def split_random(self, dataset):
@@ -1120,7 +1141,6 @@ class DatasetCreator(AbstractPreprocessor):
             writer.writerows(courts_data)
         self.logger.info(f"Overview created and exported to: {os.path.join(export_path, export_name)}")
 
-
     # function which takes col name as input and filters df/dataset by number of token
     def filter_by_num_tokens(self, data_structure, col_names, court=None, conjuctive=False):
         """
@@ -1170,14 +1190,15 @@ class DatasetCreator(AbstractPreprocessor):
 
         def get_cutoff(col_name, court):
             if col_name == 'facts' or col_name == 'origin_facts':
-                return facts_cutoff.get(court, 200) # default cutoff is 200
+                return facts_cutoff.get(court, 200)  # default cutoff is 200
             elif col_name == 'considerations' or col_name == 'origin_considerations':
-                return considerations_cutoff.get(court, 500) # default cutoff is 500
+                return considerations_cutoff.get(court, 500)  # default cutoff is 500
             elif col_name == 'rulings' or col_name == 'origin_rulings':
                 return 100  # default cutoff is 100
             else:
-                raise ValueError(f"{col_name} not implmemented: col_name must be 'rulings', 'origin_rulings', 'facts', 'origin_facts', "
-                                 f"'considerations' or 'origin_considerations'")
+                raise ValueError(
+                    f"{col_name} not implmemented: col_name must be 'rulings', 'origin_rulings', 'facts', 'origin_facts', "
+                    f"'considerations' or 'origin_considerations'")
 
         def is_above_cutoff(x):
             if conjuctive:  # returns True if any column is above the cutoff
@@ -1185,7 +1206,7 @@ class DatasetCreator(AbstractPreprocessor):
                     if x[col_name + '_num_tokens_bert'] >= get_cutoff(col_name, x['court']):
                         return True
                 return False
-            else: # returns False if any column is below the cutoff
+            else:  # returns False if any column is below the cutoff
                 for col_name in col_names:
                     if x[col_name + '_num_tokens_bert'] < get_cutoff(col_name, x['court']):
                         return False
@@ -1199,7 +1220,8 @@ class DatasetCreator(AbstractPreprocessor):
             self.logger.info(f"filtering {col_name} by num_tokens")
             if court is None:
                 raise ValueError("If data_structure is a dataframe, court must be given")
-            data_structure = data_structure.loc[data_structure[col_name + '_num_tokens_bert'] >= get_cutoff(col_name, court)]
+            data_structure = data_structure.loc[
+                data_structure[col_name + '_num_tokens_bert'] >= get_cutoff(col_name, court)]
         elif isinstance(data_structure, datasets.Dataset):
             self.logger.info(f"filtering {','.join(col_names)} by num_tokens")
             data_structure = data_structure.filter(is_above_cutoff)
