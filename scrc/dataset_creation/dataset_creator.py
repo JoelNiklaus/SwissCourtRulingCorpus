@@ -475,7 +475,8 @@ class DatasetCreator(AbstractPreprocessor):
             for feature_col in self.feature_cols:
                 cols_to_include = cols_to_include + [f'origin_{feature_col}']
         if self.dataset_name == "regeste":
-            cols_to_include += ['header', 'regeste', 'text'] # we generate these columns there
+            cols_to_include += ['header', 'regeste', 'text']  # we generate these columns there
+            cols_to_include.remove('full_text')  # we don't need the full text anymore
         cols_to_remove = [col for col in dataset.column_names if col not in cols_to_include]
         dataset = dataset.remove_columns(cols_to_remove)
         hf_file = f'{huggingface_dir}/{split}.jsonl'
@@ -1013,7 +1014,7 @@ class DatasetCreator(AbstractPreprocessor):
         self.logger.info(f"Saving report for split {split}")
         split_folder = self.create_dir(self.reports_folder, f'{split}')
         disable_pandas = (self.dataset_name == "doc2doc_ir") or (self.dataset_name == "criticality_prediction") or (
-                    self.dataset_name == "citation_extraction")
+                self.dataset_name == "citation_extraction")
         report_creator = ReportCreator(split_folder, self.debug, disable_pandas)
         report_creator.report_general(self.metadata, self.get_feature_col_names(), self.labels, dataset)
         if not disable_pandas:

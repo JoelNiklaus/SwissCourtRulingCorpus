@@ -54,20 +54,23 @@ class RegesteDatasetCreator(DatasetCreator):
             example["regeste"] = None
             example["text"] = None
         elif text_based_on_facts_split is None:  # if the text is empty, use the other text
-            example["text"] = text_based_on_considerations_split
             example["regeste"] = regeste_based_on_considerations_split
+            example["text"] = text_based_on_considerations_split
         elif text_based_on_considerations_split is None:  # if the text is empty, use the other text
-            example["text"] = text_based_on_facts_split
             example["regeste"] = regeste_based_on_facts_split
+            example["text"] = text_based_on_facts_split
         else:
             # take the one where the regeste is shorter
             # because it is more likely that a wrong keyword is found in the much longer text than the regeste
             if len(regeste_based_on_facts_split) < len(regeste_based_on_considerations_split):
-                example["text"] = text_based_on_facts_split
                 example["regeste"] = regeste_based_on_facts_split
+                example["text"] = text_based_on_facts_split
             else:
-                example["text"] = text_based_on_considerations_split
                 example["regeste"] = regeste_based_on_considerations_split
+                example["text"] = text_based_on_considerations_split
+
+        example["regeste"] = example["regeste"].strip('\n')
+        example["text"] = example["text"].strip('\n')
 
         return example
 
