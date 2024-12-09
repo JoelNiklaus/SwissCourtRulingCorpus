@@ -1477,7 +1477,7 @@ INSERT INTO chamber(court_id, spider_id, chamber_string) VALUES
 	((SELECT court_id FROM court WHERE court_string = 'ZH_UPL'), (SELECT spider_id FROM spider WHERE name = 'XX_Upload'), 'ZH_UPL_001'),
 	((SELECT court_id FROM court WHERE court_string = 'ZH_VG'), (SELECT spider_id FROM spider WHERE name = 'ZH_Verwaltungsgericht'), 'ZH_VG_001'),
 	((SELECT court_id FROM court WHERE court_string = 'ZH_XX'), (SELECT spider_id FROM spider WHERE name = 'XX_Upload'), 'ZH_XX_001');
-INSERT INTO judgment("text") VALUES 
+INSERT INTO judgement("text") VALUES 
 	('approval'),
 	('dismissal'),
 	('inadmissible'),
@@ -1485,7 +1485,7 @@ INSERT INTO judgment("text") VALUES
 	('partial_dismissal'),
 	('unification'),
 	('write_off');
-INSERT INTO citation_type("name") VALUES 
+INSERT INTO citation_type(citation_type_name) VALUES 
 	('ruling'),
 	('law'),
 	('commentary');

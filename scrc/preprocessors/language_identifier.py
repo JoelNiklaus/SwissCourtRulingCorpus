@@ -22,8 +22,8 @@ class LanguageIdentifier(AbstractPreprocessor):
         all_decision_ids = []
         # Fetch all decisions with language id -1 as we need to add a language id to them
         sql_query = 'SELECT html_raw, pdf_raw, decision_id, language_id FROM decision LEFT JOIN file on file.file_id = decision.file_id WHERE decision.language_id = -1'
-        df_iterator = pd.read_sql(sql_query, self.get_engine(
-            self.db_scrc).connect(), chunksize=self.chunksize)
+        import pdb; pdb.set_trace()
+        df_iterator = pd.read_sql(sql_query, self.get_engine(self.db_scrc).connect(), chunksize=self.chunksize)
         df_list = list(df_iterator)
 
         # Get language

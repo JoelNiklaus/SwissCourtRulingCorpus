@@ -52,6 +52,8 @@ class TermDefinitionsConverter:
                 synonyms = language_dict['Synonym']
                 # make sure that we get a list all the time
                 synonyms = [synonyms] if isinstance(synonyms, OrderedDict) else synonyms
+                print(synonyms)
+                print(type(synonyms))
                 for synonym in synonyms:
                     for definition in synonym['Definition']:
                         if isinstance(definition, OrderedDict):

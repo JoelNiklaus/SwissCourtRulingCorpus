@@ -7,7 +7,7 @@ from scrc.preprocessors.extractors.court_composition_extractor import CourtCompo
 
 from scrc.preprocessors.extractors.citation_extractor import CitationExtractor
 from scrc.preprocessors.extractors.cleaner import Cleaner
-from scrc.dataset_creation.doc2doc_ir_dataset_creator import Doc2DocIRDatasetCreator
+#from scrc.dataset_creation.doc2doc_ir_dataset_creator import Doc2DocIRDatasetCreator
 from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
 from scrc.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
 from scrc.preprocessors.text_to_database import TextToDatabase
@@ -88,16 +88,21 @@ def construct_base_dataset(config):
     # TODO install cronjob that runs this every day
 
     scraper = Scraper(config)
-    scraper.download_subfolders(base_url + "docs/")
+    #scraper.download_subfolders(base_url + "docs/")
 
     create_court_and_chamber_tables = CreateCourtAndChamberTables(config)
     create_court_and_chamber_tables.start()
 
+    print("create_court_and_chamber_tables finished")
     text_to_database = TextToDatabase(config)
     text_to_database.build_dataset()
 
+    print("text_to_database finished")
+
     language_identifier = LanguageIdentifier(config)
     decision_ids = language_identifier.start()
+
+    print("decision_ids finished")
 
     cleaner = Cleaner(config)
     cleaner.clean(decision_ids)

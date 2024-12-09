@@ -17,7 +17,7 @@ JUDICIAL_PERSON_TYPES = ['federal_judge', 'deputy_federal_judge', 'clerk']
 PARTY_TYPE = ['plaintiff', 'defendant', 'representation_plaintiff', 'representation_defendant']
 
 def read_court_chambers_extended():
-    with open(Path('../court_chambers_extended.json'), 'r') as file:
+    with open(Path('/Users/shikhabordia/SwissCourtRulingCorpus/legal_info/court_chambers_extended.json'), 'r') as file:
         data = json.load(file)
         global CANTONS
         CANTONS = list(data.keys())
@@ -101,7 +101,7 @@ def chamber():
 
 def judgment():
     judgments = [f"(\'{judgment}\')" for judgment in JUDGMENTS]
-    return INSERT_STMT_PLACEHOLDER % ("judgement(\"text\")", ',\n\t'.join(judgments))
+    return INSERT_STMT_PLACEHOLDER % ("judgment(\"text\")", ',\n\t'.join(judgments))
 
 def citation_type():
     citation_types = [f"(\'{citation_type}\')" for citation_type in CITATION_TYPES]
@@ -132,3 +132,6 @@ def main():
     print(section_type())
     print(judicial_person_type())
     print(party_type())
+
+
+main()

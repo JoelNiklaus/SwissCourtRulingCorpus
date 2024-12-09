@@ -38,8 +38,7 @@ class Scraper(AbstractPreprocessor):
         self.logger.info(f"Started downloading from {url}")
         r = requests.get(url)  # get starting page
         data = bs4.BeautifulSoup(r.text, "lxml")  # parse html
-        links = data.find_all("a")  # find all links
-
+        links = data.find_all("a")  # find all links        
         included_links = [Path(link["href"]) for link in links if not self.link_is_excluded(link.text)]
         self.logger.info(f"Found {len(included_links)} spiders/folders in total")
 

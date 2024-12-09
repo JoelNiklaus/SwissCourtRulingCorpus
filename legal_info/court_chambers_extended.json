@@ -759,10 +759,49 @@
                 "kammern": {
                     "CH_ED\u00d6B_001": {
                         "spider": "CH_EDOEB",
+                        "de": "Kurzmeldungen",
+                        "fr": "Br\u00e8ves",
+                        "it": "In breve",
                         "Rechtsgebiete": [
                             "2.1",
                             "2.11",
                             "2.12"
+                        ]
+                    },
+                    "CH_ED\u00d6B_002": {
+                        "spider": "CH_EDOEB",
+                        "de": "Archiv (bis 31.8.2023)",
+                        "fr": "Archives (jusqu'\u00e0 31.8.2023)",
+                        "it": "Archivio (fino al 31.08.2023)",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    },
+                    "CH_ED\u00d6B_003": {
+                        "spider": "CH_EDOEB",
+                        "de": "Infothek Datenschutz",
+                        "fr": "Infoth\u00e8que Protection des donn\u00e9es",
+                        "it": "Infoteca Protezione dei dati",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    },
+                    "CH_ED\u00d6B_004": {
+                        "spider": "CH_EDOEB",
+                        "de": "Empfehlungen nach BG\u00d6",
+                        "fr": "Recommandations selon la LTrans",
+                        "it": "Raccomandazioni secondo LTras",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    },
+                    "CH_ED\u00d6B_999": {
+                        "de": "andere",
+                        "fr": "autres",
+                        "it": "altro",
+                        "spider": "CH_EDOEB",
+                        "Rechtsgebiete": [
+                            ""
                         ]
                     }
                 }
@@ -1002,7 +1041,10 @@
                         ]
                     },
                     "AG_VB_002": {
-                        "spider": "AG_Weitere",
+                        "spider": "AG_Gerichte",
+                        "de": "Bildung, Kultur und Sport",
+                        "fr": "Bildung, Kultur und Sport",
+                        "it": "Bildung, Kultur und Sport",
                         "Rechtsgebiete": [
                             ""
                         ]
@@ -1050,99 +1092,13 @@
                     }
                 }
             },
-            "AG_OGA": {
-                "de": "Obergericht (AGVE)",
-                "fr": "Obergericht (AGVE)",
-                "it": "Obergericht (AGVE)",
+            "AG_GB": {
+                "de": "Entscheide Grundbuch und Notariat",
+                "fr": "Entscheide Grundbuch und Notariat",
+                "it": "Entscheide Grundbuch und Notariat",
                 "kammern": {
-                    "AG_OGA_001": {
+                    "AG_GB_001": {
                         "spider": "AG_Weitere",
-                        "de": "Verwaltungsgericht",
-                        "fr": "Verwaltungsgericht",
-                        "it": "Verwaltungsgericht",
-                        "Rechtsgebiete": [
-                            "1.5",
-                            "2.1",
-                            "2.2",
-                            "2.3",
-                            "2.4",
-                            "2.5",
-                            "2.6",
-                            "2.7",
-                            "2.8",
-                            "2.9",
-                            "2.10",
-                            "2.11",
-                            "2.12"
-                        ]
-                    },
-                    "AG_OGA_002": {
-                        "spider": "AG_Weitere",
-                        "de": "Handelsgericht",
-                        "fr": "Handelsgericht",
-                        "it": "Handelsgericht",
-                        "Rechtsgebiete": [
-                            "1.1",
-                            "1.5",
-                            "1.6",
-                            "1.7",
-                            "1.8",
-                            "1.9",
-                            "1.10",
-                            "1.11",
-                            "1.12",
-                            "1.13",
-                            "1.14",
-                            "1.15"
-                        ]
-                    },
-                    "AG_OGA_003": {
-                        "spider": "AG_Weitere",
-                        "de": "Versicherungsgericht",
-                        "fr": "Versicherungsgericht",
-                        "it": "Versicherungsgericht",
-                        "Rechtsgebiete": [
-                            "1.6",
-                            "4.1",
-                            "4.2"
-                        ]
-                    },
-                    "AG_OGA_004": {
-                        "spider": "AG_Weitere",
-                        "de": "Justizgericht",
-                        "fr": "Justizgericht",
-                        "it": "Justizgericht",
-                        "Rechtsgebiete": [
-                            "2.1",
-                            "2.2"
-                        ]
-                    },
-                    "AG_OGA_005": {
-                        "spider": "AG_Weitere",
-                        "de": "Zivilkammern",
-                        "fr": "Zivilkammern",
-                        "it": "Zivilkammern",
-                        "Rechtsgebiete": [
-                            ""
-                        ]
-                    },
-                    "AG_OGA_006": {
-                        "spider": "AG_Weitere",
-                        "de": "Kammer f\u00fcr Kindes- und Erwachsenenschutz",
-                        "fr": "Kammer f\u00fcr Kindes- und Erwachsenenschutz",
-                        "it": "Kammer f\u00fcr Kindes- und Erwachsenenschutz",
-                        "Rechtsgebiete": [
-                            "1.3",
-                            "1.4",
-                            "1.13",
-                            "2.10"
-                        ]
-                    },
-                    "AG_OGA_999": {
-                        "spider": "AG_Weitere",
-                        "de": "Sonstige Abteilung",
-                        "fr": "Sonstige Abteilung",
-                        "it": "Sonstige Abteilung",
                         "Rechtsgebiete": [
                             ""
                         ]
@@ -4412,6 +4368,49 @@
                     }
                 }
             },
+            "SZ_VG": {
+                "de": "Verwaltungsgericht",
+                "fr": "Verwaltungsgericht",
+                "it": "Verwaltungsgericht",
+                "kammern": {
+                    "SZ_VG_001": {
+                        "spider": "SZ_Verwaltungsgericht",
+                        "de": "3. Kammer",
+                        "fr": "3. Kammer",
+                        "it": "3. Kammer",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    },
+                    "SZ_VG_002": {
+                        "spider": "SZ_Verwaltungsgericht",
+                        "de": "2. Kammer",
+                        "fr": "2. Kammer",
+                        "it": "2. Kammer",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    },
+                    "SZ_VG_003": {
+                        "spider": "SZ_Verwaltungsgericht",
+                        "de": "1. Kammer",
+                        "fr": "1. Kammer",
+                        "it": "1. Kammer",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    },
+                    "SZ_VG_999": {
+                        "de": "andere",
+                        "fr": "autres",
+                        "it": "altro",
+                        "spider": "SZ_Verwaltungsgericht",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    }
+                }
+            },
             "SZ_XX": {
                 "de": "unbekanntes Gericht",
                 "fr": "tribunal inconnu",
@@ -5776,9 +5775,9 @@
                 }
             },
             "ZH_SVG": {
-                "de": "Sozialverischerungsgericht",
-                "fr": "Sozialverischerungsgericht",
-                "it": "Sozialverischerungsgericht",
+                "de": "Sozialversicherungsgericht",
+                "fr": "Sozialversicherungsgericht",
+                "it": "Sozialversicherungsgericht",
                 "kammern": {
                     "ZH_SVG_001": {
                         "spider": "ZH_Sozialversicherungsgericht",

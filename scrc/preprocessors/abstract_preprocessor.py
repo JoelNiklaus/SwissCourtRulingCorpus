@@ -142,7 +142,9 @@ class AbstractPreprocessor:
     def get_engine(self, db, echo=False):
         return create_engine(
             f"postgresql+psycopg2://{self.user}:{self.password}@{self.ip}:{self.port}/{db}",
+           # pool_size=20, max_overflow=0,
             echo=echo  # good for debugging
+
         )
 
     @staticmethod

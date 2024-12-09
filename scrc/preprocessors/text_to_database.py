@@ -99,17 +99,20 @@ class TextToDatabase(AbstractPreprocessor):
         """ Builds a dataset for a spider """
         spider_dir = self.spiders_dir / spider
         self.logger.info(f"Building spider dataset for {spider}")
+    
         spider_dict_list = self.filter_by_text_length(self.build_spider_dict_list(spider_dir, spider))
         # spider_dict_list = self.build_spider_dict_list(spider_dir, spider)
+        
 
         self.logger.info("Building pandas DataFrame from list of dicts")
         df = pd.DataFrame(spider_dict_list)
 
+        print(df.columns)
         self.logger.info(f"Saving data to db")
         # Split up the dataframe into equal chunks of max. chunksize (1000) rows and save them individually
         list_df = np.array_split(df, int(len(df) / self.chunksize) + 1)
         for idx, df_chunk in enumerate(list_df):
-            save_from_text_to_database(self.get_engine('scrc'), df_chunk)
+            save_from_text_to_database(self.get_engine(self.db_scrc), df_chunk)
             if len(list_df) > 1:
                 self.logger.info(f"Saved chunk {idx + 1}/{len(list_df)}")
         return spider_dict_list
@@ -261,6 +264,7 @@ class TextToDatabase(AbstractPreprocessor):
             self.logger.debug(
                 f"Extracting content from pdf file: \t {corresponding_pdf_path}")
             try:
+         
                 pdf = parser.from_file(str(corresponding_pdf_path), requestOptions={
                     'timeout': 300})  # parse pdf
             except requests.exceptions.ReadTimeout as e:

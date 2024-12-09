@@ -59,7 +59,9 @@ class CreateCourtAndChamberTables(AbstractPreprocessor):
         with self.get_engine(self.db_scrc).connect() as conn:
             t_court = Table('court', MetaData(), autoload_with=conn)
             for canton in courts_chambers_file:
+                print(canton)
                 canton_id = int(self.existing_cantons.loc[self.existing_cantons['short_code'] == canton]['canton_id'].iloc[0])
+                print(canton_id)
                 for court in courts_chambers_file[canton]['gerichte']:
                     if not court in list(self.existing_courts['court_string']):
                         # Add court to the database
@@ -73,7 +75,10 @@ class CreateCourtAndChamberTables(AbstractPreprocessor):
             t_chamber = Table('chamber', MetaData(), autoload_with=conn)
             for canton in courts_chambers_file:
                 for court in courts_chambers_file[canton]['gerichte']:
+                    #import pdb; pdb.set_trace()
+                    print(court)
                     court_id = int(self.existing_courts.loc[self.existing_courts['court_string'] == court]['court_id'].iloc[0])
+                    print(court_id,court)
                     for chamber in courts_chambers_file[canton]['gerichte'][court]['kammern']:
                         if not chamber in list(self.existing_chambers['chamber_string']):
                             # Add chamber to the database
