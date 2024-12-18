@@ -16,9 +16,9 @@ from scrc.enums.language import Language
 This file is used to extract citations from decisions sorted by spiders.
 The name of the functions should be equal to the spider! Otherwise, they won't be invocated!
 """
-
+#import pdb; pdb.set_trace()
 # IMPORTANT: make sure the lexfind.jsonl file exists and has enough content (roughly 2GB)
-available_laws = pd.read_json((ROOT_DIR / "corpora") / "lexfind.jsonl", lines=True)  # Doesn't include BGG, ATSG, LTF
+available_laws = pd.read_json((ROOT_DIR / "data/corpora") / "lexfind.jsonl", lines=True)  # Doesn't include BGG, ATSG, LTF
 
 
 def check_if_convertible(laws, rulings, language: Language) -> Tuple[list, list]:

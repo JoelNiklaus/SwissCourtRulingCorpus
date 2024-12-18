@@ -146,6 +146,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
     """
 
     def save_to_db(df: pd.DataFrame, table: str):
+        #import pdb; pdb.set_trace()
         # If the returned df is not a DataFrame but a Series, then convert it into a dataframe and Transpose it to correct the variable. (Not needed for most courts, but edge case needs it)
         if not isinstance(df, pd.DataFrame):
             df = df.to_frame()
@@ -158,20 +159,34 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         with engine.connect() as connection:
             series['file_id'] = pd.read_sql(query, connection)["file_id"][0]
             connection.close()
-        series['language_id'] = -1
+        series['language_id'] = 5
         query = f"SELECT chamber_id FROM chamber WHERE chamber_string = '{series['chamber']}'"
         chamber_id = pd.read_sql(query, engine.connect())['chamber_id']
+        #import pdb; pdb.set_trace()
+        # if len(chamber_id) == 0:
+        #     print(f"The chamber {series['chamber']} was not found in the database. "
+        #           f"Add it with the respective court and spider")
+        #     raise ValueError
+        # else:
+        #     series['chamber_id'] = chamber_id[0]
+
+        # series['decision_id'] = uuid.uuid5(uuid.UUID(int=0), series['file_name'])
+        # # TODO: Add topic recognition, similar to the title of the court decision
+        # series['topic'] = ''
+        # return series
         if len(chamber_id) == 0:
             print(f"The chamber {series['chamber']} was not found in the database. "
                   f"Add it with the respective court and spider")
-            raise ValueError
+            return #pd.DataFrame(columns = ['spider', 'canton', 'court', 'chamber', 'date', 'file_name', 'file_number', 'file_number_additional', 'html_url', 'html_raw', 'pdf_url', 'pdf_raw', 'file_id', 'language_id', 'chamber_id', 'decision_id', 'topic'])
         else:
             series['chamber_id'] = chamber_id[0]
-
-        series['decision_id'] = uuid.uuid5(uuid.UUID(int=0), series['file_name'])
-        # TODO: Add topic recognition, similar to the title of the court decision
-        series['topic'] = ''
-        return series
+            series['decision_id'] = uuid.uuid5(uuid.UUID(int=0), series['file_name'])
+            # TODO: Add topic recognition, similar to the title of the court decision
+            series['topic'] = ''
+            # import pdb; pdb.set_trace()
+            # print (series.columns)
+            return series
+        
 
     def save_the_file_numbers(series: pd.DataFrame) -> pd.DataFrame:
         """
@@ -204,7 +219,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         file_name_list = ','.join(
             ["'" + str(item) + "'" for item in df['file_name'].tolist()])
         stmt = t_fil.select().where(text(f"file_name in ({file_name_list})"))
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         try :
             file_ids = [item['file_id'] for item in conn.execute(stmt).all()]
         except:
@@ -221,16 +236,31 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             conn.close()
 
     save_to_db(df[['file_name', 'html_url', 'pdf_url', 'html_raw', 'pdf_raw']], 'file')
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
     
     df = df.apply(add_ids_to_df_for_decision, 1)
-
+    #df = df[df.isna()==False]
+    #import pdb; pdb.set_trace()
     # Convert pandas NaT values (Non-Type for Datetime) to None using np as np recognizes these types
-    df = df.replace({np.NaN: None})
-    df['date'] = df['date'].replace(r'^\s*$', None, regex=True)
-    df['date'] = df['date'].astype('datetime64[ns]')
-    save_to_db(df[['language_id', 'chamber_id', 'file_id', 'date', 'topic']], 'decision')
-    df.apply(save_the_file_numbers, 1)
+    
+    if len(df) > 0:
+        #import pdb ; pdb.set_trace()
+        if isinstance(df, pd.Series):
+            df = df[df.isna()==False]
+            #df= pd.concat([value for index, value in df.items()]).T
+            if len(df) > 0:
+                df =[value.to_frame().T  for index, value in df.items()]
+                df =pd.concat(df)
+
+                df = df.replace({np.nan: None})
+                
+                df['date'] = df['date'].replace(r'^\s*$', None, regex=True)
+
+                df['date'] = df['date'].astype('datetime64[ns]')
+
+                #df['language_id'] = 5
+                save_to_db(df[['language_id', 'chamber_id', 'file_id', 'date', 'topic', 'decision_id']], 'decision')
+                df.apply(save_the_file_numbers, 1)
 
 
 def delete_stmt_decisions_with_df(df: pd.DataFrame) -> TextClause:

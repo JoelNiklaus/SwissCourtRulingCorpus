@@ -54,6 +54,7 @@ class CitationExtractor(AbstractExtractor):
         return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}", f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
     
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
+        import pdb; pdb.set_trace()
         with engine.connect() as conn:
             t = Table('citation', MetaData(), autoload_with=engine)
             # Delete and reinsert as no upsert command is available
@@ -75,9 +76,9 @@ class CitationExtractor(AbstractExtractor):
                     if len(citations_to_insert) == 0: continue
                     stmt = t.insert().values(citations_to_insert)
                     engine.execute(stmt)
+                    
 
 if __name__ == '__main__':
     config = get_config()
-
     citation_extractor = CitationExtractor(config)
     citation_extractor.start()

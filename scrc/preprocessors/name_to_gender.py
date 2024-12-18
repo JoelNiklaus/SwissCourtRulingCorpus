@@ -29,12 +29,13 @@ class NameToGender(AbstractPreprocessor):
         """ Get the data, which is the person_id and names of people that are not anonymized and belong to a natural person """
         table = 'person'
         columns = 'person_id, name'
-        where = f"gender IS NULL AND is_natural_person AND NOT name LIKE '%._' "
+        where = f"gender IS NULL AND is_natural_person AND NOT name LIKE '%%._' "
         return self.select(engine, table, columns, where)
 
     def start(self):
         engine = self.get_engine(self.db_scrc)
         dfs = self.read_data_to_match(engine)
+        import pdb; pdb.set_trace()
         for data in dfs:
             # The data is chunked, for every chunk execute one for-loop cycle.
             self.read_file()

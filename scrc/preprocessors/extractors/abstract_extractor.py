@@ -69,8 +69,8 @@ class AbstractExtractor(ABC, AbstractPreprocessor):
     def start(self, decision_ids: Optional[List] = None):
         """ Starting point for the extraction, calls the loop which processes each spider. Decision_ids can be specified to only process a subset of the data """
         self.logger.info(self.logger_info["start"])
-        if self.rebuild_entire_database:
-            self.processed_file_path.unlink()  # Delete the progress file if it exists to start from scratch
+        # if self.rebuild_entire_database:
+        #     self.processed_file_path.unlink()  # Delete the progress file if it exists to start from scratch
         if self.process_new_files_only:
             self.decision_ids = decision_ids
         else:

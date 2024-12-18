@@ -7,7 +7,7 @@ from pathlib import Path
 
 INSERT_STMT_PLACEHOLDER = 'INSERT INTO %s VALUES \n\t%s;'
 
-LANGUAGES = ['de', 'fr', 'it', 'en']
+LANGUAGES = ['de', 'fr', 'it', 'en','na']
 JSON_FILE_LOADED = {} # Automatically gets filled via court_chambers_extended.json
 CANTONS = [] # Automatically gets filled via court_chambers_extended.json
 JUDGMENTS = ['approval', 'dismissal', 'inadmissible', 'partial_approval', 'partial_dismissal', 'unification', 'write_off']
@@ -17,7 +17,8 @@ JUDICIAL_PERSON_TYPES = ['federal_judge', 'deputy_federal_judge', 'clerk']
 PARTY_TYPE = ['plaintiff', 'defendant', 'representation_plaintiff', 'representation_defendant']
 
 def read_court_chambers_extended():
-    with open(Path('/Users/shikhabordia/SwissCourtRulingCorpus/legal_info/court_chambers_extended.json'), 'r') as file:
+    #with open(Path('/Users/shikhabordia/SwissCourtRulingCorpus/legal_info/court_chambers_extended.json'), 'r') as file:
+    with open(Path('/Users/shikhabordia/SwissCourtRulingCorpus/legal_info/court_chambers_extended_test2.json'), 'r') as file:
         data = json.load(file)
         global CANTONS
         CANTONS = list(data.keys())
@@ -105,7 +106,7 @@ def judgment():
 
 def citation_type():
     citation_types = [f"(\'{citation_type}\')" for citation_type in CITATION_TYPES]
-    return INSERT_STMT_PLACEHOLDER % ("citation_type(citation_type_name)", ',\n\t'.join(citation_types))
+    return INSERT_STMT_PLACEHOLDER % ("citation_type(\"name\")", ',\n\t'.join(citation_types))
 
 def section_type():
     section_types = [f"(\'{section_type}\')" for section_type in SECTION_TYPES]

@@ -1,0 +1,56 @@
+{
+    "AG": {
+        "de": "Aargau",
+        "fr": "Argovie",
+        "it": "Argovia",
+        "gerichte": {
+ 
+            "AG_GB": {
+                "de": "Entscheide Grundbuch und Notariat",
+                "fr": "Entscheide Grundbuch und Notariat",
+                "it": "Entscheide Grundbuch und Notariat",
+                "kammern": {
+                    "AG_GB_001": {
+                        "spider": "AG_Weitere",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "AI": {
+        "de": "Appenzell Innerrhoden",
+        "fr": "Appenzell Rhodes-Int\u00e9rieures",
+        "it": "Appenzello Interno",
+        "gerichte": {
+            "AI_BZG": {
+                "de": "Bezirksgericht",
+                "fr": "Bezirksgericht",
+                "it": "Bezirksgericht",
+                "kammern": {
+                    "AI_BZG_001": {
+                        "spider": "AI_Aktuell",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    }
+                }
+            },
+            "AI_KG": {
+                "de": "Kantonsgericht",
+                "fr": "Kantonsgericht",
+                "it": "Kantonsgericht",
+                "kammern": {
+                    "AI_KG_001": {
+                        "spider": "AI_Aktuell",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}

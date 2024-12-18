@@ -20,8 +20,8 @@ class CreateCourtAndChamberTables(AbstractPreprocessor):
         self.logger.info('Checking for new courts and chambers')
         self.download_new_version_of_file()
         ExtendCourtChambers().extend()
-        courts_chambers_file = json.loads((ROOT_DIR / "legal_info/court_chambers.json").read_text())
-        
+        #courts_chambers_file = json.loads((ROOT_DIR / "legal_info/court_chambers.json").read_text())
+        courts_chambers_file = json.loads((ROOT_DIR / "legal_info/court_chambers_test.json").read_text())
         self.existing_cantons = self.get_cantons()
         
         self.existing_courts = self.get_existing_courts() # Get current courts
@@ -59,9 +59,10 @@ class CreateCourtAndChamberTables(AbstractPreprocessor):
         with self.get_engine(self.db_scrc).connect() as conn:
             t_court = Table('court', MetaData(), autoload_with=conn)
             for canton in courts_chambers_file:
-                print(canton)
+                
+                #print(canton)
                 canton_id = int(self.existing_cantons.loc[self.existing_cantons['short_code'] == canton]['canton_id'].iloc[0])
-                print(canton_id)
+                #print(canton_id)
                 for court in courts_chambers_file[canton]['gerichte']:
                     if not court in list(self.existing_courts['court_string']):
                         # Add court to the database
@@ -76,9 +77,9 @@ class CreateCourtAndChamberTables(AbstractPreprocessor):
             for canton in courts_chambers_file:
                 for court in courts_chambers_file[canton]['gerichte']:
                     #import pdb; pdb.set_trace()
-                    print(court)
+                    #print(court)
                     court_id = int(self.existing_courts.loc[self.existing_courts['court_string'] == court]['court_id'].iloc[0])
-                    print(court_id,court)
+                    #print(court_id,court)
                     for chamber in courts_chambers_file[canton]['gerichte'][court]['kammern']:
                         if not chamber in list(self.existing_chambers['chamber_string']):
                             # Add chamber to the database

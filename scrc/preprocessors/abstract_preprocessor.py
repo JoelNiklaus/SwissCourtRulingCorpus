@@ -142,7 +142,7 @@ class AbstractPreprocessor:
     def get_engine(self, db, echo=False):
         return create_engine(
             f"postgresql+psycopg2://{self.user}:{self.password}@{self.ip}:{self.port}/{db}",
-           # pool_size=20, max_overflow=0,
+            pool_size=4, max_overflow=-1,
             echo=echo  # good for debugging
 
         )
@@ -228,6 +228,7 @@ class AbstractPreprocessor:
             return
 
         with engine.connect() as conn:
+            #import pdb; pdb.set_trace()
             t = Table(table, MetaData(), autoload_with=engine)  # get the table
             # only update these cols, id needs to be there for the where clause
             if not index_name:
@@ -244,6 +245,7 @@ class AbstractPreprocessor:
             query = t.update().where(t.c.get(index_name or 'id') ==
                                      bindparam('b_id')).values()
             conn.execute(query, df.to_dict('records'))  # bulk update
+            conn.commit()
 
     @staticmethod
     def load_vocab(spacy_dir) -> Vocab:
@@ -305,6 +307,7 @@ class AbstractPreprocessor:
             spacy = German()
             bert = "deepset/gbert-base"
         elif lang == 'fr':
+            
             spacy = French()
             bert = "camembert/camembert-base-ccnet"
         elif lang == 'it':

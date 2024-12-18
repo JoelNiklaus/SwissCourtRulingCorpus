@@ -87,7 +87,7 @@ def construct_base_dataset(config):
 
     # TODO install cronjob that runs this every day
 
-    scraper = Scraper(config)
+   # scraper = Scraper(config)
     #scraper.download_subfolders(base_url + "docs/")
 
     create_court_and_chamber_tables = CreateCourtAndChamberTables(config)
@@ -102,32 +102,50 @@ def construct_base_dataset(config):
     language_identifier = LanguageIdentifier(config)
     decision_ids = language_identifier.start()
 
-    print("decision_ids finished")
+    print("-------decision_ids finished-------")
+    print(decision_ids)
 
     cleaner = Cleaner(config)
     cleaner.clean(decision_ids)
 
+    print("-------cleaner finished-------")
+
+
     section_splitter = SectionSplitter(config)
     section_splitter.start(decision_ids)
 
+    print("-------splitter finished-------")
+
     citation_extractor = CitationExtractor(config)
     citation_extractor.start(decision_ids)
+    
+    print("-------citation extractor finished-------")
 
     judgment_extractor = JudgmentExtractor(config)
     judgment_extractor.start(decision_ids)
 
+    print("-------judgement extractor finished-------")
+
     lower_court_extractor = LowerCourtExtractor(config)
     lower_court_extractor.start(decision_ids)
+
+    print("-------lower_court_extractor  finished-------")
 
     court_composition_extractor = CourtCompositionExtractor(config)
     court_composition_extractor.start(decision_ids)
 
+    print("-------court_composition_extractor  finished-------")
+
     procedural_participation_extractor = ProceduralParticipationExtractor(config)
     procedural_participation_extractor.start(decision_ids)
+
+    print("-------procedural_participation_extractor  finished-------")
 
     # calls a free API which only has limited access
     name_to_gender = NameToGender(config)
     name_to_gender.start()
+
+    print("-------name_to_gender  finished--------")
 
     # TODO this should be adapted or can even be removed
     # nlp_pipeline_runner = NlpPipelineRunner(config)

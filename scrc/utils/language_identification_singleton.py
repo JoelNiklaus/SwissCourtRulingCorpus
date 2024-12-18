@@ -51,15 +51,17 @@ class LanguageIdentificationSingleton:
         """IMPORTANT: expects input to be encoded as UTF-8!"""
         assert isinstance(text, str)
         text = re.sub(r"(\r\n|\r|\n)", ' ', text)  # remove all new lines
-        predictions = self.model.predict(text, k)  # returns top k matching languages
+        #import pdb; pdb.set_trace()
+        predictions = self.model.predict([text], k)  # returns top k matching languages
         return predictions
 
     def get_lang(self, text: str) -> str:
         """This method can be used to just get the top scoring language directly without probabilities"""
-        return self.predict_lang(text, k=1)[0][0][9:]
+        return self.predict_lang(text, k=1)[0][0][0][9:]
 
 
 if __name__ == '__main__':
     lang_id = LanguageIdentificationSingleton()
     lang = lang_id.predict_lang("Hej")
     print(lang)
+

@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS lower_court(
   chamber_id INTEGER REFERENCES chamber,
   "date" DATE,
   file_number TEXT,
-  decision_id INTEGER NOT NULL REFERENCES decision
+  decision_id uuid NOT NULL REFERENCES decision
 );
 
 CREATE TABLE IF NOT EXISTS judgment(

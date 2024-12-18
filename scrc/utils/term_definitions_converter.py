@@ -50,15 +50,19 @@ class TermDefinitionsConverter:
             for language_dict in languages_list:
                 lang = language_dict['@Sprache'].lower()
                 synonyms = language_dict['Synonym']
+                # print('---synonyms---' ,type(synonyms))
                 # make sure that we get a list all the time
-                synonyms = [synonyms] if isinstance(synonyms, OrderedDict) else synonyms
-                print(synonyms)
-                print(type(synonyms))
+                #synonyms = [synonyms] if isinstance(synonyms, OrderedDict) else synonyms
+                synonyms = [synonyms] if isinstance(synonyms, dict) else synonyms
+                # print(synonyms)
+                # print("-------post type checking-------", type(synonyms))
                 for synonym in synonyms:
+                #import pdb; pdb.set_trace()
                     for definition in synonym['Definition']:
-                        if isinstance(definition, OrderedDict):
-                            term['languages'][lang].append({'type': definition['Typ'], 'text': definition['Text']})
+                            if isinstance(definition, OrderedDict):
+                                term['languages'][lang].append({'type': definition['Typ'], 'text': definition['Text']})
 
+            
             terms.append(term)
 
         output_file.write_text(json.dumps(terms))

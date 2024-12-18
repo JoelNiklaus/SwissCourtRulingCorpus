@@ -1,0 +1,2 @@
+-- ALTER TABLE  language 
+--   ALTER COLUMN language_id type INTEGER 
