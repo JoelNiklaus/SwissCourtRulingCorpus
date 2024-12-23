@@ -236,14 +236,14 @@ class AbstractPreprocessor:
                 # cannot use the same name as the col name
                 df = df.rename(columns={'id': 'b_id'})
             else:
+               # import pdb; pdb.set_trace()
                 df = df[columns + [index_name]]
                 if index_name == 'decision_id':
                     df = df.astype({'decision_id': str})
                 # cannot use the same name as the col name
                 df = df.rename(columns={index_name: 'b_id'})
             # updates all columns which are present in the df
-            query = t.update().where(t.c.get(index_name or 'id') ==
-                                     bindparam('b_id')).values()
+            query = t.update().where(t.c.get(index_name or 'id') == bindparam('b_id')).values()
             conn.execute(query, df.to_dict('records'))  # bulk update
             conn.commit()
 

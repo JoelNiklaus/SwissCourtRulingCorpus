@@ -7,7 +7,7 @@ from scrc.preprocessors.extractors.court_composition_extractor import CourtCompo
 
 from scrc.preprocessors.extractors.citation_extractor import CitationExtractor
 from scrc.preprocessors.extractors.cleaner import Cleaner
-#from scrc.dataset_creation.doc2doc_ir_dataset_creator import Doc2DocIRDatasetCreator
+from scrc.dataset_creation.doc2doc_ir_dataset_creator import Doc2DocIRDatasetCreator
 from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
 from scrc.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
 from scrc.preprocessors.text_to_database import TextToDatabase
@@ -87,8 +87,8 @@ def construct_base_dataset(config):
 
     # TODO install cronjob that runs this every day
 
-   # scraper = Scraper(config)
-    #scraper.download_subfolders(base_url + "docs/")
+    scraper = Scraper(config)
+    scraper.download_subfolders(base_url + "docs/")
 
     create_court_and_chamber_tables = CreateCourtAndChamberTables(config)
     create_court_and_chamber_tables.start()
@@ -99,61 +99,65 @@ def construct_base_dataset(config):
 
     print("text_to_database finished")
 
-    language_identifier = LanguageIdentifier(config)
+    language_identifier = LanguageIdentifiser(config)
     decision_ids = language_identifier.start()
 
     print("-------decision_ids finished-------")
-    print(decision_ids)
+    #from uuid import UUID
+    #decision_ids =[UUID('1b78dd88-db6e-5f13-919c-5a7f520ed227'), UUID('e094e413-fc3d-5b27-a0b4-dba7817ae0e8'), UUID('eefb73b4-653d-5d04-9c0f-33735728a869'), UUID('f4721254-da4b-55e6-859a-07415e0bccfb'), UUID('0af55218-a657-5d2a-8343-51a43e891efa'), UUID('06d17bcf-ea14-5054-b75f-1c70dccd9089'), UUID('a592c302-e8d0-5200-9c2c-98285cc2018c'), UUID('ca6d8dcb-b1a0-5606-a20c-f54a876c3018'), UUID('460ac296-1533-539d-8755-6ab31b130655')]
+    # print(decision_ids)
 
     cleaner = Cleaner(config)
     cleaner.clean(decision_ids)
+    cleaner.start(decision_ids)
 
     print("-------cleaner finished-------")
 
 
     section_splitter = SectionSplitter(config)
+    #import pdb; pdb.set_trace()
     section_splitter.start(decision_ids)
 
     print("-------splitter finished-------")
 
-    citation_extractor = CitationExtractor(config)
-    citation_extractor.start(decision_ids)
+    # citation_extractor = CitationExtractor(config)
+    # citation_extractor.start(decision_ids)
     
-    print("-------citation extractor finished-------")
+    # print("-------citation extractor finished-------")
 
-    judgment_extractor = JudgmentExtractor(config)
-    judgment_extractor.start(decision_ids)
+    # judgment_extractor = JudgmentExtractor(config)
+    # judgment_extractor.start(decision_ids)
 
-    print("-------judgement extractor finished-------")
+    # print("-------judgement extractor finished-------")
 
-    lower_court_extractor = LowerCourtExtractor(config)
-    lower_court_extractor.start(decision_ids)
+    # lower_court_extractor = LowerCourtExtractor(config)
+    # lower_court_extractor.start(decision_ids)
 
-    print("-------lower_court_extractor  finished-------")
+    # print("-------lower_court_extractor  finished-------")
 
-    court_composition_extractor = CourtCompositionExtractor(config)
-    court_composition_extractor.start(decision_ids)
+    # court_composition_extractor = CourtCompositionExtractor(config)
+    # court_composition_extractor.start(decision_ids)
 
-    print("-------court_composition_extractor  finished-------")
+    # print("-------court_composition_extractor  finished-------")
 
-    procedural_participation_extractor = ProceduralParticipationExtractor(config)
-    procedural_participation_extractor.start(decision_ids)
+    # procedural_participation_extractor = ProceduralParticipationExtractor(config)
+    # procedural_participation_extractor.start(decision_ids)
 
-    print("-------procedural_participation_extractor  finished-------")
+    # print("-------procedural_participation_extractor  finished-------")
 
-    # calls a free API which only has limited access
-    name_to_gender = NameToGender(config)
-    name_to_gender.start()
+    # # calls a free API which only has limited access
+    # name_to_gender = NameToGender(config)
+    # name_to_gender.start()
 
-    print("-------name_to_gender  finished--------")
+    # print("-------name_to_gender  finished--------")
 
-    # TODO this should be adapted or can even be removed
-    # nlp_pipeline_runner = NlpPipelineRunner(config)
-    # nlp_pipeline_runner.run_pipeline()
+    # # TODO this should be adapted or can even be removed
+    # # nlp_pipeline_runner = NlpPipelineRunner(config)
+    # # nlp_pipeline_runner.run_pipeline()
 
-    # TODO this should be adapted or can even be removed
-    # count_computer = CountComputer(config)
-    # count_computer.run_pipeline()
+    # # TODO this should be adapted or can even be removed
+    # # count_computer = CountComputer(config)
+    # # count_computer.run_pipeline()
 
 
 def process_external_corpora(config):

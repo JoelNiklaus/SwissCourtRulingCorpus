@@ -102,15 +102,22 @@ class SectionSplitter(AbstractExtractor):
         with self.get_engine(self.db_scrc).connect() as conn:
             for lang_key in Language:
                 language_key = Language.get_id_value(lang_key.value)
+                #import pdb; pdb.set_trace()
                 if language_key != -1:
-                    total_result = conn.execute(get_total_decisions(spider, language_key)).fetchone()
-                    if total_result[0] != 0:
+                    #total_result = conn.execute(get_total_decisions(spider, filter_by_language = True, language=language_key)).fetchone()
+                    query = get_total_decisions(spider, filter_by_language = True, language=language_key)
+                    total_result = pd.read_sql(query, conn)
+                    total_result = int(total_result.loc[0,'count'])
+                    if total_result != 0:
                         self.logger.info(f'Your coverage for {lang_key} of {spider}:')
                         for section_key in Section:
                             if section_key.value != 1:
-                                coverage_result = conn.execute(coverage_query(spider, section_key.value, language_key)).fetchone()
-                                coverage =  round(coverage_result[0] / total_result[0]  * 100, 2)
-                                if not coverage_result[0]:
+                                query = coverage_query(spider, section_key.value, language_key)
+                                coverage_result = pd.read_sql(query, conn)
+                                coverage_result = int(coverage_result.loc[0,'count'])
+                                #coverage_result = conn.execute(coverage_query(spider, section_key.value, language_key)).fetchone()
+                                coverage =  round(coverage_result / total_result  * 100, 2)
+                                if not coverage_result:
                                     self.logger.info(f'No sections found for: {section_key}')
                                 else:
                                     self.logger.info(f'{section_key} is {coverage}%')

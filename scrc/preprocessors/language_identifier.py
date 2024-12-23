@@ -63,5 +63,6 @@ if __name__ == '__main__':
     config = get_config()
 
     lang_ident = LanguageIdentifier(config)
-    lang_ident.start()
+    dec_ids = lang_ident.start()
+    print(dec_ids)
 

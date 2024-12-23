@@ -61,6 +61,7 @@ class Cleaner(AbstractExtractor):
         return cleaning_regexes
 
     def clean(self, decision_ids: Optional[List] = None):
+        
         """cleans all the raw court rulings with the defined regexes (for pdfs) and functions (for htmls)"""
         self.logger.info("Started cleaning raw court rulings")
         processed_file_path = self.progress_dir / "spiders_cleaned.txt"
@@ -83,6 +84,9 @@ class Cleaner(AbstractExtractor):
 
     def get_required_data(self, series: pd.DataFrame) -> Any:
         return series['spider']
+        # spider = series['spider'].drop_duplicates()
+        # assert (len(spider) == 1)
+        # return spider[0]
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing. 
@@ -90,29 +94,39 @@ class Cleaner(AbstractExtractor):
         return True
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
+        #import pdb; pdb.set_trace()
         df['section_type_id'] = 1 # Set the Section type to full text
-        self.update(engine, df, 'section', ['section_text'], self.output_dir, index_name='section_id')
+        df = df[[ 'decision_id', 'section_type_id', 'section_text']]
+        df.to_sql('section', engine, if_exists="append", index=False)
+        #df.to_sql('section', engine, if_exists="replace", index=False)
+
+        #self.update(engine, df, 'section', ['section_text'], self.output_dir, index_name='section_id')
 
     def process_one_spider(self, engine, spider):
         """Cleans one spider csv file"""
         self.logger.info(f"Started cleaning {spider}")
-
+        #import pdb; pdb.set_trace()
         #self.start_progress(engine, spider, engine)
         dfs = self.select_df(engine, spider)  # stream dfs from the db
         for df in dfs:
             # according to docs you should aim for a partition size of 100MB
             df['section_text'] = ''
-            ddf = dd.from_pandas(df, npartitions=self.num_cpus)
+            #ddf = dd.from_pandas(df, npartitions=self.num_cpus)
+            
             # apply cleaning function to each row
-            ddf = ddf.apply(self.process_one_df_row, axis='columns', meta=ddf)
-            with ProgressBar():
-                df = ddf.compute(scheduler='processes')
+            #ddf = ddf.apply(self.process_one_df_row, axis='columns', meta=ddf)
+            #ddf = ddf.map_partitions(lambda partition: partition.apply(self.process_one_df_row, axis=1))
+                                        
+            # with ProgressBar():
+            #     df = ddf.compute(scheduler='processes')
+            df = df.apply(self.process_one_df_row, axis=1)
             self.save_data_to_database(df, engine)
         #    self.log_progress(self.chunksize)
         #self.log_coverage(engine, spider, lang)
         self.logger.info(f"{self.logger_info['finish_spider']} {spider}")
 
     def process_one_df_row(self, series):
+        
         """Cleans one row of a raw df"""
         self.logger.debug(
             f"{self.logger_info['processing_one']} {series['file_name']}")
@@ -122,6 +136,9 @@ class Cleaner(AbstractExtractor):
         html_clean, pdf_clean = '', ''
 
         html_raw = series['html_raw']
+        # print("******",html_raw, type(html_raw),"******")
+        # pdf_raw = series['pdf_raw']
+        # print("******",pdf_clean, type(html_raw),"******")
         if pd.notna(html_raw) and html_raw not in [None, '']:
             # Parses the html string with bs4 and returns the body content
             soup = bs4.BeautifulSoup(html_raw, "html.parser").find('body')
@@ -131,7 +148,7 @@ class Cleaner(AbstractExtractor):
         pdf_raw = series['pdf_raw']
         if pd.notna(pdf_raw) and pdf_raw not in [None, '']:
             pdf_clean = self.clean_pdf(spider, pdf_raw, namespace)
-
+   
         # Combine columns into one easy to use text column (prioritize html content if both exist)
         series['section_text'] = np.where(html_clean != '', html_clean, pdf_clean)
         if series['section_text'] == '':
