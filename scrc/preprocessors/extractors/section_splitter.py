@@ -91,7 +91,7 @@ class SectionSplitter(AbstractExtractor):
             if isinstance(series[section], str):
                 return series[section]
             return '\n'.join(series[section])
-
+        import pdb; pdb.set_trace()
         for section in Section:
             df[section.name] = df['sections'].apply(lambda row: get_section_from_df(row, section))
             df[section.name+'_spacy'] = [len(result) for result in spacy_tokenizer.pipe(df[section.name], batch_size=100)]
@@ -125,7 +125,7 @@ class SectionSplitter(AbstractExtractor):
                             
 
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
-
+        
         if not AbstractPreprocessor._check_write_privilege(engine):
             AbstractPreprocessor.create_dir(self.output_dir, os.getlogin())
             path = Path.joinpath(self.output_dir, os.getlogin(), datetime.now().isoformat() + '.json')
@@ -137,48 +137,57 @@ class SectionSplitter(AbstractExtractor):
         if df.empty:
             return
         
-        df = self.run_tokenizer(df)
+        #df = self.run_tokenizer(df)
 
         with self.get_engine(self.db_scrc).connect() as conn:
             # Load the different tables
             t = Table('section', MetaData(), autoload_with=engine)
-            t_num_tokens = Table('num_tokens', MetaData(), autoload_with=engine)
+            #t_num_tokens = Table('num_tokens', MetaData(), autoload_with=engine)
 
             # Delete and reinsert as no upsert command is available. This pattern is used multiple times in this method
             if not isinstance(df, pd.DataFrame) or df.empty:
                 # empty dfs are given as dicts, so no need to save
                 return
-            stmt = t.delete().where(delete_stmt_decisions_with_df(df))
-            conn.execute(stmt)
             
-            for _, row in df.iterrows():
-                if row['sections'] is None or row['sections'].keys is None:
+            stmt = t.delete().where(delete_stmt_decisions_with_df(df))
+        
+            conn.execute(stmt)
+            conn.commit()
+
+        import pdb; pdb.set_trace()
+
+        for _, row in df.iterrows():
+            if row['sections'] is None or row['sections'].keys is None:
+                continue
+            
+            for k in row['sections'].keys():
+                decision_id_str = str(row['decision_id'])
+                if decision_id_str == '':
                     continue
-                
-                for k in row['sections'].keys():
-                    decision_id_str = str(row['decision_id'])
-                    if decision_id_str == '':
-                        continue
-                    section_type_id = k.value
-                    row['sections'][k] = [paragraph for paragraph in row['sections'][k] if len(paragraph) > 0]
-                    # insert section
-                    section_dict = {
-                        "decision_id": decision_id_str,
-                        "section_type_id": section_type_id,
-                        "section_text": '\n'.join(row['sections'][k])
-                    }
+                section_type_id = k.value
+                row['sections'][k] = [paragraph for paragraph in row['sections'][k] if len(paragraph) > 0]
+                # insert section
+                section_dict = {
+                    "decision_id": decision_id_str,
+                    "section_type_id": section_type_id,
+                    "section_text": '\n'.join(row['sections'][k])
+                }
+                with self.get_engine(self.db_scrc).connect() as conn:
                     stmt = t.insert().returning(text("section_id")).values([section_dict])
-                    section_id = conn.execute(stmt).fetchone()['section_id']
-    
-                    # Add num tokens
-                    tokens_per_section = {
-                        'section_id': str(section_id),
-                        'num_tokens_spacy': row[k.name+'_spacy'],
-                        'num_tokens_bert': row[k.name+'_bert']
-                    }
-                    
-                    stmt = t_num_tokens.insert().values([tokens_per_section])
                     conn.execute(stmt)
+                    conn.commit()
+                    #section_id = conn.execute(stmt).fetchone()['section_id']
+                    #section_id = pd.read_sql(stmt,conn)['section_id']
+                    #section_id =  int(section_id.loc[0])
+                    # Add num tokens
+                    # tokens_per_section = {
+                    #     'section_id': str(section_id),
+                    #     'num_tokens_spacy': row[k.name+'_spacy'],
+                    #     'num_tokens_bert': row[k.name+'_bert']
+                    # }
+                    
+                # stmt = t_num_tokens.insert().values([tokens_per_section])
+                    
 
     def read_column(self, engine: Engine, spider: str, name: str, lang: str) -> pd.DataFrame:
         query = f"SELECT count({name}) FROM {lang} WHERE {self.get_database_selection_string(spider, lang)} AND {name} <> ''"

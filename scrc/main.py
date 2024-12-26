@@ -87,43 +87,44 @@ def construct_base_dataset(config):
 
     # TODO install cronjob that runs this every day
 
-    scraper = Scraper(config)
-    scraper.download_subfolders(base_url + "docs/")
+    # scraper = Scraper(config)
+    # scraper.download_subfolders(base_url + "docs/")
 
-    create_court_and_chamber_tables = CreateCourtAndChamberTables(config)
-    create_court_and_chamber_tables.start()
+    # create_court_and_chamber_tables = CreateCourtAndChamberTables(config)
+    # create_court_and_chamber_tables.start()
 
-    print("create_court_and_chamber_tables finished")
-    text_to_database = TextToDatabase(config)
-    text_to_database.build_dataset()
+    # print("create_court_and_chamber_tables finished")
+    # text_to_database = TextToDatabase(config)
+    # text_to_database.build_dataset()
 
-    print("text_to_database finished")
+    # print("text_to_database finished")
 
-    language_identifier = LanguageIdentifiser(config)
-    decision_ids = language_identifier.start()
+    # language_identifier = LanguageIdentifier(config)
+    # decision_ids = language_identifier.start()
 
-    print("-------decision_ids finished-------")
-    #from uuid import UUID
-    #decision_ids =[UUID('1b78dd88-db6e-5f13-919c-5a7f520ed227'), UUID('e094e413-fc3d-5b27-a0b4-dba7817ae0e8'), UUID('eefb73b4-653d-5d04-9c0f-33735728a869'), UUID('f4721254-da4b-55e6-859a-07415e0bccfb'), UUID('0af55218-a657-5d2a-8343-51a43e891efa'), UUID('06d17bcf-ea14-5054-b75f-1c70dccd9089'), UUID('a592c302-e8d0-5200-9c2c-98285cc2018c'), UUID('ca6d8dcb-b1a0-5606-a20c-f54a876c3018'), UUID('460ac296-1533-539d-8755-6ab31b130655')]
+    # print("-------decision_ids finished-------")
+    from uuid import UUID
+    decision_ids =[UUID('1b78dd88-db6e-5f13-919c-5a7f520ed227'), UUID('e094e413-fc3d-5b27-a0b4-dba7817ae0e8'), UUID('eefb73b4-653d-5d04-9c0f-33735728a869'), UUID('f4721254-da4b-55e6-859a-07415e0bccfb'), UUID('0af55218-a657-5d2a-8343-51a43e891efa'), UUID('06d17bcf-ea14-5054-b75f-1c70dccd9089'), UUID('a592c302-e8d0-5200-9c2c-98285cc2018c'), UUID('ca6d8dcb-b1a0-5606-a20c-f54a876c3018'), UUID('460ac296-1533-539d-8755-6ab31b130655')]
     # print(decision_ids)
 
-    cleaner = Cleaner(config)
-    cleaner.clean(decision_ids)
-    cleaner.start(decision_ids)
+    # cleaner = Cleaner(config)
+    # cleaner.clean(decision_ids)
+    # cleaner.start(decision_ids)
 
-    print("-------cleaner finished-------")
+    # print("-------cleaner finished-------")
 
 
-    section_splitter = SectionSplitter(config)
-    #import pdb; pdb.set_trace()
-    section_splitter.start(decision_ids)
+    # section_splitter = SectionSplitter(config)
+    # #import pdb; pdb.set_trace()
+    # section_splitter.start(decision_ids)
 
     print("-------splitter finished-------")
 
-    # citation_extractor = CitationExtractor(config)
-    # citation_extractor.start(decision_ids)
+    citation_extractor = CitationExtractor(config)
+    import pdb; pdb.set_trace()
+    citation_extractor.start(decision_ids)
     
-    # print("-------citation extractor finished-------")
+    print("-------citation extractor finished-------")
 
     # judgment_extractor = JudgmentExtractor(config)
     # judgment_extractor.start(decision_ids)

@@ -60,6 +60,7 @@ INSERT INTO citation_type("name") VALUES
 INSERT INTO section_type("name") VALUES 
 	('full_text'),
 	('header'),
+	('topic'),
 	('facts'),
 	('considerations'),
 	('rulings'),

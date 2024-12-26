@@ -12,7 +12,7 @@ JSON_FILE_LOADED = {} # Automatically gets filled via court_chambers_extended.js
 CANTONS = [] # Automatically gets filled via court_chambers_extended.json
 JUDGMENTS = ['approval', 'dismissal', 'inadmissible', 'partial_approval', 'partial_dismissal', 'unification', 'write_off']
 CITATION_TYPES = ['ruling', 'law', 'commentary']
-SECTION_TYPES = ['full_text', 'header', 'facts', 'considerations', 'rulings', 'footer']
+SECTION_TYPES = ['full_text', 'header', 'topic', 'facts', 'considerations', 'rulings', 'footer']
 JUDICIAL_PERSON_TYPES = ['federal_judge', 'deputy_federal_judge', 'clerk']
 PARTY_TYPE = ['plaintiff', 'defendant', 'representation_plaintiff', 'representation_defendant']
 

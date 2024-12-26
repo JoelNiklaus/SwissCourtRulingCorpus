@@ -54,29 +54,33 @@ class CitationExtractor(AbstractExtractor):
         return self.select(engine, f"file {join_decision_and_language_on_parameter('file_id', 'file.file_id')}", f"decision_id, iso_code as language, html_raw, pdf_raw, '{spider}' as spider", where=f"file.file_id IN {where_string_spider('file_id', spider)} {only_given_decision_ids_string}", chunksize=self.chunksize)
     
     def save_data_to_database(self, df: pd.DataFrame, engine: Engine):
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         with engine.connect() as conn:
             t = Table('citation', MetaData(), autoload_with=engine)
             # Delete and reinsert as no upsert command is available
             stmt = t.delete().where(delete_stmt_decisions_with_df(df))
             engine.execute(stmt)
+            conn.commit()
             
-            for _, row in df.iterrows():
-                for k in row['citations'].keys():
-                    citation_type_id = CitationType(k).value
-                    citations_to_insert = []
-                    for citation in row['citations'][k]:
-                        citation_dict = {
-                            "decision_id": str(row['decision_id']),
-                            "citation_type_id": citation_type_id,
-                            "url": citation.get("url"),
-                            "text": citation["text"]
-                        }
-                        citations_to_insert.append(citation_dict)
-                    if len(citations_to_insert) == 0: continue
+        for _, row in df.iterrows():
+            import pdb; pdb.set_trace()
+            for k in row['citations'].keys():
+                citation_type_id = CitationType(k).value
+                citations_to_insert = []
+                for citation in row['citations'][k]:
+                    citation_dict = {
+                        "decision_id": str(row['decision_id']),
+                        "citation_type_id": citation_type_id,
+                        "url": citation.get("url"),
+                        "text": citation["text"]
+                    }
+                    citations_to_insert.append(citation_dict)
+                if len(citations_to_insert) == 0: continue
+                with engine.connect() as conn:
                     stmt = t.insert().values(citations_to_insert)
                     engine.execute(stmt)
-                    
+                    conn.commit()
+                
 
 if __name__ == '__main__':
     config = get_config()
