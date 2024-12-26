@@ -118,16 +118,16 @@ def construct_base_dataset(config):
     # #import pdb; pdb.set_trace()
     # section_splitter.start(decision_ids)
 
-    print("-------splitter finished-------")
+    # print("-------splitter finished-------")
 
-    citation_extractor = CitationExtractor(config)
-    import pdb; pdb.set_trace()
-    citation_extractor.start(decision_ids)
+    # citation_extractor = CitationExtractor(config)
+    # import pdb; pdb.set_trace()
+    # citation_extractor.start(decision_ids)
     
-    print("-------citation extractor finished-------")
+    # print("-------citation extractor finished-------")
 
-    # judgment_extractor = JudgmentExtractor(config)
-    # judgment_extractor.start(decision_ids)
+    judgment_extractor = JudgmentExtractor(config)
+    judgment_extractor.start(decision_ids)
 
     # print("-------judgement extractor finished-------")
 

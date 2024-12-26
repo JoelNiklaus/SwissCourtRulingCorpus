@@ -82,17 +82,21 @@ class JudgmentExtractor(AbstractExtractor):
             t = Table('judgment_map', MetaData(), autoload_with=engine)
             stmt = t.delete().where(delete_stmt_decisions_with_df(df))
             conn.execute(stmt)
-            for idx, row in df.iterrows():
-                # print(df.loc[:, df.columns!= 'section_text'])
-                if row['judgments'] and type(row['judgments']) is set:  # only insert, when we find judgments
-                    # Delete and reinsert as no upsert command is available
-                    for k in row['judgments']:
-                        judgment_type_id = Judgment(k).value
+            conn.commit()
+
+        for idx, row in df.iterrows():
+            # print(df.loc[:, df.columns!= 'section_text'])
+            if row['judgments'] and type(row['judgments']) is set:  # only insert, when we find judgments
+                # Delete and reinsert as no upsert command is available
+                for k in row['judgments']:
+                    judgment_type_id = Judgment(k).value
+                    with engine.connect() as conn:
                         stmt = t.insert().values([{"decision_id": str(row['decision_id']),
-                                                   "judgment_id": judgment_type_id}])
+                                                "judgment_id": judgment_type_id}])
                         conn.execute(stmt)
-                else:
-                    self.logger.warning(f"No judgments found for {row['html_url']}")
+                        conn.commit()
+            else:
+                self.logger.warning(f"No judgments found for {row['html_url']}")
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing.

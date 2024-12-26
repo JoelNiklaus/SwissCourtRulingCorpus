@@ -59,11 +59,11 @@ class CitationExtractor(AbstractExtractor):
             t = Table('citation', MetaData(), autoload_with=engine)
             # Delete and reinsert as no upsert command is available
             stmt = t.delete().where(delete_stmt_decisions_with_df(df))
-            engine.execute(stmt)
+            conn.execute(stmt)
             conn.commit()
             
         for _, row in df.iterrows():
-            import pdb; pdb.set_trace()
+            #import pdb; pdb.set_trace()
             for k in row['citations'].keys():
                 citation_type_id = CitationType(k).value
                 citations_to_insert = []
@@ -78,7 +78,7 @@ class CitationExtractor(AbstractExtractor):
                 if len(citations_to_insert) == 0: continue
                 with engine.connect() as conn:
                     stmt = t.insert().values(citations_to_insert)
-                    engine.execute(stmt)
+                    conn.execute(stmt)
                     conn.commit()
                 
 
