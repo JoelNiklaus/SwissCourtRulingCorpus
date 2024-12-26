@@ -49,9 +49,14 @@ class JudgmentExtractor(AbstractExtractor):
         """Returns the coverage of the judgments for the given spider"""
         ruling_id = Section.RULINGS.value
         with self.get_engine(self.db_scrc).connect() as conn:
-            total_judgments = conn.execute(get_total_judgments(spider, ruling_id)).fetchone()
-            coverage_result = conn.execute(get_judgment_query(spider)).fetchone()
-            coverage =  round(coverage_result[0] / total_judgments[0]  * 100, 2)
+            #import pdb; pdb.set_trace()
+            # total_judgments = conn.execute(get_total_judgments(spider, ruling_id)).fetchone()
+            # coverage_result = conn.execute(get_judgment_query(spider)).fetchone()
+            total_judgments = pd.read_sql(get_total_judgments(spider, ruling_id),conn)['count']
+            coverage_result = pd.read_sql(get_judgment_query(spider),conn)['count']
+            total_judgments = int(total_judgments.loc[0])
+            coverage_result = int(coverage_result.loc[0])
+            coverage =  round(coverage_result / total_judgments  * 100, 2)
             self.logger.info(f"{spider}: Found judgment outcome for {coverage}% of the rulings")
 
 
