@@ -56,8 +56,11 @@ class JudgmentExtractor(AbstractExtractor):
             coverage_result = pd.read_sql(get_judgment_query(spider),conn)['count']
             total_judgments = int(total_judgments.loc[0])
             coverage_result = int(coverage_result.loc[0])
-            coverage =  round(coverage_result / total_judgments  * 100, 2)
-            self.logger.info(f"{spider}: Found judgment outcome for {coverage}% of the rulings")
+            if total_judgments > 0:
+                coverage =  round(coverage_result / total_judgments  * 100, 2)
+                self.logger.info(f"{spider}: Found judgment outcome for {coverage}% of the rulings")
+            else:
+                self.logger.info(f"{spider}: Found no judgment outcomes ")
 
 
 
