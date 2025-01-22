@@ -17,7 +17,7 @@ from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, get_judgment_query, get_total_judgments, join_decision_and_language_on_parameter, \
     join_file_on_decision, where_decisionid_in_list, where_string_spider
-
+from sqlalchemy import delete
 if TYPE_CHECKING:
     from pandas.core.frame import DataFrame
 
@@ -88,23 +88,29 @@ class JudgmentExtractor(AbstractExtractor):
             return
         with engine.connect() as conn:
             t = Table('judgment_map', MetaData(), autoload_with=engine)
-            stmt = t.delete().where(delete_stmt_decisions_with_df(df))
+            stmt = delete(t).where(delete_stmt_decisions_with_df(df))
             conn.execute(stmt)
             conn.commit()
+            conn.close()
 
+        db = engine
         for idx, row in df.iterrows():
             # print(df.loc[:, df.columns!= 'section_text'])
             if row['judgments'] and type(row['judgments']) is set:  # only insert, when we find judgments
                 # Delete and reinsert as no upsert command is available
                 for k in row['judgments']:
                     judgment_type_id = Judgment(k).value
-                    with engine.connect() as conn:
-                        stmt = t.insert().values([{"decision_id": str(row['decision_id']),
+                    conn = db.connect()
+                    #with engine.connect() as conn:
+                    stmt = t.insert().values([{"decision_id": str(row['decision_id']),
                                                 "judgment_id": judgment_type_id}])
-                        conn.execute(stmt)
-                        conn.commit()
+                    conn.execute(stmt)
+                    conn.commit()
+                    conn.close()
             else:
                 self.logger.warning(f"No judgments found for {row['html_url']}")
+        db.dispose()
+        
 
     def check_condition_before_process(self, spider: str, data: Any, namespace: dict) -> bool:
         """Override if data has to conform to a certain condition before processing.

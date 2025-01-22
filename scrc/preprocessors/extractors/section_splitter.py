@@ -18,7 +18,7 @@ from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import coverage_query, delete_stmt_decisions_with_df, get_total_decisions, join_decision_and_language_on_parameter, \
     where_decisionid_in_list, where_string_spider
-
+from sqlalchemy import delete
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
 
@@ -138,7 +138,7 @@ class SectionSplitter(AbstractExtractor):
             return
         
         #df = self.run_tokenizer(df)
-
+        #import pdb; pdb.set_trace()
         with self.get_engine(self.db_scrc).connect() as conn:
             # Load the different tables
             t = Table('section', MetaData(), autoload_with=engine)
@@ -149,17 +149,18 @@ class SectionSplitter(AbstractExtractor):
                 # empty dfs are given as dicts, so no need to save
                 return
             
-            stmt = t.delete().where(delete_stmt_decisions_with_df(df))
+            stmt = delete(t).where(delete_stmt_decisions_with_df(df))
         
             conn.execute(stmt)
             conn.commit()
+            conn.close()
 
-        import pdb; pdb.set_trace()
-
+#     
+        
         for _, row in df.iterrows():
             if row['sections'] is None or row['sections'].keys is None:
                 continue
-            
+            db = self.get_engine(self.db_scrc)
             for k in row['sections'].keys():
                 decision_id_str = str(row['decision_id'])
                 if decision_id_str == '':
@@ -172,10 +173,15 @@ class SectionSplitter(AbstractExtractor):
                     "section_type_id": section_type_id,
                     "section_text": '\n'.join(row['sections'][k])
                 }
-                with self.get_engine(self.db_scrc).connect() as conn:
-                    stmt = t.insert().returning(text("section_id")).values([section_dict])
-                    conn.execute(stmt)
-                    conn.commit()
+                #import pdb; pdb.set_trace()
+                #with self.get_engine(self.db_scrc).connect() as conn:
+                conn = db.connect()
+                stmt = t.insert().returning(text("section_id")).values([section_dict])
+                conn.execute(stmt)
+                conn.commit()
+                conn.close()
+            db.dispose()
+        
                     #section_id = conn.execute(stmt).fetchone()['section_id']
                     #section_id = pd.read_sql(stmt,conn)['section_id']
                     #section_id =  int(section_id.loc[0])
@@ -191,7 +197,13 @@ class SectionSplitter(AbstractExtractor):
 
     def read_column(self, engine: Engine, spider: str, name: str, lang: str) -> pd.DataFrame:
         query = f"SELECT count({name}) FROM {lang} WHERE {self.get_database_selection_string(spider, lang)} AND {name} <> ''"
-        return pd.read_sql(query, engine.connect())['count'][0]
+        import pdb; pdb.set_trace()
+        with engine.connect() as conn:
+            count = pd.read_sql(query, conn)['count'][0]
+            conn.close()
+        return count
+        
+        ####   return pd.read_sql(query, engine.connect())['count'][0]
     
 
     def log_coverage_from_json(self, engine: Engine, spider: str, lang: str, batch_info: dict) -> None:

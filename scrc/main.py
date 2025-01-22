@@ -10,6 +10,7 @@ from scrc.preprocessors.extractors.cleaner import Cleaner
 from scrc.dataset_creation.doc2doc_ir_dataset_creator import Doc2DocIRDatasetCreator
 from scrc.dataset_creation.criticality_dataset_creator import CriticalityDatasetCreator
 from scrc.dataset_creation.judgment_dataset_creator import JudgmentDatasetCreator
+from scrc.dataset_creation.court_view_dataset_creator import CourtViewDatasetCreator
 from scrc.preprocessors.text_to_database import TextToDatabase
 from scrc.preprocessors.extractors.judgment_extractor import JudgmentExtractor
 from scrc.preprocessors.extractors.lower_court_extractor import LowerCourtExtractor
@@ -65,17 +66,22 @@ def process_scrc(config):
 
 
 def create_specialized_datasets(config):
-    judgment_dataset_creator = JudgmentDatasetCreator(config)
+
+    judgment_dataset_creator = CourtViewDatasetCreator(config)
     judgment_dataset_creator.create_dataset()
 
-    pretraining_dataset_creator = PretrainingDatasetCreator(config)
-    pretraining_dataset_creator.create_dataset()
 
-    citation_dataset_creator = Doc2DocIRDatasetCreator(config)
-    citation_dataset_creator.create_dataset()
+    # judgment_dataset_creator = JudgmentDatasetCreator(config)
+    # judgment_dataset_creator.create_dataset()
 
-    criticality_dataset_creator = CriticalityDatasetCreator(config)
-    criticality_dataset_creator.create_dataset()
+    # pretraining_dataset_creator = PretrainingDatasetCreator(config)
+    # pretraining_dataset_creator.create_dataset()
+
+    # citation_dataset_creator = Doc2DocIRDatasetCreator(config)
+    # citation_dataset_creator.create_dataset()
+
+    # criticality_dataset_creator = CriticalityDatasetCreator(config)
+    # criticality_dataset_creator.create_dataset()
 
 
 def construct_base_dataset(config):
@@ -94,17 +100,34 @@ def construct_base_dataset(config):
     # create_court_and_chamber_tables.start()
 
     # print("create_court_and_chamber_tables finished")
-    # text_to_database = TextToDatabase(config)
-    # text_to_database.build_dataset()
+    #text_to_database = TextToDatabase(config)
+    #import pdb; pdb.set_trace()
+    #text_to_database.build_dataset()
+    #import pdb; pdb.set_trace() 
 
-    # print("text_to_database finished")
+    print("----text_to_database finished----")
 
     # language_identifier = LanguageIdentifier(config)
     # decision_ids = language_identifier.start()
+    
+    import uuid
+    def read_uuids_from_file(filename):
+        """Reads a list of UUIDs from a text file."""
+        uuids = []
+        with open("dec_ids.txt", 'r') as f:
+            for line in f:
+                uuids.append(uuid.UUID(line.strip()))
+        return uuids
 
-    # print("-------decision_ids finished-------")
-    from uuid import UUID
-    decision_ids =[UUID('1b78dd88-db6e-5f13-919c-5a7f520ed227'), UUID('e094e413-fc3d-5b27-a0b4-dba7817ae0e8'), UUID('eefb73b4-653d-5d04-9c0f-33735728a869'), UUID('f4721254-da4b-55e6-859a-07415e0bccfb'), UUID('0af55218-a657-5d2a-8343-51a43e891efa'), UUID('06d17bcf-ea14-5054-b75f-1c70dccd9089'), UUID('a592c302-e8d0-5200-9c2c-98285cc2018c'), UUID('ca6d8dcb-b1a0-5606-a20c-f54a876c3018'), UUID('460ac296-1533-539d-8755-6ab31b130655')]
+    decision_ids = read_uuids_from_file("../dec_ids.txt")
+    print(len(decision_ids))
+#     print("-------start language_identifier.start()-------")
+
+    # print("-------read_uuids_from_file finished-------")
+    #print(decision_ids)
+    print("-------decision_ids finished-------")
+    # from uuid import UUID
+    # #decision_ids =[UUID('1b78dd88-db6e-5f13-919c-5a7f520ed227'), UUID('e094e413-fc3d-5b27-a0b4-dba7817ae0e8'), UUID('eefb73b4-653d-5d04-9c0f-33735728a869'), UUID('f4721254-da4b-55e6-859a-07415e0bccfb'), UUID('0af55218-a657-5d2a-8343-51a43e891efa'), UUID('06d17bcf-ea14-5054-b75f-1c70dccd9089'), UUID('a592c302-e8d0-5200-9c2c-98285cc2018c'), UUID('ca6d8dcb-b1a0-5606-a20c-f54a876c3018'), UUID('460ac296-1533-539d-8755-6ab31b130655')]
     # print(decision_ids)
 
     # cleaner = Cleaner(config)
@@ -115,26 +138,27 @@ def construct_base_dataset(config):
 
 
     # section_splitter = SectionSplitter(config)
-    # #import pdb; pdb.set_trace()
+   
     # section_splitter.start(decision_ids)
 
     # print("-------splitter finished-------")
 
     # citation_extractor = CitationExtractor(config)
-    # import pdb; pdb.set_trace()
+    # #import pdb; pdb.set_trace()
     # citation_extractor.start(decision_ids)
     
     # print("-------citation extractor finished-------")
 
-    judgment_extractor = JudgmentExtractor(config)
-    judgment_extractor.start(decision_ids)
+    # judgment_extractor = JudgmentExtractor(config)
+    # judgment_extractor.start(decision_ids)
 
     # print("-------judgement extractor finished-------")
 
-    # lower_court_extractor = LowerCourtExtractor(config)
-    # lower_court_extractor.start(decision_ids)
+    lower_court_extractor = LowerCourtExtractor(config)
+    # #import pdb; pdb.set_trace()
+    lower_court_extractor.start(decision_ids)
 
-    # print("-------lower_court_extractor  finished-------")
+    print("-------lower_court_extractor  finished-------")
 
     # court_composition_extractor = CourtCompositionExtractor(config)
     # court_composition_extractor.start(decision_ids)
@@ -179,4 +203,5 @@ def process_external_corpora(config):
 
 
 if __name__ == '__main__':
+    
     main()

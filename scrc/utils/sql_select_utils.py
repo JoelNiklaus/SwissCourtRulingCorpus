@@ -12,6 +12,7 @@ from scrc.enums.cantons import Canton
 from scrc.enums.chamber import Chamber
 import ast
 import re
+from sqlalchemy import delete
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
@@ -146,7 +147,6 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
     """
 
     def save_to_db(df: pd.DataFrame, table: str):
-        #import pdb; pdb.set_trace()
         # If the returned df is not a DataFrame but a Series, then convert it into a dataframe and Transpose it to correct the variable. (Not needed for most courts, but edge case needs it)
         if not isinstance(df, pd.DataFrame):
             df = df.to_frame()
@@ -158,35 +158,22 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         #import pdb; pdb.set_trace()
         with engine.connect() as connection:
             series['file_id'] = pd.read_sql(query, connection)["file_id"][0]
+            series['language_id'] = 5
+            query = f"SELECT chamber_id FROM chamber WHERE chamber_string = '{series['chamber']}'"
+            chamber_id = pd.read_sql(query, connection)['chamber_id']
             connection.close()
-        series['language_id'] = 5
-        query = f"SELECT chamber_id FROM chamber WHERE chamber_string = '{series['chamber']}'"
-        chamber_id = pd.read_sql(query, engine.connect())['chamber_id']
-        #import pdb; pdb.set_trace()
-        # if len(chamber_id) == 0:
-        #     print(f"The chamber {series['chamber']} was not found in the database. "
-        #           f"Add it with the respective court and spider")
-        #     raise ValueError
-        # else:
-        #     series['chamber_id'] = chamber_id[0]
-
-        # series['decision_id'] = uuid.uuid5(uuid.UUID(int=0), series['file_name'])
-        # # TODO: Add topic recognition, similar to the title of the court decision
-        # series['topic'] = ''
-        # return series
-        if len(chamber_id) == 0:
-            print(f"The chamber {series['chamber']} was not found in the database. "
-                  f"Add it with the respective court and spider")
-            return #pd.DataFrame(columns = ['spider', 'canton', 'court', 'chamber', 'date', 'file_name', 'file_number', 'file_number_additional', 'html_url', 'html_raw', 'pdf_url', 'pdf_raw', 'file_id', 'language_id', 'chamber_id', 'decision_id', 'topic'])
-        else:
+        
+        #series['file_id'] = pd.read_sql(query, engine.connect())["file_id"][0]
+        
+        
+        if len(chamber_id) > 0:
             series['chamber_id'] = chamber_id[0]
             series['decision_id'] = uuid.uuid5(uuid.UUID(int=0), series['file_name'])
             # TODO: Add topic recognition, similar to the title of the court decision
             series['topic'] = ''
-            # import pdb; pdb.set_trace()
-            # print (series.columns)
             return series
         
+ 
 
     def save_the_file_numbers(series: pd.DataFrame) -> pd.DataFrame:
         """
@@ -199,8 +186,12 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
         with engine.connect() as conn:
             t = Table('file_number', MetaData(), autoload_with=engine)
             # Delete and reinsert as no upsert command is available
-            stmt = t.delete().where(delete_stmt_decisions_with_df(series))
+            #stmt = t.delete().where(delete_stmt_decisions_with_df(series))
+            #print(delete_stmt_decisions_with_df(series))
+            stmt = delete(t).where(delete_stmt_decisions_with_df(series))
             conn.execute(stmt)
+            conn.commit()
+            conn.close()
         series['text'] = series['file_number'].strip()  # .map(lambda x: x.strip())
         save_to_db(series[['decision_id', 'text']], 'file_number')
         if ('file_number_additional' in series and series['file_number_additional'] is not None and len(
@@ -212,6 +203,7 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
     if df.empty:
         return
 
+    #import pdb; pdb.set_trace()
     # Delete old decision and file entries
     with engine.connect() as conn:
         t_fil = Table('file', MetaData(), autoload_with=engine)
@@ -224,15 +216,18 @@ def save_from_text_to_database(engine: Engine, df: pd.DataFrame):
             file_ids = [item['file_id'] for item in conn.execute(stmt).all()]
         except:
             file_ids = [item[0] for item in conn.execute(stmt).all()]
+        #conn.close()
+
         if len(file_ids) > 0:
-            file_ids_list = ','.join(
-                ["'" + str(item) + "'" for item in file_ids])
+            file_ids_list = ','.join(["'" + str(item) + "'" for item in file_ids])
             # decision_ids = [item['decision_id'] for item in conn.execute(t_dec.select().where(text(f"file_id in ({file_ids_list})"))).all()]
 
-            stmt = t_dec.delete().where(text(f"file_id in ({file_ids_list})"))
+            #stmt = t_dec.delete().where(text(f"file_id in ({file_ids_list})"))
+            stmt = delete(t_dec).where(text(f"file_id in ({file_ids_list})"))
             conn.execute(stmt)
-            stmt = t_fil.delete().where(text(f"file_id in ({file_ids_list})"))
+            stmt = delete(t_fil).where(text(f"file_id in ({file_ids_list})"))
             conn.execute(stmt)
+            conn.commit()
             conn.close()
 
     save_to_db(df[['file_name', 'html_url', 'pdf_url', 'html_raw', 'pdf_raw']], 'file')

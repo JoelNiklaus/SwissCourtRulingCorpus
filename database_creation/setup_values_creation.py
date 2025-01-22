@@ -17,8 +17,8 @@ JUDICIAL_PERSON_TYPES = ['federal_judge', 'deputy_federal_judge', 'clerk']
 PARTY_TYPE = ['plaintiff', 'defendant', 'representation_plaintiff', 'representation_defendant']
 
 def read_court_chambers_extended():
-    #with open(Path('/Users/shikhabordia/SwissCourtRulingCorpus/legal_info/court_chambers_extended.json'), 'r') as file:
-    with open(Path('/Users/shikhabordia/SwissCourtRulingCorpus/legal_info/court_chambers_extended_test2.json'), 'r') as file:
+    with open(Path('/Users/shikhabordia/SwissCourtRulingCorpus/legal_info/court_chambers_extended.json'), 'r') as file:
+   #with open(Path('/Users/shikhabordia/SwissCourtRulingCorpus/legal_info/court_chambers_extended_test3.json'), 'r') as file:
         data = json.load(file)
         global CANTONS
         CANTONS = list(data.keys())

@@ -1,0 +1,238 @@
+{
+   
+    "AG": {
+        "de": "Aargau",
+        "fr": "Argovie",
+        "it": "Argovia",
+        "gerichte": {
+ 
+ 
+            "AG_GB": {
+                "de": "Entscheide Grundbuch und Notariat",
+                "fr": "Entscheide Grundbuch und Notariat",
+                "it": "Entscheide Grundbuch und Notariat",
+                "kammern": {
+                    "AG_GB_001": {
+                        "spider": "AG_Weitere"
+                    }
+                }
+            }
+    
+        }
+    },
+    "AI": {
+        "de": "Appenzell Innerrhoden",
+        "fr": "Appenzell Rhodes-Int\u00e9rieures",
+        "it": "Appenzello Interno",
+        "gerichte": {
+         
+            "AI_BZG": {
+                "de": "Bezirksgericht",
+                "fr": "Bezirksgericht",
+                "it": "Bezirksgericht",
+                "kammern": {
+                    "AI_BZG_001": {
+                        "spider": "AI_Aktuell"
+                    }
+                }
+            },
+            "AI_KG": {
+                "de": "Kantonsgericht",
+                "fr": "Kantonsgericht",
+                "it": "Kantonsgericht",
+                "kammern": {
+                    "AI_KG_001": {
+                        "spider": "AI_Aktuell"
+                    }
+                }
+            }
+        }
+    },
+    "CH": {
+        "de": "Eidgenossenschaft",
+        "fr": "Conf\u00e9deration",
+        "it": "Confederazione",
+        "gerichte": {
+            "CH_BGer": {
+                "de": "Bundesgericht",
+                "fr": "Tribunal f\u00e9d\u00e9ral",
+                "it": "Tribunale federale",
+                "kammern": {
+                    "CH_BGer_001": {
+                        "spider": "CH_BGer",
+                        "de": "I. \u00f6ffentlich-rechtliche Abteilung",
+                        "fr": "Ire Cour de droit public",
+                        "it": "I Corte di diritto pubblico",
+                        "Rechtsgebiete": [
+                            "2.1",
+                            "2.3",
+                            "2.6",
+                            "2.10",
+                            "2.11",
+                            "2.12"
+                        ]
+                    },
+                    "CH_BGer_002": {
+                        "spider": "CH_BGer",
+                        "de": "II. \u00f6ffentlich-rechtliche Abteilung",
+                        "fr": "IIe Cour de droit public",
+                        "it": "II Corte di diritto pubblico",
+                        "Rechtsgebiete": [
+                            "2.1",
+                            "2.2",
+                            "2.4",
+                            "2.5",
+                            "2.7",
+                            "2.8",
+                            "2.9",
+                            "2.10",
+                            "2.12"
+                        ]
+                    },
+                    "CH_BGer_004": {
+                        "spider": "CH_BGer",
+                        "de": "I. zivilrechtliche Abteilung",
+                        "fr": "Ire Cour de droit civil",
+                        "it": "I Corte di diritto civile",
+                        "Rechtsgebiete": [
+                            "1.6",
+                            "1.7",
+                            "1.8",
+                            "1.9",
+                            "1.10",
+                            "1.11",
+                            "1.12",
+                            "1.13",
+                            "1.14"
+                        ]
+                    },
+                    "CH_BGer_005": {
+                        "spider": "CH_BGer",
+                        "de": "II. zivilrechtliche Abteilung",
+                        "fr": "IIe Cour de droit civil",
+                        "it": "II Corte di diritto civile",
+                        "Rechtsgebiete": [
+                            "1.1",
+                            "1.2",
+                            "1.3",
+                            "1.4",
+                            "1.5",
+                            "1.14",
+                            "1.15"
+                        ]
+                    },
+                    "CH_BGer_006": {
+                        "spider": "CH_BGer",
+                        "de": "Strafrechtliche Abteilung",
+                        "fr": "Cour de droit p\u00e9nal",
+                        "it": "Corte di diritto penale",
+                        "Rechtsgebiete": [
+                            "3.1",
+                            "3.2"
+                        ]
+                    },
+                    "CH_BGer_008": {
+                        "spider": "CH_BGer",
+                        "de": "I. sozialrechtliche Abteilung",
+                        "fr": "Ire Cour de droit social",
+                        "it": "I Corte di diritto sociale",
+                        "Rechtsgebiete": [
+                            "4.1",
+                            "4.2"
+                        ]
+                    },
+                    "CH_BGer_009": {
+                        "spider": "CH_BGer",
+                        "de": "II. sozialrechtliche Abteilung",
+                        "fr": "IIe Cour de droit social",
+                        "it": "II Corte di diritto sociale",
+                        "Rechtsgebiete": [
+                            "4.1",
+                            "4.2"
+                        ]
+                    },
+                    "CH_BGer_010": {
+                        "spider": "CH_BGer",
+                        "de": "Schuldbetreibungs- und Konkurskammer (bis 2006)",
+                        "fr": "Chambre des poursuites et des faillites (jusqu'en 2006)",
+                        "it": "Camera delle esecuzioni e dei fallimenti (fino a 2006)",
+                        "Rechtsgebiete": [
+                            "1.14",
+                            "1.15"
+                        ]
+                    },
+                    "CH_BGer_012": {
+                        "spider": "CH_BGer",
+                        "de": "Anklagekammer (bis 2004)      ",
+                        "fr": "Chambre d'accusation (jusqu'en 2004)",
+                        "it": "Camera d'accusa (fino a 2004)",
+                        "Rechtsgebiete": [
+                            "3.2"
+                        ]
+                    },
+                    "CH_BGer_013": {
+                        "spider": "CH_BGer",
+                        "de": "Bundesstrafgericht (bis 2004)",
+                        "fr": "Cour p\u00e9nale f\u00e9d\u00e9rale (jusqu'en 2004)",
+                        "it": "Corte penale federale (fino a 2004)",
+                        "Rechtsgebiete": [
+                            "3.1",
+                            "3.2"
+                        ]
+                    },
+                    "CH_BGer_014": {
+                        "spider": "CH_BGer",
+                        "de": "Ausserordentlicher Kassationhof (bis 2004)",
+                        "fr": "Cour de cassation extraordinaire (jusqu'en 2004)",
+                        "it": "Corte di cassazione estraordinaria (fino a 2004)",
+                        "Rechtsgebiete": [
+                            "3.2"
+                        ]
+                    },
+                    "CH_BGer_015": {
+                        "spider": "CH_BGer",
+                        "de": "Verwaltungskommission",
+                        "fr": "Commission administrative",
+                        "it": "Commissione amministrativa",
+                        "Rechtsgebiete": [
+                            "2.1"
+                        ]
+                    },
+                    "CH_BGer_016": {
+                        "spider": "CH_BGer",
+                        "de": "Eidgen\u00f6ssisches Versicherungsgericht",
+                        "fr": "Tribunal f\u00e9d\u00e9ral des assurances",
+                        "it": "Tribunale federale delle assicurazioni",
+                        "Rechtsgebiete": [
+                            "4.1",
+                            "4.2"
+                        ]
+                    },
+                    "CH_BGer_999": {
+                        "spider": "CH_BGer",
+                        "de": "sonstiges",
+                        "fr": "autres",
+                        "it": "diversi",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    }
+                }
+            },
+
+            "CH_XX": {
+                "de": "unbekanntes Gericht",
+                "fr": "tribunal inconnu",
+                "it": "corte sconosciuta",
+                "kammern": {
+                    "CH_XX_001": {
+                        "spider": "CH_BGer",
+                        "Rechtsgebiete": [
+                            ""
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}

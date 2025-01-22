@@ -21,7 +21,7 @@ class CreateCourtAndChamberTables(AbstractPreprocessor):
         self.download_new_version_of_file()
         ExtendCourtChambers().extend()
         #courts_chambers_file = json.loads((ROOT_DIR / "legal_info/court_chambers.json").read_text())
-        courts_chambers_file = json.loads((ROOT_DIR / "legal_info/court_chambers_test.json").read_text())
+        courts_chambers_file = json.loads((ROOT_DIR / "legal_info/court_chambers_test3.json").read_text())
         self.existing_cantons = self.get_cantons()
         
         self.existing_courts = self.get_existing_courts() # Get current courts

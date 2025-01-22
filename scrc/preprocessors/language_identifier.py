@@ -52,7 +52,7 @@ class LanguageIdentifier(AbstractPreprocessor):
             soup = bs4.BeautifulSoup(html_raw, "html.parser")  # parse html
             assert soup.find()  # make sure it is valid html
             language = self.lang_id.get_lang(soup.get_text())
-            print(language)
+            #print(language)
 
         # Apply the language id to the dataframe
         series['language_id'] = Language.get_id_value(language)

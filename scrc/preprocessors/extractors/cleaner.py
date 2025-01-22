@@ -8,6 +8,7 @@ import pandas as pd
 import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
 from sqlalchemy.engine.base import Engine
+from sqlalchemy import delete
 
 from scrc.preprocessors.extractors.abstract_extractor import AbstractExtractor
 from scrc.utils.main_utils import clean_text, get_config

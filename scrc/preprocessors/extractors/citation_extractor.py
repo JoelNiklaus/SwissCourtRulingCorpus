@@ -12,7 +12,7 @@ from root import ROOT_DIR
 from scrc.utils.log_utils import get_logger
 from scrc.utils.main_utils import get_config
 from scrc.utils.sql_select_utils import delete_stmt_decisions_with_df, join_decision_and_language_on_parameter, where_decisionid_in_list, where_string_spider
-
+from sqlalchemy import delete
 # TODO train ML system on CH_BGer for citation extraction as an alternative (a distilled model for fast inference on CPU)
 
 class CitationExtractor(AbstractExtractor):
@@ -58,10 +58,12 @@ class CitationExtractor(AbstractExtractor):
         with engine.connect() as conn:
             t = Table('citation', MetaData(), autoload_with=engine)
             # Delete and reinsert as no upsert command is available
-            stmt = t.delete().where(delete_stmt_decisions_with_df(df))
+            stmt = delete(t).where(delete_stmt_decisions_with_df(df))
             conn.execute(stmt)
             conn.commit()
-            
+            conn.close()
+        
+        db = engine
         for _, row in df.iterrows():
             #import pdb; pdb.set_trace()
             for k in row['citations'].keys():
@@ -76,10 +78,14 @@ class CitationExtractor(AbstractExtractor):
                     }
                     citations_to_insert.append(citation_dict)
                 if len(citations_to_insert) == 0: continue
-                with engine.connect() as conn:
-                    stmt = t.insert().values(citations_to_insert)
-                    conn.execute(stmt)
-                    conn.commit()
+                #with engine.connect() as conn:
+                conn = db.connect()
+                stmt = t.insert().values(citations_to_insert)
+                conn.execute(stmt)
+                conn.commit()
+                conn.close()
+        
+        db.dispose()
                 
 
 if __name__ == '__main__':

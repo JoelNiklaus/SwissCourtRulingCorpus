@@ -6,25 +6,34 @@ INSERT INTO "language"(iso_code) VALUES
 	('na');
 INSERT INTO canton(short_code) VALUES 
 	('AG'),
-	('AI');
+	('AI'),
+	('CH');
 INSERT INTO canton_name(canton_id, language_id, "name") VALUES 
 	((SELECT canton_id FROM canton WHERE short_code = 'AG'), (SELECT language_id FROM language WHERE iso_code ='de'),'Aargau'),
 	((SELECT canton_id FROM canton WHERE short_code = 'AI'), (SELECT language_id FROM language WHERE iso_code ='de'),'Appenzell Innerrhoden'),
+	((SELECT canton_id FROM canton WHERE short_code = 'CH'), (SELECT language_id FROM language WHERE iso_code ='de'),'Eidgenossenschaft'),
 	((SELECT canton_id FROM canton WHERE short_code = 'AG'), (SELECT language_id FROM language WHERE iso_code ='fr'),'Argovie'),
 	((SELECT canton_id FROM canton WHERE short_code = 'AI'), (SELECT language_id FROM language WHERE iso_code ='fr'),'Appenzell Rhodes-Intérieures'),
+	((SELECT canton_id FROM canton WHERE short_code = 'CH'), (SELECT language_id FROM language WHERE iso_code ='fr'),'Conféderation'),
 	((SELECT canton_id FROM canton WHERE short_code = 'AG'), (SELECT language_id FROM language WHERE iso_code ='it'),'Argovia'),
 	((SELECT canton_id FROM canton WHERE short_code = 'AI'), (SELECT language_id FROM language WHERE iso_code ='it'),'Appenzello Interno'),
+	((SELECT canton_id FROM canton WHERE short_code = 'CH'), (SELECT language_id FROM language WHERE iso_code ='it'),'Confederazione'),
 	((SELECT canton_id FROM canton WHERE short_code = 'AG'), (SELECT language_id FROM language WHERE iso_code ='en'),'Aargau'),
 	((SELECT canton_id FROM canton WHERE short_code = 'AI'), (SELECT language_id FROM language WHERE iso_code ='en'),'Appenzell Innerrhoden'),
+	((SELECT canton_id FROM canton WHERE short_code = 'CH'), (SELECT language_id FROM language WHERE iso_code ='en'),'Eidgenossenschaft'),
 	((SELECT canton_id FROM canton WHERE short_code = 'AG'), (SELECT language_id FROM language WHERE iso_code ='na'),'Aargau'),
-	((SELECT canton_id FROM canton WHERE short_code = 'AI'), (SELECT language_id FROM language WHERE iso_code ='na'),'Appenzell Innerrhoden');
+	((SELECT canton_id FROM canton WHERE short_code = 'AI'), (SELECT language_id FROM language WHERE iso_code ='na'),'Appenzell Innerrhoden'),
+	((SELECT canton_id FROM canton WHERE short_code = 'CH'), (SELECT language_id FROM language WHERE iso_code ='na'),'Eidgenossenschaft');
 INSERT INTO spider("name") VALUES 
 	('AG_Weitere'),
-	('AI_Aktuell');
+	('AI_Aktuell'),
+	('CH_BGer');
 INSERT INTO court(canton_id, court_string) VALUES 
 	((SELECT canton_id FROM canton WHERE short_code = 'AG'), 'AG_GB'),
 	((SELECT canton_id FROM canton WHERE short_code = 'AI'), 'AI_BZG'),
-	((SELECT canton_id FROM canton WHERE short_code = 'AI'), 'AI_KG');
+	((SELECT canton_id FROM canton WHERE short_code = 'AI'), 'AI_KG'),
+	((SELECT canton_id FROM canton WHERE short_code = 'CH'), 'CH_BGer'),
+	((SELECT canton_id FROM canton WHERE short_code = 'CH'), 'CH_XX');
 INSERT INTO court_name(court_id, "language_id", "name") VALUES 
 	((SELECT court_id FROM court WHERE court_string = 'AG_GB'), (SELECT language_id FROM language WHERE iso_code = 'de'), 'Entscheide Grundbuch und Notariat'),
 	((SELECT court_id FROM court WHERE court_string = 'AG_GB'), (SELECT language_id FROM language WHERE iso_code = 'en'), 'Entscheide Grundbuch und Notariat'),
@@ -40,11 +49,36 @@ INSERT INTO court_name(court_id, "language_id", "name") VALUES
 	((SELECT court_id FROM court WHERE court_string = 'AI_KG'), (SELECT language_id FROM language WHERE iso_code = 'en'), 'Kantonsgericht'),
 	((SELECT court_id FROM court WHERE court_string = 'AI_KG'), (SELECT language_id FROM language WHERE iso_code = 'fr'), 'Kantonsgericht'),
 	((SELECT court_id FROM court WHERE court_string = 'AI_KG'), (SELECT language_id FROM language WHERE iso_code = 'it'), 'Kantonsgericht'),
-	((SELECT court_id FROM court WHERE court_string = 'AI_KG'), (SELECT language_id FROM language WHERE iso_code = 'na'), 'Kantonsgericht');
+	((SELECT court_id FROM court WHERE court_string = 'AI_KG'), (SELECT language_id FROM language WHERE iso_code = 'na'), 'Kantonsgericht'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT language_id FROM language WHERE iso_code = 'de'), 'Bundesgericht'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT language_id FROM language WHERE iso_code = 'en'), 'Bundesgericht'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT language_id FROM language WHERE iso_code = 'fr'), 'Tribunal fédéral'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT language_id FROM language WHERE iso_code = 'it'), 'Tribunale federale'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT language_id FROM language WHERE iso_code = 'na'), 'Bundesgericht'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_XX'), (SELECT language_id FROM language WHERE iso_code = 'de'), 'unbekanntes Gericht'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_XX'), (SELECT language_id FROM language WHERE iso_code = 'en'), 'unbekanntes Gericht'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_XX'), (SELECT language_id FROM language WHERE iso_code = 'fr'), 'tribunal inconnu'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_XX'), (SELECT language_id FROM language WHERE iso_code = 'it'), 'corte sconosciuta'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_XX'), (SELECT language_id FROM language WHERE iso_code = 'na'), 'unbekanntes Gericht');
 INSERT INTO chamber(court_id, spider_id, chamber_string) VALUES 
 	((SELECT court_id FROM court WHERE court_string = 'AG_GB'), (SELECT spider_id FROM spider WHERE name = 'AG_Weitere'), 'AG_GB_001'),
 	((SELECT court_id FROM court WHERE court_string = 'AI_BZG'), (SELECT spider_id FROM spider WHERE name = 'AI_Aktuell'), 'AI_BZG_001'),
-	((SELECT court_id FROM court WHERE court_string = 'AI_KG'), (SELECT spider_id FROM spider WHERE name = 'AI_Aktuell'), 'AI_KG_001');
+	((SELECT court_id FROM court WHERE court_string = 'AI_KG'), (SELECT spider_id FROM spider WHERE name = 'AI_Aktuell'), 'AI_KG_001'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_001'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_002'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_004'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_005'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_006'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_008'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_009'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_010'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_012'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_013'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_014'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_015'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_016'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_BGer'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_BGer_999'),
+	((SELECT court_id FROM court WHERE court_string = 'CH_XX'), (SELECT spider_id FROM spider WHERE name = 'CH_BGer'), 'CH_XX_001');
 INSERT INTO judgment("text") VALUES 
 	('approval'),
 	('dismissal'),

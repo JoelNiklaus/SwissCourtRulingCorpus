@@ -7,7 +7,8 @@ class ExtendCourtChambers():
         cantons = json.loads(
             (Path(__file__).parent / "court_chambers.json").read_text())
         current_cantons = json.loads(
-            (Path(__file__).parent / "court_chambers_extended.json").read_text())
+            #(Path(__file__).parent / "court_chambers_extended.json").read_text())
+            (Path(__file__).parent / "court_chambers_extended_test3.json").read_text())
 
         for canton_key, canton_dict in cantons.items():
             for court_key, court_dict in canton_dict['gerichte'].items():
@@ -24,7 +25,8 @@ class ExtendCourtChambers():
                 cantons[canton_key]['gerichte'][court_key].move_to_end(
                     'kammern', last=True)
 
-        (Path(__file__).parent / "court_chambers_extended.json").write_text(json.dumps(cantons, indent=4))
+        #(Path(__file__).parent / "court_chambers_extended.json").write_text(json.dumps(cantons, indent=4))
+        (Path(__file__).parent / "court_chambers_extended_test3.json").write_text(json.dumps(cantons, indent=4))
 
 
 if __name__ == '__main__':

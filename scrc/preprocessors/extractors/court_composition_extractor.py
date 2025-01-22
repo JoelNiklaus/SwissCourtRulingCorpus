@@ -69,47 +69,54 @@ class CourtCompositionExtractor(AbstractExtractor):
             # Delete and reinsert as no upsert command is available
             stmt = t_jud_person.delete().where(delete_stmt_decisions_with_df(df))
             conn.execute(stmt)
-            
-            for _, row in df.iterrows():
-                if not 'court_composition' in row or row['court_composition'] is None:
+            conn.commit()
+        
+        for _, row in df.iterrows():
+            if not 'court_composition' in row or row['court_composition'] is None:
+                continue
+            court_composition: CourtComposition = row['court_composition']
+            president = court_composition.president
+            if president:
+                # create president person
+                president_dict = {"name": president.name.strip(),
+                                "is_natural_person": True,
+                                "gender": president.gender.value[0] if president.gender else None}
+                stmt = t_person.insert().returning(text("person_id")).values([president_dict])
+                person_id = conn.execute(stmt).fetchone()['person_id']
+                person_dict = {"decision_id": str(row['decision_id']), "person_id": person_id,
+                            "judicial_person_type_id": 1, "is_president": True}
+                with engine.connect() as conn:
+                    stmt = t_jud_person.insert().values([person_dict])
+                    conn.execute(stmt)
+                    conn.commit()
+
+            # create all judges
+            for judge in court_composition.judges:
+                if judge == president: # President is already created above
                     continue
-                court_composition: CourtComposition = row['court_composition']
-                president = court_composition.president
-                if president:
-                    # create president person
-                    president_dict = {"name": president.name.strip(),
-                                    "is_natural_person": True,
-                                    "gender": president.gender.value[0] if president.gender else None}
-                    stmt = t_person.insert().returning(text("person_id")).values([president_dict])
-                    person_id = conn.execute(stmt).fetchone()['person_id']
-                    person_dict = {"decision_id": str(row['decision_id']), "person_id": person_id,
-                                "judicial_person_type_id": 1, "is_president": True}
+                judge_dict = {"name": judge.name.strip(), "is_natural_person": True, "gender": judge.gender.value[0] if judge.gender else None}
+                stmt = t_person.insert().returning(text("person_id")).values([judge_dict])
+                person_id = conn.execute(stmt).fetchone()['person_id']
+                person_dict = {"decision_id": str(row['decision_id']),
+                                "person_id": person_id, "judicial_person_type_id": 1,
+                                "is_president": False}
+                with engine.connect() as conn:
                     stmt = t_jud_person.insert().values([person_dict])
                     conn.execute(stmt)
+                    conn.commit()
 
-                # create all judges
-                for judge in court_composition.judges:
-                    if judge == president: # President is already created above
-                        continue
-                    judge_dict = {"name": judge.name.strip(), "is_natural_person": True, "gender": judge.gender.value[0] if judge.gender else None}
-                    stmt = t_person.insert().returning(text("person_id")).values([judge_dict])
-                    person_id = conn.execute(stmt).fetchone()['person_id']
-                    person_dict = {"decision_id": str(row['decision_id']),
-                                   "person_id": person_id, "judicial_person_type_id": 1,
-                                   "is_president": False}
+            # create all clerks
+            for clerk in court_composition.clerks:
+                clerk_dict = {"name": clerk.name.strip(), "is_natural_person": True, "gender": clerk.gender.value[0] if clerk.gender else None}
+                stmt = t_person.insert().returning(text("person_id")).values([clerk_dict])
+                person_id = conn.execute(stmt).fetchone()['person_id']
+                person_dict = {"decision_id": str(row['decision_id']),
+                                "person_id": person_id, "judicial_person_type_id": 2,
+                                "is_president": False}
+                with engine.connect() as conn:
                     stmt = t_jud_person.insert().values([person_dict])
                     conn.execute(stmt)
-
-                # create all clerks
-                for clerk in court_composition.clerks:
-                    clerk_dict = {"name": clerk.name.strip(), "is_natural_person": True, "gender": clerk.gender.value[0] if clerk.gender else None}
-                    stmt = t_person.insert().returning(text("person_id")).values([clerk_dict])
-                    person_id = conn.execute(stmt).fetchone()['person_id']
-                    person_dict = {"decision_id": str(row['decision_id']),
-                                   "person_id": person_id, "judicial_person_type_id": 2,
-                                   "is_president": False}
-                    stmt = t_jud_person.insert().values([person_dict])
-                    conn.execute(stmt)
+                    conn.commit()
 
             where = f"WHERE NOT EXISTS (SELECT 1 FROM judicial_person b WHERE a.person_id = b.person_id) " \
                     f"AND NOT EXISTS (SELECT 1 FROM party c WHERE a.person_id = c.person_id)"
